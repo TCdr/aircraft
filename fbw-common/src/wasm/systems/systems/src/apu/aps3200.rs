@@ -30,6 +30,8 @@ impl ApuConstants for Aps3200Constants {
     const AIR_INTAKE_FLAP_CLOSURE_PERCENT: f64 = 7.;
     const SHOULD_BE_AVAILABLE_DURING_SHUTDOWN: bool = true;
     const FUEL_LINE_ID: u8 = 18;
+    // A high oil temperature shuts the APU down in flight too, not only on the ground
+    const HIGH_OIL_TEMPERATURE_SHUTDOWN_IN_FLIGHT: bool = true;
 }
 
 pub struct ShutdownAps3200Turbine {

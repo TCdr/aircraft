@@ -1,10 +1,11 @@
-// Copyright (c) 2023-2024 FlyByWire Simulations
+// Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 #ifndef FLYBYWIRE_AIRCRAFT_FADECSIMDATA_A380X_HPP
 #define FLYBYWIRE_AIRCRAFT_FADECSIMDATA_A380X_HPP
 
 #include <MSFS/Legacy/gauges.h>
+#include <string>
 
 #include "DataManager.h"
 
@@ -156,6 +157,7 @@ class FadecSimData_A380X {
     FLOAT64 simEngineN1[4];          // in Percent
     FLOAT64 simEngineN2[4];          // in Percent
     FLOAT64 simEngineThrust[4];      // in Pounds
+    FLOAT64 simCommandedN1[4];       // in Percent (corrected)
   };
   DataDefinitionVector simVarsDataDef = {
       {"ANIMATION DELTA TIME",         0, UNITS.Seconds  }, //
@@ -188,6 +190,10 @@ class FadecSimData_A380X {
       {"TURB ENG JET THRUST",          2, UNITS.Pounds   }, //
       {"TURB ENG JET THRUST",          3, UNITS.Pounds   }, //
       {"TURB ENG JET THRUST",          4, UNITS.Pounds   }, //
+      {"TURB ENG COMMANDED N1",       1, UNITS.Percent  }, //
+      {"TURB ENG COMMANDED N1",       2, UNITS.Percent  }, //
+      {"TURB ENG COMMANDED N1",       3, UNITS.Percent  }, //
+      {"TURB ENG COMMANDED N1",       4, UNITS.Percent  }, //
   };
   DataDefinitionVariablePtr<SimVarsData> simVarsDataPtr;
 
@@ -203,6 +209,8 @@ class FadecSimData_A380X {
   CallbackID     toggleEngineStarter4EventCallback{};
   ClientEventPtr setStarterHeldEvent[4];
   ClientEventPtr setStarterEvent[4];
+  // the MSFS engine ignition switch (TURB ENG IGNITION SWITCH EX1: 0 crank, 1 norm, 2 ign), set by the ENG START selector
+  ClientEventPtr setIgnitionSwitchEvent[4];
 
   // SimVars
   AircraftVariablePtr engineCombustion[4];  // 0 or 1
@@ -213,6 +221,29 @@ class FadecSimData_A380X {
   NamedVariablePtr apuRpmPercent;       // Percent
   NamedVariablePtr engineEgt[4];        // Celsius
   NamedVariablePtr engineFF[4];         // kg/hour
+  // Bool - the engine must not burn: LP valve starvation, flameout or seizure failure, relight not lit up (systems WASM)
+  NamedVariablePtr engineFuelCut[4];
+  NamedVariablePtr engineSeized[4];          // Bool - seizure failure: the core stops (systems WASM)
+  NamedVariablePtr engineWindmillN1[4];      // Percent - N1 of the engine windmilling without combustion (systems WASM)
+  NamedVariablePtr engineWindmillN3[4];      // Percent - core speed (N3) of the engine windmilling (systems WASM)
+  NamedVariablePtr engineRelightIgnition[4];  // Bool - an in-flight relight is lighting up: igniters on (systems WASM)
+  NamedVariablePtr engineRelightAttempt[4];   // Bool - a relight attempt is in progress (systems WASM)
+  // The start sequence of the systems WASM (StartSequence_A380X.hpp, systems::engine::engine_start)
+  NamedVariablePtr engineStartPhase[4];         // Enum - StartSequence_A380X::StartPhase
+  NamedVariablePtr engineStarterMotoring[4];    // Bool - the starter turns the core while the fuel is cut
+  NamedVariablePtr engineStartN3Hang[4];        // Bool - hung start or stall: the core speed hangs below idle
+  NamedVariablePtr engineStartEgtOvershoot[4];  // Bool - hot start or stall: the start EGT overshoots
+  NamedVariablePtr engineStartIgniters[4];      // Number - the igniters the start sequence energizes: bit 0 A, bit 1 B
+  NamedVariablePtr engineStartSelector;       // Enum - ENG START selector: 0 crank, 1 norm, 2 ign start
+  NamedVariablePtr engineFirePbReleased[4];   // Bool - ENG FIRE pb released: the FADEC is no longer supplied
+  NamedVariablePtr engineIgniterA[4];         // Bool - igniter A energized (SD ENGINE page ignition indication)
+  NamedVariablePtr engineIgniterB[4];         // Bool - igniter B energized (SD ENGINE page ignition indication)
+  NamedVariablePtr engineOilLeak[4];          // Bool - oil leak failure: the oil system loses oil (systems WASM)
+  NamedVariablePtr engineOilOverheat[4];      // Bool - oil overheat failure: the oil is not cooled enough (systems WASM)
+  // Stall and EGT overtemperature failures of a running engine (systems WASM, a380_systems engine_malfunction.rs)
+  NamedVariablePtr engineEgtOffset[4];  // Celsius - added to the EGT
+  NamedVariablePtr engineN1Offset[4];   // Percent - added to the N1
+  NamedVariablePtr engineN3Offset[4];   // Percent - added to the N3 (and the N2 derived from it)
   NamedVariablePtr engineFuelUsed[4];   // kg
   NamedVariablePtr engineIdleEGT;       // Celsius
   NamedVariablePtr engineIdleFF;
@@ -248,7 +279,7 @@ class FadecSimData_A380X {
   NamedVariablePtr thrustLimitMct;
   NamedVariablePtr thrustLimitToga;
   NamedVariablePtr thrustLimitType;
-  NamedVariablePtr wingAntiIce;
+  AircraftVariablePtr wingAntiIce;  // WING ANTI ICE pb (the A380X has no Rust wing anti-ice system)
 
   NamedVariablePtr fadecQuickMode;  // 0 or 1
   NamedVariablePtr engineTla[4];
@@ -331,6 +362,12 @@ class FadecSimData_A380X {
     setStarterEvent[E2] = dm->make_client_event("STARTER2_SET", true, NOTIFICATION_GROUP_0);
     setStarterEvent[E3] = dm->make_client_event("STARTER3_SET", true, NOTIFICATION_GROUP_0);
     setStarterEvent[E4] = dm->make_client_event("STARTER4_SET", true, NOTIFICATION_GROUP_0);
+
+    // not in a notification group: the events of the ENG START selector must not be masked
+    setIgnitionSwitchEvent[E1] = dm->make_client_event("TURBINE_IGNITION_SWITCH_SET1", true);
+    setIgnitionSwitchEvent[E2] = dm->make_client_event("TURBINE_IGNITION_SWITCH_SET2", true);
+    setIgnitionSwitchEvent[E3] = dm->make_client_event("TURBINE_IGNITION_SWITCH_SET3", true);
+    setIgnitionSwitchEvent[E4] = dm->make_client_event("TURBINE_IGNITION_SWITCH_SET4", true);
   }
 
   void initSimvars(DataManager* dm) {
@@ -385,6 +422,74 @@ class FadecSimData_A380X {
     engineFF[E3] = dm->make_named_var("A32NX_ENGINE_FF:3", UNITS.Number, AUTO_READ_WRITE);
     engineFF[E4] = dm->make_named_var("A32NX_ENGINE_FF:4", UNITS.Number, AUTO_READ_WRITE);
 
+    engineFuelCut[E1] = dm->make_named_var("A32NX_ENGINE_1_FUEL_CUT", UNITS.Number, AUTO_READ);
+    engineFuelCut[E2] = dm->make_named_var("A32NX_ENGINE_2_FUEL_CUT", UNITS.Number, AUTO_READ);
+    engineFuelCut[E3] = dm->make_named_var("A32NX_ENGINE_3_FUEL_CUT", UNITS.Number, AUTO_READ);
+    engineFuelCut[E4] = dm->make_named_var("A32NX_ENGINE_4_FUEL_CUT", UNITS.Number, AUTO_READ);
+    engineSeized[E1]  = dm->make_named_var("A32NX_ENGINE_1_SEIZED", UNITS.Number, AUTO_READ);
+    engineSeized[E2]  = dm->make_named_var("A32NX_ENGINE_2_SEIZED", UNITS.Number, AUTO_READ);
+    engineSeized[E3]  = dm->make_named_var("A32NX_ENGINE_3_SEIZED", UNITS.Number, AUTO_READ);
+    engineSeized[E4]  = dm->make_named_var("A32NX_ENGINE_4_SEIZED", UNITS.Number, AUTO_READ);
+
+    // the shared systems WASM module names the windmilling core speed "N2": on the A380X it is the N3 (the HP spool)
+    engineWindmillN1[E1] = dm->make_named_var("A32NX_ENGINE_1_WINDMILL_N1", UNITS.Number, AUTO_READ);
+    engineWindmillN1[E2] = dm->make_named_var("A32NX_ENGINE_2_WINDMILL_N1", UNITS.Number, AUTO_READ);
+    engineWindmillN1[E3] = dm->make_named_var("A32NX_ENGINE_3_WINDMILL_N1", UNITS.Number, AUTO_READ);
+    engineWindmillN1[E4] = dm->make_named_var("A32NX_ENGINE_4_WINDMILL_N1", UNITS.Number, AUTO_READ);
+    engineWindmillN3[E1] = dm->make_named_var("A32NX_ENGINE_1_WINDMILL_N2", UNITS.Number, AUTO_READ);
+    engineWindmillN3[E2] = dm->make_named_var("A32NX_ENGINE_2_WINDMILL_N2", UNITS.Number, AUTO_READ);
+    engineWindmillN3[E3] = dm->make_named_var("A32NX_ENGINE_3_WINDMILL_N2", UNITS.Number, AUTO_READ);
+    engineWindmillN3[E4] = dm->make_named_var("A32NX_ENGINE_4_WINDMILL_N2", UNITS.Number, AUTO_READ);
+
+    engineOilLeak[E1]     = dm->make_named_var("A32NX_ENGINE_1_OIL_LEAK", UNITS.Number, AUTO_READ);
+    engineOilLeak[E2]     = dm->make_named_var("A32NX_ENGINE_2_OIL_LEAK", UNITS.Number, AUTO_READ);
+    engineOilLeak[E3]     = dm->make_named_var("A32NX_ENGINE_3_OIL_LEAK", UNITS.Number, AUTO_READ);
+    engineOilLeak[E4]     = dm->make_named_var("A32NX_ENGINE_4_OIL_LEAK", UNITS.Number, AUTO_READ);
+    engineOilOverheat[E1] = dm->make_named_var("A32NX_ENGINE_1_OIL_OVERHEAT", UNITS.Number, AUTO_READ);
+    engineOilOverheat[E2] = dm->make_named_var("A32NX_ENGINE_2_OIL_OVERHEAT", UNITS.Number, AUTO_READ);
+    engineOilOverheat[E3] = dm->make_named_var("A32NX_ENGINE_3_OIL_OVERHEAT", UNITS.Number, AUTO_READ);
+    engineOilOverheat[E4] = dm->make_named_var("A32NX_ENGINE_4_OIL_OVERHEAT", UNITS.Number, AUTO_READ);
+
+    engineRelightIgnition[E1] = dm->make_named_var("A32NX_ENGINE_1_RELIGHT_IGNITION", UNITS.Number, AUTO_READ);
+    engineRelightIgnition[E2] = dm->make_named_var("A32NX_ENGINE_2_RELIGHT_IGNITION", UNITS.Number, AUTO_READ);
+    engineRelightIgnition[E3] = dm->make_named_var("A32NX_ENGINE_3_RELIGHT_IGNITION", UNITS.Number, AUTO_READ);
+    engineRelightIgnition[E4] = dm->make_named_var("A32NX_ENGINE_4_RELIGHT_IGNITION", UNITS.Number, AUTO_READ);
+    engineRelightAttempt[E1]  = dm->make_named_var("A32NX_ENGINE_1_RELIGHT_ATTEMPT", UNITS.Number, AUTO_READ);
+    engineRelightAttempt[E2]  = dm->make_named_var("A32NX_ENGINE_2_RELIGHT_ATTEMPT", UNITS.Number, AUTO_READ);
+    engineRelightAttempt[E3]  = dm->make_named_var("A32NX_ENGINE_3_RELIGHT_ATTEMPT", UNITS.Number, AUTO_READ);
+    engineRelightAttempt[E4]  = dm->make_named_var("A32NX_ENGINE_4_RELIGHT_ATTEMPT", UNITS.Number, AUTO_READ);
+
+    for (int i = 0; i < 4; i++) {
+      const std::string prefix   = "A32NX_ENGINE_" + std::to_string(i + 1) + "_";
+      engineStartPhase[i]        = dm->make_named_var(prefix + "START_PHASE", UNITS.Number, AUTO_READ);
+      engineStarterMotoring[i]   = dm->make_named_var(prefix + "STARTER_MOTORING", UNITS.Number, AUTO_READ);
+      engineStartN3Hang[i]       = dm->make_named_var(prefix + "START_N2_HANG", UNITS.Number, AUTO_READ);
+      engineStartEgtOvershoot[i] = dm->make_named_var(prefix + "START_EGT_OVERSHOOT", UNITS.Number, AUTO_READ);
+      engineStartIgniters[i]     = dm->make_named_var(prefix + "IGNITERS", UNITS.Number, AUTO_READ);
+    }
+    // XMLVAR_ENG_MODE_SEL has no A32NX_ prefix in the sim: noPrefix = true (last parameter), else L:A32NX_XMLVAR_ENG_MODE_SEL (always 0).
+    engineStartSelector = dm->make_named_var("XMLVAR_ENG_MODE_SEL", UNITS.Number, AUTO_READ, 0.0, 0, true);
+    engineFirePbReleased[E1]  = dm->make_named_var("A32NX_FIRE_BUTTON_ENG1", UNITS.Number, AUTO_READ);
+    engineFirePbReleased[E2]  = dm->make_named_var("A32NX_FIRE_BUTTON_ENG2", UNITS.Number, AUTO_READ);
+    engineFirePbReleased[E3]  = dm->make_named_var("A32NX_FIRE_BUTTON_ENG3", UNITS.Number, AUTO_READ);
+    engineFirePbReleased[E4]  = dm->make_named_var("A32NX_FIRE_BUTTON_ENG4", UNITS.Number, AUTO_READ);
+    // the igniters the FADEC energizes (IgniterSelection_A380X), the names of the A32NX (A32NX_FADEC.ts)
+    engineIgniterA[E1] = dm->make_named_var("A32NX_FADEC_IGNITER_A_ACTIVE_ENG1", UNITS.Bool, AUTO_WRITE);
+    engineIgniterA[E2] = dm->make_named_var("A32NX_FADEC_IGNITER_A_ACTIVE_ENG2", UNITS.Bool, AUTO_WRITE);
+    engineIgniterA[E3] = dm->make_named_var("A32NX_FADEC_IGNITER_A_ACTIVE_ENG3", UNITS.Bool, AUTO_WRITE);
+    engineIgniterA[E4] = dm->make_named_var("A32NX_FADEC_IGNITER_A_ACTIVE_ENG4", UNITS.Bool, AUTO_WRITE);
+    engineIgniterB[E1] = dm->make_named_var("A32NX_FADEC_IGNITER_B_ACTIVE_ENG1", UNITS.Bool, AUTO_WRITE);
+    engineIgniterB[E2] = dm->make_named_var("A32NX_FADEC_IGNITER_B_ACTIVE_ENG2", UNITS.Bool, AUTO_WRITE);
+    engineIgniterB[E3] = dm->make_named_var("A32NX_FADEC_IGNITER_B_ACTIVE_ENG3", UNITS.Bool, AUTO_WRITE);
+    engineIgniterB[E4] = dm->make_named_var("A32NX_FADEC_IGNITER_B_ACTIVE_ENG4", UNITS.Bool, AUTO_WRITE);
+
+    for (int i = 0; i < 4; i++) {
+      const std::string engineNumber = std::to_string(i + 1);
+      engineEgtOffset[i] = dm->make_named_var("A32NX_ENGINE_" + engineNumber + "_EGT_OFFSET", UNITS.Number, AUTO_READ);
+      engineN1Offset[i]  = dm->make_named_var("A32NX_ENGINE_" + engineNumber + "_N1_OFFSET", UNITS.Number, AUTO_READ);
+      engineN3Offset[i]  = dm->make_named_var("A32NX_ENGINE_" + engineNumber + "_N3_OFFSET", UNITS.Number, AUTO_READ);
+    }
+
     engineFuelUsed[E1] = dm->make_named_var("A32NX_FUEL_USED:1", UNITS.Number, AUTO_READ_WRITE);
     engineFuelUsed[E2] = dm->make_named_var("A32NX_FUEL_USED:2", UNITS.Number, AUTO_READ_WRITE);
     engineFuelUsed[E3] = dm->make_named_var("A32NX_FUEL_USED:3", UNITS.Number, AUTO_READ_WRITE);
@@ -436,7 +541,10 @@ class FadecSimData_A380X {
 
     packsState[0]       = dm->make_named_var("A32NX_COND_PACK_1_IS_OPERATING", UNITS.Number, AUTO_READ);
     packsState[1]       = dm->make_named_var("A32NX_COND_PACK_2_IS_OPERATING", UNITS.Number, AUTO_READ);
-    wingAntiIce         = dm->make_named_var("A32NX_PNEU_WING_ANTI_ICE_SYSTEM_ON", UNITS.Number, AUTO_READ);
+    // STRUCTURAL DEICE SWITCH follows the wing anti-ice valves of the systems model (a380_systems ice_rain_protection.rs,
+    // through the systems_wasm wing anti-ice aspect): the TOGA thrust takes the bleed demand into account (the bleed
+    // supply includes the wing anti-ice), not during the takeoff wing anti-ice inhibition
+    wingAntiIce         = dm->make_aircraft_var("STRUCTURAL DEICE SWITCH", 0, "", nullptr, UNITS.Bool, AUTO_READ);
     refuelRate          = dm->make_named_var("A32NX_EFB_REFUEL_RATE_SETTING", UNITS.Number, AUTO_READ);
     refuelStartedByUser = dm->make_named_var("A32NX_REFUEL_STARTED_BY_USR", UNITS.Number, AUTO_READ);
     airlinerToFlexTemp  = dm->make_named_var("A32NX_AIRLINER_TO_FLEX_TEMP", UNITS.Number, AUTO_READ);
@@ -474,6 +582,14 @@ class FadecSimData_A380X {
     engineN2[E2]->setAndWriteToSim(0);
     engineN2[E3]->setAndWriteToSim(0);
     engineN2[E4]->setAndWriteToSim(0);
+    engineIgniterA[E1]->setAndWriteToSim(0);
+    engineIgniterA[E2]->setAndWriteToSim(0);
+    engineIgniterA[E3]->setAndWriteToSim(0);
+    engineIgniterA[E4]->setAndWriteToSim(0);
+    engineIgniterB[E1]->setAndWriteToSim(0);
+    engineIgniterB[E2]->setAndWriteToSim(0);
+    engineIgniterB[E3]->setAndWriteToSim(0);
+    engineIgniterB[E4]->setAndWriteToSim(0);
     engineOilTotal[E1]->setAndWriteToSim(0);
     engineOilTotal[E2]->setAndWriteToSim(0);
     engineOilTotal[E3]->setAndWriteToSim(0);

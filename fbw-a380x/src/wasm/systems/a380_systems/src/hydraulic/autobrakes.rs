@@ -1,4 +1,5 @@
 use systems::{
+    failures::{Failure, FailureType},
     hydraulic::brake_circuit::AutobrakeDecelerationGovernor,
     overhead::PressSingleSignalButton,
     shared::{
@@ -171,6 +172,11 @@ pub struct A380AutobrakeController {
 
     external_deactivation_event_id: VariableIdentifier,
 
+    auto_brk_fault_id: VariableIdentifier,
+    /// The autobrake is failed (flyPad failure 32113): BRAKES AUTO BRK FAULT (e.g. RTO pb failed, AUTO BRK selector
+    /// failed, spoiler position not available)
+    autobrake_failure: Failure,
+
     deceleration_governor: AutobrakeDecelerationGovernor,
     decelerating_light: bool,
 
@@ -216,6 +222,7 @@ impl A380AutobrakeController {
     const HIGH_MODE_DECEL_PROFILE_ACCEL_MS2: [f64; 3] = [4., -2., -3.5];
 
     const RTO_MODE_DECEL_TARGET_MS2: f64 = -6.;
+    const RTO_MIN_ACTIVATION_GROUND_SPEED_KNOT: f64 = 40.;
     const OFF_MODE_DECEL_TARGET_MS2: f64 = 5.;
 
     const MARGIN_PERCENT_TO_TARGET_TO_SHOW_DECEL_IN_LANDING_MODE: f64 = 80.;
@@ -236,6 +243,9 @@ impl A380AutobrakeController {
 
             external_deactivation_event_id: context
                 .get_identifier("AUTOBRAKE_INSTINCTIVE_DISCONNECT".to_owned()),
+
+            auto_brk_fault_id: context.get_identifier("BRAKES_AUTO_BRK_FAULT".to_owned()),
+            autobrake_failure: Failure::new(FailureType::Autobrake),
 
             deceleration_governor: AutobrakeDecelerationGovernor::new(),
             decelerating_light: false,
@@ -328,7 +338,16 @@ impl A380AutobrakeController {
             && self.ground_spoilers_are_deployed // We wait 5s after deploy, but they need to be deployed even if nose compressed
             && (self.ground_spoilers_are_deployed_since_5s.output()
                 || self.nose_gear_was_compressed_once)
+            && self.rto_activation_speed_condition(context)
             && !self.should_disarm(context)
+    }
+
+    /// The RTO mode does not activate below 40 kt; selected by error above 40 kt during the landing roll, it activates.
+    /// The speed only gates the activation: an RTO braking that is already active continues down to the stop.
+    fn rto_activation_speed_condition(&self, context: &UpdateContext) -> bool {
+        self.mode != A380AutobrakeMode::RTO
+            || self.deceleration_governor.is_engaged()
+            || context.ground_speed().get::<knot>() >= Self::RTO_MIN_ACTIVATION_GROUND_SPEED_KNOT
     }
 
     fn is_armed(&self) -> bool {
@@ -423,8 +442,12 @@ impl A380AutobrakeController {
             || (self.deceleration_governor.is_engaged()
                 && (self.external_deactivation_event && self.mode != A380AutobrakeMode::RTO))
             || (context.is_sim_ready() && !self.arming_is_allowed_by_bcu)
+            // A failed autobrake cannot be armed: STATUS INOP SYS AUTO BRK (BRAKES AUTO BRK FAULT)
+            || self.autobrake_failure.is_active()
             || self.spoilers_retracted_during_this_update()
-            || self.should_disarm_after_time_in_flight.output()
+            // Only the RTO mode disarms after 10 s in flight; a landing mode can be armed in flight and on the ground,
+            // so a landing mode armed on the ground stays armed after take-off.
+            || (self.mode == A380AutobrakeMode::RTO && self.should_disarm_after_time_in_flight.output())
             || (self.mode == A380AutobrakeMode::RTO
                 && self.should_reject_rto_mode_after_time_in_flight.output())
             || (self.mode == A380AutobrakeMode::BTV && !self.btv_scheduler.is_armed())
@@ -588,6 +611,7 @@ impl A380AutobrakeController {
 }
 impl SimulationElement for A380AutobrakeController {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.autobrake_failure.accept(visitor);
         self.autobrake_knob.accept(visitor);
         self.braking_distance_calculator.accept(visitor);
         self.btv_scheduler.accept(visitor);
@@ -601,6 +625,7 @@ impl SimulationElement for A380AutobrakeController {
         writer.write(&self.decel_light_id, self.is_decelerating());
         writer.write(&self.active_id, self.deceleration_demanded());
         writer.write(&self.rto_mode_armed_id, self.mode == A380AutobrakeMode::RTO);
+        writer.write(&self.auto_brk_fault_id, self.autobrake_failure.is_active());
     }
 
     fn read(&mut self, reader: &mut SimulatorReader) {
@@ -1004,6 +1029,7 @@ struct BtvDecelScheduler {
     exit_missed_id: VariableIdentifier,
     state_id: VariableIdentifier,
     btv_lost_id: VariableIdentifier,
+    fws_btv_inop_id: VariableIdentifier,
 
     runway_length: Arinc429Word<Length>,
 
@@ -1015,6 +1041,7 @@ struct BtvDecelScheduler {
 
     state: BTVState,
 
+    /// BTV cannot be used: BTV LOST from the FCDC, or an ECAM alert that lists BTV in STATUS INOP SYS
     btv_lost: bool,
 
     deceleration_request: Acceleration,
@@ -1076,6 +1103,7 @@ impl BtvDecelScheduler {
             exit_missed_id: context.get_identifier("BTV_EXIT_MISSED".to_owned()),
             state_id: context.get_identifier("BTV_STATE".to_owned()),
             btv_lost_id: context.get_identifier("BTV_LOST".to_owned()),
+            fws_btv_inop_id: context.get_identifier("FWC_1_BTV_INOP".to_owned()),
 
             runway_length: Arinc429Word::new(Length::default(), SignStatus::NoComputedData),
             rolling_distance: Length::default(),
@@ -1448,7 +1476,14 @@ impl SimulationElement for BtvDecelScheduler {
             raw_feet_exit_length_arinc.ssm(),
         );
 
-        self.btv_lost = reader.read(&self.btv_lost_id);
+        // BTV cannot be used with an ECAM alert that impacts the landing performance. The FCDC BTV LOST covers the
+        // flight control, hydraulic, electrical, ADIRU and OANS losses; the FWS adds the alerts that list BTV in
+        // STATUS INOP SYS on their own (ENG 2(3) SHUT DOWN, TWO ENGS OUT, ENG 2(3) REVERSER failures, FwsCore
+        // engineOutBtvInop / reverserBtvInop). Design choice: both act the same way, BTV does not arm and an armed
+        // BTV reverts to BRK HI (as when any arming condition is lost).
+        let fcdc_btv_lost: bool = reader.read(&self.btv_lost_id);
+        let fws_btv_inop: bool = reader.read(&self.fws_btv_inop_id);
+        self.btv_lost = fcdc_btv_lost || fws_btv_inop;
     }
 }
 

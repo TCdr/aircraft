@@ -380,6 +380,12 @@
     - Bool
     - Indicates if the APU fire button is RELEASED
 
+- A32NX_FWC_FIRE_TEST_{ENG1 | ENG2 | APU}_ACTIVE
+    - Bool
+    - True while the FWC sees the ENG 1, ENG 2 or APU FIRE TEST: while the TEST pb is pressed, plus 7 s after
+      release when the flyPad realism option "Extend Fire Test Warnings After Button Release" is on
+    - Written by the FWC; drives the FIRE pb and AGENT/SQUIB DISCH lights, so they stay lit as long as the ECAM and the CRC
+
 - A32NX_RMP_L_TOGGLE_SWITCH
     - Boolean
     - Whether the left radio management panel toggle switch is on or off.
@@ -2767,6 +2773,7 @@ In the variables below, {number} should be replaced with one item in the set: { 
 
 - A32NX_PNEU_ENG_{number}_LOW_TEMPERATURE:
     - Indicates whether the engine bleed air temperature is low
+    - Set when the bleed supplies air (valve open) below 150 °C in flight with WING ANTI ICE on (BLEED LO TEMP)
     - Bool
     - {number}
         - 1
@@ -4002,6 +4009,27 @@ In the variables below, {number} should be replaced with one item in the set: { 
 - A32NX_TOTAL_FUEL_VOLUME
   - Number in Gallons
   - The total physical volume of fuel in the tanks
+
+- A32NX_FUEL_ENG_{number}_LP_VALVE_OPEN_PERCENTAGE
+  - Percent
+  - {number}
+    - 1
+    - 2
+  - Position of the engine LP fuel valve, 0 when fully closed. The valve is closed by the ENG MASTER switch or the ENG FIRE pushbutton (FCOM DSC-28-10-30)
+
+- A32NX_FUEL_ENG_{number}_FUEL_DOWNSTREAM_LP_VALVE
+  - Number in kilogram
+  - {number}
+    - 1
+    - 2
+  - Fuel left between the engine LP fuel valve and the engine nozzles. Full while the valve is open, burned at the engine fuel flow once the valve is fully closed
+
+- A32NX_FUEL_ENG_{number}_STARVED
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True when the engine LP fuel valve is closed and the fuel downstream of it is burned: the engine shuts down (FCOM PRO-ABN-ENG). Closes the MSFS fuel valve 13 (engine 1) or 14 (engine 2)
 
 ## Indication and Recording Systems (ATA 31)
 

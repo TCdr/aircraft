@@ -70,8 +70,17 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (ElectricalBusType::DirectCurrentGndFltService, 15),
     ])?
     .with_auxiliary_power_unit(Variable::named("OVHD_APU_START_PB_IS_AVAILABLE"), 8, 7)?
-    .with_engine_anti_ice(2)?
+    // The MSFS engine anti-ice follows the engine anti-ice valves
+    .with_engine_anti_ice_valves(2)?
     .with_wing_anti_ice()?
+    // The engine starves once its LP fuel valve is closed and the fuel left downstream of it is burned
+    // (see a320_systems fuel/engine_lp_valve.rs). Fuel valves 13 and 14 of
+    // flight_model.cfg feed the engines in series with their MSFS engine valves 1 and 2: closing them
+    // stops the MSFS combustion exactly when the engine starves.
+    .with_fuel_valves_closed_while([
+        (Variable::named("FUEL_ENG_1_STARVED"), 13),
+        (Variable::named("FUEL_ENG_2_STARVED"), 14),
+    ])?
     .with_failures([
         (
             21_000,
@@ -298,6 +307,10 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (34_021, FailureType::RadioAntennaDirectCoupling(2)),
         (34_040, FailureType::Gps(1)),
         (34_041, FailureType::Gps(2)),
+        (30_000, FailureType::EngineAntiIceValveStuckClosed(1)),
+        (30_001, FailureType::EngineAntiIceValveStuckClosed(2)),
+        (30_010, FailureType::EngineAntiIceValveStuckOpen(1)),
+        (30_011, FailureType::EngineAntiIceValveStuckOpen(2)),
         (
             34_030,
             FailureType::EnhancedGroundProximityWarningSystemComputer,
@@ -330,6 +343,8 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
     .provides_aircraft_variable("FUEL TANK RIGHT AUX QUANTITY", "gallons", 0)?
     .provides_aircraft_variable("FUELSYSTEM LINE FUEL FLOW", "gallons per hour", 18)?
     .provides_aircraft_variable_range("FUELSYSTEM PUMP ACTIVE", "Bool", 1..=7)?
+    .provides_aircraft_variable("FUELSYSTEM VALVE SWITCH", "Bool", 1)?
+    .provides_aircraft_variable("FUELSYSTEM VALVE SWITCH", "Bool", 2)?
     .provides_aircraft_variable("GEAR ANIMATION POSITION", "Percent", 0)?
     .provides_aircraft_variable("GEAR ANIMATION POSITION", "Percent", 1)?
     .provides_aircraft_variable("GEAR ANIMATION POSITION", "Percent", 2)?

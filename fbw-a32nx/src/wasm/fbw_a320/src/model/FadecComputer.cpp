@@ -3,6 +3,11 @@
 #include "rtwtypes.h"
 #include <cmath>
 
+// Design choice: the thrust lever is an analog value, so it rarely rests at exactly 25.0 in the CL detent. A lever a hair above
+// the detent must still count as CL (limit type CLB, flex takeoff latch reset); 1 degree is the detent window the A/THR active
+// range check below already uses. Hand edit of the generated model: re-apply after a regeneration.
+static constexpr real_T CL_DETENT_TOLERANCE_DEG = 1.0;
+
 void FadecComputer::FadecComputer_MATLABFunction(const base_arinc_429 *rtu_u, boolean_T *rty_y)
 {
   *rty_y = (rtu_u->SSM == static_cast<uint32_T>(SignStatusMatrix::NormalOperation));
@@ -128,8 +133,8 @@ void FadecComputer::step()
   rtb_OR2 = (rtb_OR2 && (rtb_y_c > FadecComputer_U.in.data.TAT_degC));
   FadecComputer_DWork.latch = ((rtb_OR2 && FadecComputer_U.in.data.on_ground && (FadecComputer_U.in.input.TLA_deg ==
     35.0)) || FadecComputer_DWork.latch);
-  FadecComputer_DWork.latch = (((!FadecComputer_DWork.latch) || ((FadecComputer_U.in.input.TLA_deg != 25.0) &&
-    (FadecComputer_U.in.input.TLA_deg != 45.0))) && FadecComputer_DWork.latch);
+  FadecComputer_DWork.latch = (((!FadecComputer_DWork.latch) || ((std::abs(FadecComputer_U.in.input.TLA_deg - 25.0) >
+    CL_DETENT_TOLERANCE_DEG) && (FadecComputer_U.in.input.TLA_deg != 45.0))) && FadecComputer_DWork.latch);
   rtb_OR2 = ((rtb_OR2 && FadecComputer_U.in.data.on_ground) || ((!FadecComputer_U.in.data.on_ground) &&
               FadecComputer_DWork.latch));
   FadecComputer_TimeSinceCondition(FadecComputer_U.in.time.simulation_time, FadecComputer_U.in.data.on_ground,
@@ -204,7 +209,7 @@ void FadecComputer::step()
     } else if (N1_begin > 35.0) {
       rtb_type = athr_thrust_limit_type::TOGA;
       N1_begin = FadecComputer_U.in.input.thrust_limit_TOGA_percent;
-    } else if (N1_begin > 25.0) {
+    } else if (N1_begin > 25.0 + CL_DETENT_TOLERANCE_DEG) {
       if (!rtb_OR2) {
         rtb_type = athr_thrust_limit_type::MCT;
         N1_begin = FadecComputer_U.in.input.thrust_limit_MCT_percent;

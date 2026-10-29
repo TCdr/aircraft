@@ -8,9 +8,11 @@ import {
   Subject,
   ConsumerSubject,
   SubscribableMapFunctions,
+  ClockEvents,
 } from '@microsoft/msfs-sdk';
 import { EwdSimvars } from '../shared/EwdSimvarPublisher';
 import { Arinc429Values } from '../shared/ArincValueProvider';
+import { AvailIndication } from './AvailIndication';
 
 import {
   GaugeComponent,
@@ -34,7 +36,7 @@ interface ThrustGaugeProps {
 const METOTS_N1_LIMIT = 76.5;
 
 export class ThrustGauge extends DisplayComponent<ThrustGaugeProps> {
-  private readonly sub = this.props.bus.getSubscriber<Arinc429Values & EwdSimvars & AdrBusEvents>();
+  private readonly sub = this.props.bus.getSubscriber<Arinc429Values & EwdSimvars & AdrBusEvents & ClockEvents>();
 
   private readonly n1 = ConsumerSubject.create(
     this.sub.on(`n1_${this.props.engine}`).withPrecision(2).whenChanged(),
@@ -158,12 +160,20 @@ export class ThrustGauge extends DisplayComponent<ThrustGaugeProps> {
   private thrustPercentSplit1 = this.thrustPercent.map((thr) => splitDecimals(thr)[0]);
   private thrustPercentSplit2 = this.thrustPercent.map((thr) => splitDecimals(thr)[1]);
 
-  private readonly availVisible = MappedSubject.create(
-    ([n1, thrustLimitIdle, engineState]) => n1 > Math.floor(thrustLimitIdle) && engineState === 2,
-    this.n1,
-    this.thrustLimitIdle,
-    this.engineState,
+  private readonly availIndication = new AvailIndication();
+
+  private readonly availVisible = Subject.create(false);
+
+  private readonly availPulse = Subject.create(false);
+
+  private readonly throttlePosition = ConsumerSubject.create(
+    this.sub.on(`throttle_position_${this.props.engine}`).whenChanged(),
+    0,
   );
+
+  private readonly onGround = ConsumerSubject.create(this.sub.on('nose_gear_compressed_1').whenChanged(), true);
+
+  private lastRealTime: number | null = null;
 
   private readonly availRevVisible = MappedSubject.create(
     SubscribableMapFunctions.or(),
@@ -219,6 +229,20 @@ export class ThrustGauge extends DisplayComponent<ThrustGaugeProps> {
     super.onAfterRender(node);
 
     this.cpiomBAgsDiscrete.setConsumer(this.sub.on('cpiomBAgsDiscrete'));
+
+    this.sub.on('realTime').handle((t) => {
+      const deltaS = this.lastRealTime === null ? 0 : Math.max(0, (t - this.lastRealTime) / 1000);
+      this.lastRealTime = t;
+      const availDisplay = this.availIndication.update(deltaS, {
+        engineState: this.engineState.get(),
+        n1: this.n1.get(),
+        idleN1: this.thrustLimitIdle.get(),
+        onGround: this.onGround.get(),
+        tlaDegrees: this.throttlePosition.get(),
+      });
+      this.availVisible.set(availDisplay !== 'hidden');
+      this.availPulse.set(availDisplay === 'pulse');
+    });
   }
 
   render() {
@@ -288,6 +312,7 @@ export class ThrustGauge extends DisplayComponent<ThrustGaugeProps> {
                 engineNumber={this.props.engine}
                 visible={this.availRevVisible}
                 revDoorOpen={this.revDeployed}
+                availPulse={this.availPulse}
               />
               <ThrustTransientComponent
                 x={this.props.x}
@@ -471,6 +496,7 @@ export class ThrustGauge extends DisplayComponent<ThrustGaugeProps> {
                 engineNumber={this.props.engine}
                 visible={this.availRevVisible}
                 revDoorOpen={this.revDeployed}
+                availPulse={this.availPulse}
               />
               <GaugeMarkerComponent
                 value={Subject.create(0)}
@@ -528,6 +554,8 @@ interface AvailRevProps {
   engineNumber: number;
   visible: Subscribable<boolean>;
   revDoorOpen: Subscribable<boolean>;
+  /** AVAIL pulses after a relight in flight */
+  availPulse: Subscribable<boolean>;
 }
 
 class AvailRev extends DisplayComponent<AvailRevProps> {
@@ -549,7 +577,11 @@ class AvailRev extends DisplayComponent<AvailRevProps> {
           </text>
         </g>
         <g visibility={this.props.mesg.map((mesg) => (mesg === 'AVAIL' ? 'inherit' : 'hidden'))}>
-          <text class="F26 Spread Centre Green" x={this.props.x - 26} y={this.props.y + 9}>
+          <text
+            class={this.props.availPulse.map((pulse) => `F26 Spread Centre ${pulse ? 'AvailTextPulse' : 'Green'}`)}
+            x={this.props.x - 26}
+            y={this.props.y + 9}
+          >
             AVAIL
           </text>
         </g>

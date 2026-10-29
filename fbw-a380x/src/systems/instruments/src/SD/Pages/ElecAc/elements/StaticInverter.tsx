@@ -1,6 +1,7 @@
 import { useSimVar } from '@instruments/common/simVars';
 import React, { FC } from 'react';
 import { Triangle } from '@instruments/common/Shapes';
+import { isStaticInverterFailed } from '../ElecFailureStates';
 
 const STAT_INV_VOLTAGE_NORMAL_RANGE_LOWER = 110;
 const STAT_INV_VOLTAGE_NORMAL_RANGE_UPPER = 120;
@@ -24,7 +25,8 @@ export const StaticInverter: FC<StaticInverterProps> = ({ x, y }) => {
   const [staticInvertedDcCtorClosed] = useSimVar('L:A32NX_ELEC_CONTACTOR_7XB_IS_CLOSED', 'number', 500);
   const [staticInvertedToAcEmerCtorClosed] = useSimVar('L:A32NX_ELEC_CONTACTOR_3XB.2_IS_CLOSED', 'number', 500);
 
-  const statInvFailed = false;
+  const [staticInverterPotentialNormal] = useSimVar('L:A32NX_ELEC_STAT_INV_POTENTIAL_NORMAL', 'bool', 500);
+  const statInvFailed = isStaticInverterFailed(!!staticInvertedDcCtorClosed, !!staticInverterPotentialNormal);
 
   let triangleColor = 'White';
   if (statInvFailed) {

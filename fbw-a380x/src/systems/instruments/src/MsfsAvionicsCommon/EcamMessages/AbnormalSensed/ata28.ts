@@ -1,7 +1,7 @@
 ﻿// Copyright (c) 2024 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { AbnormalProcedure } from '..';
+import { AbnormalProcedure, ChecklistLineStyle } from '..';
 
 // Convention for IDs:
 // First two digits: ATA chapter
@@ -15,6 +15,62 @@ import { AbnormalProcedure } from '..';
 //    7 for deferred procedures,
 //    8 for ABN sensed procedures,
 //    9 for ABN non-sensed procedures
+
+/**
+ * The lines of the FUEL LEAK DETECTED procedure, shared by the alert of the FQMS leak detection (281800073) and the ABN
+ * PROC FUEL LEAK (280900002).
+ */
+const FUEL_LEAK_PROCEDURE_ITEMS: AbnormalProcedure['items'] = [
+  { name: 'ALL TKs QTY & FOB & FU', sensed: false, labelNotCompleted: 'CHECK' },
+  { name: 'FOB+FU / BLOCK DISAGREE', sensed: false, condition: true },
+  { name: 'ALL CROSSFEEDS', sensed: false, labelNotCompleted: 'OFF', level: 1 },
+  { name: 'INR TKs PMPs', sensed: false, labelNotCompleted: 'OFF', level: 1 },
+  { name: 'MID TKs PMPs', sensed: false, labelNotCompleted: 'OFF', level: 1 },
+  { name: 'OUTR TKs PMPs', sensed: false, labelNotCompleted: 'OFF', level: 1 },
+  { name: 'TRIM TK PMPs', sensed: false, labelNotCompleted: 'OFF', level: 1 },
+  { name: 'EXPECT FUEL IMBALANCE', sensed: false, level: 1 },
+  { name: 'FEED TK LEAK SUSPECTED', sensed: false, condition: true, level: 1 },
+  { name: 'THR LEVER (AFFECTED)', sensed: false, labelNotCompleted: 'IDLE', level: 2 },
+  { name: 'ENG (AFFECTED) MASTER', sensed: false, labelNotCompleted: 'OFF', level: 2 },
+  { name: 'FEED TK PMPs (AFFECTED)', sensed: false, labelNotCompleted: 'OFF', level: 2 },
+  { name: 'LEAK STOPS', sensed: false, condition: true, level: 2 },
+  { name: 'ENG (AFFECTED) MASTER : KEEP OFF', sensed: false, level: 3 },
+  { name: 'FEED TK PMPs (AFFECTED)', sensed: false, labelNotCompleted: 'ON', level: 3 },
+  { name: 'FOR TK BALANCING : XFEED AS RQRD', sensed: false, level: 3 },
+  { name: 'LEAK CONTINUES', sensed: false, condition: true, level: 2 },
+  { name: 'FEED TK PMPs (AFFECTED)', sensed: false, labelNotCompleted: 'ON', level: 3 },
+  { name: 'MIN FUEL USABLE : OTHER FEED TKs', sensed: false, level: 3 },
+  { name: '(ALL OTHER FUEL MAYBE LOST)', sensed: false, level: 3 },
+  { name: 'FOR TK BALANCING : XFEED AS RQRD', sensed: false, level: 3 },
+  { name: 'FOR ENG RELIGHT :', sensed: true, style: ChecklistLineStyle.CenteredSubHeadline, level: 3 },
+  { name: 'MAX GUARANTEED ALT : 30000 FT', sensed: false, level: 4 },
+  { name: 'MIN SPD (WINDML RELIGHT) : 260 KT', sensed: false, level: 4 },
+  { name: 'XBLEED', sensed: false, labelNotCompleted: 'OPEN', level: 4 },
+  { name: 'WING A-ICE', sensed: false, labelNotCompleted: 'OFF', level: 4 },
+  { name: 'ENG START SEL', sensed: false, labelNotCompleted: 'IGN START', level: 4 },
+  { name: 'ENG (AFFECTED) MASTER', sensed: false, labelNotCompleted: 'ON', level: 4 },
+  { name: 'ENG RELIGHT', sensed: false, labelNotCompleted: 'MONITOR', level: 4 },
+  { name: 'WHEN IDLE REACHED (ENG AVAIL)', sensed: false, condition: true, level: 4 },
+  { name: 'ENG START SEL', sensed: false, labelNotCompleted: 'NORM', level: 5 },
+  { name: 'TCAS MODE', sensed: false, labelNotCompleted: 'TA/RA', level: 5 },
+  { name: 'XBLEED', sensed: false, labelNotCompleted: 'AUTO', level: 5 },
+  { name: 'A-ICE', sensed: false, labelNotCompleted: 'AS RQRD', level: 5 },
+  { name: 'TRIM TK LEAK SUSPECTED', sensed: false, condition: true, level: 1 },
+  { name: 'TRIM TK PARTLY NOT USABLE', sensed: false, level: 2 },
+  { name: 'TRIM TK PMPs', sensed: false, labelNotCompleted: 'ON', level: 2 },
+  { name: 'TRIM TK XFR', sensed: false, labelNotCompleted: 'FWD', level: 2 },
+  { name: 'OUTR TKs LEAK SUSPECTED', sensed: false, condition: true, level: 1 },
+  { name: 'OUTR TKs PARTLY NOT USABLE', sensed: false, level: 2 },
+  { name: 'OUTR TK XFR', sensed: false, labelNotCompleted: 'MAN', level: 2 },
+  { name: 'INR / MID TKs LEAK SUSPECTED', sensed: false, condition: true, level: 1 },
+  { name: 'LEAKING TK PARTLY NOT USABLE', sensed: false, level: 2 },
+  { name: 'INR TKs PMPs', sensed: false, labelNotCompleted: 'ON', level: 2 },
+  { name: 'MID TKs PMPs', sensed: false, labelNotCompleted: 'ON', level: 2 },
+  { name: 'OUTR TKs PMPs', sensed: false, labelNotCompleted: 'ON', level: 2 },
+  { name: 'TRIM TK PMPs', sensed: false, labelNotCompleted: 'ON', level: 2 },
+  { name: 'REMAINING FUEL AT DEST', sensed: false, labelNotCompleted: 'CHECK', level: 1 },
+  { name: 'REVERSERS : DO NOT USE', sensed: false },
+];
 
 /** All abnormal sensed procedures (alerts, via ECL) should be here. */
 export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
@@ -142,22 +198,26 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800018: {
     title: '\x1b<4m\x1b4mFUEL\x1bm ENG 1 LP VLV FAULT',
     sensed: true,
-    items: [],
+    // Before takeoff
+    items: [{ name: 'ENG 1 MASTER', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800019: {
     title: '\x1b<4m\x1b4mFUEL\x1bm ENG 2 LP VLV FAULT',
     sensed: true,
-    items: [],
+    // Before takeoff
+    items: [{ name: 'ENG 2 MASTER', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800020: {
     title: '\x1b<4m\x1b4mFUEL\x1bm ENG 3 LP VLV FAULT',
     sensed: true,
-    items: [],
+    // Before takeoff
+    items: [{ name: 'ENG 3 MASTER', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800021: {
     title: '\x1b<4m\x1b4mFUEL\x1bm ENG 4 LP VLV FAULT',
     sensed: true,
-    items: [],
+    // Before takeoff
+    items: [{ name: 'ENG 4 MASTER', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800022: {
     title: '\x1b<4m\x1b4mFUEL\x1bm EXCESS AFT CG',
@@ -379,42 +439,66 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800027: {
     title: '\x1b<4m\x1b4mFUEL\x1bm FEED TK 1 MAIN + STBY PMPs FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'CROSSFEED 1', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'CROSSFEED 2', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'FEED TK 1 MAIN PMP', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'FEED TK 1 STBY PMP', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'AVOID NEG G LOAD', sensed: false, style: ChecklistLineStyle.Cyan },
+    ],
   },
   281800028: {
     title: '\x1b<4m\x1b4mFUEL\x1bm FEED TK 2 MAIN + STBY PMPs FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'CROSSFEED 1', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'CROSSFEED 2', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'FEED TK 2 MAIN PMP', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'FEED TK 2 STBY PMP', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'AVOID NEG G LOAD', sensed: false, style: ChecklistLineStyle.Cyan },
+    ],
   },
   281800029: {
     title: '\x1b<4m\x1b4mFUEL\x1bm FEED TK 3 MAIN + STBY PMPs FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'CROSSFEED 3', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'CROSSFEED 4', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'FEED TK 3 MAIN PMP', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'FEED TK 3 STBY PMP', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'AVOID NEG G LOAD', sensed: false, style: ChecklistLineStyle.Cyan },
+    ],
   },
   281800030: {
     title: '\x1b<4m\x1b4mFUEL\x1bm FEED TK 4 MAIN + STBY PMPs FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'CROSSFEED 3', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'CROSSFEED 4', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'FEED TK 4 MAIN PMP', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'FEED TK 4 STBY PMP', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'AVOID NEG G LOAD', sensed: false, style: ChecklistLineStyle.Cyan },
+    ],
   },
   281800031: {
     title: '\x1b<4m\x1b4mFUEL\x1bm FEED TK 1 MAIN PMP FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'FEED TK 1 MAIN PMP', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800032: {
     title: '\x1b<4m\x1b4mFUEL\x1bm FEED TK 2 MAIN PMP FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'FEED TK 2 MAIN PMP', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800033: {
     title: '\x1b<4m\x1b4mFUEL\x1bm FEED TK 3 MAIN PMP FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'FEED TK 3 MAIN PMP', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800034: {
     title: '\x1b<4m\x1b4mFUEL\x1bm FEED TK 4 MAIN PMP FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'FEED TK 4 MAIN PMP', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800035: {
     title: '\x1b<4m\x1b4mFUEL\x1bm FEED TK 1 STBY PMP FAULT',
@@ -499,7 +583,20 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800051: {
     title: '\x1b<4m\x1b4mFUEL\x1bm INR TKs QTY LO',
     sensed: true,
-    items: [],
+    items: [
+      // the AUTO GND XFR pb-sw is INOP in the simulation: a crew check box
+      {
+        name: 'REFUEL NOT PLANNED',
+        sensed: false,
+        condition: true,
+      },
+      {
+        name: 'AUTO GND XFR',
+        sensed: false,
+        labelNotCompleted: 'ON',
+        level: 1,
+      },
+    ],
   },
   281800052: {
     title: '\x1b<4m\x1b4mFUEL\x1bm JETTISON',
@@ -524,82 +621,360 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800056: {
     title: '\x1b<4m\x1b4mFUEL\x1bm L INR TK FWD+AFT PMPs FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'L INR TK FWD PMP', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'L INR TK AFT PMP', sensed: true, labelNotCompleted: 'OFF' },
+    ],
   },
   281800057: {
     title: '\x1b<4m\x1b4mFUEL\x1bm R INR TK FWD+AFT PMPs FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'R INR TK FWD PMP', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'R INR TK AFT PMP', sensed: true, labelNotCompleted: 'OFF' },
+    ],
   },
   281800058: {
     title: '\x1b<4m\x1b4mFUEL\x1bm L INR TK AFT PMP FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'L INR TK AFT PMP', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800059: {
     title: '\x1b<4m\x1b4mFUEL\x1bm L MID TK AFT PMP FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'L MID TK AFT PMP', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800060: {
     title: '\x1b<4m\x1b4mFUEL\x1bm R INR TK AFT PMP FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'R INR TK AFT PMP', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800061: {
     title: '\x1b<4m\x1b4mFUEL\x1bm R MID TK AFT PMP FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'R MID TK AFT PMP', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800062: {
     title: '\x1b<4m\x1b4mFUEL\x1bm L MID TK FWD PMP FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'L MID TK FWD PMP', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800063: {
     title: '\x1b<4m\x1b4mFUEL\x1bm L INR TK FWD PMP FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'L INR TK FWD PMP', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800064: {
     title: '\x1b<4m\x1b4mFUEL\x1bm R MID TK FWD PMP FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'R MID TK FWD PMP', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800065: {
     title: '\x1b<4m\x1b4mFUEL\x1bm R INR TK FWD PMP FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'R INR TK FWD PMP', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800066: {
     title: '\x1b<4m\x1b4mFUEL\x1bm L MID TK FWD+AFT PMPs FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'L MID TK FWD PMP', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'L MID TK AFT PMP', sensed: true, labelNotCompleted: 'OFF' },
+    ],
   },
   281800067: {
     title: '\x1b<4m\x1b4mFUEL\x1bm R MID TK FWD+AFT PMPs FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'R MID TK FWD PMP', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'R MID TK AFT PMP', sensed: true, labelNotCompleted: 'OFF' },
+    ],
   },
   281800068: {
     title: '\x1b<4m\x1b4mFUEL\x1bm L OUTR TK PMP FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'L OUTR TK PMP', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800069: {
     title: '\x1b<4m\x1b4mFUEL\x1bm R OUTR TK PMP FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'R OUTR TK PMP', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800070: {
     title: '\x1b<4m\x1b4mFUEL\x1bm L WING FEED PMPs FAULT',
     sensed: true,
-    items: [],
+    items: [
+      // Before takeoff
+      {
+        name: 'FEED TK 1 MAIN PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+      },
+      {
+        name: 'FEED TK 1 STBY PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+      },
+      {
+        name: 'FEED TK 2 MAIN PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+      },
+      {
+        name: 'FEED TK 2 STBY PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+      },
+      {
+        name: 'FEED TK 1 : 1300 KG MAX NOT USABLE',
+        sensed: false,
+      },
+      {
+        name: 'FEED TK 2 : 2000 KG MAX NOT USABLE',
+        sensed: false,
+      },
+      // After takeoff
+      {
+        name: 'ALL CROSSFEEDS',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+      },
+      {
+        name: 'NO FUEL LEAK',
+        sensed: false,
+        condition: true,
+      },
+      {
+        name: 'ALL CROSSFEEDS',
+        sensed: true,
+        labelNotCompleted: 'ON',
+        level: 1,
+      },
+      {
+        name: 'FEED TK 1 MAIN PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'FEED TK 1 STBY PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'FEED TK 2 MAIN PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'FEED TK 2 STBY PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'FEED TK 1 : 1300 KG MAX NOT USABLE',
+        sensed: false,
+        level: 1,
+      },
+      {
+        name: 'FEED TK 2 : 2000 KG MAX NOT USABLE',
+        sensed: false,
+        level: 1,
+      },
+      {
+        name: 'WHEN INR & MID TKs EMPTY :',
+        sensed: false,
+        level: 1,
+      },
+      // If flight time above FL 300 since departure is greater than 30 min
+      {
+        name: 'DESCENT TO FL 280',
+        sensed: false,
+        labelNotCompleted: 'INITIATE',
+        level: 2,
+      },
+      {
+        name: 'MAX FL : 280',
+        sensed: false,
+        level: 2,
+      },
+      // If flight time above FL 300 since departure is less than 30 min
+      {
+        name: 'DESCENT TO FL 50/MEA',
+        sensed: false,
+        labelNotCompleted: 'INITIATE',
+        level: 2,
+      },
+      {
+        name: 'MAX FL : 50/MEA',
+        sensed: false,
+        level: 2,
+      },
+      {
+        name: 'ENG START SEL',
+        sensed: true,
+        labelNotCompleted: 'IGN START',
+        level: 2,
+      },
+      {
+        name: 'ALL CROSSFEEDS',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 2,
+      },
+      {
+        name: 'EXPECT NORM COLLECTOR CELL DEPLETION',
+        sensed: false,
+        style: ChecklistLineStyle.Green,
+        level: 2,
+      },
+      {
+        name: 'AVOID NEG G LOAD',
+        sensed: false,
+        level: 2,
+      },
+    ],
   },
   281800071: {
     title: '\x1b<4m\x1b4mFUEL\x1bm R WING FEED PMPs FAULT',
     sensed: true,
-    items: [],
+    items: [
+      // Before takeoff
+      {
+        name: 'FEED TK 3 MAIN PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+      },
+      {
+        name: 'FEED TK 3 STBY PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+      },
+      {
+        name: 'FEED TK 4 MAIN PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+      },
+      {
+        name: 'FEED TK 4 STBY PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+      },
+      {
+        name: 'FEED TK 4 : 1300 KG MAX NOT USABLE',
+        sensed: false,
+      },
+      {
+        name: 'FEED TK 3 : 2000 KG MAX NOT USABLE',
+        sensed: false,
+      },
+      // After takeoff
+      {
+        name: 'ALL CROSSFEEDS',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+      },
+      {
+        name: 'NO FUEL LEAK',
+        sensed: false,
+        condition: true,
+      },
+      {
+        name: 'ALL CROSSFEEDS',
+        sensed: true,
+        labelNotCompleted: 'ON',
+        level: 1,
+      },
+      {
+        name: 'FEED TK 3 MAIN PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'FEED TK 3 STBY PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'FEED TK 4 MAIN PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'FEED TK 4 STBY PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'FEED TK 4 : 1300 KG MAX NOT USABLE',
+        sensed: false,
+        level: 1,
+      },
+      {
+        name: 'FEED TK 3 : 2000 KG MAX NOT USABLE',
+        sensed: false,
+        level: 1,
+      },
+      {
+        name: 'WHEN INR & MID TKs EMPTY :',
+        sensed: false,
+        level: 1,
+      },
+      // If flight time above FL 300 since departure is greater than 30 min
+      {
+        name: 'DESCENT TO FL 280',
+        sensed: false,
+        labelNotCompleted: 'INITIATE',
+        level: 2,
+      },
+      {
+        name: 'MAX FL : 280',
+        sensed: false,
+        level: 2,
+      },
+      // If flight time above FL 300 since departure is less than 30 min
+      {
+        name: 'DESCENT TO FL 50/MEA',
+        sensed: false,
+        labelNotCompleted: 'INITIATE',
+        level: 2,
+      },
+      {
+        name: 'MAX FL : 50/MEA',
+        sensed: false,
+        level: 2,
+      },
+      {
+        name: 'ENG START SEL',
+        sensed: true,
+        labelNotCompleted: 'IGN START',
+        level: 2,
+      },
+      {
+        name: 'ALL CROSSFEEDS',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 2,
+      },
+      {
+        name: 'EXPECT NORM COLLECTOR CELL DEPLETION',
+        sensed: false,
+        style: ChecklistLineStyle.Green,
+        level: 2,
+      },
+      {
+        name: 'AVOID NEG G LOAD',
+        sensed: false,
+        level: 2,
+      },
+    ],
   },
   281800072: {
     title: '\x1b<4m\x1b4mFUEL\x1bm LEAK DET FAULT',
@@ -609,7 +984,8 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800073: {
     title: '\x1b<4m\x1b4mFUEL\x1bm LEAK DETECTED',
     sensed: true,
-    items: [],
+    items: FUEL_LEAK_PROCEDURE_ITEMS,
+    recommendation: 'LAND ANSA',
   },
   281800074: {
     title: '\x1b<4m\x1b4mFUEL\x1bm MAN XFR PROCEDURE',
@@ -696,17 +1072,23 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800089: {
     title: '\x1b<4m\x1b4mFUEL\x1bm TRIM TK L PMP FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'TRIM TK L PMP', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800090: {
     title: '\x1b<4m\x1b4mFUEL\x1bm TRIM TK R PMP FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'TRIM TK R PMP', sensed: true, labelNotCompleted: 'OFF' }],
   },
   281800091: {
     title: '\x1b<4m\x1b4mFUEL\x1bm TRIM TK L+R PMPs FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'TRIM TK L PMP', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'TRIM TK R PMP', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'PITCH ATT < 3° FOR GRVTY FWD XFR', sensed: false, style: ChecklistLineStyle.Cyan },
+      { name: 'TRIM TK FEED', sensed: false, labelNotCompleted: 'OPEN' },
+      { name: 'TRIM TK : 2300 KG MAX NOT USABLE', sensed: false, style: ChecklistLineStyle.Cyan },
+    ],
   },
   281800092: {
     title: '\x1b<4m\x1b4mFUEL\x1bm TRIM TK MAN XFR COMPLETED',
@@ -741,7 +1123,80 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800098: {
     title: '\x1b<4m\x1b4mFUEL\x1bm WINGS BALANCED',
     sensed: true,
-    items: [],
+    items: [
+      // Feed tanks 1 and 4
+      {
+        name: 'FEED TK 1 & 4 BALANCED',
+        sensed: false,
+        style: ChecklistLineStyle.Green,
+      },
+      {
+        name: 'FEED TK 1 MAIN PMP',
+        sensed: true,
+        labelNotCompleted: 'ON',
+      },
+      {
+        name: 'FEED TK 1 STBY PMP',
+        sensed: true,
+        labelNotCompleted: 'ON',
+      },
+      {
+        name: 'FEED TK 4 MAIN PMP',
+        sensed: true,
+        labelNotCompleted: 'ON',
+      },
+      {
+        name: 'FEED TK 4 STBY PMP',
+        sensed: true,
+        labelNotCompleted: 'ON',
+      },
+      {
+        name: 'CROSSFEED 1',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+      },
+      {
+        name: 'CROSSFEED 4',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+      },
+      // Feed tanks 2 and 3
+      {
+        name: 'FEED TK 2 & 3 BALANCED',
+        sensed: false,
+        style: ChecklistLineStyle.Green,
+      },
+      {
+        name: 'FEED TK 2 MAIN PMP',
+        sensed: true,
+        labelNotCompleted: 'ON',
+      },
+      {
+        name: 'FEED TK 2 STBY PMP',
+        sensed: true,
+        labelNotCompleted: 'ON',
+      },
+      {
+        name: 'FEED TK 3 MAIN PMP',
+        sensed: true,
+        labelNotCompleted: 'ON',
+      },
+      {
+        name: 'FEED TK 3 STBY PMP',
+        sensed: true,
+        labelNotCompleted: 'ON',
+      },
+      {
+        name: 'CROSSFEED 2',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+      },
+      {
+        name: 'CROSSFEED 3',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+      },
+    ],
   },
   281800099: {
     title: '\x1b<4m\x1b4mFUEL\x1bm WINGS MAN BALANCING PROCEDURE',
@@ -751,7 +1206,132 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
   281800100: {
     title: '\x1b<4m\x1b4mFUEL\x1bm WINGS NOT BALANCED',
     sensed: true,
-    items: [],
+    items: [
+      // On ground
+      {
+        name: 'T.O PLANNED',
+        sensed: false,
+        condition: true,
+      },
+      // Before the first engine start
+      {
+        name: 'AUTO GND XFR',
+        sensed: false,
+        labelNotCompleted: 'ON',
+        level: 1,
+      },
+      // After the first engine start
+      {
+        name: 'WINGS IMBALANCE',
+        sensed: false,
+        labelNotCompleted: 'COMPENSATE',
+        level: 1,
+      },
+      {
+        name: 'DELAY T.O',
+        sensed: false,
+        style: ChecklistLineStyle.Cyan,
+        level: 1,
+      },
+      // In flight, imbalance between feed tanks 1 and 4
+      {
+        name: 'FEED TK 1 & 4 NOT BALANCED',
+        sensed: false,
+        style: ChecklistLineStyle.Green,
+      },
+      {
+        name: 'NO FUEL LEAK',
+        sensed: false,
+        condition: true,
+      },
+      {
+        name: 'CROSSFEED 1',
+        sensed: true,
+        labelNotCompleted: 'ON',
+        level: 1,
+      },
+      {
+        name: 'CROSSFEED 4',
+        sensed: true,
+        labelNotCompleted: 'ON',
+        level: 1,
+      },
+      // If feed tank 1 is the lighter side
+      {
+        name: 'FEED TK 1 STBY PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'FEED TK 1 MAIN PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      // If feed tank 4 is the lighter side
+      {
+        name: 'FEED TK 4 STBY PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'FEED TK 4 MAIN PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      // In flight, imbalance between feed tanks 2 and 3
+      {
+        name: 'FEED TK 2 & 3 NOT BALANCED',
+        sensed: false,
+        style: ChecklistLineStyle.Green,
+      },
+      {
+        name: 'NO FUEL LEAK',
+        sensed: false,
+        condition: true,
+      },
+      {
+        name: 'CROSSFEED 2',
+        sensed: true,
+        labelNotCompleted: 'ON',
+        level: 1,
+      },
+      {
+        name: 'CROSSFEED 3',
+        sensed: true,
+        labelNotCompleted: 'ON',
+        level: 1,
+      },
+      // If feed tank 2 is the lighter side
+      {
+        name: 'FEED TK 2 STBY PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'FEED TK 2 MAIN PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      // If feed tank 3 is the lighter side
+      {
+        name: 'FEED TK 3 STBY PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'FEED TK 3 MAIN PMP',
+        sensed: true,
+        labelNotCompleted: 'OFF',
+        level: 1,
+      },
+    ],
   },
   281800101: {
     title: '\x1b<4m\x1b4mFUEL\x1bm ZFW OR ZFWCG FMS DISAGREE',
@@ -864,13 +1444,81 @@ export const EcamAbnormalSensedAta28: { [n: number]: AbnormalProcedure } = {
     items: [], // TODO
   },
   280900002: {
-    title: '\x1b<4m\x1b4mFUEL\x1bm FUEL LEAK (WIP)',
+    title: '\x1b<4m\x1b4mFUEL\x1bm FUEL LEAK',
     sensed: false,
-    items: [], // TODO
+    items: FUEL_LEAK_PROCEDURE_ITEMS,
+    recommendation: 'LAND ANSA',
   },
   280900003: {
-    title: '\x1b<4m\x1b4mFUEL\x1bm MAN BALANCING PROCEDURE (WIP)',
+    title: '\x1b<4m\x1b4mFUEL\x1bm MAN BALANCING PROCEDURE',
     sensed: false,
-    items: [], // TODO
+    items: [
+      { name: 'DELAY T.O', sensed: false },
+      { name: 'FEED TKs NOT BALANCED', sensed: false, condition: true },
+      { name: 'NO FUEL LEAK', sensed: false, condition: true, level: 1 },
+      { name: 'FEED TKs 1 & 4 NOT BALANCED', sensed: false, condition: true, level: 1 },
+      { name: 'FUEL CONSUMPT INCRSD', sensed: false, level: 2 },
+      { name: 'FMS PRED DISREGARD', sensed: false, level: 2 },
+      { name: 'CROSSFEED 1', sensed: false, labelNotCompleted: 'ON', level: 2 },
+      { name: 'CROSSFEED 4', sensed: false, labelNotCompleted: 'ON', level: 2 },
+      { name: 'FOR LIGHTER TK :', sensed: false, level: 2 },
+      { name: 'FEED TK PMPs', sensed: false, labelNotCompleted: 'OFF', level: 3 },
+      { name: 'WHEN FEED TKs 1 & 4 BALANCED', sensed: false, condition: true, level: 2 },
+      { name: 'FEED TK PMPs', sensed: false, labelNotCompleted: 'ON', level: 3 },
+      { name: 'CROSSFEED 1', sensed: false, labelNotCompleted: 'OFF', level: 3 },
+      { name: 'CROSSFEED 4', sensed: false, labelNotCompleted: 'OFF', level: 3 },
+      { name: 'FEED TKs 2 & 3 NOT BALANCED', sensed: false, condition: true, level: 1 },
+      { name: 'FUEL CONSUMPT INCRSD', sensed: false, level: 2 },
+      { name: 'FMS PRED DISREGARD', sensed: false, level: 2 },
+      { name: 'CROSSFEED 2', sensed: false, labelNotCompleted: 'ON', level: 2 },
+      { name: 'CROSSFEED 3', sensed: false, labelNotCompleted: 'ON', level: 2 },
+      { name: 'FOR LIGHTER TK :', sensed: false, level: 2 },
+      { name: 'FEED TK PMPs', sensed: false, labelNotCompleted: 'OFF', level: 3 },
+      { name: 'WHEN FEED TKs 2 & 3 BALANCED', sensed: false, condition: true, level: 2 },
+      { name: 'FEED TK PMPs', sensed: false, labelNotCompleted: 'ON', level: 3 },
+      { name: 'CROSSFEED 2', sensed: false, labelNotCompleted: 'OFF', level: 3 },
+      { name: 'CROSSFEED 3', sensed: false, labelNotCompleted: 'OFF', level: 3 },
+      { name: 'FEED TK 2 LIGHTER THAN 1', sensed: false, condition: true, level: 1 },
+      { name: 'AND FEED TK 3 LIGHTER THAN 4', sensed: false, level: 1 },
+      { name: 'ALL CROSSFEEDS', sensed: false, labelNotCompleted: 'ON', level: 2 },
+      { name: 'FEED TK 2 PMPs', sensed: false, labelNotCompleted: 'OFF', level: 2 },
+      { name: 'FEED TK 3 PMPs', sensed: false, labelNotCompleted: 'OFF', level: 2 },
+      { name: 'WHEN FEED TKs BALANCED', sensed: false, condition: true, level: 2 },
+      { name: 'FEED TK 2 PMPs', sensed: false, labelNotCompleted: 'ON', level: 3 },
+      { name: 'FEED TK 3 PMPs', sensed: false, labelNotCompleted: 'ON', level: 3 },
+      { name: 'ALL CROSSFEEDS', sensed: false, labelNotCompleted: 'OFF', level: 3 },
+      { name: 'FEED TK 1 LIGHTER THAN 2', sensed: false, condition: true, level: 1 },
+      { name: 'AND FEED TK 4 LIGHTER THAN 3', sensed: false, level: 1 },
+      { name: 'ALL CROSSFEEDS', sensed: false, labelNotCompleted: 'ON', level: 2 },
+      { name: 'FEED TK 1 PMPs', sensed: false, labelNotCompleted: 'OFF', level: 2 },
+      { name: 'FEED TK 4 PMPs', sensed: false, labelNotCompleted: 'OFF', level: 2 },
+      { name: 'WHEN FEED TKs BALANCED', sensed: false, condition: true, level: 2 },
+      { name: 'FEED TK 1 PMPs', sensed: false, labelNotCompleted: 'ON', level: 3 },
+      { name: 'FEED TK 4 PMPs', sensed: false, labelNotCompleted: 'ON', level: 3 },
+      { name: 'ALL CROSSFEEDS', sensed: false, labelNotCompleted: 'OFF', level: 3 },
+      { name: 'INR TKs NOT BALANCED', sensed: false, condition: true },
+      { name: 'TKs BALANCING : ONE PAIR AT A TIME', sensed: false, level: 1 },
+      { name: 'FUEL CONSUMPT INCRSD', sensed: false, level: 1 },
+      { name: 'FMS PRED DISREGARD', sensed: false, level: 1 },
+      { name: 'CHECK FEED TKs QTY TO AVOID OVERFLOW', sensed: false, level: 1 },
+      { name: 'FOR LIGHTER TK :', sensed: false, level: 1 },
+      { name: 'INR TK AFT PMP', sensed: false, labelNotCompleted: 'OFF', level: 2 },
+      { name: 'INR TK XFR', sensed: false, labelNotCompleted: 'MAN', level: 2 },
+      { name: 'WHEN INR TKs BALANCED', sensed: false, condition: true, level: 1 },
+      { name: 'INR TK XFR', sensed: false, labelNotCompleted: 'AUTO', level: 2 },
+      { name: 'INR TK AFT PMP', sensed: false, labelNotCompleted: 'ON', level: 2 },
+      { name: 'MID TKs NOT BALANCED', sensed: false, condition: true },
+      { name: 'TKs BALANCING : ONE PAIR AT A TIME', sensed: false, level: 1 },
+      { name: 'FUEL CONSUMPT INCRSD', sensed: false, level: 1 },
+      { name: 'FMS PRED DISREGARD', sensed: false, level: 1 },
+      { name: 'CHECK FEED TKs QTY TO AVOID OVERFLOW', sensed: false, level: 1 },
+      { name: 'FOR LIGHTER TK :', sensed: false, level: 1 },
+      { name: 'MID TK AFT PMP', sensed: false, labelNotCompleted: 'OFF', level: 2 },
+      { name: 'MID TK XFR', sensed: false, labelNotCompleted: 'MAN', level: 2 },
+      { name: 'WHEN MID TKs BALANCED', sensed: false, condition: true, level: 1 },
+      { name: 'MID TK XFR', sensed: false, labelNotCompleted: 'AUTO', level: 2 },
+      { name: 'MID TK AFT PMP', sensed: false, labelNotCompleted: 'ON', level: 2 },
+      { name: 'OUTR TKs MAN BALANCING NOT AVAIL', sensed: false },
+    ],
   },
 };

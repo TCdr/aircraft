@@ -4,7 +4,7 @@ use std::{f64::consts::PI, time::Duration};
 use uom::si::{
     f64::*,
     pressure::psi,
-    ratio::ratio,
+    ratio::{percent, ratio},
     thermodynamic_temperature::degree_celsius,
     volume::{cubic_meter, gallon},
 };
@@ -12,6 +12,8 @@ use uom::si::{
 use systems::{
     accept_iterable,
     air_conditioning::PackFlowControllers,
+    engine::engine_start::EngineStartValveSupervision,
+    failures::{Failure, FailureType},
     overhead::{AutoOffFaultPushButton, OnOffFaultPushButton},
     pneumatic::{
         valve::*, BleedMonitoringComputerIsAliveSignal, CompressionChamber,
@@ -22,18 +24,18 @@ use systems::{
         TargetPressureTemperatureSignal, VariableVolumeContainer,
     },
     shared::{
-        pid::PidController, update_iterator::MaxStepLoop, ControllerSignal, ElectricalBusType,
-        ElectricalBuses, EngineBleedPushbutton, EngineCorrectedN1, EngineCorrectedN2,
-        EngineFirePushButtons, EngineStartState, HydraulicColor, PackFlowValveState,
-        PneumaticBleed, PneumaticValve, ReservoirAirPressure,
+        pid::PidController, update_iterator::MaxStepLoop, ControllerSignal, DelayedTrueLogicGate,
+        ElectricalBusType, ElectricalBuses, EngineBleedPushbutton, EngineCorrectedN1,
+        EngineCorrectedN2, EngineFirePushButtons, EngineStartState, HydraulicColor,
+        PackFlowValveState, PneumaticBleed, PneumaticValve, ReservoirAirPressure,
     },
     simulation::{
-        InitContext, Reader, SimulationElement, SimulationElementVisitor, SimulatorReader,
+        InitContext, Read, Reader, SimulationElement, SimulationElementVisitor, SimulatorReader,
         SimulatorWriter, UpdateContext, VariableIdentifier, Write,
     },
 };
 
-use crate::air_conditioning::A380AirConditioning;
+use crate::{air_conditioning::A380AirConditioning, engine_failure::A380RelightEnvelope};
 
 macro_rules! valve_signal_implementation {
     ($signal_type: ty) => {
@@ -109,6 +111,11 @@ pub struct A380Pneumatic {
 
     core_processing_input_output_module_a: CoreProcessingInputOutputModuleA,
     engine_systems: [EngineBleedAirSystem; 4],
+    leak_detection: BleedLeakDetection,
+    /// The CPIOM-A bleed monitoring of each engine (CoreProcessingInputOutputModuleAUnit)
+    overheat_ids: [VariableIdentifier; 4],
+    overpressure_ids: [VariableIdentifier; 4],
+    bleed_valve_disagree_ids: [VariableIdentifier; 4],
 
     cross_bleed_valves: [CrossBleedValve; 3],
 
@@ -147,6 +154,14 @@ impl A380Pneumatic {
                 EngineBleedAirSystem::new(context, 3, ElectricalBusType::DirectCurrent(2)),
                 EngineBleedAirSystem::new(context, 4, ElectricalBusType::DirectCurrent(2)),
             ],
+            leak_detection: BleedLeakDetection::new(context),
+            overheat_ids: [1, 2, 3, 4]
+                .map(|engine| context.get_identifier(format!("PNEU_ENG_{}_OVERHEAT", engine))),
+            overpressure_ids: [1, 2, 3, 4]
+                .map(|engine| context.get_identifier(format!("PNEU_ENG_{}_OVERPRESSURE", engine))),
+            bleed_valve_disagree_ids: [1, 2, 3, 4].map(|engine| {
+                context.get_identifier(format!("PNEU_ENG_{}_PR_VALVE_DISAGREE", engine))
+            }),
             cross_bleed_valves: [
                 CrossBleedValve::new(context.get_identifier("PNEU_XBLEED_VALVE_L_OPEN".to_owned())),
                 CrossBleedValve::new(context.get_identifier("PNEU_XBLEED_VALVE_C_OPEN".to_owned())),
@@ -154,10 +169,10 @@ impl A380Pneumatic {
             ],
             fadec: FullAuthorityDigitalEngineControl::new(context),
             engine_starter_valve_controllers: [
-                EngineStarterValveController::new(1),
-                EngineStarterValveController::new(2),
-                EngineStarterValveController::new(3),
-                EngineStarterValveController::new(4),
+                EngineStarterValveController::new(context, 1),
+                EngineStarterValveController::new(context, 2),
+                EngineStarterValveController::new(context, 3),
+                EngineStarterValveController::new(context, 4),
             ],
             apu_compression_chamber: CompressionChamber::new(Volume::new::<cubic_meter>(5.)),
             apu_bleed_air_valve: DefaultValve::new_closed(),
@@ -230,23 +245,43 @@ impl A380Pneumatic {
     ) {
         self.apu_compression_chamber.update(apu);
 
+        // The start valve commands come first: the crossbleed AUTO control opens the crossbleed
+        // valves for an engine start in the same step (see CoreProcessingInputOutputModuleAUnit)
+        for controller in self.engine_starter_valve_controllers.iter_mut() {
+            controller.update(context, &self.fadec);
+        }
+        let engine_start_valves_commanded_open = self
+            .engine_starter_valve_controllers
+            .each_ref()
+            .map(|controller| controller.is_commanded_open());
+
+        self.leak_detection
+            .update(&self.engine_systems, overhead_panel);
+
         self.core_processing_input_output_module_a.update(
             context,
             &self.engine_systems,
             &self.apu_bleed_air_valve,
             overhead_panel,
             engine_fire_push_buttons,
+            engine_start_valves_commanded_open,
+            &self.leak_detection,
         );
 
-        for cross_bleed_valve in self.cross_bleed_valves.iter_mut() {
+        let cross_bleed_valves_closed_by_leak = self.leak_detection.cross_bleed_valves_to_close();
+        for (cross_bleed_valve, closed_by_leak) in self
+            .cross_bleed_valves
+            .iter_mut()
+            .zip(cross_bleed_valves_closed_by_leak)
+        {
             // TODO: See TTM 3. There is a relay system that connects the 4 CPIOM units (PADS application) to the 3 crossbleed valves and the APU isolation valve
             // TLDR: CPIOM-A1+A2 control left xbleed and APU isolation valve, CPIOM-A3+A4 control center and right xbleed valve
-            cross_bleed_valve
-                .update_open_amount(&self.core_processing_input_output_module_a.units[0])
-        }
-
-        for controller in self.engine_starter_valve_controllers.iter_mut() {
-            controller.update(&self.fadec);
+            cross_bleed_valve.update_open_amount(&CrossBleedValveCommand::new(
+                ControllerSignal::<CrossBleedValveSignal>::signal(
+                    &self.core_processing_input_output_module_a.units[0],
+                ),
+                closed_by_leak,
+            ))
         }
 
         for (index, (engine_system, cpiom_unit)) in self
@@ -326,6 +361,25 @@ impl A380Pneumatic {
             engine_4_system,
             pack_flow_valve_signals,
         );
+
+        // The bleed duct of an engine that is not running, with no air source connected to it,
+        // empties (see engine_ducts_without_air_source)
+        let engine_running =
+            [1, 2, 3, 4].map(|number| self.fadec.engine_state(number) == EngineState::On);
+        let cross_bleed_valves_open = self
+            .cross_bleed_valves
+            .each_ref()
+            .map(|valve| valve.is_open());
+        let ducts_to_vent = engine_ducts_without_air_source(
+            engine_running,
+            self.apu_bleed_air_valve.is_open(),
+            cross_bleed_valves_open,
+        );
+        for (engine_system, vent) in self.engine_systems.iter_mut().zip(ducts_to_vent) {
+            if vent {
+                engine_system.vent_bleed_duct(context);
+            }
+        }
     }
 
     // TODO: Returning a mutable reference here is not great. I was running into an issue with the update order:
@@ -350,6 +404,24 @@ impl A380Pneumatic {
 
     pub fn packs(&mut self) -> &mut [PackComplex; 2] {
         &mut self.packs
+    }
+
+    /// The bleed duct pressure of engine n (from 1), downstream of its precooler: the air of the wing anti-ice
+    /// (ice_rain_protection.rs)
+    pub fn bleed_duct_pressure(&self, engine_number: usize) -> Pressure {
+        self.engine_systems[engine_number - 1].pressure()
+    }
+
+    /// The HP compressor pressure of engine n (from 1): the air of its engine anti-ice (ice_rain_protection.rs)
+    pub fn high_pressure_compressor_pressure(&self, engine_number: usize) -> Pressure {
+        self.engine_systems[engine_number - 1]
+            .high_pressure_compression_chamber
+            .pressure()
+    }
+
+    /// The FAULT light of the ENG 1(2)(3)(4) BLEED pb-sw
+    pub fn engine_bleed_fault(&self, engine_number: usize) -> bool {
+        self.core_processing_input_output_module_a.units[engine_number - 1].has_fault()
     }
 }
 impl PneumaticBleed for A380Pneumatic {
@@ -400,9 +472,11 @@ impl SimulationElement for A380Pneumatic {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.fadec.accept(visitor);
 
+        accept_iterable!(self.engine_starter_valve_controllers, visitor);
         accept_iterable!(self.cross_bleed_valves, visitor);
         accept_iterable!(self.engine_systems, visitor);
         accept_iterable!(self.packs, visitor);
+        self.leak_detection.accept(visitor);
 
         self.yellow_hydraulic_reservoir_with_valve.accept(visitor);
         self.green_hydraulic_reservoir_with_valve.accept(visitor);
@@ -419,6 +493,19 @@ impl SimulationElement for A380Pneumatic {
             &self.apu_bleed_air_pressure_id,
             self.apu_compression_chamber.pressure(),
         );
+        for (index, unit) in self
+            .core_processing_input_output_module_a
+            .units
+            .iter()
+            .enumerate()
+        {
+            writer.write(&self.overheat_ids[index], unit.has_overheat());
+            writer.write(&self.overpressure_ids[index], unit.has_overpressure());
+            writer.write(
+                &self.bleed_valve_disagree_ids[index],
+                unit.bleed_valve_position_disagrees(),
+            );
+        }
     }
 }
 impl ReservoirAirPressure for A380Pneumatic {
@@ -435,28 +522,367 @@ impl ReservoirAirPressure for A380Pneumatic {
     }
 }
 
+/// A command that holds a valve at a fixed opening (stuck valve failures)
+struct FixedValveCommand(Ratio);
+impl<T: PneumaticValveSignal> ControllerSignal<T> for FixedValveCommand {
+    fn signal(&self) -> Option<T> {
+        Some(T::new(self.0))
+    }
+}
+
+/// The opening at which a stuck valve stays: closed, fully open, or None when the valve is not stuck.
+/// Design choice (as the A320 model): a stuck valve stays fully closed or fully open.
+/// An electro-pneumatic valve only takes it while its solenoid bus is powered; without power it
+/// still follows its pneumatic spring, as without the failure.
+fn stuck_valve_open_amount(stuck_closed: &Failure, stuck_open: &Failure) -> Option<Ratio> {
+    if stuck_closed.is_active() {
+        Some(Ratio::new::<ratio>(0.))
+    } else if stuck_open.is_active() {
+        Some(Ratio::new::<ratio>(1.))
+    } else {
+        None
+    }
+}
+
+/// A detection that holds while the ENG BLEED pb-sw is in AUTO, and follows its condition while
+/// the pb-sw is OFF: the FAULT light goes off only when the crew selects OFF and the failure is
+/// gone. Design choice (as the A320 model): the automatic closure of the bleed holds with the light.
+fn held_detection(held: bool, detected: bool, bleed_pb_is_off: bool) -> bool {
+    if bleed_pb_is_off {
+        detected
+    } else {
+        held || detected
+    }
+}
+
+/// Bleed air overtemperature, seen by the CPIOM-A downstream of the engine bleed valve: above 260 °C
+/// with a bleed pressure up to 45 PSI, or above 245 °C with more than 45 PSI, for more than 55 s.
+/// Design choice: the temperature is the bleed temperature downstream of the precooler (the
+/// regulated temperature; upstream of it the air is the compressor air).
+struct BleedOverheatMonitor {
+    over_limit: DelayedTrueLogicGate,
+}
+impl BleedOverheatMonitor {
+    const PRESSURE_LIMIT_PSIG: f64 = 45.;
+    const LOW_PRESSURE_TEMPERATURE_LIMIT_CELSIUS: f64 = 260.;
+    const HIGH_PRESSURE_TEMPERATURE_LIMIT_CELSIUS: f64 = 245.;
+    const CONFIRMATION_TIME: Duration = Duration::from_secs(55);
+
+    fn new() -> Self {
+        Self {
+            over_limit: DelayedTrueLogicGate::new(Self::CONFIRMATION_TIME),
+        }
+    }
+
+    fn update(
+        &mut self,
+        context: &UpdateContext,
+        temperature: ThermodynamicTemperature,
+        pressure: Pressure,
+    ) {
+        let limit_celsius = if pressure.get::<psi>() <= Self::PRESSURE_LIMIT_PSIG {
+            Self::LOW_PRESSURE_TEMPERATURE_LIMIT_CELSIUS
+        } else {
+            Self::HIGH_PRESSURE_TEMPERATURE_LIMIT_CELSIUS
+        };
+        self.over_limit
+            .update(context, temperature.get::<degree_celsius>() > limit_celsius);
+    }
+
+    fn has_overheat(&self) -> bool {
+        self.over_limit.output()
+    }
+}
+
+/// Bleed air overpressure, seen by the CPIOM-A downstream of the engine bleed valve: above 60 PSI
+/// with a bleed temperature up to 245 °C, or above 45 PSI when hotter, for more than 15 s.
+struct BleedOverpressureMonitor {
+    over_limit: DelayedTrueLogicGate,
+}
+impl BleedOverpressureMonitor {
+    const TEMPERATURE_LIMIT_CELSIUS: f64 = 245.;
+    const LOW_TEMPERATURE_PRESSURE_LIMIT_PSIG: f64 = 60.;
+    const HIGH_TEMPERATURE_PRESSURE_LIMIT_PSIG: f64 = 45.;
+    const CONFIRMATION_TIME: Duration = Duration::from_secs(15);
+
+    fn new() -> Self {
+        Self {
+            over_limit: DelayedTrueLogicGate::new(Self::CONFIRMATION_TIME),
+        }
+    }
+
+    fn update(
+        &mut self,
+        context: &UpdateContext,
+        pressure: Pressure,
+        temperature: ThermodynamicTemperature,
+    ) {
+        let limit_psig = if temperature.get::<degree_celsius>() <= Self::TEMPERATURE_LIMIT_CELSIUS {
+            Self::LOW_TEMPERATURE_PRESSURE_LIMIT_PSIG
+        } else {
+            Self::HIGH_TEMPERATURE_PRESSURE_LIMIT_PSIG
+        };
+        self.over_limit
+            .update(context, pressure.get::<psi>() > limit_psig);
+    }
+
+    fn has_overpressure(&self) -> bool {
+        self.over_limit.output()
+    }
+}
+
+/// Hot air leaking from a duct reaches its leak detection loop while the duct is pressurised.
+/// Design choice (as the A320 model): above 2 PSI over the ambient pressure.
+const LEAK_MIN_DUCT_PRESSURE_PSIG: f64 = 2.;
+
+/// The air that a leak blows on its detection loop: the air of the leaking duct while it is
+/// pressurised.
+fn leaking_air_temperature(
+    context: &UpdateContext,
+    is_leaking: bool,
+    duct: &impl PneumaticContainer,
+) -> Option<ThermodynamicTemperature> {
+    if is_leaking
+        && (duct.pressure() - context.ambient_pressure()).get::<psi>() > LEAK_MIN_DUCT_PRESSURE_PSIG
+    {
+        Some(duct.temperature())
+    } else {
+        None
+    }
+}
+
+/// The opening of a bleed duct with a leak failure. Design choice (as the A320 model): the hole
+/// empties an isolated duct in a few seconds, while the duct stays pressurised as long as its bleed
+/// valve feeds it.
+fn new_leak_exhaust() -> PneumaticExhaust {
+    const LEAK_EXHAUST_SPEED: f64 = 0.5;
+    PneumaticExhaust::new(
+        LEAK_EXHAUST_SPEED,
+        LEAK_EXHAUST_SPEED,
+        Pressure::new::<psi>(0.),
+    )
+}
+
+/// The bleed leak detection of the engine and wing ducts: dual detection loops along the ducts of
+/// the engines (in the pylons) and of the outer and inner wings detect an overheat above 180 °C near
+/// the pylon ducts and 124 °C near all other ducts. The wing zones follow the engines: zone 1 left
+/// outer wing, 2 left inner, 3 right inner, 4 right outer (the ENG BLEED pb-sw FAULT light of the
+/// engine also shows the leak of its wing zone).
+///
+/// A leak holds while the ENG BLEED pb-sw of its engine is in AUTO (held_detection): with the pb-sw
+/// OFF the FAULT light goes off once the overheat is gone.
+///
+/// Not simulated: the two loops of a zone and their failures (AIR LEAK DET FAULT), the APU, pack
+/// bay and hot-air duct leaks.
+struct BleedLeakDetection {
+    pylon_leak: [bool; 4],
+    wing_leak: [bool; 4],
+    pylon_leak_ids: [VariableIdentifier; 4],
+    wing_leak_ids: [VariableIdentifier; 4],
+}
+impl BleedLeakDetection {
+    const PYLON_DETECTION_CELSIUS: f64 = 180.;
+    const WING_DETECTION_CELSIUS: f64 = 124.;
+    /// The wing zone of each engine, as the LVar names give them
+    const WING_ZONE_NAMES: [&str; 4] = ["L_OUTR", "L_INR", "R_INR", "R_OUTR"];
+
+    fn new(context: &mut InitContext) -> Self {
+        Self {
+            pylon_leak: [false; 4],
+            wing_leak: [false; 4],
+            pylon_leak_ids: [1, 2, 3, 4]
+                .map(|engine| context.get_identifier(format!("PNEU_ENG_{}_BLEED_LEAK", engine))),
+            wing_leak_ids: Self::WING_ZONE_NAMES
+                .map(|zone| context.get_identifier(format!("PNEU_{}_WING_LEAK", zone))),
+        }
+    }
+
+    fn update(
+        &mut self,
+        engine_systems: &[EngineBleedAirSystem; 4],
+        overhead_panel: &A380PneumaticOverheadPanel,
+    ) {
+        let detects = |temperature: Option<ThermodynamicTemperature>, limit_celsius: f64| {
+            temperature.is_some_and(|t| t.get::<degree_celsius>() > limit_celsius)
+        };
+        for (index, engine_system) in engine_systems.iter().enumerate() {
+            let bleed_pb_is_off = !overhead_panel.engine_bleed_pb_is_auto(index + 1);
+            self.pylon_leak[index] = held_detection(
+                self.pylon_leak[index],
+                detects(
+                    engine_system.pylon_leaking_air_temperature(),
+                    Self::PYLON_DETECTION_CELSIUS,
+                ),
+                bleed_pb_is_off,
+            );
+            self.wing_leak[index] = held_detection(
+                self.wing_leak[index],
+                detects(
+                    engine_system.wing_leaking_air_temperature(),
+                    Self::WING_DETECTION_CELSIUS,
+                ),
+                bleed_pb_is_off,
+            );
+        }
+    }
+
+    /// A leak of the engine (pylon) duct or of the wing zone of the engine: the engine bleed valve
+    /// closes and the ENG BLEED pb-sw FAULT light comes on
+    fn zone_leak(&self, engine_number: usize) -> bool {
+        self.pylon_leak[engine_number - 1] || self.wing_leak[engine_number - 1]
+    }
+
+    /// The crossbleed valves that a leak closes at AUTO, left, center and right: an outer engine or
+    /// outer wing leak closes the crossbleed valve of its side and the center one, an inner one the
+    /// crossbleed valve of its side only.
+    fn cross_bleed_valves_to_close(&self) -> [bool; 3] {
+        let leak = |engine_number: usize| self.zone_leak(engine_number);
+        [leak(1) || leak(2), leak(1) || leak(4), leak(3) || leak(4)]
+    }
+}
+impl SimulationElement for BleedLeakDetection {
+    fn write(&self, writer: &mut SimulatorWriter) {
+        for index in 0..4 {
+            writer.write(&self.pylon_leak_ids[index], self.pylon_leak[index]);
+            writer.write(&self.wing_leak_ids[index], self.wing_leak[index]);
+        }
+    }
+}
+
+/// The command of one crossbleed valve: the CPIOM-A command, closed at AUTO by a leak
+/// (BleedLeakDetection::cross_bleed_valves_to_close)
+struct CrossBleedValveCommand {
+    signal: Option<CrossBleedValveSignal>,
+}
+impl CrossBleedValveCommand {
+    fn new(cpiom_signal: Option<CrossBleedValveSignal>, closed_by_leak: bool) -> Self {
+        Self {
+            signal: match cpiom_signal {
+                Some(signal)
+                    if closed_by_leak
+                        && signal.signal_type == CrossBleedValveSignalType::Automatic =>
+                {
+                    Some(CrossBleedValveSignal::new_closed(
+                        CrossBleedValveSignalType::Automatic,
+                    ))
+                }
+                other => other,
+            },
+        }
+    }
+}
+impl ControllerSignal<CrossBleedValveSignal> for CrossBleedValveCommand {
+    fn signal(&self) -> Option<CrossBleedValveSignal> {
+        self.signal
+            .as_ref()
+            .map(|signal| CrossBleedValveSignal::new(signal.target_open_amount, signal.signal_type))
+    }
+}
+
+/// The engines whose bleed duct has no air source and empties (vented), engine 1 first.
+///
+/// Design choice, no published value: the bleed duct of an engine that is not running is fed only by
+/// the APU bleed (connected to the engine 1 duct) and, through open crossbleed valves, by the ducts
+/// of running engines (left crossbleed valve: engines 1-2, center: 1-4, right: 3-4, as the model
+/// connects them). Without such a source the air trapped in the duct after the engine stopped (its
+/// bleed valve closes below 15 PSI) leaks away, so that a
+/// starter assisted relight finds no air in the duct: a starter needs a real air source (APU,
+/// crossbleed). Without this the trapped air pressurized the starter for 5 to 15 s and a relight
+/// was granted with no APU or crossbleed air.
+fn engine_ducts_without_air_source(
+    engine_running: [bool; 4],
+    apu_bleed_valve_open: bool,
+    cross_bleed_valves_open: [bool; 3],
+) -> [bool; 4] {
+    // The group of each engine duct: the ducts joined by open crossbleed valves share one group
+    let mut group = [0, 1, 2, 3];
+    let [left_open, center_open, right_open] = cross_bleed_valves_open;
+    let links = [(0, 1, left_open), (0, 3, center_open), (2, 3, right_open)];
+    // Three links: three passes join every connected group
+    for _ in 0..links.len() {
+        for (a, b, open) in links {
+            if open {
+                let joined = group[a].min(group[b]);
+                group[a] = joined;
+                group[b] = joined;
+            }
+        }
+    }
+
+    let group_has_source = |g: usize| {
+        (apu_bleed_valve_open && group[0] == g)
+            || (0..4).any(|engine| engine_running[engine] && group[engine] == g)
+    };
+    [0, 1, 2, 3].map(|engine| !engine_running[engine] && !group_has_source(group[engine]))
+}
+
+/// The FADEC control of the engine start valve. The start sequence on the ground (engine_failure.rs,
+/// systems::engine::engine_start) commands it for the start, the cranks and the abort; the schedule
+/// below covers the in-flight starts. The valve can be stuck (flyPad failures) and the FADEC detects
+/// a valve that does not follow its command (ENG START VLV FAULT).
 struct EngineStarterValveController {
     number: usize,
-    engine_state: EngineState,
+    /// The FADEC commands the start valve open (start, crank, relight), whatever its position
+    commanded_open: bool,
+    should_open: bool,
+    supervision: EngineStartValveSupervision,
 }
 impl ControllerSignal<EngineStarterValveSignal> for EngineStarterValveController {
     fn signal(&self) -> Option<EngineStarterValveSignal> {
-        match self.engine_state {
-            EngineState::Starting => Some(EngineStarterValveSignal::new_open()),
-            _ => Some(EngineStarterValveSignal::new_closed()),
+        if self.should_open {
+            Some(EngineStarterValveSignal::new_open())
+        } else {
+            Some(EngineStarterValveSignal::new_closed())
         }
     }
 }
 impl EngineStarterValveController {
-    fn new(number: usize) -> Self {
+    /// The documented N2 (the HP spool of the GP7270), read on the Trent N3
+    const START_VALVE_CLOSING_N3_PERCENT: f64 = 58.4;
+
+    fn new(context: &mut InitContext, number: usize) -> Self {
         Self {
             number,
-            engine_state: EngineState::Off,
+            commanded_open: false,
+            should_open: false,
+            supervision: EngineStartValveSupervision::new(context, number),
         }
     }
 
-    fn update(&mut self, fadec: &FullAuthorityDigitalEngineControl) {
-        self.engine_state = fadec.engine_state(self.number);
+    fn is_commanded_open(&self) -> bool {
+        self.commanded_open
+    }
+
+    /// At the ENG MASTER ON of a start (STARTING), or of the restart of an engine that has not run
+    /// down to OFF yet (RESTARTING), the start valve opens: on the ground always, in flight only if N2
+    /// is below 11 % or the CAS below 260 kt (otherwise a windmilling start, valve closed). It closes
+    /// above 58.4 % N2.
+    fn update(&mut self, context: &UpdateContext, fadec: &FullAuthorityDigitalEngineControl) {
+        let core_speed = fadec.engine_core_speed(self.number);
+        let starting = matches!(
+            fadec.engine_state(self.number),
+            EngineState::Starting | EngineState::Restarting
+        );
+        let starter_assisted = context.is_on_ground()
+            || A380RelightEnvelope::in_flight_start_is_starter_assisted(
+                core_speed,
+                context.indicated_airspeed(),
+            );
+
+        let schedule_open = starting
+            && starter_assisted
+            && core_speed.get::<percent>() <= Self::START_VALVE_CLOSING_N3_PERCENT;
+        self.commanded_open = self.supervision.commanded_open(schedule_open);
+        self.should_open = self.supervision.position_open(self.commanded_open);
+        self.supervision
+            .monitor(context.delta(), self.commanded_open, self.should_open);
+    }
+}
+impl SimulationElement for EngineStarterValveController {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.supervision.accept(visitor);
+
+        visitor.visit(self);
     }
 }
 
@@ -489,7 +915,13 @@ impl CoreProcessingInputOutputModuleA {
         apu_bleed_valve: &impl PneumaticValve,
         pneumatic_overhead_panel: &A380PneumaticOverheadPanel,
         engine_fire_push_buttons: &impl EngineFirePushButtons,
+        engine_start_valves_commanded_open: [bool; 4],
+        leak_detection: &BleedLeakDetection,
     ) {
+        // The crossbleed valves open at AUTO for an engine start on the ground: any engine whose
+        // start valve the FADEC commands open
+        let engine_start_on_ground =
+            context.is_on_ground() && engine_start_valves_commanded_open.contains(&true);
         for (unit, sensor) in self.units.iter_mut().zip(sensors) {
             unit.update(
                 context,
@@ -497,7 +929,15 @@ impl CoreProcessingInputOutputModuleA {
                 engine_fire_push_buttons.is_released(unit.engine_number),
                 apu_bleed_valve,
                 pneumatic_overhead_panel,
+                engine_start_on_ground,
+                leak_detection.zone_leak(unit.engine_number),
             );
+        }
+
+        // The crossbleed valves also open at AUTO when any engine bleed system fails
+        let any_engine_bleed_failed = self.units.iter().any(|unit| unit.engine_bleed_failed());
+        for unit in self.units.iter_mut() {
+            unit.is_any_engine_bleed_failed = any_engine_bleed_failed;
         }
     }
 
@@ -532,6 +972,23 @@ struct CoreProcessingInputOutputModuleAUnit {
     is_apu_bleed_valve_open: bool,
     is_apu_bleed_on: bool,
     is_any_bleed_pushbutton_off: bool,
+    /// On the ground, the FADEC commands the start valve of an engine open
+    is_engine_start_on_ground: bool,
+    overheat_monitor: BleedOverheatMonitor,
+    overpressure_monitor: BleedOverpressureMonitor,
+    /// The overtemperature and overpressure detections, held with the FAULT light while the ENG
+    /// BLEED pb-sw is in AUTO (held_detection). They close the bleed valve.
+    overheat_latched: bool,
+    overpressure_latched: bool,
+    /// A leak of the engine (pylon) duct or of the wing zone of this engine (BleedLeakDetection)
+    zone_leak: bool,
+    /// Any engine bleed system has failed (overtemperature or overpressure)
+    is_any_engine_bleed_failed: bool,
+    /// The engine bleed valve is not in the position this unit commands (FAULT light, BLEED page)
+    bleed_valve_position_disagrees: DelayedTrueLogicGate,
+    /// The opening command sent to the bleed valve at the previous update, that the valve position
+    /// read now follows
+    bleed_valve_commanded_open: bool,
     high_pressure_valve_pid: PidController,
     pressure_regulating_valve_pid: PidController,
     fan_air_valve_pid: PidController,
@@ -539,6 +996,9 @@ struct CoreProcessingInputOutputModuleAUnit {
 }
 impl CoreProcessingInputOutputModuleAUnit {
     const PRESSURE_REGULATING_VALVE_TARGET_PSI: f64 = 40.; // FCOM
+    /// Design choice (as the A320 model): the bleed valve must stay out of its commanded position for
+    /// 10 s before the FAULT light comes on.
+    const BLEED_VALVE_POSITION_DISAGREE_CONFIRMATION: Duration = Duration::from_secs(10);
 
     fn new(engine_number: usize) -> Self {
         Self {
@@ -553,6 +1013,17 @@ impl CoreProcessingInputOutputModuleAUnit {
             is_apu_bleed_valve_open: false,
             is_apu_bleed_on: false,
             is_any_bleed_pushbutton_off: false,
+            is_engine_start_on_ground: false,
+            overheat_monitor: BleedOverheatMonitor::new(),
+            overpressure_monitor: BleedOverpressureMonitor::new(),
+            overheat_latched: false,
+            overpressure_latched: false,
+            zone_leak: false,
+            is_any_engine_bleed_failed: false,
+            bleed_valve_position_disagrees: DelayedTrueLogicGate::new(
+                Self::BLEED_VALVE_POSITION_DISAGREE_CONFIRMATION,
+            ),
+            bleed_valve_commanded_open: false,
             high_pressure_valve_pid: PidController::new(0.05, 0.05, 0., 0., 1., 50., 1.),
             pressure_regulating_valve_pid: PidController::new(
                 0.1,
@@ -575,7 +1046,10 @@ impl CoreProcessingInputOutputModuleAUnit {
         is_engine_fire_pushbutton_released: bool,
         apu_bleed_valve: &impl PneumaticValve,
         pneumatic_overhead_panel: &A380PneumaticOverheadPanel,
+        is_engine_start_on_ground: bool,
+        zone_leak: bool,
     ) {
+        self.is_engine_start_on_ground = is_engine_start_on_ground;
         self.intermediate_pressure_compressor_pressure = sensors.intermediate_pressure();
         self.high_pressure_compressor_pressure = sensors.high_pressure();
         self.transfer_pressure = sensors.transfer_pressure();
@@ -614,16 +1088,87 @@ impl CoreProcessingInputOutputModuleAUnit {
         self.is_apu_bleed_on = pneumatic_overhead_panel.apu_bleed_is_on();
 
         self.cross_bleed_valve_selector = pneumatic_overhead_panel.cross_bleed_mode();
+
+        self.update_fault_monitoring(context, sensors, zone_leak);
+    }
+
+    /// The bleed monitoring of the CPIOM-A: overtemperature, overpressure, leak and bleed valve
+    /// position
+    fn update_fault_monitoring(
+        &mut self,
+        context: &UpdateContext,
+        sensors: &EngineBleedAirSystem,
+        zone_leak: bool,
+    ) {
+        if let Some(regulated_pressure) = sensors.regulated_pressure_transducer_pressure() {
+            let bleed_temperature = sensors.precooler_outlet_temperature();
+            self.overheat_monitor
+                .update(context, bleed_temperature, regulated_pressure);
+            self.overpressure_monitor
+                .update(context, regulated_pressure, bleed_temperature);
+        }
+
+        let bleed_pb_is_off = !self.is_engine_bleed_pushbutton_auto;
+        self.overheat_latched = held_detection(
+            self.overheat_latched,
+            self.overheat_monitor.has_overheat(),
+            bleed_pb_is_off,
+        );
+        self.overpressure_latched = held_detection(
+            self.overpressure_latched,
+            self.overpressure_monitor.has_overpressure(),
+            bleed_pb_is_off,
+        );
+        self.zone_leak = zone_leak;
+
+        // The request is the opening this unit sent to the valve. The valve position read here
+        // follows the command of the previous update (the valves move after this unit).
+        self.bleed_valve_position_disagrees.update(
+            context,
+            self.bleed_valve_commanded_open != sensors.pressure_regulating_valve_is_open(),
+        );
+        self.bleed_valve_commanded_open =
+            ControllerSignal::<PressureRegulatingValveSignal>::signal(self)
+                .is_some_and(|signal| signal.target_open_amount() > Ratio::default());
     }
 
     fn should_close_pressure_regulating_valve_because_apu_bleed_is_on(&self) -> bool {
         self.is_apu_bleed_on && self.is_apu_bleed_valve_open
     }
+
+    /// The engine bleed supply is lost by an overtemperature or an overpressure (AIR ENG 1(2)(3)(4)
+    /// BLEED FAULT)
+    fn engine_bleed_failed(&self) -> bool {
+        self.overheat_latched || self.overpressure_latched
+    }
+
+    fn has_overheat(&self) -> bool {
+        self.overheat_latched
+    }
+
+    fn has_overpressure(&self) -> bool {
+        self.overpressure_latched
+    }
+
+    fn bleed_valve_position_disagrees(&self) -> bool {
+        self.bleed_valve_position_disagrees.output()
+    }
+
+    /// The FAULT light of the ENG BLEED pb-sw: bleed valve position disagreement, overpressure,
+    /// overheat, or a leak of the engine or of its wing zone.
+    fn has_fault(&self) -> bool {
+        self.overheat_latched
+            || self.overpressure_latched
+            || self.zone_leak
+            || self.bleed_valve_position_disagrees.output()
+    }
 }
 impl ControllerSignal<HighPressureValveSignal> for CoreProcessingInputOutputModuleAUnit {
     fn signal(&self) -> Option<HighPressureValveSignal> {
-        // TODO: Add overtemperature condition here
+        // The HP valve closes for a high IP stage pressure, a low HP stage pressure, the bleed valve
+        // closed, and a bleed overtemperature
         if self.pressure_regulating_valve_is_closed
+            || self.overheat_latched
             || self.high_pressure_compressor_pressure < Pressure::new::<psi>(15.)
             || self.intermediate_pressure_compressor_pressure > Pressure::new::<psi>(33.5)
         {
@@ -641,6 +1186,10 @@ impl ControllerSignal<PressureRegulatingValveSignal> for CoreProcessingInputOutp
             || (!self.is_engine_bleed_pushbutton_auto || self.is_engine_fire_pushbutton_released)
             || self.should_close_pressure_regulating_valve_because_apu_bleed_is_on()
             || self.engine_starter_valve_is_open
+            // The bleed valve closes for an overpressure, an overtemperature or a leak nearby
+            || self.overheat_latched
+            || self.overpressure_latched
+            || self.zone_leak
         {
             Some(PressureRegulatingValveSignal::new_closed())
         } else {
@@ -657,6 +1206,20 @@ impl ControllerSignal<FanAirValveSignal> for CoreProcessingInputOutputModuleAUni
         )))
     }
 }
+/// The X BLEED selector at AUTO: the crossbleed valves are normally closed and open automatically,
+/// all at the same time, on the ground at engine start, when the APU bleed valve is open, or when
+/// any engine bleed system fails.
+///
+/// - Engine start: the crossbleed engine start procedure gets the starter air of the running
+///   engines through these valves. Design choice (no published opening or closing point): "at engine
+///   start" is while the FADEC commands the start valve of any engine open, from the ENG MASTER ON
+///   (or MAN START ON, crank) to the start valve closing at 58.4 % N2 or the end/abort of the start.
+///   All three valves together. The valves then close again, unless another condition keeps them
+///   open (the APU BLEED OFF after the start closes all crossbleed valves).
+/// - An engine bleed failure: an ENG BLEED pb OFF, or an engine bleed lost by an overtemperature or
+///   an overpressure with its pb ON (CoreProcessingInputOutputModuleAUnit::engine_bleed_failed).
+///
+/// A leak closes some of the valves at AUTO (BleedLeakDetection::cross_bleed_valves_to_close).
 impl ControllerSignal<CrossBleedValveSignal> for CoreProcessingInputOutputModuleAUnit {
     fn signal(&self) -> Option<CrossBleedValveSignal> {
         match self.cross_bleed_valve_selector {
@@ -667,7 +1230,11 @@ impl ControllerSignal<CrossBleedValveSignal> for CoreProcessingInputOutputModule
                 CrossBleedValveSignalType::Manual,
             )),
             CrossBleedValveSelectorMode::Auto => {
-                if self.is_apu_bleed_valve_open || self.is_any_bleed_pushbutton_off {
+                if self.is_apu_bleed_valve_open
+                    || self.is_any_bleed_pushbutton_off
+                    || self.is_any_engine_bleed_failed
+                    || self.is_engine_start_on_ground
+                {
                     Some(CrossBleedValveSignal::new_open(
                         CrossBleedValveSignalType::Automatic,
                     ))
@@ -694,6 +1261,7 @@ struct EngineBleedAirSystem {
     high_pressure_valve_open_id: VariableIdentifier,
     pressure_regulating_valve_open_id: VariableIdentifier,
     starter_valve_open_id: VariableIdentifier,
+    starter_pressurized_id: VariableIdentifier,
     intermediate_pressure_transducer_pressure_id: VariableIdentifier,
     transfer_pressure_transducer_pressure_id: VariableIdentifier,
     regulated_pressure_transducer_pressure_id: VariableIdentifier,
@@ -715,8 +1283,27 @@ struct EngineBleedAirSystem {
     engine_starter_exhaust: PneumaticExhaust,
     engine_starter_container: PneumaticPipe,
     engine_starter_valve: DefaultValve,
+    /// Empty the duct of an engine without an air source (engine_ducts_without_air_source)
+    precooler_inlet_vent: PneumaticExhaust,
+    precooler_outlet_vent: PneumaticExhaust,
+    /// Air pressure turns the pneumatic starter (APU, the other engines or ground air): a starter
+    /// assisted relight can light up (engine_failure.rs)
+    engine_starter_pressurized: bool,
     fan_air_valve: ElectroPneumaticValve,
     precooler: Precooler,
+    /// flyPad ATA 36 failures (as the A320 model): the bleed valve stuck. A stuck open valve no
+    /// longer regulates the pressure: at high power the bleed overpressure and overheat follow.
+    bleed_valve_stuck_closed: Failure,
+    bleed_valve_stuck_open: Failure,
+    /// A leak of the engine duct in the pylon, downstream of the bleed valve: the bleed valve
+    /// closure isolates it
+    pylon_leak: Failure,
+    pylon_leak_exhaust: PneumaticExhaust,
+    pylon_leaking_air_temperature: Option<ThermodynamicTemperature>,
+    /// A leak of the duct in the wing zone of this engine, downstream of the precooler
+    wing_leak: Failure,
+    wing_leak_exhaust: PneumaticExhaust,
+    wing_leaking_air_temperature: Option<ThermodynamicTemperature>,
 
     intermediate_pressure_transducer: PressureTransducer,
     transfer_pressure_transducer: PressureTransducer,
@@ -724,6 +1311,20 @@ struct EngineBleedAirSystem {
     differential_pressure_transducer: DifferentialPressureTransducer,
 }
 impl EngineBleedAirSystem {
+    const MIN_ENGINE_START_CONTAINER_PRESSURE_PSIG_HIGH: f64 = 10.;
+    const MIN_ENGINE_START_CONTAINER_PRESSURE_PSIG_LOW: f64 = 5.;
+    /// How fast the starter turbine vents the starter duct overboard (1/s). Design choice: the start
+    /// valve is fully closed about 10 s after it starts closing, and the starter gets no more air
+    /// after that. A slower vent kept the duct pressurized for about 45 s after the start valve
+    /// closed, so a ground relight in that time lit up without APU or crossbleed air. The A320 model
+    /// uses 10 / s with a 0.3 m3 duct; the A380 start valve cannot keep its 0.5 m3 duct above 10 PSIG
+    /// at that rate. 0.5 / s keeps about 21 PSIG with the APU bleed and empties the duct below 5 PSIG
+    /// within about 3 s of the start valve closing.
+    const ENGINE_STARTER_EXHAUST_SPEED: f64 = 0.5;
+    /// How fast the duct of an engine without an air source empties (1/s, engine_ducts_without_air_source).
+    /// Design choice: the trapped air is gone within about 3 s.
+    const ISOLATED_DUCT_VENT_SPEED: f64 = 1.;
+
     fn new(context: &mut InitContext, number: usize, powered_by: ElectricalBusType) -> Self {
         Self {
             high_pressure_id: context.get_identifier(format!("PNEU_ENG_{}_HP_PRESSURE", number)),
@@ -749,6 +1350,8 @@ impl EngineBleedAirSystem {
                 .get_identifier(format!("PNEU_ENG_{}_PR_VALVE_OPEN", number)),
             starter_valve_open_id: context
                 .get_identifier(format!("PNEU_ENG_{}_STARTER_VALVE_OPEN", number)),
+            starter_pressurized_id: context
+                .get_identifier(format!("PNEU_ENG_{}_STARTER_PRESSURIZED", number)),
             intermediate_pressure_transducer_pressure_id: context.get_identifier(format!(
                 "PNEU_ENG_{}_INTERMEDIATE_TRANSDUCER_PRESSURE",
                 number
@@ -804,9 +1407,34 @@ impl EngineBleedAirSystem {
                 Pressure::new::<psi>(14.7),
                 ThermodynamicTemperature::new::<degree_celsius>(15.),
             ),
-            engine_starter_exhaust: PneumaticExhaust::new(3e-2, 3e-2, Pressure::new::<psi>(0.)),
+            engine_starter_exhaust: PneumaticExhaust::new(
+                Self::ENGINE_STARTER_EXHAUST_SPEED,
+                Self::ENGINE_STARTER_EXHAUST_SPEED,
+                Pressure::new::<psi>(0.),
+            ),
             engine_starter_valve: DefaultValve::new_closed(),
+            precooler_inlet_vent: PneumaticExhaust::new(
+                Self::ISOLATED_DUCT_VENT_SPEED,
+                Self::ISOLATED_DUCT_VENT_SPEED,
+                Pressure::new::<psi>(0.),
+            ),
+            precooler_outlet_vent: PneumaticExhaust::new(
+                Self::ISOLATED_DUCT_VENT_SPEED,
+                Self::ISOLATED_DUCT_VENT_SPEED,
+                Pressure::new::<psi>(0.),
+            ),
+            engine_starter_pressurized: false,
             precooler: Precooler::new(180. * 2.),
+            bleed_valve_stuck_closed: Failure::new(FailureType::EngineBleedValveStuckClosed(
+                number,
+            )),
+            bleed_valve_stuck_open: Failure::new(FailureType::EngineBleedValveStuckOpen(number)),
+            pylon_leak: Failure::new(FailureType::EngineBleedLeak(number)),
+            pylon_leak_exhaust: new_leak_exhaust(),
+            pylon_leaking_air_temperature: None,
+            wing_leak: Failure::new(FailureType::WingBleedLeak(number)),
+            wing_leak_exhaust: new_leak_exhaust(),
+            wing_leaking_air_temperature: None,
             intermediate_pressure_transducer: PressureTransducer::new(powered_by),
             transfer_pressure_transducer: PressureTransducer::new(powered_by),
             regulated_pressure_transducer: PressureTransducer::new(powered_by),
@@ -840,8 +1468,17 @@ impl EngineBleedAirSystem {
 
         self.high_pressure_valve
             .update_open_amount(high_pressure_valve_controller);
-        self.pressure_regulating_valve
-            .update_open_amount(pressure_regulating_valve_controller);
+        match stuck_valve_open_amount(&self.bleed_valve_stuck_closed, &self.bleed_valve_stuck_open)
+        {
+            Some(open_amount) => self
+                .pressure_regulating_valve
+                .update_open_amount::<PressureRegulatingValveSignal, _>(&FixedValveCommand(
+                    open_amount,
+                )),
+            None => self
+                .pressure_regulating_valve
+                .update_open_amount(pressure_regulating_valve_controller),
+        }
         self.engine_starter_valve
             .update_open_amount(engine_starter_valve_controller);
         self.fan_air_valve
@@ -881,6 +1518,8 @@ impl EngineBleedAirSystem {
         self.engine_starter_exhaust
             .update_move_fluid(context, &mut self.engine_starter_container);
 
+        self.update_leaks(context);
+
         self.intermediate_pressure_transducer
             .update(context, &self.intermediate_pressure_compression_chamber);
         self.transfer_pressure_transducer
@@ -889,6 +1528,73 @@ impl EngineBleedAirSystem {
             .update(context, &self.precooler_inlet_pipe);
         self.differential_pressure_transducer
             .update(&self.precooler_inlet_pipe, &self.precooler_outlet_pipe);
+
+        self.update_engine_start_pressurization(context);
+    }
+
+    /// The starter container gauge pressure, with a hysteresis. No A380 value is published: the
+    /// 10 / 5 PSI (gauge) of the A320 pneumatic model (a320_systems pneumatic.rs) are used.
+    fn update_engine_start_pressurization(&mut self, context: &UpdateContext) {
+        let starter_container_pressure_psig =
+            (self.engine_starter_container.pressure() - context.ambient_pressure()).get::<psi>();
+
+        self.engine_starter_pressurized = if self.engine_starter_pressurized {
+            starter_container_pressure_psig > Self::MIN_ENGINE_START_CONTAINER_PRESSURE_PSIG_LOW
+        } else {
+            starter_container_pressure_psig > Self::MIN_ENGINE_START_CONTAINER_PRESSURE_PSIG_HIGH
+        };
+    }
+
+    /// The leak failures blow the duct air out, and on their detection loops while the duct is
+    /// pressurised. Design choice (as the A320 model): while the bleed valve lets air through, the
+    /// pylon leak blows air at the temperature of the compressor air (transfer duct).
+    fn update_leaks(&mut self, context: &UpdateContext) {
+        if self.pylon_leak.is_active() {
+            self.pylon_leak_exhaust
+                .update_move_fluid(context, &mut self.precooler_inlet_pipe);
+        }
+        if self.wing_leak.is_active() {
+            self.wing_leak_exhaust
+                .update_move_fluid(context, &mut self.precooler_outlet_pipe);
+        }
+        let pressure_regulating_valve_is_open = self.pressure_regulating_valve.is_open();
+        let transfer_temperature = self.transfer_pressure_pipe.temperature();
+        self.pylon_leaking_air_temperature = leaking_air_temperature(
+            context,
+            self.pylon_leak.is_active(),
+            &self.precooler_inlet_pipe,
+        )
+        .map(|inlet_temperature| {
+            if pressure_regulating_valve_is_open {
+                inlet_temperature.max(transfer_temperature)
+            } else {
+                inlet_temperature
+            }
+        });
+        self.wing_leaking_air_temperature = leaking_air_temperature(
+            context,
+            self.wing_leak.is_active(),
+            &self.precooler_outlet_pipe,
+        );
+    }
+
+    /// The air a pylon leak blows on the pylon leak detection loops
+    fn pylon_leaking_air_temperature(&self) -> Option<ThermodynamicTemperature> {
+        self.pylon_leaking_air_temperature
+    }
+
+    /// The air a wing leak blows on the wing leak detection loops
+    fn wing_leaking_air_temperature(&self) -> Option<ThermodynamicTemperature> {
+        self.wing_leaking_air_temperature
+    }
+
+    /// The duct of this engine has no air source: its trapped air leaks away
+    /// (engine_ducts_without_air_source).
+    fn vent_bleed_duct(&mut self, context: &UpdateContext) {
+        self.precooler_inlet_vent
+            .update_move_fluid(context, &mut self.precooler_inlet_pipe);
+        self.precooler_outlet_vent
+            .update_move_fluid(context, &mut self.precooler_outlet_pipe);
     }
 
     fn intermediate_pressure(&self) -> Pressure {
@@ -968,6 +1674,11 @@ impl SimulationElement for EngineBleedAirSystem {
         self.regulated_pressure_transducer.accept(visitor);
         self.differential_pressure_transducer.accept(visitor);
 
+        self.bleed_valve_stuck_closed.accept(visitor);
+        self.bleed_valve_stuck_open.accept(visitor);
+        self.pylon_leak.accept(visitor);
+        self.wing_leak.accept(visitor);
+
         visitor.visit(self);
     }
 
@@ -1030,6 +1741,10 @@ impl SimulationElement for EngineBleedAirSystem {
         writer.write(
             &self.starter_valve_open_id,
             self.engine_starter_valve.is_open(),
+        );
+        writer.write(
+            &self.starter_pressurized_id,
+            self.engine_starter_pressurized,
         );
     }
 }
@@ -1105,6 +1820,18 @@ impl A380PneumaticOverheadPanel {
             _ => panic!("Invalid engine number"),
         }
     }
+
+    /// The FAULT lights of the ENG 1(2)(3)(4) BLEED pb-sw
+    pub fn update_fault_lights(&mut self, pneumatic: &A380Pneumatic) {
+        self.engine_1_bleed
+            .set_fault(pneumatic.engine_bleed_fault(1));
+        self.engine_2_bleed
+            .set_fault(pneumatic.engine_bleed_fault(2));
+        self.engine_3_bleed
+            .set_fault(pneumatic.engine_bleed_fault(3));
+        self.engine_4_bleed
+            .set_fault(pneumatic.engine_bleed_fault(4));
+    }
 }
 impl EngineBleedPushbutton<4> for A380PneumaticOverheadPanel {
     fn engine_bleed_pushbuttons_are_auto(&self) -> [bool; 4] {
@@ -1143,6 +1870,10 @@ pub struct FullAuthorityDigitalEngineControl {
 
     engine_mode_selector1_id: VariableIdentifier,
     engine_mode_selector1_position: EngineModeSelector,
+
+    /// The core speed of each engine: the FADEC N3 (the documented GP7270 N2)
+    engine_core_speed_ids: [VariableIdentifier; 4],
+    engine_core_speeds: [Ratio; 4],
 }
 impl FullAuthorityDigitalEngineControl {
     fn new(context: &mut InitContext) -> Self {
@@ -1158,7 +1889,14 @@ impl FullAuthorityDigitalEngineControl {
             engine_mode_selector1_id: context
                 .get_identifier("TURB ENG IGNITION SWITCH EX1:1".to_owned()),
             engine_mode_selector1_position: EngineModeSelector::Norm,
+            engine_core_speed_ids: [1, 2, 3, 4]
+                .map(|number| context.get_identifier(format!("ENGINE_N3:{}", number))),
+            engine_core_speeds: [Ratio::default(); 4],
         }
+    }
+
+    fn engine_core_speed(&self, number: usize) -> Ratio {
+        self.engine_core_speeds[number - 1]
     }
 
     fn engine_state(&self, number: usize) -> EngineState {
@@ -1202,6 +1940,13 @@ impl SimulationElement for FullAuthorityDigitalEngineControl {
             "EngineModeSelector",
             EngineModeSelector::Norm,
         );
+        for (core_speed, id) in self
+            .engine_core_speeds
+            .iter_mut()
+            .zip(&self.engine_core_speed_ids)
+        {
+            *core_speed = Ratio::new::<percent>(reader.read(id));
+        }
     }
 }
 
@@ -1477,7 +2222,7 @@ mod tests {
             PneumaticBleed, PneumaticValve, PotentialOrigin,
         },
         simulation::{
-            test::{SimulationTestBed, TestBed, WriteByName},
+            test::{ReadByName, SimulationTestBed, TestBed, WriteByName},
             Aircraft, InitContext, SimulationElement, SimulationElementVisitor, UpdateContext,
         },
     };
@@ -1492,6 +2237,7 @@ mod tests {
     use crate::{
         air_conditioning::{A380AirConditioning, A380PressurizationOverheadPanel},
         avionics_data_communication_network::A380AvionicsDataCommunicationNetwork,
+        engine_failure::A380EngineFailures,
     };
 
     use super::{A380Pneumatic, A380PneumaticOverheadPanel};
@@ -1737,6 +2483,8 @@ mod tests {
         engine_4: TrentEngine,
         pneumatic_overhead_panel: A380PneumaticOverheadPanel,
         fire_pushbuttons: TestEngineFirePushButtons,
+        /// The relight of a failed engine reads the starter air pressure (engine_failure.rs)
+        engine_failures: A380EngineFailures,
         electrical: A380TestElectrical,
         powered_source: TestElectricitySource,
         dc_1_bus: ElectricalBus,
@@ -1765,6 +2513,7 @@ mod tests {
                 engine_4: TrentEngine::new(context, 4),
                 pneumatic_overhead_panel: A380PneumaticOverheadPanel::new(context),
                 fire_pushbuttons: TestEngineFirePushButtons::new(),
+                engine_failures: A380EngineFailures::new(context),
                 electrical: A380TestElectrical::new(),
                 powered_source: TestElectricitySource::powered(
                     context,
@@ -1839,6 +2588,9 @@ mod tests {
                 &self.apu,
                 &self.air_conditioning,
             );
+            self.pneumatic_overhead_panel
+                .update_fault_lights(&self.pneumatic);
+            self.engine_failures.update(context, [false; 4]);
             self.air_conditioning.update(
                 context,
                 [
@@ -1864,6 +2616,7 @@ mod tests {
             self.engine_4.accept(visitor);
             self.pneumatic_overhead_panel.accept(visitor);
             self.air_conditioning.accept(visitor);
+            self.engine_failures.accept(visitor);
 
             visitor.visit(self);
         }
@@ -2268,6 +3021,12 @@ mod tests {
 
         fn set_engine_bleed_push_button_off(mut self, number: usize) -> Self {
             self.write_by_name(&format!("OVHD_PNEU_ENG_{}_BLEED_PB_IS_AUTO", number), false);
+
+            self
+        }
+
+        fn set_engine_bleed_push_button_auto(mut self, number: usize) -> Self {
+            self.write_by_name(&format!("OVHD_PNEU_ENG_{}_BLEED_PB_IS_AUTO", number), true);
 
             self
         }
@@ -2927,6 +3686,469 @@ mod tests {
         assert!(test_bed.es_valve_is_open(engine_number));
     }
 
+    /// In flight at this airspeed, engine 1 out with its core windmilling at 12 %.
+    fn in_flight_with_engine_1_out(airspeed_knots: f64) -> PneumaticTestBed {
+        let mut test_bed = test_bed_with()
+            .idle_eng2()
+            .idle_eng3()
+            .idle_eng4()
+            .stop_eng1()
+            .and_run();
+        test_bed.set_on_ground(false);
+        test_bed.set_indicated_airspeed(Velocity::new::<knot>(airspeed_knots));
+        test_bed.write_by_name("ENGINE_N3:1", 12.);
+        test_bed
+    }
+
+    #[test]
+    fn in_flight_the_start_valve_stays_closed_for_a_windmilling_start() {
+        // In flight the start valve opens below 11 % N2 or 260 kt only
+        let test_bed = in_flight_with_engine_1_out(300.)
+            .set_engine_state(1, EngineState::Starting)
+            .and_run();
+
+        assert!(!test_bed.es_valve_is_open(1));
+    }
+
+    #[rstest]
+    fn in_flight_the_start_valve_opens_for_a_starter_assisted_relight(
+        #[values(EngineState::Starting, EngineState::Restarting)] engine_state: EngineState,
+    ) {
+        let mut test_bed = in_flight_with_engine_1_out(250.)
+            .set_engine_state(1, engine_state)
+            .and_run();
+        assert!(test_bed.es_valve_is_open(1));
+
+        // a stopped core is started with the starter at any airspeed
+        test_bed.set_indicated_airspeed(Velocity::new::<knot>(300.));
+        test_bed.write_by_name("ENGINE_N3:1", 5.);
+        test_bed = test_bed.and_run();
+        assert!(test_bed.es_valve_is_open(1));
+    }
+
+    #[test]
+    fn on_the_ground_the_start_valve_opens_for_the_restart_of_a_spinning_down_engine() {
+        // The FADEC restarts (RESTARTING) an engine that has not run down to OFF yet, e.g. after a
+        // flameout with the MSFS starter still turning it at 25 %.
+        let mut test_bed = test_bed_with().stop_eng1().and_run();
+        test_bed.set_on_ground(true);
+        test_bed.write_by_name("ENGINE_N3:1", 25.);
+        test_bed = test_bed
+            .set_engine_state(1, EngineState::Restarting)
+            .and_run();
+
+        assert!(test_bed.es_valve_is_open(1));
+    }
+
+    #[rstest]
+    fn the_start_valve_closes_above_58_4_percent_n3(
+        #[values(true, false)] on_ground: bool,
+        #[values(EngineState::Starting, EngineState::Restarting)] engine_state: EngineState,
+    ) {
+        // The engine start valve closes when N2 is above 58.4 %
+        let mut test_bed = test_bed_with().stop_eng1().and_run();
+        test_bed.set_on_ground(on_ground);
+        test_bed.set_indicated_airspeed(Velocity::new::<knot>(200.));
+        test_bed.write_by_name("ENGINE_N3:1", 58.);
+        test_bed = test_bed.set_engine_state(1, engine_state).and_run();
+        assert!(test_bed.es_valve_is_open(1));
+
+        test_bed.write_by_name("ENGINE_N3:1", 59.);
+        test_bed = test_bed.and_run();
+        assert!(!test_bed.es_valve_is_open(1));
+    }
+
+    #[test]
+    fn a_start_valve_stuck_closed_does_not_open_and_is_reported() {
+        let mut test_bed = test_bed_with().stop_eng3().and_run();
+        test_bed.fail(FailureType::EngineStartValveStuckClosed(3));
+        test_bed = test_bed.start_eng3().and_run();
+        test_bed
+            .test_bed
+            .run_multiple_frames(Duration::from_secs(6));
+
+        assert!(!test_bed.es_valve_is_open(3));
+        let fault: f64 = test_bed.read_by_name("ENGINE_3_START_VALVE_FAULT");
+        assert_eq!(fault, 1.);
+    }
+
+    #[test]
+    fn a_start_valve_stuck_open_stays_open_and_is_reported() {
+        let mut test_bed = test_bed_with().idle_eng4().and_run();
+        test_bed.fail(FailureType::EngineStartValveStuckOpen(4));
+        test_bed = test_bed.and_run();
+        test_bed
+            .test_bed
+            .run_multiple_frames(Duration::from_secs(6));
+
+        assert!(test_bed.es_valve_is_open(4));
+        let fault: f64 = test_bed.read_by_name("ENGINE_4_START_VALVE_FAULT");
+        assert_eq!(fault, 2.);
+    }
+
+    #[test]
+    fn the_start_sequence_opens_the_start_valve_of_an_engine_off_for_a_crank() {
+        let mut test_bed = test_bed_with().stop_eng2().and_run();
+        test_bed.write_by_name("ENGINE_2_START_VALVE_COMMAND", 1.);
+        test_bed = test_bed.and_run();
+
+        assert!(test_bed.es_valve_is_open(2));
+    }
+
+    /// Engine 1 has flamed out with its master ON (FADEC SHUTTING), ENG START selector at IGN START.
+    fn with_engine_1_flamed_out(mut test_bed: PneumaticTestBed) -> PneumaticTestBed {
+        test_bed.write_by_name("XMLVAR_ENG_MODE_SEL", 2.);
+        test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:1", true);
+        test_bed.write_by_name("ENGINE_STATE:1", EngineState::On);
+        test_bed = test_bed.and_run();
+        test_bed.fail(FailureType::EngineFlameout(1));
+        test_bed
+            .set_engine_state(1, EngineState::Shutting)
+            .and_run()
+            .and_run()
+    }
+
+    /// The crew sets the ENG MASTER OFF then ON: the FADEC restarts the engine (RESTARTING).
+    fn with_engine_1_master_off_then_on(mut test_bed: PneumaticTestBed) -> PneumaticTestBed {
+        test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:1", false);
+        test_bed = test_bed.and_run();
+        test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:1", true);
+        test_bed.set_engine_state(1, EngineState::Restarting)
+    }
+
+    fn engine_1_starter_pressurized_within(
+        test_bed: &mut PneumaticTestBed,
+        duration: Duration,
+    ) -> bool {
+        let step = Duration::from_millis(100);
+        let mut elapsed = Duration::ZERO;
+        while elapsed < duration {
+            test_bed.run_with_delta(step);
+            elapsed += step;
+            let pressurized: bool = test_bed.read_by_name("PNEU_ENG_1_STARTER_PRESSURIZED");
+            if pressurized {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn engine_1_lights_up_within(test_bed: &mut PneumaticTestBed, duration: Duration) -> bool {
+        let step = Duration::from_millis(100);
+        let mut elapsed = Duration::ZERO;
+        while elapsed < duration {
+            test_bed.run_with_delta(step);
+            elapsed += step;
+            let fuel_cut: bool = test_bed.read_by_name("ENGINE_1_FUEL_CUT");
+            if !fuel_cut {
+                return true;
+            }
+        }
+        false
+    }
+
+    #[test]
+    fn on_the_ground_a_flamed_out_engine_relights_with_apu_bleed_as_soon_as_it_is_restarted() {
+        // Measured in the sim (ground): the starter was pressurized only 26 s after the MASTER ON,
+        // when the FADEC went from RESTARTING to STARTING, 4 s before the end of the attempt.
+        let mut test_bed = test_bed_with()
+            .stop_eng2()
+            .stop_eng3()
+            .stop_eng4()
+            .set_bleed_air_running();
+        test_bed.set_on_ground(true);
+        test_bed.set_indicated_airspeed(Velocity::default());
+        test_bed =
+            with_engine_1_master_off_then_on(with_engine_1_flamed_out(test_bed.and_stabilize()));
+        test_bed.write_by_name("ENGINE_N3:1", 25.);
+
+        assert!(engine_1_lights_up_within(
+            &mut test_bed,
+            Duration::from_secs(2)
+        ));
+    }
+
+    #[test]
+    fn in_flight_a_starter_assisted_relight_lights_up_with_crossbleed_air_from_the_other_engines() {
+        // The relight procedure sets XBLEED OPEN; FL150, 210 kt
+        let test_bed = in_flight_with_engine_1_out(210.)
+            .in_isa_atmosphere(Length::new::<foot>(15_000.))
+            .cross_bleed_valve_selector_knob(CrossBleedValveSelectorMode::Open)
+            .and_stabilize();
+        let mut test_bed = with_engine_1_master_off_then_on(with_engine_1_flamed_out(test_bed));
+        test_bed.write_by_name("ENGINE_N3:1", 9.);
+
+        assert!(engine_1_lights_up_within(
+            &mut test_bed,
+            Duration::from_secs(2)
+        ));
+    }
+
+    #[test]
+    fn in_flight_no_starter_air_reaches_the_failed_engine_with_the_crossbleed_at_auto_and_no_apu_bleed(
+    ) {
+        let test_bed = in_flight_with_engine_1_out(210.)
+            .in_isa_atmosphere(Length::new::<foot>(15_000.))
+            .cross_bleed_valve_selector_knob(CrossBleedValveSelectorMode::Auto)
+            .and_stabilize();
+        let mut test_bed = with_engine_1_master_off_then_on(with_engine_1_flamed_out(test_bed));
+        test_bed.write_by_name("ENGINE_N3:1", 9.);
+
+        assert!(!engine_1_lights_up_within(
+            &mut test_bed,
+            Duration::from_secs(10)
+        ));
+    }
+
+    #[test]
+    fn the_starter_is_pressurized_by_the_apu_bleed_during_an_in_flight_start() {
+        let mut test_bed = in_flight_with_engine_1_out(220.)
+            .in_isa_atmosphere(Length::new::<foot>(15_000.))
+            .cross_bleed_valve_selector_knob(CrossBleedValveSelectorMode::Auto)
+            .set_bleed_air_running()
+            .and_stabilize();
+        let pressurized: bool = test_bed.read_by_name("PNEU_ENG_1_STARTER_PRESSURIZED");
+        assert!(!pressurized, "the start valve is closed");
+
+        test_bed = test_bed
+            .set_engine_state(1, EngineState::Restarting)
+            .and_stabilize();
+        let pressurized: bool = test_bed.read_by_name("PNEU_ENG_1_STARTER_PRESSURIZED");
+        assert!(pressurized);
+    }
+
+    #[test]
+    fn with_all_four_engines_out_the_apu_bleed_relights_two_engines_at_a_time() {
+        // ALL ENG FLAME OUT procedure: with the APU available all masters OFF, APU BLEED ON, then the
+        // masters ON two at a time. FL150, 220 kt (zone 2 of the relight envelope: starter assisted),
+        // the cores windmilling at 9 %.
+        let mut test_bed = test_bed_with()
+            .stop_eng1()
+            .stop_eng2()
+            .stop_eng3()
+            .stop_eng4()
+            .and_run();
+        test_bed.set_on_ground(false);
+        test_bed.set_indicated_airspeed(Velocity::new::<knot>(220.));
+        test_bed = test_bed
+            .in_isa_atmosphere(Length::new::<foot>(15_000.))
+            .cross_bleed_valve_selector_knob(CrossBleedValveSelectorMode::Auto)
+            .set_bleed_air_running()
+            .and_stabilize();
+
+        test_bed.write_by_name("XMLVAR_ENG_MODE_SEL", 2.);
+        for number in 1..=4 {
+            test_bed.write_by_name(&format!("FUELSYSTEM VALVE SWITCH:{}", number), true);
+            test_bed.write_by_name(&format!("ENGINE_STATE:{}", number), EngineState::On);
+        }
+        test_bed = test_bed.and_run();
+        for number in 1..=4 {
+            test_bed.fail(FailureType::EngineFlameout(number));
+            test_bed.write_by_name(&format!("ENGINE_STATE:{}", number), EngineState::Shutting);
+            test_bed.write_by_name(&format!("ENGINE_N3:{}", number), 9.);
+            test_bed.write_by_name(&format!("FUELSYSTEM VALVE SWITCH:{}", number), false);
+        }
+        test_bed
+            .test_bed
+            .run_multiple_frames(Duration::from_secs(30));
+
+        // the masters of engines 1 and 4 ON, the others stay OFF
+        for number in [1, 4] {
+            test_bed.write_by_name(&format!("FUELSYSTEM VALVE SWITCH:{}", number), true);
+            test_bed.write_by_name(&format!("ENGINE_STATE:{}", number), EngineState::Restarting);
+        }
+        test_bed
+            .test_bed
+            .run_multiple_frames(Duration::from_secs(2));
+
+        for number in [1, 4] {
+            assert!(test_bed.es_valve_is_open(number));
+            let fuel_cut: bool = test_bed.read_by_name(&format!("ENGINE_{}_FUEL_CUT", number));
+            assert!(!fuel_cut, "engine {} lights up with the APU bleed", number);
+        }
+        for number in [2, 3] {
+            let fuel_cut: bool = test_bed.read_by_name(&format!("ENGINE_{}_FUEL_CUT", number));
+            assert!(fuel_cut, "engine {} master OFF", number);
+        }
+    }
+
+    /// On the ground, engine 1 is started with the APU bleed (the other engines stopped). Once
+    /// the start valve has closed above 58.4 % N3, the engine runs at idle, the APU bleed is set OFF
+    /// and the frames run for that many seconds.
+    fn on_the_ground_after_an_apu_bleed_start_of_engine_1_then_apu_bleed_off(
+        seconds_after_the_start_valve_closed: u64,
+    ) -> PneumaticTestBed {
+        let mut test_bed = test_bed_with()
+            .stop_eng1()
+            .stop_eng2()
+            .stop_eng3()
+            .stop_eng4()
+            .set_bleed_air_running();
+        test_bed.set_on_ground(true);
+        test_bed.set_indicated_airspeed(Velocity::default());
+        test_bed = test_bed.and_stabilize();
+
+        test_bed.write_by_name("ENGINE_N3:1", 25.);
+        test_bed.write_by_name("TURB ENG CORRECTED N2:1", Ratio::new::<ratio>(0.25));
+        test_bed = test_bed.start_eng1();
+        test_bed
+            .test_bed
+            .run_multiple_frames(Duration::from_secs(3));
+        assert!(test_bed.es_valve_is_open(1));
+        let pressurized: bool = test_bed.read_by_name("PNEU_ENG_1_STARTER_PRESSURIZED");
+        assert!(pressurized, "the APU bleed turns the starter");
+
+        test_bed.write_by_name("ENGINE_N3:1", 70.);
+        test_bed.write_by_name("XMLVAR_ENG_MODE_SEL", 2.);
+        test_bed.write_by_name("FUELSYSTEM VALVE SWITCH:1", true);
+        test_bed = test_bed
+            .idle_eng1()
+            .set_apu_bleed_valve_signal(ApuBleedAirValveSignal::new_closed())
+            .set_apu_bleed_air_pb(false);
+        test_bed.command(|a| a.apu.set_bleed_air_pressure(Pressure::new::<psi>(14.7)));
+        test_bed
+            .test_bed
+            .run_multiple_frames(Duration::from_secs(seconds_after_the_start_valve_closed));
+        assert!(!test_bed.es_valve_is_open(1));
+
+        test_bed
+    }
+
+    #[test]
+    fn the_starter_is_no_longer_pressurized_a_few_seconds_after_the_start_valve_closed() {
+        // The start valve closes above 58.4 % N2 (fully closed after about 10 s). Without the vent
+        // the starter duct kept about 20 PSIG for 5 s and above 5 PSIG for about 45 s.
+        let mut test_bed = on_the_ground_after_an_apu_bleed_start_of_engine_1_then_apu_bleed_off(5);
+
+        let pressurized: bool = test_bed.read_by_name("PNEU_ENG_1_STARTER_PRESSURIZED");
+        assert!(!pressurized);
+    }
+
+    #[test]
+    fn a_ground_relight_soon_after_a_start_does_not_light_up_without_apu_or_crossbleed_air() {
+        // Engine 1 flames out 5 s after its APU bleed start, stops, and is restarted 10 s later
+        // (ENG MASTER OFF then ON) with the APU bleed OFF and the crossbleed valves closed: no air
+        // turns the starter. Without the vent the starter duct still held about 13 PSIG from the
+        // first start and the relight lit up.
+        let mut test_bed = with_engine_1_flamed_out(
+            on_the_ground_after_an_apu_bleed_start_of_engine_1_then_apu_bleed_off(5),
+        );
+        test_bed = test_bed
+            .stop_eng1()
+            .set_engine_state(1, EngineState::Shutting);
+        test_bed.write_by_name("ENGINE_N3:1", 0.);
+        test_bed
+            .test_bed
+            .run_multiple_frames(Duration::from_secs(10));
+        test_bed = with_engine_1_master_off_then_on(test_bed);
+
+        assert!(!engine_1_starter_pressurized_within(
+            &mut test_bed,
+            Duration::from_secs(30)
+        ));
+        assert!(!engine_1_lights_up_within(
+            &mut test_bed,
+            Duration::from_secs(30)
+        ));
+    }
+
+    #[test]
+    fn a_ground_relight_finds_no_air_trapped_in_the_duct_of_the_stopped_engine() {
+        // Engine 1 runs for a minute on its own bleed (APU bleed OFF), flames out, stops and is
+        // restarted about 2 s later (ENG MASTER OFF then ON). Without the duct vent the air trapped
+        // in its own bleed duct (about 28 PSIG) pressurized the starter and the relight lit up with no air source.
+        let mut test_bed = with_engine_1_flamed_out(
+            on_the_ground_after_an_apu_bleed_start_of_engine_1_then_apu_bleed_off(60),
+        );
+        test_bed = test_bed
+            .stop_eng1()
+            .set_engine_state(1, EngineState::Shutting);
+        test_bed.write_by_name("ENGINE_N3:1", 0.);
+        test_bed = with_engine_1_master_off_then_on(test_bed);
+
+        assert!(!engine_1_starter_pressurized_within(
+            &mut test_bed,
+            Duration::from_secs(30)
+        ));
+        assert!(!engine_1_lights_up_within(
+            &mut test_bed,
+            Duration::from_secs(30)
+        ));
+    }
+
+    #[test]
+    fn a_ground_relight_of_a_stopped_engine_still_lights_up_with_the_apu_bleed() {
+        let mut test_bed = with_engine_1_flamed_out(
+            on_the_ground_after_an_apu_bleed_start_of_engine_1_then_apu_bleed_off(60),
+        );
+        test_bed = test_bed
+            .stop_eng1()
+            .set_engine_state(1, EngineState::Shutting);
+        test_bed.write_by_name("ENGINE_N3:1", 0.);
+        test_bed
+            .test_bed
+            .run_multiple_frames(Duration::from_secs(30));
+        test_bed = test_bed.set_bleed_air_running();
+        test_bed = with_engine_1_master_off_then_on(test_bed);
+        test_bed
+            .test_bed
+            .run_multiple_frames(Duration::from_secs(3));
+        let pressurized: bool = test_bed.read_by_name("PNEU_ENG_1_STARTER_PRESSURIZED");
+        assert!(
+            pressurized,
+            "the APU bleed reaches the starter of the stopped engine"
+        );
+
+        // the starter air turns the core (the test bed does not spin it up): the start sequence
+        // lights the fuel from 20 % N3
+        test_bed.write_by_name("ENGINE_N3:1", 25.);
+        assert!(engine_1_lights_up_within(
+            &mut test_bed,
+            Duration::from_secs(5)
+        ));
+    }
+
+    #[test]
+    fn the_duct_of_an_engine_vents_only_without_an_air_source() {
+        use super::engine_ducts_without_air_source;
+
+        let vented = |running: [bool; 4], apu: bool, cross_bleeds: [bool; 3]| {
+            engine_ducts_without_air_source(running, apu, cross_bleeds)
+        };
+        // engine 1 out, crossbleed valves closed, no APU bleed: only its duct vents
+        assert_eq!(
+            vented([false, true, true, true], false, [false; 3]),
+            [true, false, false, false]
+        );
+        // the left crossbleed valve joins it to engine 2, the center one to engine 4
+        assert_eq!(
+            vented([false, true, true, true], false, [true, false, false]),
+            [false; 4]
+        );
+        assert_eq!(
+            vented([false, true, true, true], false, [false, true, false]),
+            [false; 4]
+        );
+        // engines 3 and 4 out: the right valve alone joins them to no running engine
+        assert_eq!(
+            vented([true, true, false, false], false, [false, false, true]),
+            [false, false, true, true]
+        );
+        // through the center and right valves engine 3 reaches engine 1
+        assert_eq!(
+            vented([true, true, false, false], false, [false, true, true]),
+            [false; 4]
+        );
+        // all engines out: the APU bleed (engine 1 duct) feeds the ducts joined to engine 1
+        assert_eq!(
+            vented([false; 4], true, [true, true, false]),
+            [false, false, true, false]
+        );
+        assert_eq!(vented([false; 4], false, [true; 3]), [true; 4]);
+        // a running engine never vents
+        assert_eq!(vented([true; 4], false, [false; 3]), [false; 4]);
+    }
+
     #[test]
     fn cross_bleed_valve_opens_when_apu_bleed_valve_opens() {
         let mut test_bed = test_bed_with()
@@ -2955,6 +4177,118 @@ mod tests {
             .set_apu_bleed_valve_signal(ApuBleedAirValveSignal::new_closed())
             .and_run();
 
+        assert!(!test_bed.cross_bleed_valves_are_open());
+    }
+
+    /// The crossbleed engine start on the ground: engine 1 runs at idle, engines 2 to 4 are stopped,
+    /// ALL ENG BLEEDS ON, APU bleed OFF, X BLEED AUTO.
+    fn on_the_ground_with_engine_1_running_and_no_apu_bleed() -> PneumaticTestBed {
+        let mut test_bed = test_bed_with()
+            .idle_eng1()
+            .stop_eng2()
+            .stop_eng3()
+            .stop_eng4()
+            .cross_bleed_valve_selector_knob(CrossBleedValveSelectorMode::Auto);
+        test_bed.set_on_ground(true);
+        test_bed.set_indicated_airspeed(Velocity::default());
+        test_bed.write_by_name("ENGINE_N3:1", 70.);
+        test_bed.and_stabilize()
+    }
+
+    fn starter_pressurized_within(
+        test_bed: &mut PneumaticTestBed,
+        engine_number: usize,
+        duration: Duration,
+    ) -> bool {
+        let step = Duration::from_millis(100);
+        let mut elapsed = Duration::ZERO;
+        while elapsed < duration {
+            test_bed.run_with_delta(step);
+            elapsed += step;
+            let pressurized: bool =
+                test_bed.read_by_name(&format!("PNEU_ENG_{}_STARTER_PRESSURIZED", engine_number));
+            if pressurized {
+                return true;
+            }
+        }
+        false
+    }
+
+    #[rstest]
+    fn on_the_ground_the_crossbleed_valves_open_at_auto_for_an_engine_start(
+        #[values(2, 3, 4)] engine_number: usize,
+    ) {
+        // The crossbleed valves open automatically on the ground at engine start. Without it AUTO
+        // opened only for the APU bleed valve or an ENG BLEED pb OFF: the starter got no air and the
+        // start ended in START FAULT (NO STARTER AIR PRESSURE).
+        let mut test_bed = on_the_ground_with_engine_1_running_and_no_apu_bleed();
+        assert!(!test_bed.cross_bleed_valves_are_open());
+
+        test_bed = test_bed
+            .set_engine_state(engine_number, EngineState::Starting)
+            .and_run();
+
+        assert!(test_bed.es_valve_is_open(engine_number));
+        assert!(test_bed.cross_bleed_valves_are_open());
+        assert!(starter_pressurized_within(
+            &mut test_bed,
+            engine_number,
+            Duration::from_secs(5)
+        ));
+    }
+
+    #[test]
+    fn on_the_ground_the_crossbleed_valves_open_at_auto_for_a_crank() {
+        // ENG MODE CRANK, MAN START ON: the start sequence commands the start valve open
+        let mut test_bed = on_the_ground_with_engine_1_running_and_no_apu_bleed();
+        test_bed.write_by_name("ENGINE_2_START_VALVE_COMMAND", 1.);
+        test_bed = test_bed.and_run();
+
+        assert!(test_bed.cross_bleed_valves_are_open());
+    }
+
+    #[test]
+    fn the_crossbleed_valves_close_again_when_the_start_valve_closes() {
+        let mut test_bed = on_the_ground_with_engine_1_running_and_no_apu_bleed()
+            .set_engine_state(2, EngineState::Starting)
+            .and_run();
+        assert!(test_bed.cross_bleed_valves_are_open());
+
+        // The start valve closes above 58.4 % N2
+        test_bed.write_by_name("ENGINE_N3:2", 60.);
+        test_bed = test_bed.and_run();
+        assert!(!test_bed.es_valve_is_open(2));
+        assert!(!test_bed.cross_bleed_valves_are_open());
+
+        test_bed = test_bed.idle_eng2().and_stabilize();
+        assert!(!test_bed.cross_bleed_valves_are_open());
+    }
+
+    #[test]
+    fn the_crossbleed_valves_stay_closed_with_the_selector_shut_during_an_engine_start() {
+        let mut test_bed = on_the_ground_with_engine_1_running_and_no_apu_bleed()
+            .cross_bleed_valve_selector_knob(CrossBleedValveSelectorMode::Shut)
+            .set_engine_state(2, EngineState::Starting)
+            .and_run();
+
+        assert!(test_bed.es_valve_is_open(2));
+        assert!(!test_bed.cross_bleed_valves_are_open());
+        assert!(!starter_pressurized_within(
+            &mut test_bed,
+            2,
+            Duration::from_secs(5)
+        ));
+    }
+
+    #[test]
+    fn in_flight_the_crossbleed_valves_stay_closed_at_auto_for_an_engine_start() {
+        // On the ground only: in flight the relight procedure sets X BLEED OPEN
+        let test_bed = in_flight_with_engine_1_out(210.)
+            .cross_bleed_valve_selector_knob(CrossBleedValveSelectorMode::Auto)
+            .set_engine_state(1, EngineState::Starting)
+            .and_run();
+
+        assert!(test_bed.es_valve_is_open(1));
         assert!(!test_bed.cross_bleed_valves_are_open());
     }
 
@@ -3633,6 +4967,341 @@ mod tests {
                 test_bed.right_pack_flow_valve_flow(2),
                 flow_rate_tolerance()
             );
+        }
+    }
+
+    /// The CPIOM-A bleed monitoring: overtemperature, overpressure, leaks, bleed valve position, the
+    /// ENG BLEED pb-sw FAULT light
+    mod bleed_monitoring {
+        use super::*;
+        use crate::pneumatic::{BleedOverheatMonitor, BleedOverpressureMonitor};
+
+        fn flag(test_bed: &mut PneumaticTestBed, name: &str) -> bool {
+            test_bed.read_by_name(name)
+        }
+
+        fn fault_light(test_bed: &mut PneumaticTestBed, engine_number: usize) -> bool {
+            flag(
+                test_bed,
+                &format!("OVHD_PNEU_ENG_{}_BLEED_PB_HAS_FAULT", engine_number),
+            )
+        }
+
+        fn cross_bleed_valve_is_open(test_bed: &mut PneumaticTestBed, valve: &str) -> bool {
+            flag(test_bed, &format!("PNEU_XBLEED_VALVE_{}_OPEN", valve))
+        }
+
+        /// Steps of 100 ms: at one second per step the valve regulation of the engines swings the
+        /// bleed pressure between ticks, and a neighbour engine spends enough time over the
+        /// overpressure limit to be flagged on some of the random start states
+        fn run_seconds(test_bed: &mut PneumaticTestBed, seconds: u64) {
+            for _ in 0..seconds * 10 {
+                test_bed.run_with_delta(Duration::from_millis(100));
+            }
+        }
+
+        fn four_engines_at_idle() -> PneumaticTestBed {
+            let mut test_bed = test_bed_with()
+                .idle_eng1()
+                .idle_eng2()
+                .idle_eng3()
+                .idle_eng4()
+                .both_packs_auto()
+                .cross_bleed_valve_selector_knob(CrossBleedValveSelectorMode::Auto)
+                .and_stabilize();
+            run_seconds(&mut test_bed, 10);
+            test_bed
+        }
+
+        fn four_engines_at_take_off_power() -> PneumaticTestBed {
+            let mut test_bed = test_bed_with()
+                .toga_eng1()
+                .toga_eng2()
+                .toga_eng3()
+                .toga_eng4()
+                .both_packs_auto()
+                .cross_bleed_valve_selector_knob(CrossBleedValveSelectorMode::Auto)
+                .and_stabilize();
+            run_seconds(&mut test_bed, 10);
+            test_bed
+        }
+
+        /// Design choice for these tests: N1 90 %, N2 95 %, about the take off thrust of the model,
+        /// set from idle (a start from rest at high power over pressurises the ducts)
+        fn four_engines_at_high_power() -> PneumaticTestBed {
+            let mut test_bed = four_engines_at_idle()
+                .eng1_n1(0.9)
+                .eng1_n2(0.95)
+                .eng2_n1(0.9)
+                .eng2_n2(0.95)
+                .eng3_n1(0.9)
+                .eng3_n2(0.95)
+                .eng4_n1(0.9)
+                .eng4_n2(0.95)
+                .and_stabilize();
+            run_seconds(&mut test_bed, 10);
+            test_bed
+        }
+
+        impl SimulationElement for BleedOverheatMonitor {}
+        impl SimulationElement for BleedOverpressureMonitor {}
+
+        fn overheat_after(seconds: u64, temperature_celsius: f64, pressure_psig: f64) -> bool {
+            let mut test_bed = SimulationTestBed::from(BleedOverheatMonitor::new());
+            test_bed.set_update_after_power_distribution(move |monitor, context| {
+                monitor.update(
+                    context,
+                    ThermodynamicTemperature::new::<degree_celsius>(temperature_celsius),
+                    Pressure::new::<psi>(pressure_psig),
+                )
+            });
+            for _ in 0..seconds {
+                test_bed.run_with_delta(Duration::from_secs(1));
+            }
+            test_bed.query_element(|monitor| monitor.has_overheat())
+        }
+
+        fn overpressure_after(seconds: u64, pressure_psig: f64, temperature_celsius: f64) -> bool {
+            let mut test_bed = SimulationTestBed::from(BleedOverpressureMonitor::new());
+            test_bed.set_update_after_power_distribution(move |monitor, context| {
+                monitor.update(
+                    context,
+                    Pressure::new::<psi>(pressure_psig),
+                    ThermodynamicTemperature::new::<degree_celsius>(temperature_celsius),
+                )
+            });
+            for _ in 0..seconds {
+                test_bed.run_with_delta(Duration::from_secs(1));
+            }
+            test_bed.query_element(|monitor| monitor.has_overpressure())
+        }
+
+        /// 260 °C up to 45 PSI, 245 °C above, for more than 55 s
+        #[test]
+        fn overtemperature_limits_depend_on_the_bleed_pressure() {
+            assert!(overheat_after(57, 265., 40.));
+            assert!(!overheat_after(57, 255., 40.));
+            assert!(overheat_after(57, 250., 50.));
+            assert!(!overheat_after(57, 240., 50.));
+            assert!(!overheat_after(50, 265., 40.));
+        }
+
+        /// 60 PSI up to 245 °C, 45 PSI above, for more than 15 s
+        #[test]
+        fn overpressure_limits_depend_on_the_bleed_temperature() {
+            assert!(overpressure_after(17, 61., 200.));
+            assert!(!overpressure_after(17, 59., 200.));
+            assert!(overpressure_after(17, 46., 250.));
+            assert!(!overpressure_after(17, 44., 250.));
+            assert!(!overpressure_after(10, 61., 200.));
+        }
+
+        #[test]
+        fn normal_operation_gives_no_bleed_fault_detection() {
+            for mut test_bed in [
+                four_engines_at_idle(),
+                four_engines_at_take_off_power(),
+                four_engines_at_high_power(),
+            ] {
+                run_seconds(&mut test_bed, 70);
+                for engine in 1..=4 {
+                    for name in [
+                        "OVERPRESSURE",
+                        "OVERHEAT",
+                        "BLEED_LEAK",
+                        "PR_VALVE_DISAGREE",
+                    ] {
+                        assert!(
+                            !flag(&mut test_bed, &format!("PNEU_ENG_{engine}_{name}")),
+                            "ENG {engine} {name}"
+                        );
+                    }
+                    assert!(!fault_light(&mut test_bed, engine), "ENG {engine} FAULT");
+                }
+                for zone in ["L_OUTR", "L_INR", "R_INR", "R_OUTR"] {
+                    assert!(!flag(&mut test_bed, &format!("PNEU_{zone}_WING_LEAK")));
+                }
+                assert!(!test_bed.cross_bleed_valves_are_open());
+            }
+        }
+
+        /// The engine bleed valve position disagrees with the requested position
+        #[test]
+        fn a_bleed_valve_stuck_closed_lights_the_fault_after_the_confirmation_time() {
+            let mut test_bed = four_engines_at_idle();
+
+            test_bed.fail(FailureType::EngineBleedValveStuckClosed(2));
+            run_seconds(&mut test_bed, 5);
+            assert!(!test_bed.pr_valve_is_open(2));
+            assert!(!fault_light(&mut test_bed, 2));
+
+            run_seconds(&mut test_bed, 7);
+            assert!(flag(&mut test_bed, "PNEU_ENG_2_PR_VALVE_DISAGREE"));
+            assert!(fault_light(&mut test_bed, 2));
+            assert!(!fault_light(&mut test_bed, 1));
+        }
+
+        #[test]
+        fn a_bleed_valve_stuck_open_with_the_pb_off_lights_the_fault() {
+            let mut test_bed = four_engines_at_idle();
+
+            test_bed.fail(FailureType::EngineBleedValveStuckOpen(3));
+            test_bed = test_bed.set_engine_bleed_push_button_off(3);
+            run_seconds(&mut test_bed, 12);
+
+            assert!(test_bed.pr_valve_is_open(3));
+            assert!(flag(&mut test_bed, "PNEU_ENG_3_PR_VALVE_DISAGREE"));
+            assert!(fault_light(&mut test_bed, 3));
+        }
+
+        /// AIR ENG 1(2)(3)(4) BLEED FAULT by overpressure: a bleed valve stuck open no longer
+        /// regulates, the bleed pressure rises at high power. The CPIOM-A commands the bleed valve
+        /// closed, the stuck valve disagrees, and the crossbleed valves open at AUTO because an
+        /// engine bleed system failed
+        #[test]
+        fn a_bleed_valve_stuck_open_gives_an_overpressure_at_high_power() {
+            let mut test_bed = four_engines_at_high_power();
+            assert!(!test_bed.cross_bleed_valves_are_open());
+
+            test_bed.fail(FailureType::EngineBleedValveStuckOpen(1));
+            run_seconds(&mut test_bed, 20);
+            assert!(flag(&mut test_bed, "PNEU_ENG_1_OVERPRESSURE"));
+            assert!(fault_light(&mut test_bed, 1));
+            assert!(test_bed.cross_bleed_valves_are_open());
+
+            // Commanded closed, but stuck open
+            assert!(test_bed.pr_valve_is_open(1));
+            assert!(flag(&mut test_bed, "PNEU_ENG_1_PR_VALVE_DISAGREE"));
+            assert!(!flag(&mut test_bed, "PNEU_ENG_2_OVERPRESSURE"));
+            assert!(!fault_light(&mut test_bed, 2));
+        }
+
+        /// The FAULT light goes off when the crew selects OFF and the failure is gone; the closure
+        /// holds with it
+        #[test]
+        fn an_overpressure_holds_the_bleed_valve_closed_until_the_pb_is_set_off() {
+            let mut test_bed = four_engines_at_high_power();
+            test_bed.fail(FailureType::EngineBleedValveStuckOpen(1));
+            run_seconds(&mut test_bed, 20);
+            assert!(flag(&mut test_bed, "PNEU_ENG_1_OVERPRESSURE"));
+
+            test_bed.unfail(FailureType::EngineBleedValveStuckOpen(1));
+            run_seconds(&mut test_bed, 30);
+            assert!(flag(&mut test_bed, "PNEU_ENG_1_OVERPRESSURE"));
+            assert!(fault_light(&mut test_bed, 1));
+            assert!(!test_bed.pr_valve_is_open(1));
+
+            test_bed = test_bed.set_engine_bleed_push_button_off(1);
+            run_seconds(&mut test_bed, 30);
+            assert!(!flag(&mut test_bed, "PNEU_ENG_1_OVERPRESSURE"));
+            assert!(!fault_light(&mut test_bed, 1));
+
+            // Back to idle, where the regulation keeps the bleed valve open
+            test_bed = test_bed
+                .set_engine_bleed_push_button_auto(1)
+                .idle_eng1()
+                .idle_eng2()
+                .idle_eng3()
+                .idle_eng4();
+            run_seconds(&mut test_bed, 30);
+            assert!(test_bed.pr_valve_is_open(1));
+            assert!(!flag(&mut test_bed, "PNEU_ENG_1_OVERPRESSURE"));
+            assert!(!fault_light(&mut test_bed, 1));
+        }
+
+        /// A bleed overtemperature: the CPIOM-A closes the HP valve and the bleed valve, and the FAULT
+        /// light comes on. The bleed of the model does not reach 245 °C without a failure that also
+        /// over pressurises it: the detection is set here.
+        #[test]
+        fn an_overheat_closes_the_hp_valve_and_the_bleed_valve() {
+            let mut test_bed = four_engines_at_idle();
+            assert!(test_bed.pr_valve_is_open(2));
+
+            test_bed.command(|a| {
+                a.pneumatic.core_processing_input_output_module_a.units[1].overheat_latched = true
+            });
+            run_seconds(&mut test_bed, 5);
+
+            assert!(flag(&mut test_bed, "PNEU_ENG_2_OVERHEAT"));
+            assert!(fault_light(&mut test_bed, 2));
+            assert!(!test_bed.hp_valve_is_open(2));
+            assert!(!test_bed.pr_valve_is_open(2));
+            assert!(test_bed.cross_bleed_valves_are_open());
+        }
+
+        /// AIR ENG 1(4) BLEED LEAK: the bleed valve of the engine, the crossbleed valve of its side and
+        /// the center crossbleed valve close at AUTO; the FAULT light comes on
+        #[test]
+        fn an_outer_engine_pylon_leak_closes_its_bleed_and_the_side_and_center_crossbleed_valves() {
+            let mut test_bed = four_engines_at_high_power()
+                .set_engine_bleed_push_button_off(2)
+                .and_stabilize();
+            assert!(test_bed.cross_bleed_valves_are_open());
+
+            test_bed.fail(FailureType::EngineBleedLeak(1));
+            run_seconds(&mut test_bed, 10);
+
+            assert!(flag(&mut test_bed, "PNEU_ENG_1_BLEED_LEAK"));
+            assert!(fault_light(&mut test_bed, 1));
+            assert!(!test_bed.pr_valve_is_open(1));
+            assert!(!cross_bleed_valve_is_open(&mut test_bed, "L"));
+            assert!(!cross_bleed_valve_is_open(&mut test_bed, "C"));
+            assert!(cross_bleed_valve_is_open(&mut test_bed, "R"));
+            assert!(!fault_light(&mut test_bed, 4));
+        }
+
+        /// AIR L INR WING LEAK: the bleed valve of the engine and the crossbleed valve of its side
+        /// close
+        #[test]
+        fn an_inner_wing_leak_closes_its_bleed_and_the_side_crossbleed_valve() {
+            let mut test_bed = four_engines_at_idle()
+                .set_engine_bleed_push_button_off(4)
+                .and_stabilize();
+            assert!(test_bed.cross_bleed_valves_are_open());
+
+            test_bed.fail(FailureType::WingBleedLeak(2));
+            run_seconds(&mut test_bed, 10);
+
+            assert!(flag(&mut test_bed, "PNEU_L_INR_WING_LEAK"));
+            assert!(!flag(&mut test_bed, "PNEU_ENG_2_BLEED_LEAK"));
+            assert!(fault_light(&mut test_bed, 2));
+            assert!(!test_bed.pr_valve_is_open(2));
+            assert!(!cross_bleed_valve_is_open(&mut test_bed, "L"));
+            assert!(cross_bleed_valve_is_open(&mut test_bed, "C"));
+            assert!(cross_bleed_valve_is_open(&mut test_bed, "R"));
+        }
+
+        /// The XBLEED selector OPEN keeps the valves open: the leak closure is an AUTO function
+        #[test]
+        fn a_leak_does_not_close_the_crossbleed_valves_with_the_selector_open() {
+            let mut test_bed = four_engines_at_idle()
+                .cross_bleed_valve_selector_knob(CrossBleedValveSelectorMode::Open)
+                .and_stabilize();
+
+            test_bed.fail(FailureType::WingBleedLeak(4));
+            run_seconds(&mut test_bed, 10);
+
+            assert!(flag(&mut test_bed, "PNEU_R_OUTR_WING_LEAK"));
+            assert!(test_bed.cross_bleed_valves_are_open());
+        }
+
+        /// With the ENG BLEED pb-sw ON the FAULT light of a leak remains; with it off the light goes
+        /// off when the overheat is gone.
+        #[test]
+        fn a_wing_leak_holds_until_the_pb_is_off_and_the_duct_is_empty() {
+            let mut test_bed = four_engines_at_idle();
+            test_bed.fail(FailureType::WingBleedLeak(3));
+            run_seconds(&mut test_bed, 10);
+            assert!(flag(&mut test_bed, "PNEU_R_INR_WING_LEAK"));
+
+            run_seconds(&mut test_bed, 30);
+            assert!(flag(&mut test_bed, "PNEU_R_INR_WING_LEAK"));
+            assert!(fault_light(&mut test_bed, 3));
+
+            test_bed = test_bed.set_engine_bleed_push_button_off(3);
+            run_seconds(&mut test_bed, 30);
+            assert!(!flag(&mut test_bed, "PNEU_R_INR_WING_LEAK"));
+            assert!(!fault_light(&mut test_bed, 3));
         }
     }
 }

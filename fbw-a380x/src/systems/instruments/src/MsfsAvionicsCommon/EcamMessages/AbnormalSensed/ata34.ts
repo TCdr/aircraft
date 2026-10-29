@@ -1,4 +1,4 @@
-// Copyright (c) 2024 FlyByWire Simulations
+// Copyright (c) 2024-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import { AbnormalProcedure, ChecklistLineStyle, DeferredProcedure, DeferredProcedureType } from '..';
@@ -269,12 +269,44 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
   340800009: {
     title: '\x1b<4m\x1b4mNAV\x1bm AIR DATA DISAGREE',
     sensed: true,
-    items: [], // not implemented
+    items: [
+      { name: 'ADR 1 REJECTED BY PRIMs', sensed: true, style: ChecklistLineStyle.Amber },
+      { name: 'ADR 2 REJECTED BY PRIMs', sensed: true, style: ChecklistLineStyle.Amber },
+      { name: 'ADR 3 REJECTED BY PRIMs', sensed: true, style: ChecklistLineStyle.Amber },
+      { name: 'STBY INSTRUMENTS REJECTED BY PRIMs', sensed: true, style: ChecklistLineStyle.Amber },
+      { name: 'RISK OF UNDUE OVERSPEED WARNING', sensed: true, style: ChecklistLineStyle.White },
+      { name: 'AIR DATA', sensed: false, labelNotCompleted: 'XCHECK' },
+      { name: 'AIR DATA SWTG', sensed: false, labelNotCompleted: 'AS RQRD' },
+    ],
   },
   340800010: {
+    // The pitch target lines are the rows of a table: the ECAM shows only the row that applies.
+    // Not shown: the cabin altitude table, the MFP heating (AVOID ICING) lines and the level-off thrust table above FL
+    // 250.
     title: '\x1b<2m\x1b4mNAV\x1bm ALL AIR DATA DISAGREE',
     sensed: true,
-    items: [], // not implemented
+    items: [
+      { name: 'ALL AIR DATA REJECTED BY PRIMs', sensed: true, style: ChecklistLineStyle.Red },
+      { name: 'SAFE CONDUCT OF FLIGHT IMPACTED', sensed: false, condition: true },
+      { name: 'ALL THR LEVERS', sensed: false, labelNotCompleted: 'TOGA', level: 1 },
+      { name: 'ALL THR LEVERS', sensed: false, labelNotCompleted: 'CLB', level: 1 },
+      { name: 'PITCH ATT TRGT', sensed: false, labelNotCompleted: '12.5°', level: 1 },
+      { name: 'PITCH ATT TRGT', sensed: false, labelNotCompleted: '10°', level: 1 },
+      { name: 'PITCH ATT TRGT', sensed: false, labelNotCompleted: '5°', level: 1 },
+      { name: 'FLAPS & L/G : MAINTAIN CURRENT CONF', sensed: true, style: ChecklistLineStyle.Cyan, level: 1 },
+      { name: 'SPEED BRAKES', sensed: true, labelNotCompleted: 'CHECK RETRACTED' },
+      { name: 'RISK OF UNDUE OVERSPEED WARNING', sensed: true, style: ChecklistLineStyle.White },
+      { name: 'HUD : DO NOT USE', sensed: true, style: ChecklistLineStyle.Cyan },
+      { name: 'FMS POSITION / GPS PAGE', sensed: false, labelNotCompleted: 'SELECT' },
+      { name: 'AIR DATA (ADRs/STBY INSTR)', sensed: false, labelNotCompleted: 'XCHECK' },
+      { name: 'AT LEAST ONE AIR DATA IS RELIABLE', sensed: false, condition: true },
+      { name: 'RELIABLE AIR DATA', sensed: false, labelNotCompleted: 'USE', level: 1 },
+      { name: 'NO AIR DATA RELIABLE', sensed: false, condition: true },
+      { name: 'ADR 1+2+3 P/Bs', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'SPEED', sensed: false, labelNotCompleted: 'FLY THE GREEN', level: 1 },
+      { name: 'SPD BRK : DO NOT USE', sensed: true, style: ChecklistLineStyle.Cyan, level: 1 },
+      { name: 'FLY PITCH AND THRUST', sensed: true, style: ChecklistLineStyle.Cyan, level: 1 },
+    ],
   },
   340800011: {
     title: '\x1b<4m\x1b4mNAV\x1bm AOA 1 FAULT',
@@ -294,7 +326,7 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
   340800014: {
     title: '\x1b<4m\x1b4mNAV\x1bm AOA DISAGREE',
     sensed: true,
-    items: [], // not implemented
+    items: [{ name: 'RISK OF UNDUE STALL WARNING', sensed: true, style: ChecklistLineStyle.White }],
   },
   340800015: {
     title: '\x1b<4m\x1b4mNAV\x1bm ARPT NAV FAULT',
@@ -304,17 +336,45 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
   340800016: {
     title: '\x1b<4m\x1b4mNAV\x1bm CAPT AND F/O ALT DISAGREE',
     sensed: true,
-    items: [], // not modeled
+    items: [
+      {
+        name: 'ALT',
+        sensed: false,
+        labelNotCompleted: 'X CHECK',
+      },
+      {
+        name: 'AIR DATA SWTG',
+        sensed: false,
+        labelNotCompleted: 'AS RQRD',
+      },
+    ],
   },
   340800017: {
     title: '\x1b<4m\x1b4mNAV\x1bm CAPT AND F/O ATT DISAGREE',
     sensed: true,
-    items: [], // not modeled
+    items: [
+      {
+        name: 'ATT',
+        sensed: false,
+        labelNotCompleted: 'X CHECK',
+      },
+      {
+        name: 'ATT HDG SWTG',
+        sensed: false,
+        labelNotCompleted: 'AS RQRD',
+      },
+    ],
   },
   340800018: {
     title: '\x1b<4m\x1b4mNAV\x1bm CAPT AND F/O BARO REF DISAGREE',
     sensed: true,
-    items: [], // no separate baros
+    items: [
+      {
+        name: 'BARO REF',
+        sensed: false,
+        labelNotCompleted: 'XCHECK',
+      },
+    ],
   },
   340800019: {
     title: '\x1b<4m\x1b4mNAV\x1bm CAPT AND F/O BARO VALUE DISAGREE',
@@ -324,7 +384,19 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
   340800020: {
     title: '\x1b<4m\x1b4mNAV\x1bm CAPT AND F/O HDG DISAGREE',
     sensed: true,
-    items: [], // not modeled
+    items: [
+      // The text cuts the labels of this line and the next one
+      {
+        name: 'HDG',
+        sensed: false,
+        labelNotCompleted: 'X CHECK',
+      },
+      {
+        name: 'ATT HDG SWTG',
+        sensed: false,
+        labelNotCompleted: 'AS RQRD',
+      },
+    ],
   },
   340800021: {
     title: '\x1b<4m\x1b4mNAV\x1bm EXTREME LATITUDE',
@@ -355,7 +427,13 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
   340800025: {
     title: '\x1b<4m\x1b4mNAV\x1bm FM / GPS POS DISAGREE',
     sensed: true,
-    items: [], // not implemented
+    items: [
+      {
+        name: 'ACFT POS',
+        sensed: false,
+        labelNotCompleted: 'CHECK',
+      },
+    ],
   },
   340800026: {
     title: '\x1b<4m\x1b4mNAV\x1bm FM / IR POS DISAGREE',
@@ -638,7 +716,7 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
   340800049: {
     title: '\x1b<4m\x1b4mNAV\x1bm LS TUNING DISAGREE',
     sensed: true,
-    items: [], // TODO
+    items: [], // crew awareness
   },
   340800050: {
     title: '\x1b<4m\x1b4mNAV\x1bm OAT PROBE 1 FAULT',
@@ -997,9 +1075,14 @@ export const EcamAbnormalSensedAta34: { [n: number]: AbnormalProcedure } = {
     ],
   },
   340900001: {
-    title: '\x1b<4m\x1b4mNAV\x1bm IR ALIGNMENT IN ATT MODE (WIP)',
+    title: '\x1b<4m\x1b4mNAV\x1bm IR ALIGNMENT IN ATT MODE',
     sensed: false,
-    items: [], // TODO
+    items: [
+      { name: 'IR MODE SEL (AFFECTED)', sensed: false, labelNotCompleted: 'ATT' },
+      { name: 'SPEED, HDG & FL : KEEP CONST FOR 30 S', sensed: false },
+      { name: 'FMS POSITION / IRS PAGE', sensed: false, labelNotCompleted: 'SELECT', labelCompleted: 'SELECTED' },
+      { name: 'HDG', sensed: false, labelNotCompleted: 'ENTER', labelCompleted: 'ENTERED' },
+    ],
   },
   340900002: {
     title: '\x1b<4m\x1b4mNAV\x1bm FLUCTUATING VERTICAL SPEED (WIP)',

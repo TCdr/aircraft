@@ -194,44 +194,11 @@
 				<ANIM_LAG>100</ANIM_LAG>
 			</UseTemplate>
 		</Component>
-		<Component ID="FX_CONTRAIL_QUAD">
-			<OverrideTemplateParameters>
-				<FX_CODE>(A:CONTRAILS CONDITIONS MET:1, Keyframe) 0 &gt;</FX_CODE>
-				<FX_OFFSET_X>0</FX_OFFSET_X>
-				<FX_OFFSET_Y>0</FX_OFFSET_Y>
-				<FX_OFFSET_Z>0</FX_OFFSET_Z>
-				<FX_GUID>{F42CE638-11EB-4FC8-B9B0-111A220D681F}</FX_GUID>
-				<FX_NAME>FX_CONTRAILS</FX_NAME>
-			</OverrideTemplateParameters>
-			<Component ID="FX_CONTRAIL_QUAD_LEFT_IN" Node="FX_EXHAUST_LEFT1">
-				<UseTemplate Name="ASOBO_GT_FX"/>
-			</Component>
-			<Component ID="FX_CONTRAIL_QUAD_LEFT_OUT" Node="FX_EXHAUST_LEFT2">
-				<UseTemplate Name="ASOBO_GT_FX"/>
-			</Component>
-			<Component ID="FX_CONTRAIL_QUAD_RIGHT_IN" Node="FX_EXHAUST_RIGHT3">
-				<UseTemplate Name="ASOBO_GT_FX"/>
-			</Component>
-			<Component ID="FX_CONTRAIL_QUAD_RIGHT_OUT" Node="FX_EXHAUST_RIGHT4">
-				<UseTemplate Name="ASOBO_GT_FX"/>
-			</Component>
-		</Component>
-		<Component ID="FX_CONTRAIL_RIBBON">
-			<OverrideTemplateParameters>
-				<FX_CODE>(A:CONTRAILS CONDITIONS MET:1, Keyframe) 0 &gt;</FX_CODE>
-				<FX_OFFSET_X>0</FX_OFFSET_X>
-				<FX_OFFSET_Y>0</FX_OFFSET_Y>
-				<FX_OFFSET_Z>0</FX_OFFSET_Z>
-				<FX_GUID>{904EC2CE-F8DD-4480-99E7-B33F7CF6E114}</FX_GUID>
-				<FX_NAME>FX_CONTRAILS_RIBBON</FX_NAME>
-			</OverrideTemplateParameters>
-			<Component ID="FX_CONTRAIL_RIBBON_LEFT_OUT" Node="FX_EXHAUST_LEFT2">
-				<UseTemplate Name="ASOBO_GT_FX"/>
-			</Component>
-			<Component ID="FX_CONTRAIL_RIBBON_RIGHT_OUT" Node="FX_EXHAUST_RIGHT4">
-				<UseTemplate Name="ASOBO_GT_FX"/>
-			</Component>
-		</Component>
+		<!--
+			No contrails here: the engine exhaust nodes FX_EXHAUST_LEFT1/LEFT2/RIGHT3/RIGHT4 are in the wings part, which
+			declares the contrails (Part_Exterior_Wings/model/A380_WINGS.xml FX_CONTRAIL_QUAD/RIBBON). A380_FUSELAGE.gltf
+			has none of these nodes; a copy here could only duplicate them.
+		-->
 		<Component ID="GND_EQUIPMENT">
 			<!-- GND CHOCKS -->
 			<!---

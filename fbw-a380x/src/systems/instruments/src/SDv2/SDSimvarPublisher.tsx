@@ -91,6 +91,10 @@ export type BaseSDSimvars = AdirsSimVars &
     dc1Powered: boolean;
     dcEssPowered: boolean;
     lgciu1LeftGearCompressed: boolean;
+    /** SFCC slat/flap configuration: 0 = CONF 0, 1 = 1, 2 = 1+F, 3 = 2, 4 = 2S, 5 = 3, 6 = FULL */
+    flapsConfIndex: number;
+    /** FWS flight phase, 1 to 12 */
+    fwcFlightPhase: number;
   };
 
 type IndexedTopics =
@@ -238,6 +242,8 @@ export class SDSimvarPublisher extends UpdatableSimVarPublisher<SDSimvars> {
     ['dc1Powered', { name: 'L:A32NX_ELEC_DC_1_BUS_IS_POWERED', type: SimVarValueType.Bool }],
     ['dcEssPowered', { name: 'L:A32NX_ELEC_DC_ESS_BUS_IS_POWERED', type: SimVarValueType.Bool }],
     ['lgciu1LeftGearCompressed', { name: 'L:A32NX_LGCIU_1_LEFT_GEAR_COMPRESSED', type: SimVarValueType.Bool }],
+    ['flapsConfIndex', { name: 'L:A32NX_FLAPS_CONF_INDEX', type: SimVarValueType.Number }],
+    ['fwcFlightPhase', { name: 'L:A32NX_FWC_FLIGHT_PHASE', type: SimVarValueType.Enum }],
   ]);
 
   public constructor(bus: EventBus) {

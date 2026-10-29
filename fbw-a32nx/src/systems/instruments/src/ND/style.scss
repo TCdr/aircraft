@@ -1,4 +1,11 @@
 @import "../MsfsAvionicsCommon/definitions.scss";
+
+// ND chronometer: white digits.
+// Design choice: the box is filled with the display background so the white digits stay readable over the map
+// (the aircraft gives no box colour).
+$nd-chrono-text: $display-white;
+$nd-chrono-box-fill: $display-background;
+
 @import "../../../../../../fbw-common/src/systems/instruments/src/ND/style.scss";
 
 @font-face {

@@ -2,10 +2,17 @@
 #include "FmgcComputer_types.h"
 #include "rtwtypes.h"
 #include <cmath>
+#include "AutopilotOverspeed.h"
 #include "rt_modd.h"
 #include "look1_iflf_binlxpw.h"
 #include "look1_binlxpw.h"
 #include "FmgcOuterLoops.h"
+
+// Manual edit of this generated model, not produced by the Simulink export: re-apply it after a regeneration
+// (the include, these constants and the extra OR term of the autopilot latch reset condition).
+// The autopilot disengages at 15 kt above VMO or Mach 0.04 above MMO; the limits are the aircraft's own.
+static constexpr double AP_OVERSPEED_VMO_KNOTS = 350.0;
+static constexpr double AP_OVERSPEED_MMO       = 0.82;
 
 void FmgcComputer::FmgcComputer_MATLABFunction(const base_arinc_429 *rtu_u, real32_T rtu_default, real32_T *rty_y)
 {
@@ -1474,8 +1481,12 @@ void FmgcComputer::step()
       rtb_OR2_l) || (FmgcComputer_U.in.discrete_inputs.ap_opp_engaged && rtb_AND10_b &&
                      (!FmgcComputer_U.in.discrete_inputs.is_unit_1))) || (rtb_y_hy &&
       (FmgcComputer_DWork.Delay_DSTATE.longitudinal_modes.pitch_goaround_active || rtb_y_d || (rtb_Phi_c_deg >=
-      FmgcComputer_P.CompareToConstant5_const))) || (rtb_y_ab && rtb_y_hy))) << 1) +
-      FmgcComputer_DWork.Memory_PreviousInput];
+      FmgcComputer_P.CompareToConstant5_const))) || (rtb_y_ab && rtb_y_hy) || AutopilotOverspeed::isExceeded(
+      (rtb_BusAssignment_gk_logic_adr_computation_data_airspeed_computed_kn.SSM == static_cast<uint32_T>
+       (SignStatusMatrix::NormalOperation)) ? rtb_BusAssignment_gk_logic_adr_computation_data_airspeed_computed_kn.Data :
+      0.0, (rtb_BusAssignment_jmp.logic.adr_computation_data.mach.SSM == static_cast<uint32_T>
+            (SignStatusMatrix::NormalOperation)) ? rtb_BusAssignment_jmp.logic.adr_computation_data.mach.Data : 0.0,
+      AP_OVERSPEED_VMO_KNOTS, AP_OVERSPEED_MMO))) << 1) + FmgcComputer_DWork.Memory_PreviousInput];
     FmgcComputer_MATLABFunction_a(FmgcComputer_DWork.Memory_PreviousInput, FmgcComputer_U.in.time.dt,
       FmgcComputer_P.ConfirmNode_isRisingEdge_k, FmgcComputer_P.ConfirmNode_timeDelay_b, &rtb_y_ab,
       &FmgcComputer_DWork.sf_MATLABFunction_it);

@@ -1,4 +1,6 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
+import { useInterval, useSimVar } from '@flybywiresim/fbw-sdk-react';
+import { useArinc429Var } from '@instruments/common/arinc429';
 import { MoreLabel, PageTitle } from '../Generic/PageTitle';
 import { Gear, GearPosition, GearType } from './elements/Gear';
 
@@ -7,9 +9,32 @@ import { WheelBogey, WheelBogeyPosition, WheelBogeyType } from './elements/Wheel
 import { BrakingSupply } from './elements/BrakingSupply';
 import { ControlSystem, ControlSystemType } from './elements/ControlSystem';
 import { Accumulator } from './elements/Accumulator';
+import { allGearsDownlocked, GravityExtensionIndication, LgCtlIndication } from './LgersIndications';
+
+/** Update period of the timed LGERS indications, ms */
+const LGERS_UPDATE_MS = 500;
 
 export const WheelPage = () => {
   const moreActive = false;
+
+  const lgciu1Word1 = useArinc429Var('L:A32NX_LGCIU_1_DISCRETE_WORD_1', LGERS_UPDATE_MS);
+  const lgciu2Word1 = useArinc429Var('L:A32NX_LGCIU_2_DISCRETE_WORD_1', LGERS_UPDATE_MS);
+  const [gravitySwitchPosition] = useSimVar('L:A32NX_LG_GRVTY_SWITCH_POS', 'number', LGERS_UPDATE_MS);
+  const lgCtlIndication = useRef(new LgCtlIndication());
+  const gravityExtensionIndication = useRef(new GravityExtensionIndication());
+  const [lgCtlVisible, setLgCtlVisible] = useState(false);
+  const [gravityExtensionVisible, setGravityExtensionVisible] = useState(false);
+  useInterval(() => {
+    const deltaS = LGERS_UPDATE_MS / 1000;
+    setLgCtlVisible(lgCtlIndication.current.update(deltaS, lgciu1Word1, lgciu2Word1));
+    setGravityExtensionVisible(
+      gravityExtensionIndication.current.update(
+        deltaS,
+        gravitySwitchPosition === 2,
+        allGearsDownlocked(lgciu1Word1, lgciu2Word1),
+      ),
+    );
+  }, LGERS_UPDATE_MS);
 
   return (
     <>
@@ -49,11 +74,11 @@ export const WheelPage = () => {
       <g id="lgers">
         <Gear x={351} y={59} position={GearPosition.Nose} type={GearType.Nose} />
 
-        <text className="F22 Green WS-6" x={216} y={210} visibility={'hidden'}>
+        <text className="F22 Green WS-6" x={216} y={210} visibility={gravityExtensionVisible ? 'visible' : 'hidden'}>
           L/G GRVTY EXTN IN PROGRESS
         </text>
 
-        <text className="F26 Amber" x={482} y={144} visibility={'hidden'}>
+        <text className="F26 Amber" x={482} y={144} visibility={lgCtlVisible ? 'visible' : 'hidden'}>
           L/G CTL
         </text>
 

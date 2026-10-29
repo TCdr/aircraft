@@ -6,8 +6,16 @@
 #include <stddef.h>
 #include "rt_modd.h"
 #include "look1_binlxpw.h"
+#include "AutopilotOverspeed.h"
 #include "look1_iflf_binlxpw.h"
 #include "A380FgOuterLoops.h"
+
+// Manual edit of this generated model, not produced by the Simulink export: re-apply it after a regeneration
+// (the include, these constants, the rtu_overspeedDisconnection parameter of
+// A380PrimComputerFg_APEngagedLogic and the argument at its two calls).
+// The autopilot disengages at 15 kt above VMO or Mach 0.04 above MMO; the limits are the aircraft's own.
+static constexpr double AP_OVERSPEED_VMO_KNOTS = 340.0;
+static constexpr double AP_OVERSPEED_MMO       = 0.89;
 
 void A380PrimComputerFg::A380PrimComputerFg_MATLABFunction(const base_arinc_429 *rtu_u, real32_T rtu_default, real32_T
   *rty_y)
@@ -166,8 +174,9 @@ void A380PrimComputerFg::A380PrimComputerFg_MATLABFunction_e(const base_arinc_42
 
 void A380PrimComputerFg::A380PrimComputerFg_APEngagedLogic(boolean_T rtu_pulsedFcuButton, boolean_T rtu_prevApEngaged,
   boolean_T rtu_groundEngineStartCondition, boolean_T rtu_dualApDiscCondition, boolean_T rtu_groundGa, boolean_T
-  rtu_envelopeInhibition, boolean_T rtu_apFdSpecificCondition, const prim_outputs *rtu_apFdSpecificCondition_l,
-  boolean_T *rty_engagementCondition, boolean_T *rty_disengagementCondition, boolean_T *rty_ap_inop)
+  rtu_envelopeInhibition, boolean_T rtu_overspeedDisconnection, boolean_T rtu_apFdSpecificCondition, const prim_outputs *
+  rtu_apFdSpecificCondition_l, boolean_T *rty_engagementCondition, boolean_T *rty_disengagementCondition, boolean_T *
+  rty_ap_inop)
 {
   boolean_T tmp;
   *rty_engagementCondition = (rtu_pulsedFcuButton && (!rtu_prevApEngaged) &&
@@ -178,7 +187,8 @@ void A380PrimComputerFg::A380PrimComputerFg_APEngagedLogic(boolean_T rtu_pulsedF
   *rty_disengagementCondition = (tmp || (rtu_pulsedFcuButton && rtu_prevApEngaged) ||
     (rtu_apFdSpecificCondition_l->data.discrete_inputs.capt_priority_takeover_pressed ||
      rtu_apFdSpecificCondition_l->data.discrete_inputs.fo_priority_takeover_pressed) || rtu_dualApDiscCondition ||
-    rtu_groundGa || rtu_groundEngineStartCondition || (!rtu_apFdSpecificCondition_l->fctl_logic.ap_authorised));
+    rtu_groundGa || rtu_groundEngineStartCondition || (!rtu_apFdSpecificCondition_l->fctl_logic.ap_authorised) ||
+    rtu_overspeedDisconnection);
   *rty_ap_inop = tmp;
 }
 
@@ -1089,7 +1099,10 @@ void A380PrimComputerFg::step()
        (A380PrimComputerFg_U.in.general_logic.ir_computation_data.theta_deg >
         A380PrimComputerFg_P.CompareToConstant1_const) || (std::abs
       (A380PrimComputerFg_U.in.general_logic.ir_computation_data.phi_deg) >
-      A380PrimComputerFg_P.CompareToConstant2_const)), rtb_ap_fd_1_condition, &A380PrimComputerFg_B.BusAssignment_i,
+      A380PrimComputerFg_P.CompareToConstant2_const)), AutopilotOverspeed::isExceeded
+      (A380PrimComputerFg_U.in.general_logic.adr_computation_data.V_ias_kn,
+       A380PrimComputerFg_U.in.general_logic.adr_computation_data.mach, AP_OVERSPEED_VMO_KNOTS, AP_OVERSPEED_MMO),
+      rtb_ap_fd_1_condition, &A380PrimComputerFg_B.BusAssignment_i,
       &rtb_y_ld, &rtb_y_av, &rtb_OR4_kx);
     A380PrimComputerFg_MATLABFunction_e(&A380PrimComputerFg_DWork.Delay_DSTATE[0U].fg.discrete_word_1,
       A380PrimComputerFg_P.BitfromLabel2_bit_d, &rtb_y);
@@ -1135,7 +1148,10 @@ void A380PrimComputerFg::step()
        (A380PrimComputerFg_U.in.general_logic.ir_computation_data.theta_deg >
         A380PrimComputerFg_P.CompareToConstant1_const_i) || (std::abs
       (A380PrimComputerFg_U.in.general_logic.ir_computation_data.phi_deg) >
-      A380PrimComputerFg_P.CompareToConstant2_const_h)), rtb_ap_fd_2_condition, &A380PrimComputerFg_B.BusAssignment_i,
+      A380PrimComputerFg_P.CompareToConstant2_const_h)), AutopilotOverspeed::isExceeded
+      (A380PrimComputerFg_U.in.general_logic.adr_computation_data.V_ias_kn,
+       A380PrimComputerFg_U.in.general_logic.adr_computation_data.mach, AP_OVERSPEED_VMO_KNOTS, AP_OVERSPEED_MMO),
+      rtb_ap_fd_2_condition, &A380PrimComputerFg_B.BusAssignment_i,
       &rtb_y_ld, &rtb_y_av, &rtb_AND2);
     A380PrimComputerFg_MATLABFunction_e(&A380PrimComputerFg_DWork.Delay_DSTATE[0U].fg.discrete_word_1,
       A380PrimComputerFg_P.BitfromLabel1_bit_b, &rtb_y);

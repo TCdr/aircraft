@@ -288,6 +288,58 @@ impl SimulationElement for AutomaticControlPartition {
     }
 }
 
+/// The manual pressurization targets. In MAN the cabin altitude target is selected on the CABIN ALT TRGT selector and
+/// stays at the current value until the crew selects a new one; with no altitude or vertical speed selected, the cabin
+/// altitude stays steady and the cabin vertical speed is 0 ft/min. Default V/S to reach a selected altitude: -300
+/// ft/min in descent, 500 ft/min in climb.
+///
+/// Design choice: the cockpit selectors give absolute values (A380_Cockpit_Behavior.xml), so a selector counts as
+/// "selected" once it turns after its MAN mode was engaged (a turn in the same update as the engagement counts too);
+/// from then on its value is the target.
+struct ManualTarget<T> {
+    /// The selector value at the previous update (None before the first update)
+    previous_selector_value: Option<T>,
+    /// The selector turned since the MAN mode was engaged
+    is_selected: bool,
+}
+
+impl<T: Copy + PartialOrd + std::ops::Sub<Output = T>> ManualTarget<T> {
+    fn new() -> Self {
+        Self {
+            previous_selector_value: None,
+            is_selected: false,
+        }
+    }
+
+    /// Returns whether the selector gives the target, `min_turn` being the smallest change taken as a turn.
+    fn update(
+        &mut self,
+        man_mode: bool,
+        was_man_mode: bool,
+        selector_value: T,
+        min_turn: T,
+    ) -> bool {
+        let turned = self.previous_selector_value.is_some_and(|previous| {
+            let change = if selector_value > previous {
+                selector_value - previous
+            } else {
+                previous - selector_value
+            };
+            change > min_turn
+        });
+        self.previous_selector_value = Some(selector_value);
+
+        if !man_mode {
+            self.is_selected = false;
+        } else if !was_man_mode {
+            self.is_selected = turned;
+        } else if turned {
+            self.is_selected = true;
+        }
+        self.is_selected
+    }
+}
+
 struct SafetyAndOverridePartition {
     override_cabin_target_vertical_speed: Option<Velocity>,
 
@@ -295,11 +347,17 @@ struct SafetyAndOverridePartition {
     is_alt_man_sel: bool,
     is_vs_man_sel: bool,
     selected_altitude: Length,
+    selected_vertical_speed: Velocity,
+    altitude_target: ManualTarget<Length>,
+    vertical_speed_target: ManualTarget<Velocity>,
 }
 
 impl SafetyAndOverridePartition {
     const DEFAULT_CLIMB_VS: f64 = 500.;
     const DEFAULT_DESCENT_VS: f64 = -300.;
+    /// Smallest selector changes taken as a turn (one knob step is about 96 ft and 20 ft/min)
+    const MIN_ALTITUDE_TURN_FT: f64 = 1.;
+    const MIN_VERTICAL_SPEED_TURN_FPM: f64 = 1.;
 
     fn new() -> Self {
         Self {
@@ -309,6 +367,9 @@ impl SafetyAndOverridePartition {
             is_alt_man_sel: false,
             is_vs_man_sel: false,
             selected_altitude: Length::default(),
+            selected_vertical_speed: Velocity::default(),
+            altitude_target: ManualTarget::new(),
+            vertical_speed_target: ManualTarget::new(),
         }
     }
 
@@ -320,44 +381,68 @@ impl SafetyAndOverridePartition {
         self.cabin_altitude =
             InternationalStandardAtmosphere::altitude_from_pressure(cabin_pressure);
 
-        self.selected_altitude = pressurization_overhead.alt_knob_value();
-        self.is_alt_man_sel = pressurization_overhead.is_alt_man_sel();
-        self.is_vs_man_sel = pressurization_overhead.is_vs_man_sel();
+        let is_alt_man_sel = pressurization_overhead.is_alt_man_sel();
+        let is_vs_man_sel = pressurization_overhead.is_vs_man_sel();
+
+        // CABIN ALT TRGT: the cabin altitude when the MAN mode is engaged, until the selector turns
+        if is_alt_man_sel && !self.is_alt_man_sel {
+            self.selected_altitude = self.cabin_altitude;
+        }
+        if self.altitude_target.update(
+            is_alt_man_sel,
+            self.is_alt_man_sel,
+            pressurization_overhead.alt_knob_value(),
+            Length::new::<foot>(Self::MIN_ALTITUDE_TURN_FT),
+        ) {
+            self.selected_altitude = pressurization_overhead.alt_knob_value();
+        }
+
+        // V/S TRGT: 0 ft/min until the selector turns
+        self.selected_vertical_speed = if self.vertical_speed_target.update(
+            is_vs_man_sel,
+            self.is_vs_man_sel,
+            pressurization_overhead.vs_knob_value(),
+            Velocity::new::<foot_per_minute>(Self::MIN_VERTICAL_SPEED_TURN_FPM),
+        ) {
+            pressurization_overhead.vs_knob_value()
+        } else {
+            Velocity::default()
+        };
+
+        self.is_alt_man_sel = is_alt_man_sel;
+        self.is_vs_man_sel = is_vs_man_sel;
 
         self.override_cabin_target_vertical_speed =
-            self.target_vertical_speed_determination(self.cabin_altitude, pressurization_overhead);
+            self.target_vertical_speed_determination(self.cabin_altitude);
     }
 
-    fn target_vertical_speed_determination(
-        &self,
-        cabin_altitude: Length,
-        pressurization_overhead: &impl PressurizationOverheadShared,
-    ) -> Option<Velocity> {
+    fn target_vertical_speed_determination(&self, cabin_altitude: Length) -> Option<Velocity> {
         if !self.is_alt_man_sel {
             if !self.is_vs_man_sel {
                 None
             } else {
-                Some(pressurization_overhead.vs_knob_value())
+                Some(self.selected_vertical_speed)
             }
         } else {
+            let target_altitude = self.selected_altitude;
             let base_vertical_speed = if self.is_vs_man_sel {
-                pressurization_overhead.vs_knob_value()
-            } else if cabin_altitude < pressurization_overhead.alt_knob_value() {
+                self.selected_vertical_speed
+            } else if cabin_altitude < target_altitude {
                 Velocity::new::<foot_per_minute>(Self::DEFAULT_CLIMB_VS)
-            } else if cabin_altitude > pressurization_overhead.alt_knob_value() {
+            } else if cabin_altitude > target_altitude {
                 Velocity::new::<foot_per_minute>(Self::DEFAULT_DESCENT_VS)
             } else {
                 Velocity::default()
             };
 
-            let target_vs = if cabin_altitude < pressurization_overhead.alt_knob_value() {
+            let target_vs = if cabin_altitude < target_altitude {
                 base_vertical_speed
                     .get::<foot_per_minute>()
-                    .min((pressurization_overhead.alt_knob_value() - cabin_altitude).get::<foot>())
-            } else if cabin_altitude > pressurization_overhead.alt_knob_value() {
+                    .min((target_altitude - cabin_altitude).get::<foot>())
+            } else if cabin_altitude > target_altitude {
                 base_vertical_speed
                     .get::<foot_per_minute>()
-                    .max((pressurization_overhead.alt_knob_value() - cabin_altitude).get::<foot>())
+                    .max((target_altitude - cabin_altitude).get::<foot>())
             } else {
                 0.
             };
@@ -386,6 +471,7 @@ struct EmergencyPressurizationPartition {
     exterior_vertical_speed: LowPassFilter<Velocity>,
     differential_pressure: Pressure,
     is_initialised: bool,
+    had_adirs_ambient_pressure: bool,
     epp_emergency_signals: EppEmergencySignals,
 
     outflow_valve_controller: OutflowValveController,
@@ -415,6 +501,7 @@ impl EmergencyPressurizationPartition {
             ),
             differential_pressure: Pressure::default(),
             is_initialised: false,
+            had_adirs_ambient_pressure: false,
             epp_emergency_signals: EppEmergencySignals::new(context, outflow_valve_id),
 
             outflow_valve_controller: OutflowValveController::new(
@@ -473,8 +560,14 @@ impl EmergencyPressurizationPartition {
         adirs: &impl AdirsToAirCondInterface,
     ) {
         let (_, adirs_ambient_pressure) = self.adirs_values_calculation(adirs);
+        // Without ADIRS data the ambient pressure is the standard sea level pressure, not a measurement. Filtering from
+        // it to the first ADIRS value (in a cold and dark aircraft: when the AC buses come on) would show a cabin
+        // differential pressure that is not there, so the filter starts from the ADIRS value.
+        let adirs_ambient_pressure_arrived =
+            adirs_ambient_pressure.is_some() && !self.had_adirs_ambient_pressure;
+        self.had_adirs_ambient_pressure = adirs_ambient_pressure.is_some();
 
-        self.exterior_flight_altitude = if !self.is_initialised {
+        self.exterior_flight_altitude = if !self.is_initialised || adirs_ambient_pressure_arrived {
             self.exterior_pressure
                 .reset(adirs_ambient_pressure.unwrap_or(Pressure::new::<hectopascal>(Air::P_0)));
             self.is_initialised = true;

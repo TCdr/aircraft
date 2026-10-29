@@ -607,6 +607,7 @@ mod tests {
             Aircraft, InitContext, SimulationElement, SimulationElementVisitor, UpdateContext,
         },
     };
+    use systems::failures::FailureType;
     use systems::integrated_modular_avionics::AvionicsDataCommunicationNetworkMessage;
     use uom::si::{electric_potential::volt, f64::*};
 
@@ -971,6 +972,74 @@ mod tests {
             let message = test_bed.query(|a| a.recv_message(i, &message_id));
             assert_eq!(message, None);
         }
+    }
+
+    // The flyPad failures of the network components act as the failure L:vars: a failed switch routes no message, a
+    // failed IOM or CPIOM is no longer available.
+    #[test]
+    fn flypad_failed_switch_not_sending_or_receiving() {
+        let mut test_bed = SimulationTestBed::new(AdcnTestAircraft::new);
+
+        let mut message_id = Default::default();
+        test_bed.command(|a| message_id = a.get_message_identifier("test_value".to_owned()));
+        let message_sent: AvionicsDataCommunicationNetworkMessage<_> =
+            A380AvionicsDataCommunicationNetworkMessageData::TestValue("testval").into();
+        test_bed.command(|a| a.set_elec_powered(true));
+        test_bed.fail(FailureType::AvionicsFullDuplexSwitch(1));
+        test_bed.run();
+        test_bed.command(|a| a.send_message(1, &message_id, message_sent.clone()));
+        for i in (2..=7).chain(9..=9) {
+            let message = test_bed.query(|a| a.recv_message(i, &message_id));
+            assert_eq!(message, None);
+        }
+        let available: bool = test_bed.read_by_name("AFDX_SWITCH_1_AVAIL");
+        assert!(!available);
+        let reachable: bool = test_bed.read_by_name("AFDX_1_2_REACHABLE");
+        assert!(!reachable);
+    }
+
+    #[test]
+    fn flypad_failed_switch_is_routed_again_when_the_failure_is_removed() {
+        let mut test_bed = SimulationTestBed::new(AdcnTestAircraft::new);
+
+        test_bed.command(|a| a.set_elec_powered(true));
+        test_bed.fail(FailureType::AvionicsFullDuplexSwitch(3));
+        test_bed.run();
+        let reachable: bool = test_bed.read_by_name("AFDX_1_3_REACHABLE");
+        assert!(!reachable);
+
+        test_bed.unfail(FailureType::AvionicsFullDuplexSwitch(3));
+        test_bed.run();
+        let reachable: bool = test_bed.read_by_name("AFDX_1_3_REACHABLE");
+        assert!(reachable);
+    }
+
+    #[test]
+    fn flypad_failed_cpiom_is_not_available() {
+        let mut test_bed = SimulationTestBed::new(AdcnTestAircraft::new);
+
+        test_bed.command(|a| a.set_elec_powered(true));
+        test_bed.fail(FailureType::CoreProcessingInputOutputModule('C', 1));
+        test_bed.run();
+
+        let c1_available: bool = test_bed.read_by_name("CPIOM_C1_AVAIL");
+        let c2_available: bool = test_bed.read_by_name("CPIOM_C2_AVAIL");
+        assert!(!c1_available);
+        assert!(c2_available);
+    }
+
+    #[test]
+    fn flypad_failed_iom_is_not_available() {
+        let mut test_bed = SimulationTestBed::new(AdcnTestAircraft::new);
+
+        test_bed.command(|a| a.set_elec_powered(true));
+        test_bed.fail(FailureType::InputOutputModule('A', 3));
+        test_bed.run();
+
+        let a3_available: bool = test_bed.read_by_name("IOM_A3_AVAIL");
+        let a4_available: bool = test_bed.read_by_name("IOM_A4_AVAIL");
+        assert!(!a3_available);
+        assert!(a4_available);
     }
 
     #[test]

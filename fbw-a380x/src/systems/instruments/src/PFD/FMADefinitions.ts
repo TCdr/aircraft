@@ -2,6 +2,7 @@
 /* eslint-disable no-dupe-else-if */
 
 import { Arinc429WordData } from '@flybywiresim/fbw-sdk';
+import { FmgcFlightPhase } from '@shared/flightphase';
 
 export enum A1A2Messages {
   NONE = 0,
@@ -272,6 +273,48 @@ export enum BC3Messages {
   EXIT_MISSED,
   FCU_ALT_BELOW_AC,
   FCU_ALT_ABOVE_AC,
+  CHECK_SPD_MODE,
+  CHECK_EO_SPD_SETTING,
+}
+
+/** CHECK EO SPD SETTING: the selected speed must stay within green dot -10 kt / +10 kt */
+const EO_SPEED_SETTING_MARGIN_KT = 10;
+
+/**
+ * CHECK EO SPD SETTING (FMA line 3): in CLIMB or CRUISE, with neither ALT* nor ALT engaged, the engine-out mode is
+ * active and the selected speed target is outside green dot -10 kt .. green dot +10 kt.
+ * Design choices: the ALT* / ALT exclusion applies in both phases; the EO mode is the FMS one (FmcAircraftInterface
+ * checkEngineOut: an engine not running in flight), and the CLIMB / CRUISE phases are in flight.
+ * @param engineOut an engine is not running
+ * @param flightPhase the FMGC flight phase
+ * @param altOrAltStarActive ALT*, ALT (or their CST / CRZ variants) is engaged
+ * @param speedSelected the speed target is selected
+ * @param selectedSpeedKt the selected speed target in knots, null when invalid
+ * @param greenDotKt the green dot speed in knots, null when invalid
+ * @returns whether CHECK EO SPD SETTING shows
+ */
+export function isCheckEoSpeedSetting(
+  engineOut: boolean,
+  flightPhase: number,
+  altOrAltStarActive: boolean,
+  speedSelected: boolean,
+  selectedSpeedKt: number | null,
+  greenDotKt: number | null,
+): boolean {
+  if (
+    !engineOut ||
+    !speedSelected ||
+    altOrAltStarActive ||
+    (flightPhase !== FmgcFlightPhase.Climb && flightPhase !== FmgcFlightPhase.Cruise) ||
+    selectedSpeedKt === null ||
+    greenDotKt === null
+  ) {
+    return false;
+  }
+  return (
+    selectedSpeedKt <= greenDotKt - EO_SPEED_SETTING_MARGIN_KT ||
+    selectedSpeedKt >= greenDotKt + EO_SPEED_SETTING_MARGIN_KT
+  );
 }
 
 export function computeBC3Message(
@@ -284,6 +327,8 @@ export function computeBC3Message(
   exitMissed: boolean,
   primFgDiscreteWord2: Arinc429WordData,
   primFgDiscreteWord6: Arinc429WordData,
+  checkSpeedMode = false,
+  checkEoSpeedSetting = false,
 ): BC3Messages {
   const flightPhaseForWarning =
     fwcFlightPhase >= 2 && fwcFlightPhase <= 11 && !(fwcFlightPhase >= 4 && fwcFlightPhase <= 7);
@@ -308,12 +353,19 @@ export function computeBC3Message(
     return BC3Messages.TRK_FPA_DESELECTED;
   } else if (false) {
     return BC3Messages.MOVE_THR_LEVERS;
+  } else if (checkEoSpeedSetting) {
+    // Design choice: no priority given for the A380, placed as the A320 SET GREEN DOT SPEED (before T/D REACHED)
+    return BC3Messages.CHECK_EO_SPD_SETTING;
   } else if (tdReached) {
     return BC3Messages.TD_REACHED;
   } else if (false) {
     return BC3Messages.EXTEND_SPD_BRK;
   } else if (false) {
     return BC3Messages.RETRACT_SPD_BRK;
+  } else if (checkSpeedMode && !isAttExcessive) {
+    // Set by the FMS (FlightManagementComputer triggerCheckSpeedModeMessage); placed as the A320 CHECK SPEED MODE
+    // (after MORE DRAG)
+    return BC3Messages.CHECK_SPD_MODE;
   } else if (false) {
     return BC3Messages.CHECK_APPR_SEL;
   } else if (setHoldSpeed) {

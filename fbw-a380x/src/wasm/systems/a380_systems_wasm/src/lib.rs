@@ -32,13 +32,14 @@ use reversers::reversers;
 use rudder::rudder;
 use spoilers::spoilers;
 use std::error::Error;
-use systems::air_conditioning::{Channel, FdacId, OcsmId, VcmId};
+use systems::air_conditioning::{Channel, FdacId, OcsmId, VcmId, ZoneType};
+use systems::engine::engine_monitoring_fault::EngineMonitoringFaultKind;
 use systems::failures::FailureType;
 use systems::integrated_modular_avionics::core_processing_input_output_module::CpiomId;
 use systems::shared::{
     report_diagnostic, AirbusElectricPumpId, AirbusEngineDrivenPumpId, ElectricalBusType,
     FireDetectionLoopID, FireDetectionZone, GearActuatorId, HydraulicColor, LgciuId,
-    ProximityDetectorId,
+    ProximityDetectorId, SmokeDetectionZone,
 };
 
 use systems_wasm::{MsfsSimulationBuilder, Variable};
@@ -80,9 +81,25 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (ElectricalBusType::DirectCurrentGndFltService, 17),
     ])?
     .with_auxiliary_power_unit(Variable::named("OVHD_APU_START_PB_IS_AVAILABLE"), 8, 21)?
-    .with_engine_anti_ice(4)?
+    // The MSFS engine anti-ice follows the engine anti-ice valves, the MSFS structural deice the wing anti-ice valves
+    // (a380_systems ice_rain_protection.rs)
+    .with_engine_anti_ice_valves(4)?
     .with_wing_anti_ice()?
     .with_fuel_pumps(1..=21)?
+    // Fuel valves 60 to 63 of flight_model.cfg feed the engines 1 to 4 in series after their Extra
+    // tanks: they are the engine HP fuel valves, and closing one stops the MSFS combustion at once.
+    // The HP fuel valve is closed (a380_systems engine_failure.rs) while the ENG MASTER is OFF (the
+    // master OFF closes the LP and HP fuel valves) and while the engine fuel is cut: the engine
+    // starves (its LP fuel valve is closed and the fuel left downstream of it is burned, see
+    // a380_systems fuel/engine_lp_valves.rs), or a flameout or seizure failure until a relight lights
+    // it up. The ENG MASTER valves 1 to 4 (the LP valves) are upstream of the Extra tanks, which MSFS
+    // does not burn: closing them alone left MSFS burning for 20 to 60 s.
+    .with_fuel_valves_closed_while([
+        (Variable::named("ENGINE_1_HP_FUEL_VALVE_CLOSED"), 60),
+        (Variable::named("ENGINE_2_HP_FUEL_VALVE_CLOSED"), 61),
+        (Variable::named("ENGINE_3_HP_FUEL_VALVE_CLOSED"), 62),
+        (Variable::named("ENGINE_4_HP_FUEL_VALVE_CLOSED"), 63),
+    ])?
     .with_failures([
         (21_000, FailureType::RapidDecompression),
         (21_001, FailureType::CabinFan(1)),
@@ -140,6 +157,18 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (21_047, FailureType::CpcsApp(CpiomId::B2)),
         (21_048, FailureType::CpcsApp(CpiomId::B3)),
         (21_049, FailureType::CpcsApp(CpiomId::B4)),
+        // Trim air: one zone per case of the COND DUCT OVHT procedure (CKPT, CABIN on each deck, FWD
+        // CARGO) and the COND FWD CARGO TEMP REGUL FAULT cargo trim air valve. The bulk cargo is left
+        // out: its duct temperature comes from the bulk heater, not from its trim air valve.
+        // TrimAirHighPressure is not mapped: no A380 system reads the trim air outlet pressure.
+        (21_050, FailureType::TrimAirFault(ZoneType::Cockpit)),
+        (21_051, FailureType::TrimAirFault(ZoneType::Cabin(11))), // MAIN_DECK_1
+        (21_052, FailureType::TrimAirFault(ZoneType::Cabin(21))), // UPPER_DECK_1
+        (21_053, FailureType::TrimAirFault(ZoneType::Cargo(1))),  // CARGO_FWD
+        (21_054, FailureType::TrimAirOverheat(ZoneType::Cockpit)),
+        (21_055, FailureType::TrimAirOverheat(ZoneType::Cabin(11))), // MAIN_DECK_1
+        (21_056, FailureType::TrimAirOverheat(ZoneType::Cabin(21))), // UPPER_DECK_1
+        (21_057, FailureType::TrimAirOverheat(ZoneType::Cargo(1))),  // CARGO_FWD
         (24_000, FailureType::TransformerRectifier(1)),
         (24_001, FailureType::TransformerRectifier(2)),
         (24_002, FailureType::TransformerRectifier(3)),
@@ -164,6 +193,14 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (24_081, FailureType::GeneratorDriveDisconnect(2)),
         (24_082, FailureType::GeneratorDriveDisconnect(3)),
         (24_083, FailureType::GeneratorDriveDisconnect(4)),
+        (24_084, FailureType::IntegratedDriveGeneratorOilLeak(1)),
+        (24_085, FailureType::IntegratedDriveGeneratorOilLeak(2)),
+        (24_086, FailureType::IntegratedDriveGeneratorOilLeak(3)),
+        (24_087, FailureType::IntegratedDriveGeneratorOilLeak(4)),
+        (24_088, FailureType::IntegratedDriveGeneratorOilOverheat(1)),
+        (24_089, FailureType::IntegratedDriveGeneratorOilOverheat(2)),
+        (24_090, FailureType::IntegratedDriveGeneratorOilOverheat(3)),
+        (24_091, FailureType::IntegratedDriveGeneratorOilOverheat(4)),
         (
             24_100,
             FailureType::ElectricalBus(ElectricalBusType::AlternatingCurrent(1)),
@@ -290,6 +327,122 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
             26_018,
             FailureType::FireDetectionLoop(FireDetectionLoopID::B, FireDetectionZone::Mlg),
         ),
+        (26_019, FailureType::Smoke(SmokeDetectionZone::ForwardCargo)),
+        (26_020, FailureType::Smoke(SmokeDetectionZone::AftCargo)),
+        (26_021, FailureType::Smoke(SmokeDetectionZone::BulkCargo)),
+        (
+            26_022,
+            FailureType::Smoke(SmokeDetectionZone::LeftMainAvionics),
+        ),
+        (
+            26_023,
+            FailureType::Smoke(SmokeDetectionZone::RightMainAvionics),
+        ),
+        (
+            26_024,
+            FailureType::Smoke(SmokeDetectionZone::LeftUpperAvionics),
+        ),
+        (
+            26_025,
+            FailureType::Smoke(SmokeDetectionZone::RightUpperAvionics),
+        ),
+        (26_026, FailureType::Smoke(SmokeDetectionZone::AftAvionics)),
+        (
+            26_027,
+            FailureType::Smoke(SmokeDetectionZone::InFlightEntertainmentBay),
+        ),
+        (
+            26_028,
+            FailureType::SmokeDetector(SmokeDetectionZone::ForwardCargo, 1),
+        ),
+        (
+            26_029,
+            FailureType::SmokeDetector(SmokeDetectionZone::ForwardCargo, 2),
+        ),
+        (
+            26_030,
+            FailureType::SmokeDetector(SmokeDetectionZone::AftCargo, 1),
+        ),
+        (
+            26_031,
+            FailureType::SmokeDetector(SmokeDetectionZone::AftCargo, 2),
+        ),
+        (
+            26_032,
+            FailureType::SmokeDetector(SmokeDetectionZone::BulkCargo, 1),
+        ),
+        (
+            26_033,
+            FailureType::SmokeDetector(SmokeDetectionZone::BulkCargo, 2),
+        ),
+        (
+            26_034,
+            FailureType::SmokeDetector(SmokeDetectionZone::LeftMainAvionics, 1),
+        ),
+        (
+            26_035,
+            FailureType::SmokeDetector(SmokeDetectionZone::LeftMainAvionics, 2),
+        ),
+        (
+            26_036,
+            FailureType::SmokeDetector(SmokeDetectionZone::RightMainAvionics, 1),
+        ),
+        (
+            26_037,
+            FailureType::SmokeDetector(SmokeDetectionZone::RightMainAvionics, 2),
+        ),
+        (
+            26_038,
+            FailureType::SmokeDetector(SmokeDetectionZone::LeftUpperAvionics, 1),
+        ),
+        (
+            26_039,
+            FailureType::SmokeDetector(SmokeDetectionZone::LeftUpperAvionics, 2),
+        ),
+        (
+            26_040,
+            FailureType::SmokeDetector(SmokeDetectionZone::RightUpperAvionics, 1),
+        ),
+        (
+            26_041,
+            FailureType::SmokeDetector(SmokeDetectionZone::RightUpperAvionics, 2),
+        ),
+        (
+            26_042,
+            FailureType::SmokeDetector(SmokeDetectionZone::AftAvionics, 1),
+        ),
+        (
+            26_043,
+            FailureType::SmokeDetector(SmokeDetectionZone::AftAvionics, 2),
+        ),
+        (
+            26_044,
+            FailureType::SmokeDetector(SmokeDetectionZone::InFlightEntertainmentBay, 1),
+        ),
+        (
+            26_045,
+            FailureType::SmokeDetector(SmokeDetectionZone::InFlightEntertainmentBay, 2),
+        ),
+        (26_046, FailureType::CargoFireBottleLowPressure(1)),
+        (26_047, FailureType::CargoFireBottleLowPressure(2)),
+        (26_048, FailureType::SmokeDetectionFunction),
+        (
+            26_049,
+            FailureType::Smoke(SmokeDetectionZone::NetworkServerSystem),
+        ),
+        (
+            26_050,
+            FailureType::SmokeDetector(SmokeDetectionZone::NetworkServerSystem, 1),
+        ),
+        (
+            26_051,
+            FailureType::SmokeDetector(SmokeDetectionZone::NetworkServerSystem, 2),
+        ),
+        // SFCC flap and slat channels (hydraulic::sfcc): F/CTL FLAP(SLAT) SYS 1(2) FAULT
+        (27_010, FailureType::SlatFlapControlComputerFlapChannel(1)),
+        (27_011, FailureType::SlatFlapControlComputerFlapChannel(2)),
+        (27_012, FailureType::SlatFlapControlComputerSlatChannel(1)),
+        (27_013, FailureType::SlatFlapControlComputerSlatChannel(2)),
         (29_000, FailureType::ReservoirLeak(HydraulicColor::Green)),
         (29_001, FailureType::ReservoirLeak(HydraulicColor::Yellow)),
         (29_002, FailureType::ReservoirAirLeak(HydraulicColor::Green)),
@@ -429,6 +582,110 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
             32_025,
             FailureType::GearActuatorJammed(GearActuatorId::GearDoorRight),
         ),
+        // Brakes: the model feeds the NORM circuit from the GREEN system and the ALTN circuit (with
+        // its accumulator) from the YELLOW system. On the real aircraft the ALTN brakes use the LEHGS
+        // and accumulators.
+        (
+            32_100,
+            FailureType::BrakeHydraulicLeak(HydraulicColor::Green),
+        ),
+        (
+            32_101,
+            FailureType::BrakeHydraulicLeak(HydraulicColor::Yellow),
+        ),
+        (32_150, FailureType::BrakeAccumulatorGasLeak),
+        // Braking and steering control faults (hydraulic/brake_steer_faults.rs)
+        (32_110, FailureType::BrakeNormalBraking),
+        (32_111, FailureType::BrakeAlternateBraking),
+        (32_112, FailureType::BrakeEmergencyBraking),
+        (32_113, FailureType::Autobrake),
+        (32_200, FailureType::NoseWheelSteeringNormal),
+        (32_201, FailureType::NoseWheelSteeringAlternate),
+        (32_202, FailureType::BodyWheelSteering),
+        (32_203, FailureType::SteeringControlSystem(1)),
+        (32_204, FailureType::SteeringControlSystem(2)),
+        // ATA 30 wing and engine anti-ice valves (a380_systems ice_rain_protection.rs)
+        (30_000, FailureType::WingAntiIceValvesStuckClosed(1)),
+        (30_001, FailureType::WingAntiIceValvesStuckClosed(2)),
+        (30_010, FailureType::WingAntiIceOuterValveStuckOpen(1)),
+        (30_011, FailureType::WingAntiIceOuterValveStuckOpen(2)),
+        (30_100, FailureType::EngineAntiIceValveStuckClosed(1)),
+        (30_101, FailureType::EngineAntiIceValveStuckClosed(2)),
+        (30_102, FailureType::EngineAntiIceValveStuckClosed(3)),
+        (30_103, FailureType::EngineAntiIceValveStuckClosed(4)),
+        (30_110, FailureType::EngineAntiIceValveStuckOpen(1)),
+        (30_111, FailureType::EngineAntiIceValveStuckOpen(2)),
+        (30_112, FailureType::EngineAntiIceValveStuckOpen(3)),
+        (30_113, FailureType::EngineAntiIceValveStuckOpen(4)),
+        // ATA 35 oxygen bottles and cabin valves (a380_systems oxygen.rs)
+        // ATA 36 (a380_systems pneumatic.rs): wing zone n is the wing section of engine n
+        (36_000, FailureType::EngineBleedValveStuckClosed(1)),
+        // Avionics network (systems::integrated_modular_avionics): AFDX switches by their number,
+        // IOMs A1-A8 as 42_101-42_108, CPIOMs as 42_2xy (x = letter A..G as 0..6, y = number)
+        (42_001, FailureType::AvionicsFullDuplexSwitch(1)),
+        (42_002, FailureType::AvionicsFullDuplexSwitch(2)),
+        (42_003, FailureType::AvionicsFullDuplexSwitch(3)),
+        (42_004, FailureType::AvionicsFullDuplexSwitch(4)),
+        (42_005, FailureType::AvionicsFullDuplexSwitch(5)),
+        (42_006, FailureType::AvionicsFullDuplexSwitch(6)),
+        (42_007, FailureType::AvionicsFullDuplexSwitch(7)),
+        (42_009, FailureType::AvionicsFullDuplexSwitch(9)),
+        (42_011, FailureType::AvionicsFullDuplexSwitch(11)),
+        (42_012, FailureType::AvionicsFullDuplexSwitch(12)),
+        (42_013, FailureType::AvionicsFullDuplexSwitch(13)),
+        (42_014, FailureType::AvionicsFullDuplexSwitch(14)),
+        (42_015, FailureType::AvionicsFullDuplexSwitch(15)),
+        (42_016, FailureType::AvionicsFullDuplexSwitch(16)),
+        (42_017, FailureType::AvionicsFullDuplexSwitch(17)),
+        (42_019, FailureType::AvionicsFullDuplexSwitch(19)),
+        (42_101, FailureType::InputOutputModule('A', 1)),
+        (42_102, FailureType::InputOutputModule('A', 2)),
+        (42_103, FailureType::InputOutputModule('A', 3)),
+        (42_104, FailureType::InputOutputModule('A', 4)),
+        (42_105, FailureType::InputOutputModule('A', 5)),
+        (42_106, FailureType::InputOutputModule('A', 6)),
+        (42_107, FailureType::InputOutputModule('A', 7)),
+        (42_108, FailureType::InputOutputModule('A', 8)),
+        (42_201, FailureType::CoreProcessingInputOutputModule('A', 1)),
+        (42_202, FailureType::CoreProcessingInputOutputModule('A', 2)),
+        (42_203, FailureType::CoreProcessingInputOutputModule('A', 3)),
+        (42_204, FailureType::CoreProcessingInputOutputModule('A', 4)),
+        (42_211, FailureType::CoreProcessingInputOutputModule('B', 1)),
+        (42_212, FailureType::CoreProcessingInputOutputModule('B', 2)),
+        (42_213, FailureType::CoreProcessingInputOutputModule('B', 3)),
+        (42_214, FailureType::CoreProcessingInputOutputModule('B', 4)),
+        (42_221, FailureType::CoreProcessingInputOutputModule('C', 1)),
+        (42_222, FailureType::CoreProcessingInputOutputModule('C', 2)),
+        (42_231, FailureType::CoreProcessingInputOutputModule('D', 1)),
+        (42_233, FailureType::CoreProcessingInputOutputModule('D', 3)),
+        (42_241, FailureType::CoreProcessingInputOutputModule('E', 1)),
+        (42_242, FailureType::CoreProcessingInputOutputModule('E', 2)),
+        (42_251, FailureType::CoreProcessingInputOutputModule('F', 1)),
+        (42_252, FailureType::CoreProcessingInputOutputModule('F', 2)),
+        (42_253, FailureType::CoreProcessingInputOutputModule('F', 3)),
+        (42_254, FailureType::CoreProcessingInputOutputModule('F', 4)),
+        (42_261, FailureType::CoreProcessingInputOutputModule('G', 1)),
+        (42_262, FailureType::CoreProcessingInputOutputModule('G', 2)),
+        (42_263, FailureType::CoreProcessingInputOutputModule('G', 3)),
+        (42_264, FailureType::CoreProcessingInputOutputModule('G', 4)),
+        (36_001, FailureType::EngineBleedValveStuckClosed(2)),
+        (36_002, FailureType::EngineBleedValveStuckClosed(3)),
+        (36_003, FailureType::EngineBleedValveStuckClosed(4)),
+        (36_010, FailureType::EngineBleedValveStuckOpen(1)),
+        (36_011, FailureType::EngineBleedValveStuckOpen(2)),
+        (36_012, FailureType::EngineBleedValveStuckOpen(3)),
+        (36_013, FailureType::EngineBleedValveStuckOpen(4)),
+        (36_070, FailureType::EngineBleedLeak(1)),
+        (36_071, FailureType::EngineBleedLeak(2)),
+        (36_072, FailureType::EngineBleedLeak(3)),
+        (36_073, FailureType::EngineBleedLeak(4)),
+        (36_074, FailureType::WingBleedLeak(1)),
+        (36_075, FailureType::WingBleedLeak(2)),
+        (36_076, FailureType::WingBleedLeak(3)),
+        (36_077, FailureType::WingBleedLeak(4)),
+        (35_000, FailureType::CockpitOxygenBottleLeak),
+        (35_001, FailureType::CabinOxygenBottleLeak),
+        (35_010, FailureType::CabinOxygenValveStuckClosed),
         (34_000, FailureType::RadioAltimeter(1)),
         (34_001, FailureType::RadioAltimeter(2)),
         (34_002, FailureType::RadioAltimeter(3)),
@@ -440,6 +697,224 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
         (34_022, FailureType::RadioAntennaDirectCoupling(3)),
         (34_040, FailureType::Gps(1)),
         (34_041, FailureType::Gps(2)),
+        (34_050, FailureType::AdrAirspeedErroneous(1)),
+        (34_051, FailureType::AdrAirspeedErroneous(2)),
+        (34_052, FailureType::AdrAirspeedErroneous(3)),
+        (34_060, FailureType::AdrAngleOfAttackErroneous(1)),
+        (34_061, FailureType::AdrAngleOfAttackErroneous(2)),
+        (34_062, FailureType::AdrAngleOfAttackErroneous(3)),
+        (49_000, FailureType::ApuElectronicControlBox),
+        (49_001, FailureType::ApuOverspeed),
+        (49_002, FailureType::ApuOilLowPressure),
+        (49_003, FailureType::ApuOilHighTemperature),
+        (34_070, FailureType::AdrFault(1)),
+        (34_071, FailureType::AdrFault(2)),
+        (34_072, FailureType::AdrFault(3)),
+        (34_080, FailureType::IrFault(1)),
+        (34_081, FailureType::IrFault(2)),
+        (34_082, FailureType::IrFault(3)),
+        (72_000, FailureType::EngineFlameout(1)),
+        (72_001, FailureType::EngineFlameout(2)),
+        (72_002, FailureType::EngineFlameout(3)),
+        (72_003, FailureType::EngineFlameout(4)),
+        (72_010, FailureType::EngineSeizure(1)),
+        (72_011, FailureType::EngineSeizure(2)),
+        (72_012, FailureType::EngineSeizure(3)),
+        (72_013, FailureType::EngineSeizure(4)),
+        (79_000, FailureType::EngineOilLeak(1)),
+        (79_001, FailureType::EngineOilLeak(2)),
+        (79_002, FailureType::EngineOilLeak(3)),
+        (79_003, FailureType::EngineOilLeak(4)),
+        (79_020, FailureType::EngineOilFilterClog(1)),
+        (79_021, FailureType::EngineOilFilterClog(2)),
+        (79_022, FailureType::EngineOilFilterClog(3)),
+        (79_023, FailureType::EngineOilFilterClog(4)),
+        (79_030, FailureType::EngineOilOverheat(1)),
+        (79_031, FailureType::EngineOilOverheat(2)),
+        (79_032, FailureType::EngineOilOverheat(3)),
+        (79_033, FailureType::EngineOilOverheat(4)),
+        (74_000, FailureType::EngineIgniterA(1)),
+        (74_001, FailureType::EngineIgniterA(2)),
+        (74_002, FailureType::EngineIgniterA(3)),
+        (74_003, FailureType::EngineIgniterA(4)),
+        (74_010, FailureType::EngineIgniterB(1)),
+        (74_011, FailureType::EngineIgniterB(2)),
+        (74_012, FailureType::EngineIgniterB(3)),
+        (74_013, FailureType::EngineIgniterB(4)),
+        (80_000, FailureType::EngineStartValveStuckClosed(1)),
+        (80_001, FailureType::EngineStartValveStuckClosed(2)),
+        (80_002, FailureType::EngineStartValveStuckClosed(3)),
+        (80_003, FailureType::EngineStartValveStuckClosed(4)),
+        (80_010, FailureType::EngineStartValveStuckOpen(1)),
+        (80_011, FailureType::EngineStartValveStuckOpen(2)),
+        (80_012, FailureType::EngineStartValveStuckOpen(3)),
+        (80_013, FailureType::EngineStartValveStuckOpen(4)),
+        (80_020, FailureType::EngineHotStart(1)),
+        (80_021, FailureType::EngineHotStart(2)),
+        (80_022, FailureType::EngineHotStart(3)),
+        (80_023, FailureType::EngineHotStart(4)),
+        (80_030, FailureType::EngineHungStart(1)),
+        (80_031, FailureType::EngineHungStart(2)),
+        (80_032, FailureType::EngineHungStart(3)),
+        (80_033, FailureType::EngineHungStart(4)),
+        (80_040, FailureType::EngineStartStall(1)),
+        (80_041, FailureType::EngineStartStall(2)),
+        (80_042, FailureType::EngineStartStall(3)),
+        (80_043, FailureType::EngineStartStall(4)),
+        (80_050, FailureType::EngineStarter(1)),
+        (80_051, FailureType::EngineStarter(2)),
+        (80_052, FailureType::EngineStarter(3)),
+        (80_053, FailureType::EngineStarter(4)),
+        // The engine keeps running (a380_systems engine_malfunction.rs)
+        (72_100, FailureType::EngineCompressorStall(1)),
+        (72_101, FailureType::EngineCompressorStall(2)),
+        (72_102, FailureType::EngineCompressorStall(3)),
+        (72_103, FailureType::EngineCompressorStall(4)),
+        (72_110, FailureType::EngineEgtOvertemperature(1)),
+        (72_111, FailureType::EngineEgtOvertemperature(2)),
+        (72_112, FailureType::EngineEgtOvertemperature(3)),
+        (72_113, FailureType::EngineEgtOvertemperature(4)),
+        (77_000, FailureType::EngineHighVibration(1)),
+        (77_001, FailureType::EngineHighVibration(2)),
+        (77_002, FailureType::EngineHighVibration(3)),
+        (77_003, FailureType::EngineHighVibration(4)),
+        // FADEC and thrust lever (ATA 73), thrust reversers 2 and 3 (ATA 78)
+        (73_010, FailureType::FadecNetworkLink(1)),
+        (73_011, FailureType::FadecNetworkLink(2)),
+        (73_012, FailureType::FadecNetworkLink(3)),
+        (73_013, FailureType::FadecNetworkLink(4)),
+        (73_020, FailureType::FadecSystem(1)),
+        (73_021, FailureType::FadecSystem(2)),
+        (73_022, FailureType::FadecSystem(3)),
+        (73_023, FailureType::FadecSystem(4)),
+        (73_030, FailureType::FadecOverheat(1)),
+        (73_031, FailureType::FadecOverheat(2)),
+        (73_032, FailureType::FadecOverheat(3)),
+        (73_033, FailureType::FadecOverheat(4)),
+        (73_040, FailureType::ThrustLeverResolvers(1)),
+        (73_041, FailureType::ThrustLeverResolvers(2)),
+        (73_042, FailureType::ThrustLeverResolvers(3)),
+        (73_043, FailureType::ThrustLeverResolvers(4)),
+        (28_040, FailureType::EngineLpValveJammed(1)),
+        (28_041, FailureType::EngineLpValveJammed(2)),
+        (28_042, FailureType::EngineLpValveJammed(3)),
+        (28_043, FailureType::EngineLpValveJammed(4)),
+        (73_100, FailureType::EngineFuelFilterClog(1)),
+        (73_101, FailureType::EngineFuelFilterClog(2)),
+        (73_102, FailureType::EngineFuelFilterClog(3)),
+        (73_103, FailureType::EngineFuelFilterClog(4)),
+        // ENG HP FUEL VLV FAULT (systems engine/hp_fuel_valve_failure.rs)
+        (73_200, FailureType::EngineHpFuelValveStuck(1)),
+        (73_201, FailureType::EngineHpFuelValveStuck(2)),
+        (73_202, FailureType::EngineHpFuelValveStuck(3)),
+        (73_203, FailureType::EngineHpFuelValveStuck(4)),
+        // The FADEC faults without engine model effect (systems engine/engine_monitoring_fault.rs)
+        (
+            73_110,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::FuelStrainerClog),
+        ),
+        (
+            73_111,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::FuelStrainerClog),
+        ),
+        (
+            73_112,
+            FailureType::EngineMonitoringFault(3, EngineMonitoringFaultKind::FuelStrainerClog),
+        ),
+        (
+            73_113,
+            FailureType::EngineMonitoringFault(4, EngineMonitoringFaultKind::FuelStrainerClog),
+        ),
+        (
+            73_120,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::FuelFilterMonitoring),
+        ),
+        (
+            73_121,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::FuelFilterMonitoring),
+        ),
+        (
+            73_122,
+            FailureType::EngineMonitoringFault(3, EngineMonitoringFaultKind::FuelFilterMonitoring),
+        ),
+        (
+            73_123,
+            FailureType::EngineMonitoringFault(4, EngineMonitoringFaultKind::FuelFilterMonitoring),
+        ),
+        (
+            73_240,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::Sensors),
+        ),
+        (
+            73_241,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::Sensors),
+        ),
+        (
+            73_242,
+            FailureType::EngineMonitoringFault(3, EngineMonitoringFaultKind::Sensors),
+        ),
+        (
+            73_243,
+            FailureType::EngineMonitoringFault(4, EngineMonitoringFaultKind::Sensors),
+        ),
+        (
+            73_250,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::OverthrustProtection),
+        ),
+        (
+            73_251,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::OverthrustProtection),
+        ),
+        (
+            73_252,
+            FailureType::EngineMonitoringFault(3, EngineMonitoringFaultKind::OverthrustProtection),
+        ),
+        (
+            73_253,
+            FailureType::EngineMonitoringFault(4, EngineMonitoringFaultKind::OverthrustProtection),
+        ),
+        (
+            73_260,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::MinorFault),
+        ),
+        (
+            73_261,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::MinorFault),
+        ),
+        (
+            73_262,
+            FailureType::EngineMonitoringFault(3, EngineMonitoringFaultKind::MinorFault),
+        ),
+        (
+            73_263,
+            FailureType::EngineMonitoringFault(4, EngineMonitoringFaultKind::MinorFault),
+        ),
+        (
+            79_040,
+            FailureType::EngineMonitoringFault(1, EngineMonitoringFaultKind::OilChip),
+        ),
+        (
+            79_041,
+            FailureType::EngineMonitoringFault(2, EngineMonitoringFaultKind::OilChip),
+        ),
+        (
+            79_042,
+            FailureType::EngineMonitoringFault(3, EngineMonitoringFaultKind::OilChip),
+        ),
+        (
+            79_043,
+            FailureType::EngineMonitoringFault(4, EngineMonitoringFaultKind::OilChip),
+        ),
+        (78_001, FailureType::ReverserFault(2)),
+        (78_002, FailureType::ReverserFault(3)),
+        (78_011, FailureType::ReverserUnlocked(2)),
+        (78_012, FailureType::ReverserUnlocked(3)),
+        (78_021, FailureType::ReverserPressurized(2)),
+        (78_022, FailureType::ReverserPressurized(3)),
+        (78_031, FailureType::ReverserLocked(2)),
+        (78_032, FailureType::ReverserLocked(3)),
+        (78_041, FailureType::ReverserControlFault(2)),
+        (78_042, FailureType::ReverserControlFault(3)),
     ])
     .provides_aircraft_variable("ACCELERATION BODY X", "feet per second squared", 0)?
     .provides_aircraft_variable("ACCELERATION BODY Y", "feet per second squared", 0)?
@@ -480,6 +955,7 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
     .provides_aircraft_variable("FUELSYSTEM TANK QUANTITY", "gallons", 10)?
     .provides_aircraft_variable("FUELSYSTEM TANK QUANTITY", "gallons", 11)?
     .provides_aircraft_variable("FUELSYSTEM LINE FUEL FLOW", "gallons per hour", 141)?
+    .provides_aircraft_variable_range("FUELSYSTEM VALVE SWITCH", "Bool", 1..=4)?
     .provides_aircraft_variable("GEAR ANIMATION POSITION", "Percent", 0)?
     .provides_aircraft_variable("GEAR ANIMATION POSITION", "Percent", 1)?
     .provides_aircraft_variable("GEAR ANIMATION POSITION", "Percent", 2)?
@@ -535,6 +1011,19 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
     .provides_aircraft_variable("TURB ENG JET THRUST", "Pounds", 2)?
     .provides_aircraft_variable("TURB ENG JET THRUST", "Pounds", 3)?
     .provides_aircraft_variable("TURB ENG JET THRUST", "Pounds", 4)?
+    // The MSFS engine speeds and vibration (a380_systems engine_malfunction.rs)
+    .provides_aircraft_variable("TURB ENG N1", "Percent", 1)?
+    .provides_aircraft_variable("TURB ENG N1", "Percent", 2)?
+    .provides_aircraft_variable("TURB ENG N1", "Percent", 3)?
+    .provides_aircraft_variable("TURB ENG N1", "Percent", 4)?
+    .provides_aircraft_variable("TURB ENG N2", "Percent", 1)?
+    .provides_aircraft_variable("TURB ENG N2", "Percent", 2)?
+    .provides_aircraft_variable("TURB ENG N2", "Percent", 3)?
+    .provides_aircraft_variable("TURB ENG N2", "Percent", 4)?
+    .provides_aircraft_variable("TURB ENG VIBRATION", "Number", 1)?
+    .provides_aircraft_variable("TURB ENG VIBRATION", "Number", 2)?
+    .provides_aircraft_variable("TURB ENG VIBRATION", "Number", 3)?
+    .provides_aircraft_variable("TURB ENG VIBRATION", "Number", 4)?
     .provides_aircraft_variable("UNLIMITED FUEL", "Bool", 0)?
     .provides_aircraft_variable("VELOCITY BODY X", "feet per second", 0)?
     .provides_aircraft_variable("VELOCITY BODY Y", "feet per second", 0)?
@@ -578,6 +1067,8 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
     .provides_aircraft_variable("PAYLOAD STATION WEIGHT", "Pounds", 16)?
     .provides_aircraft_variable("PAYLOAD STATION WEIGHT", "Pounds", 17)?
     .provides_aircraft_variable("PAYLOAD STATION WEIGHT", "Pounds", 18)?
+    // The ENG START selector position (0 CRANK, 1 NORM, 2 IGN START): an in-flight relight needs IGN START
+    .provides_named_variable("XMLVAR_ENG_MODE_SEL")?
     .provides_named_variable("FSDT_GSX_BOARDING_STATE")?
     .provides_named_variable("FSDT_GSX_DEBOARDING_STATE")?
     .provides_named_variable("FSDT_GSX_NUMPASSENGERS_BOARDING_TOTAL")?

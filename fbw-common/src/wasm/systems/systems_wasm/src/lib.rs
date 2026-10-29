@@ -10,14 +10,14 @@ mod msfs;
 use crate::msfs::legacy::{AircraftVariable, NamedVariable};
 #[cfg(target_arch = "wasm32")]
 use ::msfs::legacy::{AircraftVariable, NamedVariable};
-use fuel::fuel_pumps;
+use fuel::{fuel_pumps, fuel_valves_closed_while};
 
 #[cfg(not(target_arch = "wasm32"))]
 use crate::msfs::commbus::{CommBus, CommBusBroadcastFlags};
 #[cfg(target_arch = "wasm32")]
 use ::msfs::commbus::{CommBus, CommBusBroadcastFlags};
 
-use crate::anti_ice::{engine_anti_ice, wing_anti_ice};
+use crate::anti_ice::{engine_anti_ice_valves, wing_anti_ice};
 use crate::aspects::{Aspect, ExecuteOn, MsfsAspectBuilder};
 use crate::electrical::{auxiliary_power_unit, electrical_buses};
 use ::msfs::{
@@ -118,8 +118,9 @@ impl<'a, 'b> MsfsSimulationBuilder<'a, 'b> {
         ))
     }
 
-    pub fn with_engine_anti_ice(self, engine_count: usize) -> Result<Self, Box<dyn Error>> {
-        self.with_aspect(engine_anti_ice(engine_count))
+    /// The MSFS engine anti-ice follows the engine anti-ice valves of the systems model
+    pub fn with_engine_anti_ice_valves(self, engine_count: usize) -> Result<Self, Box<dyn Error>> {
+        self.with_aspect(engine_anti_ice_valves(engine_count))
     }
 
     pub fn with_wing_anti_ice(self) -> Result<Self, Box<dyn Error>> {
@@ -131,6 +132,15 @@ impl<'a, 'b> MsfsSimulationBuilder<'a, 'b> {
         pump_indexes: impl IntoIterator<Item = u32>,
     ) -> Result<Self, Box<dyn Error>> {
         self.with_aspect(fuel_pumps(pump_indexes))
+    }
+
+    /// Closes each MSFS fuel valve (by its flight_model.cfg index) while the given variable is
+    /// true, and opens it while the variable is false.
+    pub fn with_fuel_valves_closed_while(
+        self,
+        valves: impl IntoIterator<Item = (Variable, u32)>,
+    ) -> Result<Self, Box<dyn Error>> {
+        self.with_aspect(fuel_valves_closed_while(valves))
     }
 
     pub fn with_failures(mut self, failures: impl IntoIterator<Item = (u64, FailureType)>) -> Self {

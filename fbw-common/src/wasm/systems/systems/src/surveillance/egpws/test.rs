@@ -421,7 +421,10 @@ struct TestAircraft {
     power_consumption: Power,
 }
 impl TestAircraft {
-    fn new(context: &mut InitContext) -> Self {
+    fn new_with_pin_programming(
+        context: &mut InitContext,
+        pin_programming: EnhancedGroundProximityWarningComputerPinProgramming,
+    ) -> Self {
         Self {
             electricity_source: TestElectricitySource::powered(
                 context,
@@ -432,9 +435,10 @@ impl TestAircraft {
             adiru: TestAdiru::new(context),
             ils: TestIls::new(),
             egpws_electrical_harness: TestElectricalHarness::new(),
-            egpwc: EnhancedGroundProximityWarningComputer::new(
+            egpwc: EnhancedGroundProximityWarningComputer::new_with_pin_programming(
                 context,
                 ElectricalBusType::AlternatingCurrent(1),
+                pin_programming,
             ),
             is_ac_1_powered: false,
             power_consumption: Power::new::<watt>(0.),
@@ -495,11 +499,18 @@ struct EgpwcTestBed {
 }
 impl EgpwcTestBed {
     fn new() -> Self {
+        Self::new_with_pin_programming(
+            EnhancedGroundProximityWarningComputerPinProgramming::default(),
+        )
+    }
+
+    fn new_with_pin_programming(
+        pin_programming: EnhancedGroundProximityWarningComputerPinProgramming,
+    ) -> Self {
         let mut test_bed = Self {
-            test_bed: SimulationTestBed::new_with_start_state(
-                StartState::Cruise,
-                TestAircraft::new,
-            ),
+            test_bed: SimulationTestBed::new_with_start_state(StartState::Cruise, |context| {
+                TestAircraft::new_with_pin_programming(context, pin_programming)
+            }),
         };
         test_bed = test_bed.on_ground().powered().flaps_extended(false);
 
@@ -845,6 +856,41 @@ fn mode_1_test() {
 
     test_bed.run_with_delta(Duration::from_millis(200));
     test_bed.assert_no_warning_active();
+}
+
+/// The alternate (Airbus) lamp format, as the A320 PULL UP - GPWS pb: PULL UP for the mode 1
+/// second boundary, amber GPWS for the first one (SINK RATE).
+#[test]
+fn mode_1_alternate_lamp_format_test() {
+    let mut test_bed = EgpwcTestBed::new_with_pin_programming(
+        EnhancedGroundProximityWarningComputerPinProgramming {
+            alternate_lamp_format: true,
+            ..Default::default()
+        },
+    )
+    .altitude_of(Length::new::<foot>(1500.0))
+    .terrain_height_of(Length::new::<foot>(0.0))
+    .vertical_speed_of(Velocity::new::<foot_per_minute>(0.0))
+    .cas_of(Velocity::new::<knot>(250.))
+    .and()
+    .powered();
+
+    test_bed.run_with_delta(Duration::from_millis(1));
+    test_bed.assert_no_warning_active();
+
+    // SINK RATE: amber GPWS lamp, no PULL UP
+    test_bed = test_bed.vertical_speed_of(Velocity::new::<foot_per_minute>(-4000.0));
+    test_bed.run_with_delta(Duration::from_millis(1));
+    test_bed.run_with_delta(Duration::from_millis(1_000));
+    assert_eq!(test_bed.get_aural_warning(), AuralWarning::SinkRate as u8);
+    assert!(!test_bed.is_warning_light_on());
+    assert!(test_bed.is_alert_light_on());
+
+    // PULL UP: red PULL UP lamp
+    test_bed = test_bed.vertical_speed_of(Velocity::new::<foot_per_minute>(-5000.0));
+    test_bed.run_with_delta(Duration::from_millis(1_700));
+    assert_eq!(test_bed.get_aural_warning(), AuralWarning::PullUp as u8);
+    assert!(test_bed.is_warning_light_on());
 }
 
 #[test]
@@ -1343,4 +1389,106 @@ fn mode_5_gs_inhibit_button_cancels() {
         AuralWarning::GlideslopeHard as u8
     );
     assert!(test_bed.is_alert_light_on());
+}
+
+impl EgpwcTestBed {
+    /// Runs the computer for the given time in 50 ms steps.
+    fn run_for(&mut self, duration: Duration) {
+        let step = Duration::from_millis(50);
+        let mut elapsed = Duration::ZERO;
+        while elapsed < duration {
+            self.run_with_delta(step);
+            elapsed += step;
+        }
+    }
+
+    /// One short press of the GPWS test pushbutton (the same pushbutton as the mode 5 G/S cancel).
+    fn press_gpws_test_pushbutton(mut self) -> Self {
+        self = self.gpws_gs_cancel_self_test_pressed(true);
+        self.run_with_delta(Duration::from_millis(50));
+        self = self.gpws_gs_cancel_self_test_pressed(false);
+        self
+    }
+
+    fn is_terrain_test_pattern_shown(&mut self) -> bool {
+        ReadByName::<EgpwcTestBed, bool>::read_by_name(
+            self,
+            EnhancedGroundProximityWarningComputer::TERRAIN_TEST_PATTERN_KEY,
+        )
+    }
+}
+
+/// The GPWS pushbutton tests the GPWS on the ground. The sequence (GLIDESLOPE, PULL UP, terrain test pattern with
+/// TERRAIN TERRAIN PULL UP) is the Honeywell EGPWS short self-test.
+#[test]
+fn self_test_on_ground_runs_glideslope_pull_up_and_terrain_steps() {
+    let mut test_bed = test_bed_with().on_ground().and().powered();
+    test_bed.run_for(Duration::from_millis(1_000));
+    test_bed.assert_no_warning_active();
+    assert!(!test_bed.is_terrain_test_pattern_shown());
+
+    test_bed = test_bed.press_gpws_test_pushbutton();
+    test_bed.run_with_delta(Duration::from_millis(50));
+    assert_eq!(
+        test_bed.get_aural_warning(),
+        AuralWarning::GlideslopeSoft as u8
+    );
+    assert!(test_bed.is_alert_light_on());
+    assert!(!test_bed.is_warning_light_on());
+
+    // GLIDESLOPE lasts 1.6 s
+    test_bed.run_for(Duration::from_millis(1_600));
+    assert_eq!(test_bed.get_aural_warning(), AuralWarning::PullUp as u8);
+    assert!(test_bed.is_warning_light_on());
+    assert!(!test_bed.is_alert_light_on());
+    assert!(!test_bed.is_terrain_test_pattern_shown());
+
+    // PULL UP lasts 1.1 s, then the terrain test pattern with TERRAIN TERRAIN (2 x 0.7 s)
+    test_bed.run_for(Duration::from_millis(1_100));
+    assert_eq!(test_bed.get_aural_warning(), AuralWarning::Terrain as u8);
+    assert!(test_bed.is_warning_light_on());
+    assert!(test_bed.is_terrain_test_pattern_shown());
+
+    test_bed.run_for(Duration::from_millis(1_400));
+    assert_eq!(test_bed.get_aural_warning(), AuralWarning::PullUp as u8);
+    assert!(test_bed.is_warning_light_on());
+    assert!(test_bed.is_terrain_test_pattern_shown());
+
+    // End of the test after the last PULL UP
+    test_bed.run_for(Duration::from_millis(1_200));
+    test_bed.assert_no_warning_active();
+    assert!(!test_bed.is_terrain_test_pattern_shown());
+}
+
+#[test]
+fn self_test_does_not_start_in_flight() {
+    let mut test_bed = test_bed_with()
+        .altitude_of(Length::new::<foot>(3_000.0))
+        .terrain_height_of(Length::new::<foot>(0.0))
+        .vertical_speed_of(Velocity::new::<foot_per_minute>(0.0))
+        .cas_of(Velocity::new::<knot>(250.0))
+        .gear_extended(false)
+        .and()
+        .powered();
+    test_bed.run_for(Duration::from_millis(1_000));
+    test_bed.assert_no_warning_active();
+
+    test_bed = test_bed.press_gpws_test_pushbutton();
+    test_bed.run_for(Duration::from_millis(500));
+    test_bed.assert_no_warning_active();
+    assert!(!test_bed.is_terrain_test_pattern_shown());
+}
+
+#[test]
+fn self_test_does_not_start_with_gpws_sys_off() {
+    let mut test_bed = test_bed_with()
+        .on_ground()
+        .gpws_sys_button_pressed(true)
+        .and()
+        .powered();
+    test_bed.run_for(Duration::from_millis(1_000));
+
+    test_bed = test_bed.press_gpws_test_pushbutton();
+    test_bed.run_for(Duration::from_millis(500));
+    test_bed.assert_no_warning_active();
 }

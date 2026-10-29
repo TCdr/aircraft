@@ -19,6 +19,10 @@ import { LegacyFuel } from './CpiomF/LegacyFuel';
 import { AutolandLights } from './Misc/AutolandLights';
 import { AtcMsgLights } from './Misc/AtcMsgLights';
 import { CdsReconfiguration } from './Misc/CdsReconfiguration';
+import { FuelPumpsAndValves } from './CpiomF/FuelPumpsAndValves';
+import { CabinOxygenMasks } from './Misc/CabinOxygenMasks';
+import { FuelEmerOuterTransfer } from './CpiomF/FuelEmerOuterTransfer';
+import { FuelLeak } from './CpiomF/FuelLeak';
 import { LegacySoundManager } from './Misc/LegacySoundManager';
 import { LegacyTcasComputer } from './Misc/tcas/components/LegacyTcasComputer';
 import { VhfRadio } from './Misc/Communications/VhfRadio';
@@ -34,6 +38,7 @@ import {
   SwitchingPanelPublisher,
   RaBusPublisher,
   LgciuBusPublisher,
+  NXDataStore,
 } from '@flybywiresim/fbw-sdk';
 import { AudioManagementUnit } from './Misc/Communications/AudioManagementUnit';
 import { RmpAmuBusPublisher } from './Misc/Communications/RmpAmuBusPublisher';
@@ -45,6 +50,7 @@ import { FwsCore } from './CpiomC/FlightWarningSystem/FwsCore';
 // FIXME should not import from instruments
 import { FuelSystemPublisher } from '../instruments/src/MsfsAvionicsCommon/providers/FuelSystemPublisher';
 import { BrakeToVacate } from './PseudoPRIM/BrakeToVacate';
+import { PrimReactiveWindshear } from './PseudoPRIM/PrimReactiveWindshear';
 // FIXME should not import from instruments
 import { PseudoFwcSimvarPublisher } from '../instruments/src/MsfsAvionicsCommon/providers/PseudoFwcPublisher';
 // FIXME should not import from instruments
@@ -198,6 +204,13 @@ class SystemsHost extends BaseInstrument {
   private readonly atcMsgLights = new AtcMsgLights();
 
   private readonly cdsReconfiguration = new CdsReconfiguration(this.bus, this.failuresConsumer);
+  private readonly cabinOxygenMasks = new CabinOxygenMasks();
+
+  private readonly fuelPumpsAndValves = new FuelPumpsAndValves(this, this.failuresConsumer);
+
+  private readonly fuelEmerOuterTransfer = new FuelEmerOuterTransfer(this);
+
+  private readonly fuelLeak = new FuelLeak(this, this.failuresConsumer);
 
   /**
    * "mainmenu" = 0
@@ -222,8 +235,13 @@ class SystemsHost extends BaseInstrument {
     this.backplane.addInstrument('AutolandLights', this.autolandLights);
     this.backplane.addInstrument('AtcMsgLights', this.atcMsgLights);
     this.backplane.addInstrument('CdsReconfiguration', this.cdsReconfiguration);
+    this.backplane.addInstrument('CabinOxygenMasks', this.cabinOxygenMasks);
+    this.backplane.addInstrument('FuelPumpsAndValves', this.fuelPumpsAndValves);
+    this.backplane.addInstrument('FuelEmerOuterTransfer', this.fuelEmerOuterTransfer);
+    this.backplane.addInstrument('FuelLeak', this.fuelLeak);
     this.backplane.addInstrument('BtvDistanceUpdater', this.btv);
     this.backplane.addInstrument('EfisTawsBridge', this.efisTawsBridge);
+    this.backplane.addInstrument('PrimReactiveWindshear', new PrimReactiveWindshear());
     this.backplane.addPublisher('RmpAmuBusPublisher', this.rmpAmuBusPublisher);
     this.backplane.addPublisher('PilotSeatPublisher', this.pilotSeatPublisher);
     this.backplane.addPublisher('PowerPublisher', this.powerPublisher);
@@ -252,6 +270,13 @@ class SystemsHost extends BaseInstrument {
     this.soundManager = new LegacySoundManager();
     this.gpws = new LegacyGpws(this.bus, this.soundManager);
     this.gpws.init();
+
+    // flyPad Realism setting, for the fire protection system: the FIRE TEST goes on a few seconds after the pb release
+    NXDataStore.getAndSubscribeLegacy(
+      'FIRE_TEST_EXTEND',
+      (_, value) => SimVar.SetSimVarValue('L:A32NX_FIRE_TEST_EXTEND', SimVarValueType.Bool, value === 'ENABLED'),
+      'ENABLED',
+    );
 
     this.backplane.addInstrument('TcasComputer', new LegacyTcasComputer(this.bus, this.soundManager));
 

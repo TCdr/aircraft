@@ -121,3 +121,52 @@ export class XpdrTcasSwitchLine {
     return selectedSystem !== this.failedSystem;
   }
 }
+
+/** The TAWS functions lost on one SURV system, each reported by one alert only. */
+export interface TawsFunctionFaults {
+  /** SURV TAWS 1(2) FAULT: the whole TAWS function (GPWS and TERR SYS) of that SURV system has failed */
+  taws: boolean;
+  /** SURV GPWS 1(2) FAULT: the GPWS has failed, the TERR SYS still works */
+  gpws: boolean;
+  /** SURV TERR SYS 1(2) FAULT, the GPWS still working */
+  terr: boolean;
+}
+
+/**
+ * The fault conditions of the TAWS of one SURV system. GPWS and TERR SYS both failed is by definition the TAWS fault,
+ * which replaces the GPWS and the TERR SYS faults. The L:A32NX_GPWS_n_FAILED and L:A32NX_TERR_n_FAILED
+ * (Misc/EfisTawsBridge.ts) include the AESU reset and the unpowered system, so the alerts need the busbar powered
+ * (ELEC AC ESS BUS FAULT lists TAWS 1 itself).
+ * @param gpwsFailed L:A32NX_GPWS_n_FAILED
+ * @param terrFailed L:A32NX_TERR_n_FAILED
+ * @param powered the busbar of that SURV system (AC ESS for SYS 1, AC 4 for SYS 2) is powered
+ * @returns the TAWS, GPWS and TERR SYS fault conditions of that system
+ */
+export function tawsFunctionFaults(gpwsFailed: boolean, terrFailed: boolean, powered: boolean): TawsFunctionFaults {
+  const taws = gpwsFailed && terrFailed && powered;
+  return {
+    taws,
+    gpws: gpwsFailed && powered && !taws,
+    terr: terrFailed && powered && !taws,
+  };
+}
+
+/**
+ * The lines of SURV GPWS 1(2) FAULT: WXR & TAWS ... SYS 2(1) while the failed system is in use and the WXR/TAWS of
+ * the other system is operative; [MFD SURV] STATUS & SWTG PAGE ... CHECK and WXR & TAWS ... AS RQRD while the WXR or
+ * the TAWS of the other system has failed.
+ * @param failedSystem the system of the alert
+ * @param selectedSystem the WXR/TAWS system in use (L:A32NX_WXR_TAWS_SYS_SELECTED)
+ * @param otherWxrFailed the WXR of the other system is failed
+ * @param otherTawsFailed a TAWS function (GPWS or TERR SYS) of the other system is failed
+ * @returns which of the 3 lines are shown
+ */
+export function gpwsFaultItemsToShow(
+  failedSystem: SurvSystem,
+  selectedSystem: number,
+  otherWxrFailed: boolean,
+  otherTawsFailed: boolean,
+): boolean[] {
+  const otherFailed = otherWxrFailed || otherTawsFailed;
+  return [selectedSystem === failedSystem && !otherFailed, otherFailed, otherFailed];
+}

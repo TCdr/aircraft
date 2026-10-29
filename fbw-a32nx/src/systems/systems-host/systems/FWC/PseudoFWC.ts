@@ -56,6 +56,10 @@ import { CircuitBreakerMonitors } from './Acquisition/CircuitBreakerMonitors';
 import { CircuitBreakerLogic } from './Logic/CircuitBreakerLogic';
 import { EcamStatus } from './EcamStatus';
 import { orderStatusCodes, STATUS_PAGE_LINES } from '@shared/StatusMessages';
+import { isFireAuralActive, isFireWarningActive } from './Logic/FireWarning';
+import { ALL_ENGINES_FAILURE_CODES, allEnginesFailureLines, isApuStartLineShown } from './Logic/AllEnginesFailure';
+import { altnLawLines, directLawLines, elacFaultLines } from './Logic/FlightControlLawAlerts';
+import { isApuAvailMemoShown, isApuBleedMemoShown } from './Logic/ApuMemos';
 import { isSwitchingPanelMemoShown, pfdNdXfrVar } from '@shared/DisplayReconfiguration';
 
 export function xor(a: boolean, b: boolean): boolean {
@@ -354,7 +358,7 @@ export class PseudoFWC {
 
   private readonly cpc2DiscreteWord = Arinc429Register.empty();
 
-  private readonly apuBleedValveOpen = Subject.create(false);
+  private readonly apuBleedPbOn = Subject.create(false);
 
   private readonly cabAltSetReset1 = new NXLogicMemoryNode();
 
@@ -844,8 +848,6 @@ export class PseudoFWC {
 
   private readonly elac1FaultLine123Display = Subject.create(false);
 
-  private readonly elac1FaultLine45Display = Subject.create(false);
-
   private readonly elac1HydConfirmNodeOutput = Subject.create(false);
 
   private readonly elac2FaultConfirmNode = new NXLogicConfirmNode(0.6, true);
@@ -853,8 +855,6 @@ export class PseudoFWC {
   private readonly elac2FaultConfirmNodeOutput = Subject.create(false);
 
   private readonly elac2FaultLine123Display = Subject.create(false);
-
-  private readonly elac2FaultLine45Display = Subject.create(false);
 
   private readonly elac2HydConfirmNode = new NXLogicConfirmNode(3, false);
 
@@ -1045,6 +1045,9 @@ export class PseudoFWC {
   private readonly rightFuelPump2Auto = ConsumerValue.create(null, false);
 
   private readonly fuelCtrTankModeSelMan = ConsumerValue.create(null, false);
+
+  /** ADR pressure altitude of the last update, null when no ADR is valid */
+  private pressureAltitudeFt: number | null = null;
 
   /* HYDRAULICS */
 
@@ -1676,6 +1679,14 @@ export class PseudoFWC {
 
   private readonly apuFireTest = Subject.create(false);
 
+  // Keeps the APU/ENG FIRE TEST pushbuttons' warnings (CRC + ECAM + FIRE light) active for a few seconds
+  // after release, so the crew has time to check them without having to hold the button down throughout.
+  // This is an unrealistic convenience (the real momentary hold-switch cuts off instantly on release),
+  // so it's gated behind the "Extend Fire Test Warnings After Button Release" EFB Realism setting.
+  private readonly apuFireTestExtend = new NXLogicTriggeredMonostableNode(7, false, true);
+
+  private fireTestExtendEnabled = true;
+
   private readonly cargoFireAgentDisch = Subject.create(false);
 
   private readonly cargoFireTest = Subject.create(false);
@@ -1686,17 +1697,28 @@ export class PseudoFWC {
 
   private readonly eng1FireTest = Subject.create(false);
 
+  private readonly eng1FireTestExtend = new NXLogicTriggeredMonostableNode(7, false, true);
+
   private readonly eng2Agent1PB = Subject.create(false);
 
   private readonly eng2Agent2PB = Subject.create(false);
 
   private readonly eng2FireTest = Subject.create(false);
 
+  private readonly eng2FireTestExtend = new NXLogicTriggeredMonostableNode(7, false, true);
+
   private readonly fireButton1 = Subject.create(false);
 
   private readonly fireButton2 = Subject.create(false);
 
   private readonly fireButtonAPU = Subject.create(false);
+
+  /** A fire detected in the engine 1 nacelle (the sim's engine fire, FBW has no fire detection loops model) */
+  private readonly eng1FireDetected = Subject.create(false);
+
+  private readonly eng2FireDetected = Subject.create(false);
+
+  private readonly apuFireDetected = Subject.create(false);
 
   /* ICE */
 
@@ -1976,6 +1998,13 @@ export class PseudoFWC {
     this.auralSingleChimeInhibitTimer.schedule(
       () => (this.auralSingleChimePending = false),
       PseudoFWC.AURAL_SC_INHIBIT_TIME,
+    );
+
+    // EFB Realism setting: "Extend Fire Test Warnings After Button Release"
+    NXDataStore.getAndSubscribeLegacy(
+      'FIRE_TEST_EXTEND',
+      (_, v) => (this.fireTestExtendEnabled = v === 'ENABLED'),
+      'ENABLED',
     );
 
     // Radio altimeter callouts
@@ -2476,7 +2505,7 @@ export class PseudoFWC {
     this.apuMasterSwitch.set(SimVar.GetSimVarValue('L:A32NX_OVHD_APU_MASTER_SW_PB_IS_ON', 'bool'));
 
     this.apuAvail.set(SimVar.GetSimVarValue('L:A32NX_OVHD_APU_START_PB_IS_AVAILABLE', 'bool'));
-    this.apuBleedValveOpen.set(SimVar.GetSimVarValue('L:A32NX_APU_BLEED_AIR_VALVE_OPEN', 'bool'));
+    this.apuBleedPbOn.set(SimVar.GetSimVarValue('L:A32NX_OVHD_APU_BLEED_PB_IS_ON', 'bool'));
 
     this.radioAlt.set(SimVar.GetSimVarValue('PLANE ALT ABOVE GROUND MINUS CG', 'feet'));
 
@@ -3304,7 +3333,7 @@ export class PseudoFWC {
     const crossbleedFullyClosed = SimVar.GetSimVarValue('L:A32NX_PNEU_XBLEED_VALVE_FULLY_CLOSED', 'bool');
     const eng1Bleed = SimVar.GetSimVarValue('L:A32NX_OVHD_PNEU_ENG_1_BLEED_PB_IS_AUTO', 'bool');
     const eng1BleedPbFault = SimVar.GetSimVarValue('L:A32NX_OVHD_PNEU_ENG_1_BLEED_PB_HAS_FAULT', 'bool');
-    const eng2Bleed = SimVar.GetSimVarValue('L:A32NX_OVHD_PNEU_ENG_1_BLEED_PB_IS_AUTO', 'bool');
+    const eng2Bleed = SimVar.GetSimVarValue('L:A32NX_OVHD_PNEU_ENG_2_BLEED_PB_IS_AUTO', 'bool');
     const eng2BleedPbFault = SimVar.GetSimVarValue('L:A32NX_OVHD_PNEU_ENG_2_BLEED_PB_HAS_FAULT', 'bool');
     const pack1Fault = SimVar.GetSimVarValue('L:A32NX_OVHD_COND_PACK_1_PB_HAS_FAULT', 'bool');
     const pack2Fault = SimVar.GetSimVarValue('L:A32NX_OVHD_COND_PACK_2_PB_HAS_FAULT', 'bool');
@@ -3471,6 +3500,8 @@ export class PseudoFWC {
     this.lrTankLow.set(this.lrTankLowConfirm.write(leftFuelLow && rightFuelLow, deltaTime));
     this.leftFuelLow.set(this.leftFuelLowConfirm.write(leftFuelLow && !this.lrTankLow.get(), deltaTime));
     this.rightFuelLow.set(this.rightFuelLowConfirm.write(rightFuelLow && !this.lrTankLow.get(), deltaTime));
+
+    this.pressureAltitudeFt = pressureAltitude;
 
     /* F/CTL */
     const fcdc1DiscreteWord1 = Arinc429Word.fromSimVarValue('L:A32NX_FCDC_1_DISCRETE_WORD_1');
@@ -4104,9 +4135,30 @@ export class PseudoFWC {
     this.fireButton1.set(SimVar.GetSimVarValue('L:A32NX_FIRE_BUTTON_ENG1', 'bool'));
     this.fireButton2.set(SimVar.GetSimVarValue('L:A32NX_FIRE_BUTTON_ENG2', 'bool'));
     this.fireButtonAPU.set(SimVar.GetSimVarValue('L:A32NX_FIRE_BUTTON_APU', 'bool'));
-    this.eng1FireTest.set(SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_ENG1', 'bool'));
-    this.eng2FireTest.set(SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_ENG2', 'bool'));
-    this.apuFireTest.set(SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_APU', 'bool'));
+    // The fire signals the FIRE pb red lights already use (A32NX_Interior_Fire.xml, A320_NEO_INTERIOR.xml)
+    this.eng1FireDetected.set(SimVar.GetSimVarValue('ENG ON FIRE:1', 'bool') > 0);
+    this.eng2FireDetected.set(SimVar.GetSimVarValue('ENG ON FIRE:2', 'bool') > 0);
+    this.apuFireDetected.set(SimVar.GetSimVarValue('APU ON FIRE DETECTED', 'bool') > 0);
+    // Must call write() unconditionally every tick (not on the right side of the || below) - it needs to
+    // see the raw value while held too, or it can never observe the falling edge on release. The extended
+    // value itself is only applied when the "Extend Fire Test Warnings After Button Release" EFB Realism
+    // setting is on, but write() still runs regardless so the monostable's state stays correct if it's
+    // toggled mid-flight.
+    const eng1FireTestRaw = SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_ENG1', 'bool');
+    const eng1FireTestExtended = this.eng1FireTestExtend.write(eng1FireTestRaw, deltaTime);
+    this.eng1FireTest.set(eng1FireTestRaw || (this.fireTestExtendEnabled && eng1FireTestExtended));
+    const eng2FireTestRaw = SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_ENG2', 'bool');
+    const eng2FireTestExtended = this.eng2FireTestExtend.write(eng2FireTestRaw, deltaTime);
+    this.eng2FireTest.set(eng2FireTestRaw || (this.fireTestExtendEnabled && eng2FireTestExtended));
+    const apuFireTestRaw = SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_APU', 'bool');
+    const apuFireTestExtended = this.apuFireTestExtend.write(apuFireTestRaw, deltaTime);
+    this.apuFireTest.set(apuFireTestRaw || (this.fireTestExtendEnabled && apuFireTestExtended));
+    // The FIRE pushbutton's own light is driven directly from the model behavior XML rather than through
+    // this FWC instance, so it needs the extended state published back out to a LocalVar it can read -
+    // otherwise it goes dark the instant the TEST button is released while the CRC/ECAM stay up.
+    SimVar.SetSimVarValue('L:A32NX_FWC_FIRE_TEST_ENG1_ACTIVE', 'bool', this.eng1FireTest.get());
+    SimVar.SetSimVarValue('L:A32NX_FWC_FIRE_TEST_ENG2_ACTIVE', 'bool', this.eng2FireTest.get());
+    SimVar.SetSimVarValue('L:A32NX_FWC_FIRE_TEST_APU_ACTIVE', 'bool', this.apuFireTest.get());
     this.eng1Agent1PB.set(SimVar.GetSimVarValue('L:A32NX_FIRE_ENG1_AGENT1_Discharge', 'bool'));
     this.eng1Agent2PB.set(SimVar.GetSimVarValue('L:A32NX_FIRE_ENG1_AGENT2_Discharge', 'bool'));
     this.eng2Agent1PB.set(SimVar.GetSimVarValue('L:A32NX_FIRE_ENG2_AGENT1_Discharge', 'bool'));
@@ -4126,7 +4178,8 @@ export class PseudoFWC {
       this.agent2Eng2DischargeTimer.write(this.fireButton2.get() && this.eng1Agent1PB.get(), deltaTime),
     );
     this.agentAPUDischarge.set(
-      this.agentAPUDischargeTimer.write(this.fireButton2.get() && this.eng1Agent1PB.get(), deltaTime),
+      // The AGENT AFTER 10 S countdown starts when the APU FIRE pb is pushed
+      this.agentAPUDischargeTimer.write(this.fireButtonAPU.get(), deltaTime),
     );
 
     /* ANTI ICE */
@@ -5676,31 +5729,18 @@ export class PseudoFWC {
       // DUAL ENGINE FAILURE
       flightPhaseInhib: [],
       simVarIsActive: this.engDualFault,
-      whichCodeToReturn: () => [
-        0,
-        !this.sdac00410Word.bitValue(27) ? 1 : null,
-        5,
-        !(this.apuMasterSwitch.get() === 1 || this.apuAvail.get() === 1) && this.radioAlt.get() < 2500 ? 6 : null,
-        this.thr1TLA.get() > 0 || this.thr2TLA.get() > 0 ? 7 : null,
-        this.fac1Failed.get() === 1 ? 8 : null,
-        9,
-        10,
-        11,
-      ],
-      codesToReturn: [
-        '770002701',
-        '770002702',
-        '770002703',
-        '770002704',
-        '770002705',
-        '770002706',
-        '770002707',
-        '770002708',
-        '770002709',
-        '770002710',
-        '770002711',
-        '770002712',
-      ],
+      whichCodeToReturn: () =>
+        allEnginesFailureLines({
+          emerElecPwrManOnPushed: this.sdac00410Word.bitValue(27),
+          apuStartLineShown: isApuStartLineShown(
+            this.apuMasterSwitch.get() === 1,
+            this.apuAvail.get() === 1,
+            this.pressureAltitudeFt,
+          ),
+          thrustLeverAboveIdle: this.thr1TLA.get() > 0 || this.thr2TLA.get() > 0,
+          fac1Failed: this.fac1Failed.get() === 1,
+        }),
+      codesToReturn: ALL_ENGINES_FAILURE_CODES,
       memoInhibit: () => false,
       failure: 3,
       sysPage: EcamSysPage.ENG,
@@ -5721,8 +5761,16 @@ export class PseudoFWC {
       // ENG 1 FIRE
       flightPhaseInhib: [],
       simVarIsActive: MappedSubject.create(
-        ([eng1FireTest, fireButton1]) => eng1FireTest || fireButton1,
+        ([fireTest, fireDetected]) => isFireWarningActive({ fireTest, fireDetected }),
         this.eng1FireTest,
+        this.eng1FireDetected,
+      ),
+      // a red warning chime, cancelled with MASTER WARN, and silenced by pushing the FIRE pb
+      auralWarning: MappedSubject.create(
+        ([fireTest, fireDetected, fireButtonPushed]) =>
+          isFireAuralActive({ fireTest, fireDetected, fireButtonPushed }) ? FwcAuralWarning.Crc : FwcAuralWarning.None,
+        this.eng1FireTest,
+        this.eng1FireDetected,
         this.fireButton1,
       ),
       whichCodeToReturn: () => [
@@ -5775,8 +5823,16 @@ export class PseudoFWC {
       // ENG 2 FIRE
       flightPhaseInhib: [],
       simVarIsActive: MappedSubject.create(
-        ([eng2FireTest, fireButton2]) => eng2FireTest || fireButton2,
+        ([fireTest, fireDetected]) => isFireWarningActive({ fireTest, fireDetected }),
         this.eng2FireTest,
+        this.eng2FireDetected,
+      ),
+      // a red warning chime, cancelled with MASTER WARN, and silenced by pushing the FIRE pb
+      auralWarning: MappedSubject.create(
+        ([fireTest, fireDetected, fireButtonPushed]) =>
+          isFireAuralActive({ fireTest, fireDetected, fireButtonPushed }) ? FwcAuralWarning.Crc : FwcAuralWarning.None,
+        this.eng2FireTest,
+        this.eng2FireDetected,
         this.fireButton2,
       ),
       whichCodeToReturn: () => [
@@ -5829,8 +5885,16 @@ export class PseudoFWC {
       // APU FIRE
       flightPhaseInhib: [],
       simVarIsActive: MappedSubject.create(
-        ([apuFireTest, fireButtonAPU]) => apuFireTest || fireButtonAPU,
+        ([fireTest, fireDetected]) => isFireWarningActive({ fireTest, fireDetected }),
         this.apuFireTest,
+        this.apuFireDetected,
+      ),
+      // a red warning chime, cancelled with MASTER WARN, and silenced by pushing the FIRE pb
+      auralWarning: MappedSubject.create(
+        ([fireTest, fireDetected, fireButtonPushed]) =>
+          isFireAuralActive({ fireTest, fireDetected, fireButtonPushed }) ? FwcAuralWarning.Crc : FwcAuralWarning.None,
+        this.apuFireTest,
+        this.apuFireDetected,
         this.fireButtonAPU,
       ),
       whichCodeToReturn: () => [
@@ -5886,14 +5950,8 @@ export class PseudoFWC {
       // ELAC 1 FAULT
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.elac1FaultConfirmNodeOutput,
-      whichCodeToReturn: () => [
-        0,
-        this.elac1FaultLine123Display.get() ? 1 : null,
-        this.elac1FaultLine123Display.get() ? 2 : null,
-        this.elac1FaultLine123Display.get() ? 3 : null,
-        this.elac1FaultLine45Display.get() ? 4 : null,
-        this.elac1FaultLine45Display.get() ? 5 : null,
-      ],
+      // the ELAC 1(2) FAULT lines, see elacFaultLines
+      whichCodeToReturn: () => elacFaultLines(this.elac1FaultLine123Display.get()),
       codesToReturn: ['270011001', '270011002', '270011003', '270011004', '270011005', '270011006'],
       memoInhibit: () => false,
       failure: 2,
@@ -5904,14 +5962,8 @@ export class PseudoFWC {
       // ELAC 2 FAULT
       flightPhaseInhib: [3, 4, 5, 7, 8],
       simVarIsActive: this.elac2FaultConfirmNodeOutput,
-      whichCodeToReturn: () => [
-        0,
-        this.elac2FaultLine123Display.get() ? 1 : null,
-        this.elac2FaultLine123Display.get() ? 2 : null,
-        this.elac2FaultLine123Display.get() ? 3 : null,
-        this.elac2FaultLine45Display.get() ? 4 : null,
-        this.elac2FaultLine45Display.get() ? 5 : null,
-      ],
+      // the ELAC 1(2) FAULT lines, see elacFaultLines
+      whichCodeToReturn: () => elacFaultLines(this.elac2FaultLine123Display.get()),
       codesToReturn: ['270012001', '270012002', '270012003', '270012004', '270012005', '270012006'],
       memoInhibit: () => false,
       failure: 2,
@@ -6003,10 +6055,10 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     2700365: {
-      // DIRECT LAW
+      // DIRECT LAW (see directLawLines)
       flightPhaseInhib: [4, 5, 7, 8],
       simVarIsActive: this.directLawCondition,
-      whichCodeToReturn: () => [0, 1, 2, 3, 4, null, 6, 7],
+      whichCodeToReturn: () => directLawLines(),
       codesToReturn: [
         '270036501',
         '270036502',
@@ -6046,10 +6098,10 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     2700375: {
-      // ALTN 2
+      // ALTN 2 (ALTN LAW procedure, see altnLawLines)
       flightPhaseInhib: [4, 5, 7, 8],
       simVarIsActive: this.altn2LawConfirmNodeOutput,
-      whichCodeToReturn: () => [0, 1, null, 3, 4, null, 6],
+      whichCodeToReturn: () => altnLawLines(this.twoHydraulicsOut.get(), this.speedBrakeDoNotUse.get()),
       codesToReturn: ['270037501', '270037502', '270037503', '270037504', '270037505', '270037506', '270037507'],
       memoInhibit: () => false,
       failure: 2,
@@ -6057,10 +6109,10 @@ export class PseudoFWC {
       side: 'LEFT',
     },
     2700390: {
-      // ALTN 1
+      // ALTN 1 (ALTN LAW procedure, see altnLawLines)
       flightPhaseInhib: [4, 5, 7, 8],
       simVarIsActive: this.altn1LawConfirmNodeOutput,
-      whichCodeToReturn: () => [0, 1, null, 3, 4, null, 6],
+      whichCodeToReturn: () => altnLawLines(this.twoHydraulicsOut.get(), this.speedBrakeDoNotUse.get()),
       codesToReturn: ['270039001', '270039002', '270039003', '270039004', '270039005', '270039006', '270039007'],
       memoInhibit: () => false,
       failure: 2,
@@ -7592,12 +7644,12 @@ export class PseudoFWC {
       side: 'RIGHT',
     },
     '0000170': {
-      // APU AVAIL
+      // APU AVAIL (see isApuAvailMemoShown)
       flightPhaseInhib: [],
       simVarIsActive: MappedSubject.create(
-        ([apuAvail, apuBleedValveOpen]) => apuAvail === 1 && !apuBleedValveOpen,
+        ([apuAvail, apuBleedPbOn]) => isApuAvailMemoShown(apuAvail === 1, apuBleedPbOn),
         this.apuAvail,
-        this.apuBleedValveOpen,
+        this.apuBleedPbOn,
       ),
       whichCodeToReturn: () => [0],
       codesToReturn: ['000017001'],
@@ -7605,12 +7657,12 @@ export class PseudoFWC {
       side: 'RIGHT',
     },
     '0000180': {
-      // APU BLEED
+      // APU BLEED: APU available and APU BLEED pb-sw ON (see isApuBleedMemoShown)
       flightPhaseInhib: [],
       simVarIsActive: MappedSubject.create(
-        ([apuAvail, apuBleedValveOpen]) => apuAvail === 1 && apuBleedValveOpen,
+        ([apuAvail, apuBleedPbOn]) => isApuBleedMemoShown(apuAvail === 1, apuBleedPbOn),
         this.apuAvail,
-        this.apuBleedValveOpen,
+        this.apuBleedPbOn,
       ),
       whichCodeToReturn: () => [0],
       codesToReturn: ['000018001'],

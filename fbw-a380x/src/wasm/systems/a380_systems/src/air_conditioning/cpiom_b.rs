@@ -30,7 +30,7 @@ use crate::avionics_data_communication_network::A380AvionicsDataCommunicationNet
 use super::{
     local_controllers::{
         outflow_valve_control_module::{CpcsShared, OcsmShared},
-        trim_air_drive_device::TaddShared,
+        trim_air_drive_device::{hot_air_valve_feeding_zone, TaddShared},
     },
     A380AirConditioningSystem,
 };
@@ -136,6 +136,7 @@ impl CoreProcessingInputOutputModuleB {
         lgciu: [&impl LgciuWeightOnWheels; 2],
         ocsm_shared: [&impl OcsmShared; 4],
         pressurization_overhead: &impl PressurizationOverheadShared,
+        any_door_not_closed: bool,
     ) {
         let ocsm = match self.cpiom_id {
             CpiomId::B1 => ocsm_shared[1],
@@ -152,6 +153,7 @@ impl CoreProcessingInputOutputModuleB {
             pressurization_overhead,
             ocsm_shared,
             ocsm,
+            any_door_not_closed,
         );
     }
 
@@ -209,6 +211,10 @@ impl CoreProcessingInputOutputModuleB {
         self.tcs_app.hot_air_is_open(hot_air)
     }
 
+    fn trim_air_monitoring(&self) -> &TrimAirMonitoring {
+        &self.tcs_app.trim_air_monitoring
+    }
+
     fn fwd_extraction_fan_is_on(&self) -> bool {
         self.vcs_app.fwd_extraction_fan_is_on()
     }
@@ -251,6 +257,11 @@ impl CoreProcessingInputOutputModuleB {
 
     pub(super) fn excessive_residual_pressure(&self) -> bool {
         self.cpcs_app.is_excessive_residual_pressure()
+    }
+
+    /// The FMS landing elevation does not come (CAB PRESS LDG ELEVN FAULT)
+    fn landing_elevation_not_received(&self) -> bool {
+        self.cpcs_app.landing_elevation_not_received()
     }
 }
 
@@ -567,19 +578,64 @@ impl SimulationElement for AirGenerationSystemApplication {
     }
 }
 
+/// Duct overheats and jammed trim air valves found by the temperature controller, grouped as the FWS alerts need
+/// them (COND DUCT OVHT and COND FWD CARGO TEMP REGUL FAULT)
+#[derive(Clone, Copy, Default, Debug, PartialEq)]
+struct TrimAirMonitoring {
+    cockpit_duct_overheat: bool,
+    /// A cabin duct fed by HOT AIR 1 (index 0) or HOT AIR 2 (index 1) is overheated
+    cabin_duct_overheat: [bool; 2],
+    fwd_cargo_duct_overheat: bool,
+    cockpit_trim_air_valve_fault: bool,
+    cabin_trim_air_valve_fault: bool,
+    fwd_cargo_trim_air_valve_fault: bool,
+}
+
+impl TrimAirMonitoring {
+    fn from_zones(zones: &[ZoneType], trim_air_drive_device: &impl TaddShared) -> Self {
+        let mut monitoring = Self::default();
+        for (index, zone) in zones.iter().enumerate() {
+            let overheat = trim_air_drive_device.duct_overheat(index);
+            let valve_fault = trim_air_drive_device.trim_air_valve_fault(index);
+            match zone {
+                ZoneType::Cockpit => {
+                    monitoring.cockpit_duct_overheat |= overheat;
+                    monitoring.cockpit_trim_air_valve_fault |= valve_fault;
+                }
+                ZoneType::Cabin(_) => {
+                    monitoring.cabin_duct_overheat[hot_air_valve_feeding_zone(*zone) - 1] |=
+                        overheat;
+                    monitoring.cabin_trim_air_valve_fault |= valve_fault;
+                }
+                ZoneType::Cargo(1) => {
+                    monitoring.fwd_cargo_duct_overheat |= overheat;
+                    monitoring.fwd_cargo_trim_air_valve_fault |= valve_fault;
+                }
+                // The bulk cargo has no trim air valve (electric heater)
+                ZoneType::Cargo(_) => {}
+            }
+        }
+        monitoring
+    }
+}
+
 struct TemperatureControlSystemApplication {
+    zones: [ZoneType; 18],
     zone_controllers: [ZoneController; 18],
     hot_air_is_enabled: [bool; 2],
     hot_air_is_open: [bool; 2],
+    trim_air_monitoring: TrimAirMonitoring,
 
     failure: Failure,
 }
 impl TemperatureControlSystemApplication {
     fn new(cpiom_id: CpiomId, cabin_zones: &[ZoneType; 18]) -> Self {
         Self {
+            zones: *cabin_zones,
             zone_controllers: cabin_zones.map(ZoneController::new),
             hot_air_is_enabled: [false; 2],
             hot_air_is_open: [false; 2],
+            trim_air_monitoring: TrimAirMonitoring::default(),
 
             failure: Failure::new(FailureType::TcsApp(cpiom_id)),
         }
@@ -615,6 +671,8 @@ impl TemperatureControlSystemApplication {
             trim_air_drive_device.trim_air_pressure_regulating_valve_is_open(1),
             trim_air_drive_device.trim_air_pressure_regulating_valve_is_open(2),
         ];
+        self.trim_air_monitoring =
+            TrimAirMonitoring::from_zones(&self.zones, trim_air_drive_device);
     }
 
     fn should_close_taprv(&self) -> [bool; 2] {
@@ -833,7 +891,10 @@ struct CabinPressureControlSystemApplication<C: PressurizationConstants> {
     cabin_target_vertical_speed_ocsm: Velocity,
     outflow_valve_open_amount: [Ratio; 4],
 
+    /// The landing elevation the schedule uses: the FMS one, or the backup value, see landing_elevation_for_control
     landing_elevation: Length,
+    /// The landing elevation of the FMS, None when it does not come (FM1_LANDING_ELEVATION not in normal operation)
+    fm_landing_elevation: Option<Length>,
     cruise_altitude: Length,
     departure_elevation: Length,
     destination_qnh: Pressure,
@@ -842,6 +903,8 @@ struct CabinPressureControlSystemApplication<C: PressurizationConstants> {
     adirs_data_is_valid: bool,
     is_active: bool,
     is_initialised: bool,
+    /// CAB PRESS INHIBITED BY DOORS: the controllers keep the four outflow valves open, see update_door_inhibition
+    pressurization_inhibited_by_doors: bool,
     failure: Failure,
     constants: PhantomData<C>,
 }
@@ -855,6 +918,9 @@ impl<C: PressurizationConstants> CabinPressureControlSystemApplication<C> {
     const FWC_DIFF_PRESS_HI_UPPER_LIMIT: f64 = 9.2;
     const FWC_EXCESSIVE_DIFF_PRESSURE: f64 = 9.65;
     const FWC_EXCESSIVE_NEGATIVE_DIFF_PRESSURE: f64 = -0.72;
+    /// Backup landing elevations, see landing_elevation_for_control
+    const BACKUP_LANDING_ELEVATION_FT: f64 = 7000.;
+    const BACKUP_LANDING_ELEVATION_WITHOUT_AMBIENT_PRESSURE_FT: f64 = 7500.;
 
     fn new(context: &mut InitContext, cpiom_id: CpiomId) -> Self {
         Self {
@@ -912,6 +978,7 @@ impl<C: PressurizationConstants> CabinPressureControlSystemApplication<C> {
             outflow_valve_open_amount: [Ratio::new::<percent>(100.); 4],
 
             landing_elevation: Length::default(),
+            fm_landing_elevation: None,
             cruise_altitude: Length::default(),
             departure_elevation: Length::default(),
             destination_qnh: Pressure::default(),
@@ -920,6 +987,7 @@ impl<C: PressurizationConstants> CabinPressureControlSystemApplication<C> {
             adirs_data_is_valid: false,
             is_active: false,
             is_initialised: false,
+            pressurization_inhibited_by_doors: false,
             failure: Failure::new(FailureType::CpcsApp(cpiom_id)),
             constants: PhantomData,
         }
@@ -934,10 +1002,21 @@ impl<C: PressurizationConstants> CabinPressureControlSystemApplication<C> {
         press_overhead: &impl PressurizationOverheadShared,
         ocsm_shared: [&impl OcsmShared; 4],
         ocsm: &impl OcsmShared,
+        any_door_not_closed: bool,
     ) {
+        self.update_door_inhibition(
+            lgciu.iter().all(|a| a.left_and_right_gear_compressed(true)),
+            any_door_not_closed,
+            press_overhead,
+        );
+
         self.adirs_data_is_valid = [1, 2, 3]
             .iter()
             .any(|&adr| adirs.ambient_static_pressure(adr).is_normal_operation());
+        self.landing_elevation = Self::landing_elevation_for_control(
+            self.fm_landing_elevation,
+            self.adirs_data_is_valid,
+        );
 
         self.cabin_pressure = ocsm.cabin_pressure();
         self.cabin_delta_pressure = ocsm.cabin_delta_pressure();
@@ -1146,8 +1225,9 @@ impl<C: PressurizationConstants> CabinPressureControlSystemApplication<C> {
         const C: f64 = -3.3376e-9;
         const D: f64 = 4.5905e-4;
 
+        // The FMC writes -1 to the cruise altitude when it resets: only a positive value is a cruise FL
         let target_aircraft_altitude =
-            if self.fma_lateral_mode == 20 && self.cruise_altitude.get::<foot>() != 0. {
+            if self.fma_lateral_mode == 20 && self.cruise_altitude.get::<foot>() > 0. {
                 self.cruise_altitude
             } else {
                 self.exterior_flight_altitude
@@ -1161,9 +1241,18 @@ impl<C: PressurizationConstants> CabinPressureControlSystemApplication<C> {
                 + D * target_aircraft_altitude_foot,
         );
 
-        let target_cabin_pressure =
+        let scheduled_cabin_pressure =
             InternationalStandardAtmosphere::pressure_at_altitude(target_aircraft_altitude)
                 + target_cabin_delta_p_psi;
+
+        // The schedule is computed for the FMS cruise FL. When the aircraft flies above it (e.g. a step climb flown
+        // on the FCU without a new cruise FL), the scheduled cabin altitude would give a differential pressure above
+        // the normal range (-0.2 to 8.92 PSI; about 8 PSI in cruise), up to the 9 PSI pressure limiter. The target
+        // cabin pressure is therefore capped at the current outside pressure plus the max scheduled differential
+        // pressure (the schedule itself peaks at 8.55 PSI near FL355).
+        let max_cabin_pressure =
+            self.exterior_pressure.output() + Pressure::new::<psi>(C::MAX_CLIMB_DELTA_P);
+        let target_cabin_pressure = scheduled_cabin_pressure.min(max_cabin_pressure);
 
         self.calculate_altitude(target_cabin_pressure, self.reference_pressure)
     }
@@ -1305,6 +1394,27 @@ impl<C: PressurizationConstants> CabinPressureControlSystemApplication<C> {
         }
     }
 
+    /// The landing elevation the controllers use. CAB PRESS LDG ELEVN FAULT: the controllers do not get the landing
+    /// field elevation from the FMS, and in descent the cabin altitude is regulated to 7 000 ft; CAB PRESS AUTO CTL
+    /// FAULT: the landing field elevation is 7 000 ft by default (7 500 ft if the ambient pressure is also lost).
+    /// Design choice: the ambient pressure is lost when no ADIRU sends it.
+    fn landing_elevation_for_control(
+        fm_landing_elevation: Option<Length>,
+        ambient_pressure_is_available: bool,
+    ) -> Length {
+        fm_landing_elevation.unwrap_or_else(|| {
+            Length::new::<foot>(if ambient_pressure_is_available {
+                Self::BACKUP_LANDING_ELEVATION_FT
+            } else {
+                Self::BACKUP_LANDING_ELEVATION_WITHOUT_AMBIENT_PRESSURE_FT
+            })
+        })
+    }
+
+    fn landing_elevation_not_received(&self) -> bool {
+        self.fm_landing_elevation.is_none()
+    }
+
     fn is_ground(&self) -> bool {
         matches!(
             self.pressure_schedule_manager,
@@ -1365,21 +1475,50 @@ impl<C: PressurizationConstants> CabinPressureControlSystemApplication<C> {
         self.is_ground() || self.cabin_altitude.get::<foot>() < 15000.
     }
 
+    /// Pressurization inhibited by the doors, in automatic operation (CABIN ALT MODE and CABIN V/S MODE pb-sw both in
+    /// AUTO): on ground, with a door not closed and locked at takeoff power, the four cabin pressure controllers keep
+    /// the four outflow valves open. The doors closed status is an input of the outflow valve controllers.
+    ///
+    /// Design choices:
+    /// - On ground the inhibition follows the doors at any thrust: before takeoff power the outflow valves are open
+    ///   anyway, so this only changes what happens from takeoff power on.
+    /// - In flight it keeps its value from the liftoff: a takeoff with a door not closed keeps the outflow valves open
+    ///   (CAB PRESS INHIBITED BY DOORS, MAX FL 100/MEA) until the next touchdown.
+    /// - Manual mode is not affected: the manual pressurization works independently of the automatic one.
+    fn update_door_inhibition(
+        &mut self,
+        on_ground: bool,
+        any_door_not_closed: bool,
+        press_overhead: &impl PressurizationOverheadShared,
+    ) {
+        let auto_mode = !press_overhead.is_alt_man_sel() && !press_overhead.is_vs_man_sel();
+        if !auto_mode {
+            self.pressurization_inhibited_by_doors = false;
+        } else if on_ground {
+            self.pressurization_inhibited_by_doors = any_door_not_closed;
+        }
+    }
+
     fn should_open_ofv(&self) -> bool {
-        self.is_ground()
+        let ground_schedule_opens = self.is_ground()
             && self
                 .pressure_schedule_manager
                 .as_ref()
-                .is_some_and(|manager| manager.should_open_outflow_valve())
+                .is_some_and(|manager| manager.should_open_outflow_valve());
+
+        ground_schedule_opens || self.pressurization_inhibited_by_doors
     }
 
     fn should_close_aft_ofv(&self) -> bool {
-        matches!(
-            self.pressure_schedule_manager,
-            Some(PressureScheduleManager::TakeOff(_))
-                | Some(PressureScheduleManager::ClimbInternal(_))
-                | Some(PressureScheduleManager::DescentInternal(_))
-        ) && self.get_ext_diff_with_take_off_elev() < Length::new::<foot>(1000.)
+        // The aft valves stay open with the others while the doors inhibit the pressurization
+        !self.pressurization_inhibited_by_doors
+            && matches!(
+                self.pressure_schedule_manager,
+                Some(PressureScheduleManager::TakeOff(_))
+                    | Some(PressureScheduleManager::ClimbInternal(_))
+                    | Some(PressureScheduleManager::DescentInternal(_))
+            )
+            && self.get_ext_diff_with_take_off_elev() < Length::new::<foot>(1000.)
     }
 
     pub fn cabin_vertical_speed(&self) -> Velocity {
@@ -1520,7 +1659,7 @@ impl<C: PressurizationConstants> SimulationElement for CabinPressureControlSyste
         let landing_elevation_word: Arinc429Word<Length> =
             reader.read_arinc429(&self.landing_elevation_id);
         self.cruise_altitude = reader.read(&self.cruise_altitude_id);
-        self.landing_elevation = landing_elevation_word.normal_value().unwrap_or_default();
+        self.fm_landing_elevation = landing_elevation_word.normal_value();
         self.destination_qnh = Pressure::new::<hectopascal>(reader.read(&self.destination_qnh_id));
         self.fma_lateral_mode = reader.read(&self.fma_lateral_mode_id);
     }
@@ -1597,6 +1736,21 @@ impl CpiomBInterfaceUnit {
             .set_bit(15, cpiom.hot_air_is_open(Pack(1)));
         self.discrete_word_tcs
             .set_bit(16, cpiom.hot_air_is_open(Pack(2)));
+        let trim_air = cpiom.trim_air_monitoring();
+        self.discrete_word_tcs
+            .set_bit(17, trim_air.cockpit_duct_overheat);
+        self.discrete_word_tcs
+            .set_bit(18, trim_air.cabin_duct_overheat[0]);
+        self.discrete_word_tcs
+            .set_bit(19, trim_air.cabin_duct_overheat[1]);
+        self.discrete_word_tcs
+            .set_bit(20, trim_air.fwd_cargo_duct_overheat);
+        self.discrete_word_tcs
+            .set_bit(21, trim_air.cockpit_trim_air_valve_fault);
+        self.discrete_word_tcs
+            .set_bit(22, trim_air.cabin_trim_air_valve_fault);
+        self.discrete_word_tcs
+            .set_bit(23, trim_air.fwd_cargo_trim_air_valve_fault);
 
         if cpiom.vcs_has_fault() {
             self.discrete_word_vcs = Arinc429Word::new(0, SignStatus::FailureWarning);
@@ -1649,6 +1803,10 @@ impl CpiomBInterfaceUnit {
             .set_bit(17, cpiom.low_differential_pressure());
         self.discrete_word_cpcs
             .set_bit(18, cpiom.excessive_residual_pressure());
+        // Assumed bit (the word itself is assumed): the FMS landing elevation does not come, for CAB PRESS LDG ELEVN
+        // FAULT
+        self.discrete_word_cpcs
+            .set_bit(19, cpiom.landing_elevation_not_received());
     }
 }
 

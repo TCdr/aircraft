@@ -1,13 +1,15 @@
 // Note: Fuel system for now is still handled in MSFS. This is used for calculating fuel-related factors.
 
+use engine_lp_valve::EngineLpFuelValve;
 use nalgebra::Vector3;
 use systems::{
     fuel::{FuelCG, FuelInfo, FuelPayload, FuelPump, FuelPumpProperties, FuelSystem},
-    shared::ElectricalBusType,
-    simulation::{InitContext, SimulationElement, SimulationElementVisitor},
+    shared::{ElectricalBusType, EngineFirePushButtons},
+    simulation::{InitContext, SimulationElement, SimulationElementVisitor, UpdateContext},
 };
 use uom::si::f64::*;
 
+mod engine_lp_valve;
 #[cfg(test)]
 mod test;
 
@@ -48,6 +50,7 @@ impl From<usize> for A320FuelTankType {
 
 pub struct A320Fuel {
     fuel_system: FuelSystem<5, 5>,
+    engine_lp_valves: [EngineLpFuelValve; 2],
 }
 impl A320Fuel {
     pub const A320_FUEL: [FuelInfo<'static>; 5] = [
@@ -128,6 +131,17 @@ impl A320Fuel {
             Self::FUEL_PUMPS.map(|(id, properties)| FuelPump::new(context, id, properties));
         A320Fuel {
             fuel_system: FuelSystem::new(context, fuel_tanks, fuel_pumps),
+            engine_lp_valves: [1, 2].map(|number| EngineLpFuelValve::new(context, number)),
+        }
+    }
+
+    pub fn update(
+        &mut self,
+        context: &UpdateContext,
+        engine_fire_push_buttons: &impl EngineFirePushButtons,
+    ) {
+        for lp_valve in &mut self.engine_lp_valves {
+            lp_valve.update(context, engine_fire_push_buttons);
         }
     }
 
@@ -211,6 +225,9 @@ impl FuelCG for A320Fuel {
 impl SimulationElement for A320Fuel {
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
         self.fuel_system.accept(visitor);
+        for lp_valve in &mut self.engine_lp_valves {
+            lp_valve.accept(visitor);
+        }
         visitor.visit(self);
     }
 }

@@ -208,7 +208,8 @@ void A380PrimComputerFe::step()
 
     rtb_Equal = (A380PrimComputerFe_U.in.fctl_logic.active_pitch_law == A380PrimComputerFe_P.EnumeratedConstant_Value);
     guard1 = false;
-    if ((rtb_alpha_floor_inhib == 0) && (A380PrimComputerFe_U.in.general_logic.adr_computation_data.mach < 0.6)) {
+    // FBW fork (not in the Simulink model): alpha floor is inhibited above M 0.5 (the model had M 0.6).
+    if ((rtb_alpha_floor_inhib == 0) && (A380PrimComputerFe_U.in.general_logic.adr_computation_data.mach <= 0.5)) {
       if (A380PrimComputerFe_U.in.general_logic.flap_handle_index >= 4.0F) {
         tmp = -3;
       } else {

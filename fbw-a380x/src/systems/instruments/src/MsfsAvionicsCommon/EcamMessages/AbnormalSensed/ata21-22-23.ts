@@ -339,9 +339,26 @@ export const EcamAbnormalSensedAta212223: { [n: number]: AbnormalProcedure } = {
     items: [],
   },
   211800028: {
+    // The lines shown are chosen in CondTrimAirFlags.ts
     title: '\x1b<4m\x1b4mCOND\x1bm DUCT OVHT  ',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'CKPT DUCT OVHT', sensed: true, style: ChecklistLineStyle.Amber },
+      { name: 'HOT AIR 2', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'HOT AIR JAMMED OPEN', sensed: true, condition: true },
+      { name: 'PACK 2', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'CABIN DUCT OVHT', sensed: true, style: ChecklistLineStyle.Amber },
+      { name: 'HOT AIR 1', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'HOT AIR 2', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'HOT AIR JAMMED OPEN', sensed: true, condition: true },
+      { name: 'PACK 1', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'PACK 2', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'CARGO TEMP', sensed: false, labelNotCompleted: 'MONITOR' },
+      { name: 'FWD CARGO DUCT OVHT', sensed: true, style: ChecklistLineStyle.Amber },
+      { name: 'HOT AIR 1', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'HOT AIR JAMMED OPEN', sensed: true, condition: true },
+      { name: 'PACK 1', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
   },
   211800029: {
     title: '\x1b<4m\x1b4mCOND\x1bm FWD CARGO ISOL FAULT  ',
@@ -360,11 +377,12 @@ export const EcamAbnormalSensedAta212223: { [n: number]: AbnormalProcedure } = {
     items: [
       {
         name: 'CARGO TRIM AIR VLV FAULT',
-        sensed: false,
+        sensed: true,
+        style: ChecklistLineStyle.Amber,
       },
       {
         name: 'CARGO TEMP',
-        sensed: true,
+        sensed: false,
         labelNotCompleted: 'MONITOR',
       },
     ],
@@ -377,12 +395,18 @@ export const EcamAbnormalSensedAta212223: { [n: number]: AbnormalProcedure } = {
   211800032: {
     title: '\x1b<4m\x1b4mCOND\x1bm HOT AIR 1 FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'CARGO TEMP', sensed: false, labelNotCompleted: 'MONITOR' },
+      { name: 'HOT AIR 1', sensed: true, labelNotCompleted: 'ON' },
+    ],
   },
   211800033: {
     title: '\x1b<4m\x1b4mCOND\x1bm HOT AIR 2 FAULT',
     sensed: true,
-    items: [],
+    items: [
+      { name: 'CARGO TEMP', sensed: false, labelNotCompleted: 'MONITOR' },
+      { name: 'HOT AIR 2', sensed: true, labelNotCompleted: 'ON' },
+    ],
   },
   211800034: {
     title: '\x1b<4m\x1b4mCOND\x1bm MIXER PRESS REGUL FAULT  ',
@@ -422,7 +446,7 @@ export const EcamAbnormalSensedAta212223: { [n: number]: AbnormalProcedure } = {
   211800041: {
     title: '\x1b<4m\x1b4mCOND\x1bm TEMP CTL FAULT',
     sensed: true,
-    items: [],
+    items: [{ name: 'CARGO TEMP', sensed: false, labelNotCompleted: 'MONITOR' }],
   },
   211800042: {
     title: '\x1b<4m\x1b4mCOND\x1bm TEMP CTL REDUNDANCY LOST',
@@ -591,6 +615,12 @@ export const EcamAbnormalSensedAta212223: { [n: number]: AbnormalProcedure } = {
         name: 'WING A-ICE',
         sensed: true,
         labelNotCompleted: 'OFF',
+        level: 1,
+      },
+      {
+        name: 'ENGs A-ICE',
+        sensed: false,
+        labelNotCompleted: 'AS RQRD',
         level: 1,
       },
       {
@@ -1101,7 +1131,8 @@ export const EcamAbnormalSensedAta212223: { [n: number]: AbnormalProcedure } = {
     ],
   },
   213800003: {
-    title: '\x1b<4m\x1b4mCAB PRESS\x1bm EXCESS NEGATIVE DIFF PRESS',
+    // CRC and MASTER WARN, so a red title
+    title: '\x1b<2m\x1b4mCAB PRESS\x1bm EXCESS NEGATIVE DIFF PRESS',
     sensed: true,
     items: [
       {
@@ -1700,6 +1731,16 @@ export const EcamAbnormalSensedAta212223: { [n: number]: AbnormalProcedure } = {
       },
     ],
   },
+  213800043: {
+    // The branch for a manual pressurization system that is not available
+    title: '\x1b<4m\x1b4mCAB PRESS\x1bm LDG ELEVN FAULT',
+    sensed: true,
+    items: [
+      { name: 'IN DES : CAB ALT REGULATED TO 7000 FT', sensed: false, style: ChecklistLineStyle.Green },
+      { name: 'BELOW 7000 FT : CAB ALT = ACFT ALT', sensed: false, style: ChecklistLineStyle.Green },
+      { name: 'BELOW 7000 FT : AVOID HI DES V/S', sensed: false, style: ChecklistLineStyle.Cyan },
+    ],
+  },
   // ATA 22: FG / FMS
   220800001: {
     title: '\x1b<2m\x1b4mAUTO FLT\x1bm AP OFF',
@@ -2068,16 +2109,22 @@ export const EcamAbnormalSensedAta212223: { [n: number]: AbnormalProcedure } = {
   230800007: {
     title: '\x1b<4m\x1b4mCOM\x1bm DATALINK FAULT',
     sensed: true,
+    // The lines shown are chosen by CommunicationAlerts.ts DATALINK_FAULT_ITEMS_TO_SHOW
     items: [
+      {
+        name: 'DATALINK INIT FAULT',
+        sensed: true,
+        style: ChecklistLineStyle.Amber,
+      },
       {
         name: 'ATC COM VOICE ONLY',
         sensed: false,
         style: ChecklistLineStyle.Cyan,
       },
       {
-        name: 'CPNY COM VOICE ONLY',
+        name: 'VHF & HF & SATCOM DATA NOT AVAIL',
         sensed: true,
-        style: ChecklistLineStyle.Cyan,
+        style: ChecklistLineStyle.Amber,
       },
     ],
   },
@@ -2308,8 +2355,22 @@ export const EcamDeferredProcAta212223: { [n: number]: DeferredProcedure } = {
       },
     ],
   },
+  210700003: {
+    fromAbnormalProcs: ['211800028'],
+    title: 'WHEN DUCT OVHT OUT',
+    type: DeferredProcedureType.ALL_PHASES,
+    items: [
+      { name: 'HOT AIR 1', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'HOT AIR 2', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'HOT AIR JAMMED OPEN', sensed: true, condition: true },
+      { name: 'PACK 1', sensed: true, labelNotCompleted: 'ON', level: 1 },
+      { name: 'PACK 2', sensed: true, labelNotCompleted: 'ON', level: 1 },
+    ],
+  },
   221700001: {
-    fromAbnormalProcs: ['221800006'],
+    // AT TOP OF DESCENT, also of CAB PRESS DIFF PRESS HI and CAB PRESS LDG ELEVN FAULT with the manual pressurization
+    // system available
+    fromAbnormalProcs: ['221800006', '213800007', '213800043'],
     title: 'LDG ELEVN',
     type: DeferredProcedureType.AT_TOP_OF_DESCENT,
     items: [

@@ -55,7 +55,9 @@
                 }
                 (&gt;H:A32NX_SD_PAGE_CHANGED)
             </LEFT_SINGLE_CODE>
-            <SEQ2_EMISSIVE_CODE>(#STATE_SIMVAR#) #STATE_ID# == (L:A32NX_OVHD_INTLT_ANN) 0 == or #SEQ2_POWERED# and</SEQ2_EMISSIVE_CODE>
+            <!-- Also lit (steady or flashing) by an ECAM advisory of its page: L:A380X_ECAM_SD_ADVISORY_PB is the SD page
+                 index + 1, 0 for none (systems host FwsAdvisories) -->
+            <SEQ2_EMISSIVE_CODE>(#STATE_SIMVAR#) #STATE_ID# == (L:A380X_ECAM_SD_ADVISORY_PB) #STATE_ID# 1 + == or (L:A32NX_OVHD_INTLT_ANN) 0 == or #SEQ2_POWERED# and</SEQ2_EMISSIVE_CODE>
             <CURSOR>Hand</CURSOR>
         </UseTemplate>
     </Template>
@@ -179,7 +181,7 @@
                 <LEFT_LEAVE_CODE>
                     0 (&gt;L:#SIMVAR#)
                 </LEFT_LEAVE_CODE>
-                <SEQ2_EMISSIVE_CODE>(L:A32NX_SD_MORE_SHOWN, Bool) (L:A32NX_OVHD_INTLT_ANN) 0 == or #SEQ2_POWERED# and</SEQ2_EMISSIVE_CODE>
+                <SEQ2_EMISSIVE_CODE>(L:A32NX_ECAM_SD_MORE_SHOWN, Bool) (L:A32NX_OVHD_INTLT_ANN) 0 == or #SEQ2_POWERED# and</SEQ2_EMISSIVE_CODE>
             </UseTemplate>
         </Component>
     </Template>
@@ -222,7 +224,7 @@
             <BASE_NAME>RCLLAST</BASE_NAME>
             <PART_ID>ECAM_RCLLAST</PART_ID>
             <TOOLTIPID>Recall Last ECAM message</TOOLTIPID>
-            <SIMVAR>A32NX_BTN_RCL</SIMVAR>
+            <SIMVAR>A32NX_BTN_RCL_LAST</SIMVAR>
         </UseTemplate>
 
         <!-- ECAM RCL -->

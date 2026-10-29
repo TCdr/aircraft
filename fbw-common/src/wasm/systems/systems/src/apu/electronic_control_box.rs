@@ -6,8 +6,11 @@ use uom::si::{
     ratio::percent, thermodynamic_temperature::degree_celsius, volume_rate::gallon_per_minute,
 };
 
-use crate::shared::{EngineCorrectedN1, LgciuWeightOnWheels};
-use crate::simulation::{InitContext, SimulatorReader, VariableIdentifier};
+use crate::failures::{Failure, FailureType};
+use crate::shared::{DelayedTrueLogicGate, EngineCorrectedN1, LgciuWeightOnWheels};
+use crate::simulation::{
+    InitContext, SimulationElementVisitor, SimulatorReader, VariableIdentifier,
+};
 use crate::{
     pneumatic::PneumaticValveSignal,
     shared::{
@@ -69,11 +72,19 @@ pub(super) struct ElectronicControlBox<C: ApuConstants> {
     /// In the context of the ecb this means that the APU cooldown is skipped.
     aircraft_preset_quick_mode: bool,
 
+    /// The normal DC supply of the ECB (`powered_by`) is powered, whatever the APU's own supply above N 70 %
+    dc_supply_is_powered: bool,
+    dc_supply_loss: DelayedTrueLogicGate,
+    sensed_failures: ApuSensedFailures,
+
     constants: PhantomData<C>,
 }
 impl<C: ApuConstants> ElectronicControlBox<C> {
     const START_MOTOR_POWERED_UNTIL_N: f64 = 55.;
     const JET_A_1_DENSITY: f64 = 0.804; // Kilograms per Liter
+    /// Design choice (no published value): the DC supply loss must last this long before the ECB shuts the APU down, so
+    /// that a source transfer of the electrical network does not stop the APU.
+    const DC_SUPPLY_LOSS_CONFIRMATION: Duration = Duration::from_secs(1);
 
     pub fn new(context: &mut InitContext, powered_by: ElectricalBusType) -> Self {
         ElectronicControlBox {
@@ -121,6 +132,10 @@ impl<C: ApuConstants> ElectronicControlBox<C> {
             on_ground: false,
             inlet_pressure: Pressure::new::<bar>(0.94),
             aircraft_preset_quick_mode: false,
+
+            dc_supply_is_powered: false,
+            dc_supply_loss: DelayedTrueLogicGate::new(Self::DC_SUPPLY_LOSS_CONFIRMATION),
+            sensed_failures: ApuSensedFailures::new(),
 
             constants: PhantomData,
         }
@@ -202,11 +217,52 @@ impl<C: ApuConstants> ElectronicControlBox<C> {
             self.fault = None;
         }
 
+        self.update_automatic_shutdown_conditions(context);
+
         if !self.master_is_on {
             self.master_off_for += context.delta()
         } else {
             self.master_off_for = Duration::ZERO
         }
+    }
+
+    /// The automatic shutdowns of the ECB besides the fire, the fuel low pressure and the start motor supply loss
+    /// (the APU FAULT light of the A320, the APU automatic shutdown of the A380). The first fault stays until the ECB goes off (MASTER SW OFF and air intake flap
+    /// closed). Not modelled (no model behind them): air inlet flap closed, no acceleration, slow start, EGT
+    /// overtemperature, no flame, reverse flow, overcurrent, sensor / IGV failures, underspeed, loss of overspeed
+    /// protection, inlet overheat, clogged oil filter, loss of EGT thermocouples (A320); N1 underspeed, generator oil,
+    /// fuel system failure, reverse flow, aircraft emergency stop (A380).
+    fn update_automatic_shutdown_conditions(&mut self, context: &UpdateContext) {
+        // DC power lost (A320: also BAT OFF on batteries only). Below N 70 % the ECB has no other supply and the APU
+        // stops without a FAULT (see is_on()); above it, the ECB still runs and shuts the APU down with a FAULT.
+        self.dc_supply_loss
+            .update(context, self.is_on() && !self.dc_supply_is_powered);
+        if !self.is_on() || self.fault.is_some() {
+            return;
+        }
+
+        let running = self.turbine_state == TurbineState::Running;
+        let failures = &self.sensed_failures;
+        // The A380 shuts down on a high oil temperature on the ground only; the A320 also in flight
+        let high_oil_temperature_shuts_down =
+            self.on_ground || C::HIGH_OIL_TEMPERATURE_SHUTDOWN_IN_FLIGHT;
+
+        self.fault = if failures.ecb.is_active() {
+            Some(ApuFault::EcbFailure)
+        } else if self.dc_supply_loss.output() {
+            Some(ApuFault::DcPowerLoss)
+        } else if running && failures.overspeed.is_active() {
+            Some(ApuFault::Overspeed)
+        } else if running && failures.oil_low_pressure.is_active() {
+            Some(ApuFault::LowOilPressure)
+        } else if running
+            && failures.oil_high_temperature.is_active()
+            && high_oil_temperature_shuts_down
+        {
+            Some(ApuFault::HighOilTemperature)
+        } else {
+            None
+        };
     }
 
     pub fn update_bleed_air_valve_state(
@@ -482,6 +538,12 @@ impl<C: ApuConstants> ControllerSignal<ApuBleedAirValveSignal> for ElectronicCon
     }
 }
 impl<C: ApuConstants> SimulationElement for ElectronicControlBox<C> {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.sensed_failures.accept(visitor);
+
+        visitor.visit(self);
+    }
+
     fn write(&self, writer: &mut SimulatorWriter) {
         let ssm = if self.is_on() {
             SignStatus::NormalOperation
@@ -533,7 +595,8 @@ impl<C: ApuConstants> SimulationElement for ElectronicControlBox<C> {
     }
 
     fn receive_power(&mut self, buses: &impl ElectricalBuses) {
-        self.is_powered = self.is_powered_by_apu_itself() || buses.is_powered(self.powered_by);
+        self.dc_supply_is_powered = buses.is_powered(self.powered_by);
+        self.is_powered = self.is_powered_by_apu_itself() || self.dc_supply_is_powered;
     }
 
     fn consume_power<T: ConsumePower>(&mut self, _: &UpdateContext, consumption: &mut T) {
@@ -548,4 +611,36 @@ enum ApuFault {
     ApuFire,
     FuelLowPressure,
     DcPowerLoss,
+    EcbFailure,
+    Overspeed,
+    LowOilPressure,
+    HighOilTemperature,
+}
+
+/// The flyPad failures (ATA 49) of conditions that the ECB senses and that make it shut the APU down
+struct ApuSensedFailures {
+    ecb: Failure,
+    overspeed: Failure,
+    oil_low_pressure: Failure,
+    oil_high_temperature: Failure,
+}
+impl ApuSensedFailures {
+    fn new() -> Self {
+        Self {
+            ecb: Failure::new(FailureType::ApuElectronicControlBox),
+            overspeed: Failure::new(FailureType::ApuOverspeed),
+            oil_low_pressure: Failure::new(FailureType::ApuOilLowPressure),
+            oil_high_temperature: Failure::new(FailureType::ApuOilHighTemperature),
+        }
+    }
+}
+impl SimulationElement for ApuSensedFailures {
+    fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
+        self.ecb.accept(visitor);
+        self.overspeed.accept(visitor);
+        self.oil_low_pressure.accept(visitor);
+        self.oil_high_temperature.accept(visitor);
+
+        visitor.visit(self);
+    }
 }

@@ -18,6 +18,62 @@ import { AbnormalProcedure, ChecklistLineStyle } from '..';
 
 /** All abnormal sensed procedures (alerts, via ECL) should be here. */
 export const EcamAbnormalSensedAta46495256: { [n: number]: AbnormalProcedure } = {
+  // ATA 46 INFORMATION SYSTEM. The alert logic is in systems-host CpiomC/FlightWarningSystem/CommunicationAlerts.ts
+  // informationSystemAlerts.
+  460800001: {
+    // crew awareness
+    title: '\x1b<4m\x1b4mCOM\x1bm ADS DATALINK FAULT',
+    sensed: true,
+    items: [],
+  },
+  460800002: {
+    title: '\x1b<4m\x1b4mCOM\x1bm ATC DATALINK FAULT',
+    sensed: true,
+    items: [{ name: 'ATC COM VOICE ONLY', sensed: false, style: ChecklistLineStyle.Cyan }],
+  },
+  460800003: {
+    // crew awareness
+    title: '\x1b<4m\x1b4mCOM\x1bm NSS DATA TO AVNCS XFR FAULT',
+    sensed: true,
+    items: [],
+  },
+  460800004: {
+    // crew awareness
+    title: '\x1b<4m\x1b4mCOM\x1bm NSS/AVNCS DATA XFR FAULT',
+    sensed: true,
+    items: [],
+  },
+  // ATA 49 APU
+  490800001: {
+    // The lines shown are chosen by ApuFaultAlerts.ts apuFaultItemsToShow.
+    title: '\x1b<4m\x1b4mAPU\x1bm FAULT',
+    sensed: true,
+    items: [
+      { name: 'EMER SHUTDOWN', sensed: false, style: ChecklistLineStyle.Green },
+      { name: 'APU MASTER SW', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'AUTO SHUTDOWN', sensed: false, style: ChecklistLineStyle.Green },
+      { name: 'APU MASTER SW', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'IF APU START FAILED AND FL > 150', sensed: false, condition: true },
+      { name: 'BELOW FL 150 : TRY A NEW APU START', sensed: false, style: ChecklistLineStyle.Cyan, level: 1 },
+      { name: 'IF APU NOT ABSOLUTELY RQRD', sensed: false, condition: true },
+      { name: 'APU MASTER SW', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
+  },
+  490800002: {
+    // Raised by ApuFaultAlerts.ts
+    title: '\x1b<4m\x1b4mAPU\x1bm MACH LIMIT EXCEEDED',
+    sensed: true,
+    items: [
+      { name: 'IF APU NOT ABSOLUTELY RQRD', sensed: false, condition: true },
+      { name: 'APU MASTER SW', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+    ],
+  },
+  490800003: {
+    // Crew awareness
+    title: '\x1b<4m\x1b4mAPU\x1bm OIL FILTER CLOGGED',
+    sensed: true,
+    items: [],
+  },
   // ATA 52 DOOR
   520800008: {
     title: '\x1b<4m\x1b4mDOOR\x1bm CKPT SLIDING WINDOW NOT CLOSED',
@@ -62,7 +118,7 @@ export const EcamAbnormalSensedAta46495256: { [n: number]: AbnormalProcedure } =
         level: 1,
       },
       {
-        name: 'DECEND TO FL 100/MEA-MORA',
+        name: 'DESCENT TO FL 100/MEA-MORA',
         labelNotCompleted: 'INITIATE',
         sensed: false,
         level: 1,
@@ -101,7 +157,7 @@ export const EcamAbnormalSensedAta46495256: { [n: number]: AbnormalProcedure } =
         level: 1,
       },
       {
-        name: 'DECEND TO FL 100/MEA-MORA',
+        name: 'DESCENT TO FL 100/MEA-MORA',
         labelNotCompleted: 'INITIATE',
         sensed: false,
         level: 1,
@@ -140,7 +196,7 @@ export const EcamAbnormalSensedAta46495256: { [n: number]: AbnormalProcedure } =
         level: 1,
       },
       {
-        name: 'DECEND TO FL 100/MEA-MORA',
+        name: 'DESCENT TO FL 100/MEA-MORA',
         labelNotCompleted: 'INITIATE',
         sensed: false,
         level: 1,
@@ -179,7 +235,7 @@ export const EcamAbnormalSensedAta46495256: { [n: number]: AbnormalProcedure } =
         level: 1,
       },
       {
-        name: 'DECEND TO FL 100/MEA-MORA',
+        name: 'DESCENT TO FL 100/MEA-MORA',
         labelNotCompleted: 'INITIATE',
         sensed: false,
         level: 1,
@@ -218,7 +274,7 @@ export const EcamAbnormalSensedAta46495256: { [n: number]: AbnormalProcedure } =
         level: 1,
       },
       {
-        name: 'DECEND TO FL 100/MEA-MORA',
+        name: 'DESCENT TO FL 100/MEA-MORA',
         labelNotCompleted: 'INITIATE',
         sensed: false,
         level: 1,
@@ -257,7 +313,7 @@ export const EcamAbnormalSensedAta46495256: { [n: number]: AbnormalProcedure } =
         level: 1,
       },
       {
-        name: 'DECEND TO FL 100/MEA-MORA',
+        name: 'DESCENT TO FL 100/MEA-MORA',
         labelNotCompleted: 'INITIATE',
         sensed: false,
         level: 1,
@@ -296,7 +352,7 @@ export const EcamAbnormalSensedAta46495256: { [n: number]: AbnormalProcedure } =
         level: 1,
       },
       {
-        name: 'DECEND TO FL 100/MEA-MORA',
+        name: 'DESCENT TO FL 100/MEA-MORA',
         labelNotCompleted: 'INITIATE',
         sensed: false,
         level: 1,
@@ -335,7 +391,7 @@ export const EcamAbnormalSensedAta46495256: { [n: number]: AbnormalProcedure } =
         level: 1,
       },
       {
-        name: 'DECEND TO FL 100/MEA-MORA',
+        name: 'DESCENT TO FL 100/MEA-MORA',
         labelNotCompleted: 'INITIATE',
         sensed: false,
         level: 1,
@@ -353,9 +409,8 @@ export const EcamAbnormalSensedAta46495256: { [n: number]: AbnormalProcedure } =
       },
       {
         name: 'ABNORM CAB V/S',
-        sensed: true,
+        sensed: false,
         condition: true,
-        level: 1,
       },
       {
         name: 'MAX FL : 100/MEA-MORA',
@@ -375,7 +430,7 @@ export const EcamAbnormalSensedAta46495256: { [n: number]: AbnormalProcedure } =
         level: 1,
       },
       {
-        name: 'DECEND TO FL 100/MEA-MORA',
+        name: 'DESCENT TO FL 100/MEA-MORA',
         labelNotCompleted: 'INITIATE',
         sensed: false,
         level: 1,
@@ -393,9 +448,8 @@ export const EcamAbnormalSensedAta46495256: { [n: number]: AbnormalProcedure } =
       },
       {
         name: 'ABNORM CAB V/S',
-        sensed: true,
+        sensed: false,
         condition: true,
-        level: 1,
       },
       {
         name: 'MAX FL : 100/MEA-MORA',
@@ -415,7 +469,7 @@ export const EcamAbnormalSensedAta46495256: { [n: number]: AbnormalProcedure } =
         level: 1,
       },
       {
-        name: 'DECEND TO FL 100/MEA-MORA',
+        name: 'DESCENT TO FL 100/MEA-MORA',
         labelNotCompleted: 'INITIATE',
         sensed: false,
         level: 1,
@@ -454,7 +508,7 @@ export const EcamAbnormalSensedAta46495256: { [n: number]: AbnormalProcedure } =
         level: 1,
       },
       {
-        name: 'DECEND TO FL 100/MEA-MORA',
+        name: 'DESCENT TO FL 100/MEA-MORA',
         labelNotCompleted: 'INITIATE',
         sensed: false,
         level: 1,
@@ -493,7 +547,7 @@ export const EcamAbnormalSensedAta46495256: { [n: number]: AbnormalProcedure } =
         level: 1,
       },
       {
-        name: 'DECEND TO FL 100/MEA-MORA',
+        name: 'DESCENT TO FL 100/MEA-MORA',
         labelNotCompleted: 'INITIATE',
         sensed: false,
         level: 1,
@@ -511,9 +565,8 @@ export const EcamAbnormalSensedAta46495256: { [n: number]: AbnormalProcedure } =
       },
       {
         name: 'ABNORM CAB V/S',
-        sensed: true,
+        sensed: false,
         condition: true,
-        level: 1,
       },
       {
         name: 'MAX FL : 100/MEA-MORA',
@@ -533,7 +586,7 @@ export const EcamAbnormalSensedAta46495256: { [n: number]: AbnormalProcedure } =
         level: 1,
       },
       {
-        name: 'DECEND TO FL 100/MEA-MORA',
+        name: 'DESCENT TO FL 100/MEA-MORA',
         labelNotCompleted: 'INITIATE',
         sensed: false,
         level: 1,
@@ -551,9 +604,8 @@ export const EcamAbnormalSensedAta46495256: { [n: number]: AbnormalProcedure } =
       },
       {
         name: 'ABNORM CAB V/S',
-        sensed: true,
+        sensed: false,
         condition: true,
-        level: 1,
       },
       {
         name: 'MAX FL : 100/MEA-MORA',
@@ -573,7 +625,7 @@ export const EcamAbnormalSensedAta46495256: { [n: number]: AbnormalProcedure } =
         level: 1,
       },
       {
-        name: 'DECEND TO FL 100/MEA-MORA',
+        name: 'DESCENT TO FL 100/MEA-MORA',
         labelNotCompleted: 'INITIATE',
         sensed: false,
         level: 1,
@@ -612,7 +664,7 @@ export const EcamAbnormalSensedAta46495256: { [n: number]: AbnormalProcedure } =
         level: 1,
       },
       {
-        name: 'DECEND TO FL 100/MEA-MORA',
+        name: 'DESCENT TO FL 100/MEA-MORA',
         labelNotCompleted: 'INITIATE',
         sensed: false,
         level: 1,
@@ -651,7 +703,85 @@ export const EcamAbnormalSensedAta46495256: { [n: number]: AbnormalProcedure } =
         level: 1,
       },
       {
-        name: 'DECEND TO FL 100/MEA-MORA',
+        name: 'DESCENT TO FL 100/MEA-MORA',
+        labelNotCompleted: 'INITIATE',
+        sensed: false,
+        level: 1,
+      },
+    ],
+  },
+  520800033: {
+    title: '\x1b<4m\x1b4mDOOR\x1bm FWD CARGO NOT CLOSED',
+    sensed: true,
+    items: [
+      {
+        name: 'PACK 1+2 & CAB PRESS NOT AVAIL',
+        sensed: true,
+        style: ChecklistLineStyle.Amber,
+      },
+      {
+        name: 'ABNORM CAB V/S',
+        sensed: false,
+        condition: true,
+      },
+      {
+        name: 'MAX FL : 100/MEA-MORA',
+        sensed: false,
+        level: 1,
+      },
+      {
+        name: 'CABIN CREW',
+        labelNotCompleted: 'ADVISE',
+        sensed: false,
+        level: 1,
+      },
+      {
+        name: 'ATC',
+        labelNotCompleted: 'NOTIFY',
+        sensed: false,
+        level: 1,
+      },
+      {
+        name: 'DESCENT TO FL 100/MEA-MORA',
+        labelNotCompleted: 'INITIATE',
+        sensed: false,
+        level: 1,
+      },
+    ],
+  },
+  520800034: {
+    title: '\x1b<4m\x1b4mDOOR\x1bm AFT CARGO NOT CLOSED',
+    sensed: true,
+    items: [
+      {
+        name: 'PACK 1+2 & CAB PRESS NOT AVAIL',
+        sensed: true,
+        style: ChecklistLineStyle.Amber,
+      },
+      {
+        name: 'ABNORM CAB V/S',
+        sensed: false,
+        condition: true,
+      },
+      {
+        name: 'MAX FL : 100/MEA-MORA',
+        sensed: false,
+        level: 1,
+      },
+      {
+        name: 'CABIN CREW',
+        labelNotCompleted: 'ADVISE',
+        sensed: false,
+        level: 1,
+      },
+      {
+        name: 'ATC',
+        labelNotCompleted: 'NOTIFY',
+        sensed: false,
+        level: 1,
+      },
+      {
+        name: 'DESCENT TO FL 100/MEA-MORA',
         labelNotCompleted: 'INITIATE',
         sensed: false,
         level: 1,

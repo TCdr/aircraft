@@ -4,8 +4,12 @@
 #include <SimConnect.h>
 
 #include "A380FadecComputer.h"
+#include "AirDataRejection.h"
 #include "Arinc429.h"
+#include "FadecFailureInputs.h"
+#include "FadecThrustFailures.h"
 #include "CalculatedRadioReceiver.h"
+#include "EngineStartThrottleHold.h"
 #include "InterpolatingLookupTable.h"
 #include "LocalVariable.h"
 #include "RateLimiter.h"
@@ -111,6 +115,8 @@ class FlyByWireInterface {
   A380FadecComputer::ExternalInputs_A380FadecComputer_T fadecInputs[4];
   athr_output fadecOutputs[4];
   base_eec fadecBusOutputs[4];
+  // MSFS throttle of an engine out or (re)starting in flight, and its acceleration from idle once it runs
+  EngineStartThrottleHold engineStartThrottleHolds[4];
 
   base_ra_bus raBusOutputs[3] = {};
 
@@ -122,6 +128,8 @@ class FlyByWireInterface {
 
   base_adr_bus adrBusOutputs[3] = {};
   base_ir_bus irBusOutputs[3] = {};
+  /// The ADRs and AOAs the PRIM air data monitoring (systems.wasm) has rejected for the flight control computers
+  AirDataRejection::Rejections airDataRejections = {};
 
   base_fqms fqmsBusOutputs = {};
 
@@ -249,7 +257,13 @@ class FlyByWireInterface {
 
   std::unique_ptr<LocalVariable> thrustLeverAngle[4];
   std::unique_ptr<LocalVariable> idAutothrustN1_TLA[4];
+  // FADEC, thrust lever and reverser failures (systems.wasm engine_control_failure.rs, see FadecFailureInputs.h)
+  std::unique_ptr<LocalVariable> idEngineFadecTlaOverrideActive[4];
+  std::unique_ptr<LocalVariable> idEngineFadecTlaOverride[4];
+  std::unique_ptr<LocalVariable> idEngineFadecFault[4];
   std::unique_ptr<LocalVariable> idAutothrustReverse[4];
+  std::unique_ptr<LocalVariable> idEngineState[4];
+  std::unique_ptr<LocalVariable> idEngineIdleN3;
   std::unique_ptr<LocalVariable> idAutothrustThrustLimitType;
   std::unique_ptr<LocalVariable> idAutothrustThrustLimit;
   std::unique_ptr<LocalVariable> idAutothrustThrustLimitREV;
@@ -259,6 +273,12 @@ class FlyByWireInterface {
   std::unique_ptr<LocalVariable> idAutothrustThrustLimitFLX;
   std::unique_ptr<LocalVariable> idAutothrustThrustLimitTOGA;
   std::unique_ptr<LocalVariable> idAutothrustN1_c[4];
+  // N1 lost by a stalled engine (systems WASM, a380_systems engine_malfunction.rs)
+  std::unique_ptr<LocalVariable> idEngineStallN1Loss[4];
+  // The maximum THR (percent) and the take-off mode of each FADEC, for ENG THRUST LOSS and ENG T.O THRUST DISAGREE
+  // (FadecThrustFailures.h)
+  std::unique_ptr<LocalVariable> idEngineFadecMaxThr[4];
+  std::unique_ptr<LocalVariable> idEngineFadecTakeoffMode[4];
   std::unique_ptr<LocalVariable> idAutothrustStatus;
   std::unique_ptr<LocalVariable> idAutothrustMode;
   std::unique_ptr<LocalVariable> idAutothrustModeMessage;
@@ -349,6 +369,10 @@ class FlyByWireInterface {
   std::unique_ptr<LocalVariable> idAdrVerticalSpeed[3];
   std::unique_ptr<LocalVariable> idAdrAoaCorrected[3];
   std::unique_ptr<LocalVariable> idAdrCorrectedAverageStaticPressure[3];
+  // PRIM air data monitoring outputs (written by systems.wasm)
+  std::unique_ptr<LocalVariable> idPrimAdrRejected[3];
+  std::unique_ptr<LocalVariable> idPrimAoaRejected[3];
+  std::unique_ptr<LocalVariable> idPrimAllAirDataRejected;
 
   // IR bus inputs
   std::unique_ptr<LocalVariable> idIrMaintWord[3];

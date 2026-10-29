@@ -13,6 +13,7 @@ use uom::si::{
 use systems::{
     accept_iterable,
     air_conditioning::PackFlowControllers,
+    ice_rain_protection::engine_anti_ice::EngineAntiIceValve,
     overhead::{AutoOffFaultPushButton, OnOffFaultPushButton},
     pneumatic::{
         valve::*, BleedMonitoringComputerChannelOperationMode,
@@ -110,6 +111,7 @@ pub struct A320Pneumatic {
     air_starter_unit_bleed_air_valve: PurelyPneumaticValve,
 
     wing_anti_ice: WingAntiIceComplex,
+    engine_anti_ice_valves: [EngineAntiIceValve; 2],
 
     hydraulic_reservoir_bleed_air_valves: [PurelyPneumaticValve; 2],
     hydraulic_reservoir_bleed_air_pipe: PneumaticPipe,
@@ -167,6 +169,11 @@ impl A320Pneumatic {
             ),
             air_starter_unit_bleed_air_valve: PurelyPneumaticValve::default(),
             wing_anti_ice: WingAntiIceComplex::new(context),
+            // Design choice (no published bus): the solenoids take the buses of the bleed valves of their engine
+            engine_anti_ice_valves: [
+                EngineAntiIceValve::new(context, 1, ElectricalBusType::DirectCurrentEssentialShed),
+                EngineAntiIceValve::new(context, 2, ElectricalBusType::DirectCurrent(2)),
+            ],
             hydraulic_reservoir_bleed_air_valves: [
                 PurelyPneumaticValve::new(),
                 PurelyPneumaticValve::new(),
@@ -241,6 +248,15 @@ impl A320Pneumatic {
                 pack_flow_valve_signals,
                 lgciu,
             );
+        }
+
+        // The engine anti-ice air comes from the HP compressor, independently of the bleed system
+        for (valve, engine_system) in self
+            .engine_anti_ice_valves
+            .iter_mut()
+            .zip(self.engine_systems.iter())
+        {
+            valve.update(context, engine_system.high_pressure());
         }
     }
 
@@ -410,6 +426,7 @@ impl SimulationElement for A320Pneumatic {
         self.cross_bleed_valve.accept(visitor);
         self.fadec.accept(visitor);
         self.wing_anti_ice.accept(visitor);
+        accept_iterable!(self.engine_anti_ice_valves, visitor);
 
         accept_iterable!(self.bleed_monitoring_computers, visitor);
         accept_iterable!(self.engine_systems, visitor);
@@ -815,14 +832,30 @@ impl BleedMonitoringComputerChannel {
         self.has_low_bleed_temperature = if let Some(precooler_outlet_temperature) =
             sensors.bleed_temperature_sensor_temperature()
         {
-            precooler_outlet_temperature.get::<degree_celsius>()
-                < Self::LOW_BLEED_TEMPERATURE_THRESHOLD_C
-                && wing_anti_ice.is_wai_selected()
-                && self.pressure_regulating_valve_is_closed
-                && context.is_in_flight() // TODO: Figure out where this signal comes from.
+            Self::is_low_bleed_temperature(
+                precooler_outlet_temperature.get::<degree_celsius>(),
+                wing_anti_ice.is_wai_selected(),
+                self.pressure_regulating_valve_is_closed,
+                context.is_in_flight(), // TODO: Figure out where this signal comes from.
+            )
         } else {
             false
         }
+    }
+
+    /// AIR ENG 1(2) BLEED LO TEMP: the engine bleed supplies air below 150 °C in flight with the WING A-ICE pb-sw
+    /// ON.
+    /// The bleed only supplies air while its pressure regulating valve is open, so a closed valve gives no alert.
+    fn is_low_bleed_temperature(
+        precooler_outlet_temperature_c: f64,
+        wai_selected: bool,
+        pressure_regulating_valve_is_closed: bool,
+        in_flight: bool,
+    ) -> bool {
+        precooler_outlet_temperature_c < Self::LOW_BLEED_TEMPERATURE_THRESHOLD_C
+            && wai_selected
+            && !pressure_regulating_valve_is_closed
+            && in_flight
     }
 
     fn operation_mode(&self) -> BleedMonitoringComputerChannelOperationMode {
@@ -5417,6 +5450,80 @@ pub mod tests {
 
             assert_lt!(test_bed.pack_flow_valve_flow(1), flow_rate_tolerance());
             assert_lt!(test_bed.pack_flow_valve_flow(2), flow_rate_tolerance());
+        }
+    }
+
+    /// BLEED LO TEMP: the bleed must be supplying air (valve open), not shut off.
+    #[test]
+    fn low_bleed_temperature_flag_set_when_open_bleed_supplies_cold_air_with_wai_in_flight() {
+        use super::BleedMonitoringComputerChannel;
+
+        // Valve open (not closed), 140 °C, WAI on, in flight: the alert condition.
+        assert!(BleedMonitoringComputerChannel::is_low_bleed_temperature(
+            140., true, false, true
+        ));
+        // A closed bleed valve supplies no air: no LO TEMP.
+        assert!(!BleedMonitoringComputerChannel::is_low_bleed_temperature(
+            140., true, true, true
+        ));
+        // At 150 °C, without WAI, or on the ground: no LO TEMP.
+        assert!(!BleedMonitoringComputerChannel::is_low_bleed_temperature(
+            150., true, false, true
+        ));
+        assert!(!BleedMonitoringComputerChannel::is_low_bleed_temperature(
+            140., false, false, true
+        ));
+        assert!(!BleedMonitoringComputerChannel::is_low_bleed_temperature(
+            140., true, false, false
+        ));
+    }
+
+    /// The engine anti-ice valves on the engine HP compressor air
+    mod engine_anti_ice {
+        use super::*;
+
+        fn engine_anti_ice_push_buttons_on(mut test_bed: PneumaticTestBed) -> PneumaticTestBed {
+            test_bed.write_by_name("BUTTON_OVHD_ANTI_ICE_ENG_1_POSITION", true);
+            test_bed.write_by_name("BUTTON_OVHD_ANTI_ICE_ENG_2_POSITION", true);
+            test_bed
+        }
+
+        fn flag(test_bed: &mut PneumaticTestBed, name: &str) -> bool {
+            test_bed.read_by_name(name)
+        }
+
+        #[test]
+        fn the_valve_of_a_running_engine_opens_and_the_one_of_a_stopped_engine_stays_closed() {
+            let mut test_bed = engine_anti_ice_push_buttons_on(
+                test_bed_with()
+                    .in_isa_atmosphere(Length::new::<foot>(0.))
+                    .idle_eng1()
+                    .stop_eng2(),
+            )
+            .and_stabilize();
+
+            assert!(flag(&mut test_bed, "PNEU_ENG_1_ANTI_ICE_VALVE_OPEN"));
+            assert!(!flag(&mut test_bed, "PNEU_ENG_1_ANTI_ICE_FAULT"));
+            // The valve closes automatically without air (engine not running): the FAULT light shows the
+            // disagreement with the pb-sw ON
+            assert!(!flag(&mut test_bed, "PNEU_ENG_2_ANTI_ICE_VALVE_OPEN"));
+            assert!(flag(&mut test_bed, "PNEU_ENG_2_ANTI_ICE_FAULT"));
+        }
+
+        #[test]
+        fn the_valve_opens_without_electrical_power() {
+            let mut test_bed = test_bed_with()
+                .in_isa_atmosphere(Length::new::<foot>(0.))
+                .idle_eng1()
+                .idle_eng2();
+            test_bed.command(|a| {
+                a.is_dc_ess_shed_powered = false;
+            });
+            let mut test_bed = test_bed.and_stabilize();
+
+            // pb-sw OFF: the valves open when electrical power fails
+            assert!(flag(&mut test_bed, "PNEU_ENG_1_ANTI_ICE_VALVE_OPEN"));
+            assert!(!flag(&mut test_bed, "PNEU_ENG_2_ANTI_ICE_VALVE_OPEN"));
         }
     }
 }

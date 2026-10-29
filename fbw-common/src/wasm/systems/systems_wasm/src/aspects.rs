@@ -860,6 +860,10 @@ pub enum VariableToEventWriteOn {
 
     /// Writes the variable to the event when the variable's value has changed.
     Change,
+
+    /// Writes the variable to the event when the variable's value has increased, not for its first value: one event
+    /// per increment of a counter (e.g. a toggle event that must be sent a given number of times).
+    Increase,
 }
 
 struct ToEvent {
@@ -920,6 +924,10 @@ impl ExecutableVariableAction for ToEvent {
                 Some(last_written_value) => value != last_written_value,
                 None => true,
             },
+            VariableToEventWriteOn::Increase => match self.last_written_value {
+                Some(last_value) => value > last_value,
+                None => false,
+            },
         };
 
         if should_write {
@@ -933,6 +941,9 @@ impl ExecutableVariableAction for ToEvent {
                     }
                 },
             )?;
+            self.last_written_value = Some(value);
+        } else if matches!(self.write_on, VariableToEventWriteOn::Increase) {
+            // The first value, or a decrease: the reference of the next increase
             self.last_written_value = Some(value);
         }
 

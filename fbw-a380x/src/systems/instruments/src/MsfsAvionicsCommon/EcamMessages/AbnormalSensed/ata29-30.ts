@@ -1,7 +1,13 @@
 ﻿// Copyright (c) 2024 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { AbnormalProcedure, ChecklistLineStyle, FMS_PRED_UNRELIABLE_CHECKLIST_ITEM } from '..';
+import {
+  AbnormalProcedure,
+  ChecklistLineStyle,
+  DeferredProcedure,
+  DeferredProcedureType,
+  FMS_PRED_UNRELIABLE_CHECKLIST_ITEM,
+} from '..';
 
 // Convention for IDs:
 // First two digits: ATA chapter
@@ -518,6 +524,11 @@ export const EcamAbnormalSensedAta2930: { [n: number]: AbnormalProcedure } = {
         sensed: false,
       },
       {
+        // HYD G (Y) SYS PRESS LO: "L/G GRVTY EXTN ONLY" for both systems
+        name: 'L/G GRVTY EXTN ONLY',
+        sensed: false,
+      },
+      {
         // if prim2 also failed
         name: 'FUEL CONSUMPT INCRSD',
         sensed: false,
@@ -643,7 +654,8 @@ export const EcamAbnormalSensedAta2930: { [n: number]: AbnormalProcedure } = {
       },
       { ...FMS_PRED_UNRELIABLE_CHECKLIST_ITEM },
       {
-        name: 'LDG DIST AFFECTED',
+        // LDG PERF AFFECTED (loss of 6 pairs of ground spoilers and 2 ailerons, increased VAPP)
+        name: 'LDG PERF AFFECTED',
         sensed: false,
       },
       {
@@ -656,5 +668,210 @@ export const EcamAbnormalSensedAta2930: { [n: number]: AbnormalProcedure } = {
     title: '\x1b<4m\x1b4mHYD\x1bm Y ELEC PMP A+B OFF',
     sensed: true,
     items: [],
+  },
+  // ATA 30 A-ICE
+  300800001: {
+    title: '\x1b<4m\x1b4mA-ICE\x1bm ICE DETECTED',
+    sensed: true,
+    items: [
+      { name: 'ENG 1 A-ICE', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'ENG 2 A-ICE', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'ENG 3 A-ICE', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'ENG 4 A-ICE', sensed: true, labelNotCompleted: 'ON' },
+    ],
+  },
+  300800002: {
+    title: '\x1b<4m\x1b4mA-ICE\x1bm SEVERE ICE DETECTED',
+    sensed: true,
+    items: [
+      { name: 'ENG 1 A-ICE', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'ENG 2 A-ICE', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'ENG 3 A-ICE', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'ENG 4 A-ICE', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'WING A-ICE', sensed: true, labelNotCompleted: 'ON' },
+    ],
+  },
+  // ATA 30 A-ICE valves see FWS AntiIceValveAlerts
+  300800010: {
+    title: '\x1b<4m\x1b4mA-ICE\x1bm ENG 1 VLV CLOSED',
+    sensed: true,
+    items: [{ name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan }],
+  },
+  300800011: {
+    title: '\x1b<4m\x1b4mA-ICE\x1bm ENG 2 VLV CLOSED',
+    sensed: true,
+    items: [{ name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan }],
+  },
+  300800012: {
+    title: '\x1b<4m\x1b4mA-ICE\x1bm ENG 3 VLV CLOSED',
+    sensed: true,
+    items: [{ name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan }],
+  },
+  300800013: {
+    title: '\x1b<4m\x1b4mA-ICE\x1bm ENG 4 VLV CLOSED',
+    sensed: true,
+    items: [{ name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan }],
+  },
+  300800014: {
+    // Crew awareness
+    title: '\x1b<4m\x1b4mA-ICE\x1bm ENG 1 VLV OPEN',
+    sensed: true,
+    items: [],
+  },
+  300800015: {
+    // Crew awareness
+    title: '\x1b<4m\x1b4mA-ICE\x1bm ENG 2 VLV OPEN',
+    sensed: true,
+    items: [],
+  },
+  300800016: {
+    // Crew awareness
+    title: '\x1b<4m\x1b4mA-ICE\x1bm ENG 3 VLV OPEN',
+    sensed: true,
+    items: [],
+  },
+  300800017: {
+    // Crew awareness
+    title: '\x1b<4m\x1b4mA-ICE\x1bm ENG 4 VLV OPEN',
+    sensed: true,
+    items: [],
+  },
+  300800018: {
+    title: '\x1b<4m\x1b4mA-ICE\x1bm L WING VLV CLOSED',
+    sensed: true,
+    items: [
+      { name: 'WING A-ICE', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan },
+    ],
+  },
+  300800019: {
+    title: '\x1b<4m\x1b4mA-ICE\x1bm R WING VLV CLOSED',
+    sensed: true,
+    items: [
+      { name: 'WING A-ICE', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan },
+    ],
+  },
+  300800020: {
+    // Before takeoff and after landing, then in flight
+    title: '\x1b<4m\x1b4mA-ICE\x1bm L WING VLV OPEN',
+    sensed: true,
+    items: [
+      { name: 'X BLEED', sensed: true, labelNotCompleted: 'CLOSE' },
+      { name: 'PACK 1', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG 1 BLEED', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG 2 BLEED', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'APU BLEED', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'BLEEDS/ PACK/ WING A-ICE AVAIL IN FLT', sensed: false },
+      { name: 'ENG 1 BLEED', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'ENG 2 BLEED', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'PACK 1', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'X BLEED', sensed: true, labelNotCompleted: 'AUTO' },
+    ],
+  },
+  300800021: {
+    // Before takeoff and after landing, then in flight
+    title: '\x1b<4m\x1b4mA-ICE\x1bm R WING VLV OPEN',
+    sensed: true,
+    items: [
+      { name: 'X BLEED', sensed: true, labelNotCompleted: 'CLOSE' },
+      { name: 'PACK 2', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG 3 BLEED', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'ENG 4 BLEED', sensed: true, labelNotCompleted: 'OFF' },
+      // never shown for the right wing: "If L WING VLV OPEN: APU BLEED OFF"
+      { name: 'APU BLEED', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'BLEEDS/ PACK/ WING A-ICE AVAIL IN FLT', sensed: false },
+      { name: 'ENG 3 BLEED', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'ENG 4 BLEED', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'PACK 2', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'X BLEED', sensed: true, labelNotCompleted: 'AUTO' },
+    ],
+  },
+  300800022: {
+    // Crew awareness
+    title: '\x1b<4m\x1b4mA-ICE\x1bm L WING VLV PRESS HI',
+    sensed: true,
+    items: [],
+  },
+  300800023: {
+    // Crew awareness
+    title: '\x1b<4m\x1b4mA-ICE\x1bm R WING VLV PRESS HI',
+    sensed: true,
+    items: [],
+  },
+  300800024: {
+    // On ground, then in flight
+    title: '\x1b<4m\x1b4mA-ICE\x1bm L WING VLV PRESS LO',
+    sensed: true,
+    items: [
+      { name: 'WING A-ICE', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan },
+      { name: 'THRUST', sensed: false, labelNotCompleted: 'INCREASE' },
+      { name: 'NOT SUCCESSFUL', sensed: false, condition: true },
+      { name: 'WING A-ICE', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan, level: 1 },
+    ],
+  },
+  300800025: {
+    // On ground, then in flight
+    title: '\x1b<4m\x1b4mA-ICE\x1bm R WING VLV PRESS LO',
+    sensed: true,
+    items: [
+      { name: 'WING A-ICE', sensed: true, labelNotCompleted: 'OFF' },
+      { name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan },
+      { name: 'THRUST', sensed: false, labelNotCompleted: 'INCREASE' },
+      { name: 'NOT SUCCESSFUL', sensed: false, condition: true },
+      { name: 'WING A-ICE', sensed: true, labelNotCompleted: 'OFF', level: 1 },
+      { name: 'AVOID ICING CONDs', sensed: false, style: ChecklistLineStyle.Cyan, level: 1 },
+    ],
+  },
+};
+
+/**
+ * ATA 29 deferred procedures. They have no title of their own; design choice: the title names the alert they come from.
+ * The items checked are in FwsAbnormalSensed ewdDeferredProcs.
+ */
+export const EcamDeferredProcAta2930: { [n: number]: DeferredProcedure } = {
+  290700001: {
+    // Pump cavitation decreases at a lower altitude: the system may be restored
+    fromAbnormalProcs: ['290800019'],
+    title: 'G RSVR AIR PRESS LO',
+    type: DeferredProcedureType.FOR_APPROACH,
+    items: [
+      { name: 'G ENG 1 PMP A AND B', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'G ENG 2 PMP A AND B', sensed: true, labelNotCompleted: 'ON' },
+    ],
+  },
+  290700002: {
+    // As 290700001
+    fromAbnormalProcs: ['290800020'],
+    title: 'Y RSVR AIR PRESS LO',
+    type: DeferredProcedureType.FOR_APPROACH,
+    items: [
+      { name: 'Y ENG 3 PMP A AND B', sensed: true, labelNotCompleted: 'ON' },
+      { name: 'Y ENG 4 PMP A AND B', sensed: true, labelNotCompleted: 'ON' },
+    ],
+  },
+  290700003: {
+    // Not shown when the crew disconnected the engine pumps (FwsAbnormalSensed ewdDeferredProcs)
+    fromAbnormalProcs: ['290800031'],
+    title: 'G SYS OVHT',
+    type: DeferredProcedureType.FOR_APPROACH,
+    items: [
+      { name: 'IF G SYS OVHT OUT', sensed: true, condition: true },
+      { name: 'G ENG 1 PMP A AND B', sensed: true, labelNotCompleted: 'ON', level: 1 },
+      { name: 'G ENG 2 PMP A AND B', sensed: true, labelNotCompleted: 'ON', level: 1 },
+    ],
+  },
+  290700004: {
+    // As 290700003
+    fromAbnormalProcs: ['290800032'],
+    title: 'Y SYS OVHT',
+    type: DeferredProcedureType.FOR_APPROACH,
+    items: [
+      { name: 'IF Y SYS OVHT OUT', sensed: true, condition: true },
+      { name: 'Y ENG 3 PMP A AND B', sensed: true, labelNotCompleted: 'ON', level: 1 },
+      { name: 'Y ENG 4 PMP A AND B', sensed: true, labelNotCompleted: 'ON', level: 1 },
+    ],
   },
 };

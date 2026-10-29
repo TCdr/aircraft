@@ -17,6 +17,7 @@ use systems::electrical::{Battery, BatteryChargeRectifierUnit};
 use std::time::Duration;
 use systems::{
     accept_iterable,
+    apu::ApuGenerator,
     electrical::{
         AlternatingCurrentElectricalSystem, BatteryPushButtons, ElectricalElement, Electricity,
         EmergencyElectrical, EmergencyGenerator, EngineGeneratorPushButtons, ExternalPowerSource,
@@ -318,6 +319,11 @@ impl A380Electrical {
         self.alternating_current.gen_drive_connected(number)
     }
 
+    /// The oil of the generator drive is overheating or its pressure is low (DRIVE pb FAULT light)
+    pub fn gen_drive_has_fault(&self, number: usize) -> bool {
+        self.alternating_current.gen_drive_has_fault(number)
+    }
+
     pub fn in_emergency_elec(&self) -> bool {
         self.emergency_elec.is_in_emergency_elec()
     }
@@ -395,6 +401,7 @@ impl A380ElectricalOverheadPanel {
         &mut self,
         electrical: &A380Electrical,
         electricity: &Electricity,
+        apu: &impl AuxiliaryPowerUnitElectrical,
     ) {
         // AC ESS FEED pb-sw FAULT: the AC ESS busbar is not supplied
         self.ac_ess_feed
@@ -407,9 +414,28 @@ impl A380ElectricalOverheadPanel {
                 gen.set_fault(electrical.gen_contactor_open(index + 1) && gen.is_on());
             });
 
+        // DRIVE pb FAULT: the engine generator must be disconnected from the engine (ELEC DRIVE OIL OVHT, ELEC DRIVE
+        // OIL PRESS LO). The drive signals stop once it is disconnected (DISC light).
         self.idgs.iter_mut().enumerate().for_each(|(index, drive)| {
-            drive.set_disconnected(!electrical.gen_drive_connected(index + 1))
+            drive.set_disconnected(!electrical.gen_drive_connected(index + 1));
+            drive.set_fault(electrical.gen_drive_has_fault(index + 1));
         });
+
+        // APU GEN A(B) pb-sw FAULT: the applicable GGPCU disconnects the APU generator from the electrical network.
+        // Design choice: the GGPCU disconnects a generator whose output is not normal while the APU is available,
+        // the condition of ELEC APU GEN A(B) FAULT in the FWS (FwsElecAlerts apuGenFault). With the pb-sw OFF the
+        // generator is disconnected on purpose: no FAULT light.
+        let apu_available = apu.is_available();
+        self.apu_gens
+            .iter_mut()
+            .enumerate()
+            .for_each(|(index, apu_gen)| {
+                apu_gen.set_fault(
+                    apu_gen.is_on()
+                        && apu_available
+                        && !apu.generator(index + 1).output_within_normal_parameters(),
+                );
+            });
 
         // BAT pb-sw FAULT light: on while the battery is failed. Design choice: it stays on in either pb-sw
         // position, as the aircraft documents give no pb-sw condition.
@@ -3404,6 +3430,57 @@ mod a380_electrical_circuit_tests {
         assert!(test_bed.drive_disc_fault(number));
     }
 
+    #[rstest]
+    #[case(1)]
+    #[case(4)]
+    fn drive_pb_fault_light_comes_on_with_a_low_drive_oil_pressure(#[case] number: usize) {
+        // DRIVE pb FAULT: the engine generator must be disconnected (ELEC DRIVE OIL OVHT, ELEC DRIVE OIL PRESS LO)
+        let mut test_bed = test_bed_with().running_engines().run();
+        assert!(!test_bed.drive_has_fault(number));
+
+        test_bed = test_bed.failed_drive_oil_leak(number);
+        for _ in 0..60 {
+            test_bed = test_bed.run();
+        }
+
+        assert!(test_bed.drive_oil_low_pressure(number));
+        assert!(test_bed.drive_has_fault(number));
+        assert!(!test_bed.drive_has_fault(if number == 1 { 2 } else { 3 }));
+
+        // The FAULT light goes off once the drive is disconnected
+        test_bed = test_bed.drive_released(number).run();
+
+        assert!(!test_bed.drive_has_fault(number));
+        assert!(test_bed.drive_is_disconnected(number));
+    }
+
+    #[rstest]
+    #[case(1)]
+    #[case(2)]
+    fn apu_gen_pb_fault_light_comes_on_when_the_apu_generator_is_disconnected(
+        #[case] number: usize,
+    ) {
+        // APU GEN A(B) pb-sw FAULT: the GGPCU has disconnected the APU generator (ELEC APU GEN A(B) FAULT)
+        let mut test_bed = test_bed_with().running_apu().run();
+        assert!(!test_bed.apu_gen_has_fault(number));
+
+        test_bed = test_bed.failed_apu_generator(number).run();
+        assert!(test_bed.apu_gen_has_fault(number));
+        assert!(!test_bed.apu_gen_has_fault(3 - number));
+
+        // With the pb-sw OFF the generator is disconnected on purpose: no FAULT light
+        test_bed = test_bed.apu_gen_off(number).run();
+        assert!(!test_bed.apu_gen_has_fault(number));
+    }
+
+    #[test]
+    fn apu_gen_pb_fault_light_stays_off_with_the_apu_stopped() {
+        let mut test_bed = test_bed_with().run();
+
+        assert!(!test_bed.apu_gen_has_fault(1));
+        assert!(!test_bed.apu_gen_has_fault(2));
+    }
+
     #[test]
     fn failed_ext_pwr_1_does_not_supply_the_ground_service_busbar() {
         // everything_off_ext_power_connected: EXT PWR 1 supplies the AC GND/FLT service busbar via 991PU6
@@ -3542,6 +3619,11 @@ mod a380_electrical_circuit_tests {
 
         fn command_closing_of_start_contactors(&mut self) {
             self.should_close_start_contactor = true;
+        }
+
+        /// The generator gives no normal output while the APU runs (its GGPCU disconnects it)
+        fn fail_generator(&mut self, number: usize) {
+            self.generators[number - 1].set_available(false);
         }
 
         fn start_motor_is_powered(&self) -> bool {
@@ -3904,6 +3986,10 @@ mod a380_electrical_circuit_tests {
             self.apu.set_available(true);
         }
 
+        fn fail_apu_generator(&mut self, number: usize) {
+            self.apu.fail_generator(number);
+        }
+
         fn set_apu_master_sw_pb_on(&mut self) {
             self.apu_overhead.set_apu_master_sw_pb_on();
         }
@@ -4011,7 +4097,7 @@ mod a380_electrical_circuit_tests {
                 &TestAdirs::new(context.indicated_airspeed()),
             );
             self.overhead
-                .update_after_electrical(&self.elec, electricity);
+                .update_after_electrical(&self.elec, electricity, &self.apu);
             self.emergency_overhead
                 .update_after_electrical(context, &self.elec);
         }
@@ -4180,6 +4266,17 @@ mod a380_electrical_circuit_tests {
         fn failed_drive_disconnect(mut self, number: usize) -> Self {
             self.test_bed
                 .fail(FailureType::GeneratorDriveDisconnect(number));
+            self
+        }
+
+        fn failed_drive_oil_leak(mut self, number: usize) -> Self {
+            self.test_bed
+                .fail(FailureType::IntegratedDriveGeneratorOilLeak(number));
+            self
+        }
+
+        fn failed_apu_generator(mut self, number: usize) -> Self {
+            self.command(|a| a.fail_apu_generator(number));
             self
         }
 
@@ -4434,6 +4531,22 @@ mod a380_electrical_circuit_tests {
 
         fn drive_disc_fault(&mut self, number: usize) -> bool {
             self.read_by_name(&format!("ELEC_ENG_GEN_{number}_DRIVE_DISC_FAULT"))
+        }
+
+        fn drive_has_fault(&mut self, number: usize) -> bool {
+            self.read_by_name(&format!("OVHD_ELEC_IDG_{number}_PB_HAS_FAULT"))
+        }
+
+        fn drive_is_disconnected(&mut self, number: usize) -> bool {
+            self.read_by_name(&format!("OVHD_ELEC_IDG_{number}_PB_IS_DISC"))
+        }
+
+        fn drive_oil_low_pressure(&mut self, number: usize) -> bool {
+            self.read_by_name(&format!("ELEC_ENG_GEN_{number}_IDG_OIL_LOW_PRESSURE"))
+        }
+
+        fn apu_gen_has_fault(&mut self, number: usize) -> bool {
+            self.read_by_name(&format!("OVHD_ELEC_APU_GEN_{number}_PB_HAS_FAULT"))
         }
 
         fn ext_pwr_fault(&mut self, number: usize) -> bool {

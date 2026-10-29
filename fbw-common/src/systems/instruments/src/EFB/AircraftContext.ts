@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-//  Copyright (c) 2024 FlyByWire Simulations
+//  Copyright (c) 2024-2026 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 
 import { createContext } from 'react';
@@ -49,6 +49,7 @@ interface RealismOptions {
   eclSoftKeys: boolean;
   /** Keeping the MFD pilot stored elements from one sim session to the next (A380X) */
   keepPilotStoredElements: boolean;
+  fireTestExtend: boolean;
   /** The reply time of the company datalink requests of the FMS (A380X: F-PLN, wind and takeoff data) */
   companyDatalinkReplyTime: boolean;
 }
@@ -110,6 +111,7 @@ export const AircraftContext = createContext<AircraftEfbContext>({
       pilotAvatars: false,
       eclSoftKeys: false,
       keepPilotStoredElements: false,
+      fireTestExtend: false,
       companyDatalinkReplyTime: false,
     },
     sim: {

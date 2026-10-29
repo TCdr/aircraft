@@ -542,6 +542,19 @@ export const EcamAbnormalSensedAta27: { [n: number]: AbnormalProcedure } = {
     sensed: true,
     items: [],
   },
+  // TAIL STRIKE and TAIL STRIKE DET FAULT, see FwsTailStrikeAlerts. TAIL STRIKE shows LAND ANSA (LIMITATIONS ON ECAM,
+  // ALL PHASES); its other lines are crew guidance, not ECAM actions.
+  271800071: {
+    title: '\x1b<4mTAIL STRIKE',
+    recommendation: 'LAND ANSA',
+    sensed: true,
+    items: [],
+  },
+  271800072: {
+    title: '\x1b<4mTAIL STRIKE DET FAULT',
+    sensed: true,
+    items: [],
+  },
   // ATA 27: FLAPS/SLATS
   272800001: {
     title: '\x1b<2m\x1b4mCONFIG\x1bm SLATS NOT IN T.O CONFIG',

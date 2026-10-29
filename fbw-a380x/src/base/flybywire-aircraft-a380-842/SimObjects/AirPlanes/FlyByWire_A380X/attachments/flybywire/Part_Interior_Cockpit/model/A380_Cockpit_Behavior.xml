@@ -1863,29 +1863,32 @@
                         commercial%{else}Turn ON commercial%{end}</TOOLTIPID>
                 </UseTemplate>
 
+                <!-- COMMERCIAL 2 and ELMU have their own pbs (the ELMU pb-sw is a separate function). Their variables are
+                     "IS_OFF" so that the normal (pb in, no OFF light) state is the default 0. Nothing consumes them
+                     yet: they do not shed the commercial loads. -->
                 <UseTemplate Name="FBW_Push_Toggle">
                     <NODE_ID>PUSH_OVHD_ELEC_COMMERCIAL2</NODE_ID>
-                    <TOGGLE_SIMVAR>L:A32NX_OVHD_ELEC_COMMERCIAL_PB_IS_ON</TOGGLE_SIMVAR>
+                    <TOGGLE_SIMVAR>L:A380X_OVHD_ELEC_COMMERCIAL_2_PB_IS_OFF</TOGGLE_SIMVAR>
                     <SEQ_POWERED>(L:A32NX_ELEC_DC_2_BUS_IS_POWERED, Bool)</SEQ_POWERED>
-                    <SEQ2_CODE>(L:A32NX_OVHD_ELEC_COMMERCIAL_PB_IS_ON, Bool) !</SEQ2_CODE>
+                    <SEQ2_CODE>(L:A380X_OVHD_ELEC_COMMERCIAL_2_PB_IS_OFF, Bool)</SEQ2_CODE>
                     <SEQ1_EMISSIVE_DRIVES_VISIBILITY>False</SEQ1_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
                     <SEQ2_CODE_DRIVES_VISIBILITY>False</SEQ2_CODE_DRIVES_VISIBILITY>
-                    <TOOLTIPID>%((L:A32NX_OVHD_ELEC_COMMERCIAL_PB_IS_ON, Bool))%{if}Turn OFF
-                        commercial%{else}Turn ON commercial%{end}</TOOLTIPID>
+                    <TOOLTIPID>%((L:A380X_OVHD_ELEC_COMMERCIAL_2_PB_IS_OFF, Bool))%{if}Turn ON
+                        commercial 2%{else}Turn OFF commercial 2%{end}</TOOLTIPID>
                 </UseTemplate>
                 <UseTemplate Name="FBW_Push_Toggle">
                     <NODE_ID>PUSH_OVHD_ELEC_ELMU</NODE_ID>
-                    <TOGGLE_SIMVAR>L:A32NX_OVHD_ELEC_COMMERCIAL_PB_IS_ON</TOGGLE_SIMVAR>
+                    <TOGGLE_SIMVAR>L:A380X_OVHD_ELEC_ELMU_PB_IS_OFF</TOGGLE_SIMVAR>
                     <SEQ_POWERED>(L:A32NX_ELEC_DC_2_BUS_IS_POWERED, Bool)</SEQ_POWERED>
-                    <SEQ2_CODE>(L:A32NX_OVHD_ELEC_COMMERCIAL_PB_IS_ON, Bool) !</SEQ2_CODE>
+                    <SEQ2_CODE>(L:A380X_OVHD_ELEC_ELMU_PB_IS_OFF, Bool)</SEQ2_CODE>
                     <SEQ1_EMISSIVE_DRIVES_VISIBILITY>False</SEQ1_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
                     <SEQ2_CODE_DRIVES_VISIBILITY>False</SEQ2_CODE_DRIVES_VISIBILITY>
-                    <TOOLTIPID>%((L:A32NX_OVHD_ELEC_COMMERCIAL_PB_IS_ON, Bool))%{if}Turn OFF
-                        commercial%{else}Turn ON commercial%{end}</TOOLTIPID>
+                    <TOOLTIPID>%((L:A380X_OVHD_ELEC_ELMU_PB_IS_OFF, Bool))%{if}Turn ON
+                        ELMU%{else}Turn OFF ELMU%{end}</TOOLTIPID>
                 </UseTemplate>
 
                 <!-- ELEC GALLEY-->
@@ -2599,6 +2602,7 @@
                 <UseTemplate Name="FBW_Airbus_Fuel_Crossfeed">
                     <NODE_ID>PUSH_OVHD_FUEL_XFEED</NODE_ID>
                     <ID>46</ID>
+                    <PB_IS_ON_VAR>L:A380X_OVHD_FUEL_CROSSFEED_1_PB_IS_ON</PB_IS_ON_VAR>
                     <SEQ_POWERED>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool)</SEQ_POWERED>
                     <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
@@ -2609,6 +2613,7 @@
                 <UseTemplate Name="FBW_Airbus_Fuel_Crossfeed">
                     <NODE_ID>PUSH_OVHD_FUEL_XFEED2</NODE_ID>
                     <ID>47</ID>
+                    <PB_IS_ON_VAR>L:A380X_OVHD_FUEL_CROSSFEED_2_PB_IS_ON</PB_IS_ON_VAR>
                     <SEQ_POWERED>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool)</SEQ_POWERED>
                     <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
@@ -2619,6 +2624,7 @@
                 <UseTemplate Name="FBW_Airbus_Fuel_Crossfeed"> <!--- FIX FUEL VALVE -->
                     <NODE_ID>PUSH_OVHD_FUEL_XFEED3</NODE_ID>
                     <ID>48</ID>
+                    <PB_IS_ON_VAR>L:A380X_OVHD_FUEL_CROSSFEED_3_PB_IS_ON</PB_IS_ON_VAR>
                     <SEQ_POWERED>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool)</SEQ_POWERED>
                     <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
@@ -2629,6 +2635,7 @@
                 <UseTemplate Name="FBW_Airbus_Fuel_Crossfeed">
                     <NODE_ID>PUSH_OVHD_FUEL_XFEED4</NODE_ID>
                     <ID>49</ID>
+                    <PB_IS_ON_VAR>L:A380X_OVHD_FUEL_CROSSFEED_4_PB_IS_ON</PB_IS_ON_VAR>
                     <SEQ_POWERED>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool)</SEQ_POWERED>
                     <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
@@ -2642,11 +2649,14 @@
                     <NODE_ID>PUSH_OVHD_FUEL_OUTRTK_XFR</NODE_ID>
                     <LOCK_NODE_ID>LOCK_OVHD_FUEL_OUTRTK_XFR</LOCK_NODE_ID>
                     <TOGGLE_SIMVAR>L:A380X_OVHD_FUEL_OUTRTK_XFR_PB_IS_AUTO</TOGGLE_SIMVAR>
+                    <!-- AUTO (L:var 1): released, no light; MAN (L:var 0): pressed in, MAN light -->
+                    <DOWN_CODE>(L:A380X_OVHD_FUEL_OUTRTK_XFR_PB_IS_AUTO, Bool) !</DOWN_CODE>
                     <SEQ_POWERED>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool)</SEQ_POWERED>
+                    <SEQ2_CODE>(L:A380X_OVHD_FUEL_OUTRTK_XFR_PB_IS_AUTO, Bool) !</SEQ2_CODE>
                     <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
                     <SEQ2_CODE_DRIVES_VISIBILITY>False</SEQ2_CODE_DRIVES_VISIBILITY>
-                    <TOOLTIPID>%((L:A380X_OVHD_FUEL_OUTRTK_XFR_PB_IS_AUTO, Bool) !)%{if}TT:#COCKPIT.TOOLTIPS.FUEL_XFEED_TURN_ON#%{else}TT:#COCKPIT.TOOLTIPS.FUEL_XFEED_TURN_OFF#%{end}</TOOLTIPID>
+                    <TOOLTIPID>%((L:A380X_OVHD_FUEL_OUTRTK_XFR_PB_IS_AUTO, Bool))%{if}Set OUTR TK XFR to MAN%{else}Set OUTR TK XFR to AUTO%{end}</TOOLTIPID>
                 </UseTemplate>
 
                 <!-- MID TK XFR -->
@@ -2654,11 +2664,14 @@
                     <NODE_ID>PUSH_OVHD_FUEL_MIDTK_XFR</NODE_ID>
                     <LOCK_NODE_ID>LOCK_OVHD_FUEL_MIDTK_XFR</LOCK_NODE_ID>
                     <TOGGLE_SIMVAR>L:A380X_OVHD_FUEL_MIDTK_XFR_PB_IS_AUTO</TOGGLE_SIMVAR>
+                    <!-- AUTO (L:var 1): released, no light; MAN (L:var 0): pressed in, MAN light -->
+                    <DOWN_CODE>(L:A380X_OVHD_FUEL_MIDTK_XFR_PB_IS_AUTO, Bool) !</DOWN_CODE>
                     <SEQ_POWERED>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool)</SEQ_POWERED>
+                    <SEQ2_CODE>(L:A380X_OVHD_FUEL_MIDTK_XFR_PB_IS_AUTO, Bool) !</SEQ2_CODE>
                     <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
                     <SEQ2_CODE_DRIVES_VISIBILITY>False</SEQ2_CODE_DRIVES_VISIBILITY>
-                    <TOOLTIPID>%((L:A380X_OVHD_FUEL_MIDTK_XFR_PB_IS_AUTO, Bool) !)%{if}TT:#COCKPIT.TOOLTIPS.FUEL_XFEED_TURN_ON#%{else}TT:#COCKPIT.TOOLTIPS.FUEL_XFEED_TURN_OFF#%{end}</TOOLTIPID>
+                    <TOOLTIPID>%((L:A380X_OVHD_FUEL_MIDTK_XFR_PB_IS_AUTO, Bool))%{if}Set MID TK XFR to MAN%{else}Set MID TK XFR to AUTO%{end}</TOOLTIPID>
                 </UseTemplate>
 
                 <!-- INR TK XFR -->
@@ -2666,11 +2679,14 @@
                     <NODE_ID>PUSH_OVHD_FUEL_INRTK_XFR</NODE_ID>
                     <LOCK_NODE_ID>LOCK_OVHD_FUEL_INRTK_XFR</LOCK_NODE_ID>
                     <TOGGLE_SIMVAR>L:A380X_OVHD_FUEL_INRTK_XFR_PB_IS_AUTO</TOGGLE_SIMVAR>
+                    <!-- AUTO (L:var 1): released, no light; MAN (L:var 0): pressed in, MAN light -->
+                    <DOWN_CODE>(L:A380X_OVHD_FUEL_INRTK_XFR_PB_IS_AUTO, Bool) !</DOWN_CODE>
                     <SEQ_POWERED>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool)</SEQ_POWERED>
+                    <SEQ2_CODE>(L:A380X_OVHD_FUEL_INRTK_XFR_PB_IS_AUTO, Bool) !</SEQ2_CODE>
                     <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
                     <SEQ2_CODE_DRIVES_VISIBILITY>False</SEQ2_CODE_DRIVES_VISIBILITY>
-                    <TOOLTIPID>%((L:A380X_OVHD_FUEL_INRTK_XFR_PB_IS_AUTO, Bool) !)%{if}TT:#COCKPIT.TOOLTIPS.FUEL_XFEED_TURN_ON#%{else}TT:#COCKPIT.TOOLTIPS.FUEL_XFEED_TURN_OFF#%{end}</TOOLTIPID>
+                    <TOOLTIPID>%((L:A380X_OVHD_FUEL_INRTK_XFR_PB_IS_AUTO, Bool))%{if}Set INR TK XFR to MAN%{else}Set INR TK XFR to AUTO%{end}</TOOLTIPID>
                 </UseTemplate>
 
                 <!-- TRIM TK XFR -->
@@ -2678,11 +2694,14 @@
                     <NODE_ID>PUSH_OVHD_FUEL_TRIMTK_XFR</NODE_ID>
                     <LOCK_NODE_ID>LOCK_OVHD_FUEL_TRIMTK_XFR</LOCK_NODE_ID>
                     <TOGGLE_SIMVAR>L:A380X_OVHD_FUEL_TRIMTK_XFR_PB_IS_AUTO</TOGGLE_SIMVAR>
+                    <!-- AUTO (L:var 1): released, no light; FWD (L:var 0): pressed in, FWD light -->
+                    <DOWN_CODE>(L:A380X_OVHD_FUEL_TRIMTK_XFR_PB_IS_AUTO, Bool) !</DOWN_CODE>
                     <SEQ_POWERED>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool)</SEQ_POWERED>
+                    <SEQ2_CODE>(L:A380X_OVHD_FUEL_TRIMTK_XFR_PB_IS_AUTO, Bool) !</SEQ2_CODE>
                     <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
                     <SEQ2_CODE_DRIVES_VISIBILITY>False</SEQ2_CODE_DRIVES_VISIBILITY>
-                    <TOOLTIPID>%((L:A380X_OVHD_FUEL_TRIMTK_XFR_PB_IS_AUTO, Bool) !)%{if}TT:#COCKPIT.TOOLTIPS.FUEL_XFEED_TURN_ON#%{else}TT:#COCKPIT.TOOLTIPS.FUEL_XFEED_TURN_OFF#%{end}</TOOLTIPID>
+                    <TOOLTIPID>%((L:A380X_OVHD_FUEL_TRIMTK_XFR_PB_IS_AUTO, Bool))%{if}Set TRIM TK XFR to FWD%{else}Set TRIM TK XFR to AUTO%{end}</TOOLTIPID>
                 </UseTemplate>
 
                 <!-- FEED TK1 -->
@@ -2690,6 +2709,7 @@
                     <NODE_ID>PUSH_OVHD_FUEL_FEEDTK1_MAIN</NODE_ID>
                     <PART_ID>OVHD_FUEL_LFEEDTK1_MAIN</PART_ID>
                     <CIRCUIT_ID>2</CIRCUIT_ID>
+                    <LO_PR_VAR>L:A380X_FUEL_FEED_TK_1_MAIN_PMP_LO_PR</LO_PR_VAR>
                     <SEQ_POWERED>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool)</SEQ_POWERED>
                     <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
@@ -2701,6 +2721,7 @@
                     <NODE_ID>PUSH_OVHD_FUEL_FEEDTK1_STBY</NODE_ID>
                     <PART_ID>OVHD_FUEL_FEEDTK1_STBY</PART_ID>
                     <CIRCUIT_ID>3</CIRCUIT_ID>
+                    <LO_PR_VAR>L:A380X_FUEL_FEED_TK_1_STBY_PMP_LO_PR</LO_PR_VAR>
                     <SEQ_POWERED>(L:A32NX_ELEC_AC_2_BUS_IS_POWERED, Bool)</SEQ_POWERED>
                     <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
@@ -2714,6 +2735,7 @@
                     <NODE_ID>PUSH_OVHD_FUEL_FEEDTK2_MAIN</NODE_ID>
                     <PART_ID>OVHD_FUEL_FEEDTK2_MAIN</PART_ID>
                     <CIRCUIT_ID>64</CIRCUIT_ID>
+                    <LO_PR_VAR>L:A380X_FUEL_FEED_TK_2_MAIN_PMP_LO_PR</LO_PR_VAR>
                     <SEQ_POWERED>(L:A32NX_ELEC_AC_2_BUS_IS_POWERED, Bool)</SEQ_POWERED>
                     <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
@@ -2725,6 +2747,7 @@
                     <NODE_ID>PUSH_OVHD_FUEL_FEEDTK2_STBY</NODE_ID>
                     <PART_ID>OVHD_FUEL_PFEDTK2_STBY</PART_ID>
                     <CIRCUIT_ID>65</CIRCUIT_ID>
+                    <LO_PR_VAR>L:A380X_FUEL_FEED_TK_2_STBY_PMP_LO_PR</LO_PR_VAR>
                     <SEQ_POWERED>(L:A32NX_ELEC_AC_1_BUS_IS_POWERED, Bool)</SEQ_POWERED>
                     <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
@@ -2738,6 +2761,7 @@
                     <NODE_ID>PUSH_OVHD_FUEL_FEEDTK3_MAIN</NODE_ID>
                     <PART_ID>OVHD_FUEL_FEEDTK3_MAIN</PART_ID>
                     <CIRCUIT_ID>66</CIRCUIT_ID>
+                    <LO_PR_VAR>L:A380X_FUEL_FEED_TK_3_MAIN_PMP_LO_PR</LO_PR_VAR>
                     <SEQ_POWERED>(L:A32NX_ELEC_AC_2_BUS_IS_POWERED, Bool)</SEQ_POWERED>
                     <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
@@ -2749,6 +2773,7 @@
                     <NODE_ID>PUSH_OVHD_FUEL_FEEDTK3_STBY</NODE_ID>
                     <PART_ID>OVHD_FUEL_PFEDTK3_STBY</PART_ID>
                     <CIRCUIT_ID>67</CIRCUIT_ID>
+                    <LO_PR_VAR>L:A380X_FUEL_FEED_TK_3_STBY_PMP_LO_PR</LO_PR_VAR>
                     <SEQ_POWERED>(L:A32NX_ELEC_AC_1_BUS_IS_POWERED, Bool)</SEQ_POWERED>
                     <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
@@ -2762,6 +2787,7 @@
                     <NODE_ID>PUSH_OVHD_FUEL_FEEDTK4_MAIN</NODE_ID>
                     <PART_ID>OVHD_FUEL_FEEDTK4_MAIN</PART_ID>
                     <CIRCUIT_ID>68</CIRCUIT_ID>
+                    <LO_PR_VAR>L:A380X_FUEL_FEED_TK_4_MAIN_PMP_LO_PR</LO_PR_VAR>
                     <SEQ_POWERED>(L:A32NX_ELEC_AC_2_BUS_IS_POWERED, Bool)</SEQ_POWERED>
                     <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
@@ -2773,6 +2799,7 @@
                     <NODE_ID>PUSH_OVHD_FUEL_FEEDTK4_STBY</NODE_ID>
                     <PART_ID>OVHD_FUEL_PFEDTK4_STBY</PART_ID>
                     <CIRCUIT_ID>69</CIRCUIT_ID>
+                    <LO_PR_VAR>L:A380X_FUEL_FEED_TK_4_STBY_PMP_LO_PR</LO_PR_VAR>
                     <SEQ_POWERED>(L:A32NX_ELEC_AC_1_BUS_IS_POWERED, Bool)</SEQ_POWERED>
                     <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
@@ -2786,6 +2813,7 @@
                     <NODE_ID>PUSH_OVHD_FUEL_LOUTR_PMP</NODE_ID>
                     <PART_ID>OVHD_FUEL_LOUTR_PMP</PART_ID>
                     <CIRCUIT_ID>70</CIRCUIT_ID>
+                    <LO_PR_VAR>L:A380X_FUEL_L_OUTR_TK_PMP_FAULT</LO_PR_VAR>
                     <SEQ_POWERED>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool)</SEQ_POWERED>
                     <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
@@ -2801,6 +2829,7 @@
                     <OFF_TOOLTIP>COCKPIT.TOOLTIPS.ENG_2_R_TK_PUMP2_OFF</OFF_TOOLTIP>
                     <ON_TOOLTIP>COCKPIT.TOOLTIPS.ENG_2_R_TK_PUMP2_ON</ON_TOOLTIP>
                     <CIRCUIT_ID>71</CIRCUIT_ID>
+                    <LO_PR_VAR>L:A380X_FUEL_L_MID_TK_FWD_PMP_FAULT</LO_PR_VAR>
                     <SEQ_POWERED>(L:A32NX_ELEC_AC_2_BUS_IS_POWERED, Bool)</SEQ_POWERED>
                     <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
@@ -2825,6 +2854,7 @@
                     <OFF_TOOLTIP>COCKPIT.TOOLTIPS.ENG_2_R_TK_PUMP2_OFF</OFF_TOOLTIP>
                     <ON_TOOLTIP>COCKPIT.TOOLTIPS.ENG_2_R_TK_PUMP2_ON</ON_TOOLTIP>
                     <CIRCUIT_ID>73</CIRCUIT_ID>
+                    <LO_PR_VAR>L:A380X_FUEL_L_INR_TK_FWD_PMP_FAULT</LO_PR_VAR>
                     <SEQ_POWERED>(L:A32NX_ELEC_AC_2_BUS_IS_POWERED, Bool)</SEQ_POWERED>
                     <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
@@ -2849,6 +2879,7 @@
                     <OFF_TOOLTIP>COCKPIT.TOOLTIPS.ENG_2_R_TK_PUMP2_OFF</OFF_TOOLTIP>
                     <ON_TOOLTIP>COCKPIT.TOOLTIPS.ENG_2_R_TK_PUMP2_ON</ON_TOOLTIP>
                     <CIRCUIT_ID>78</CIRCUIT_ID>
+                    <LO_PR_VAR>L:A380X_FUEL_R_INR_TK_FWD_PMP_FAULT</LO_PR_VAR>
                     <SEQ_POWERED>(L:A32NX_ELEC_AC_2_BUS_IS_POWERED, Bool)</SEQ_POWERED>
                     <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
@@ -2873,6 +2904,7 @@
                     <OFF_TOOLTIP>COCKPIT.TOOLTIPS.ENG_2_R_TK_PUMP2_OFF</OFF_TOOLTIP>
                     <ON_TOOLTIP>COCKPIT.TOOLTIPS.ENG_2_R_TK_PUMP2_ON</ON_TOOLTIP>
                     <CIRCUIT_ID>76</CIRCUIT_ID>
+                    <LO_PR_VAR>L:A380X_FUEL_R_MID_TK_FWD_PMP_FAULT</LO_PR_VAR>
                     <SEQ_POWERED>(L:A32NX_ELEC_AC_2_BUS_IS_POWERED, Bool)</SEQ_POWERED>
                     <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
@@ -2895,6 +2927,7 @@
                     <NODE_ID>PUSH_OVHD_FUEL_ROUTR_PMP</NODE_ID>
                     <PART_ID>OVHD_FUEL_ROUTR_PMP</PART_ID>
                     <CIRCUIT_ID>75</CIRCUIT_ID>
+                    <LO_PR_VAR>L:A380X_FUEL_R_OUTR_TK_PMP_FAULT</LO_PR_VAR>
                     <SEQ_POWERED>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool)</SEQ_POWERED>
                     <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
@@ -2910,6 +2943,7 @@
                     <OFF_TOOLTIP>COCKPIT.TOOLTIPS.ENG_2_R_TK_PUMP2_OFF</OFF_TOOLTIP>
                     <ON_TOOLTIP>COCKPIT.TOOLTIPS.ENG_2_R_TK_PUMP2_ON</ON_TOOLTIP>
                     <CIRCUIT_ID>80</CIRCUIT_ID>
+                    <LO_PR_VAR>L:A380X_FUEL_TRIM_TK_L_PMP_FAULT</LO_PR_VAR>
                     <SEQ_POWERED>(L:A32NX_ELEC_AC_2_BUS_IS_POWERED, Bool)</SEQ_POWERED>
                     <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
@@ -2921,6 +2955,7 @@
                     <OFF_TOOLTIP>COCKPIT.TOOLTIPS.ENG_2_R_TK_PUMP2_OFF</OFF_TOOLTIP>
                     <ON_TOOLTIP>COCKPIT.TOOLTIPS.ENG_2_R_TK_PUMP2_ON</ON_TOOLTIP>
                     <CIRCUIT_ID>81</CIRCUIT_ID>
+                    <LO_PR_VAR>L:A380X_FUEL_TRIM_TK_R_PMP_FAULT</LO_PR_VAR>
                     <SEQ_POWERED>(L:A32NX_ELEC_AC_2_BUS_IS_POWERED, Bool)</SEQ_POWERED>
                     <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                     <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
@@ -3701,12 +3736,13 @@
 
                         <!-- VENTILATION -->
                         <Component ID="Ventilation">
-                            <!-- VENT AVNCS SMOKE -->
+                            <!-- VENT AVNCS SMOKE: also on while the CARGO SMOKE TEST pb is pressed (A380 FCOM
+                                 DSC-26-50-20 AVNCS light and DSC-26-60-20 Test pb, a380_fcom.txt l.53667-53674, 53973) -->
                             <UseTemplate Name="FBW_Push_Toggle">
                                 <NODE_ID>PUSH_OVHD_VENTILATION_SMOKE</NODE_ID>
                                 <TOGGLE_SIMVAR>L:A32NX_VENTILATION_BLOWER_TOGGLE</TOGGLE_SIMVAR>
                                 <SEQ_POWERED>(L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED, Bool)</SEQ_POWERED>
-                                <SEQ1_CODE>(L:A32NX_VENTILATION_BLOWER_FAULT, Bool)</SEQ1_CODE>
+                                <SEQ1_CODE>(L:A32NX_VENTILATION_BLOWER_FAULT, Bool) (L:A32NX_FIRE_TEST_CARGO, Bool) or</SEQ1_CODE>
                                 <SEQ2_CODE>(L:A32NX_VENTILATION_BLOWER_TOGGLE, Bool) !</SEQ2_CODE>
                                 <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
                                 <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>

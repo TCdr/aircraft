@@ -1,6 +1,7 @@
 import { useSimVar } from '@instruments/common/simVars';
 import React, { FC } from 'react';
 import { Triangle } from '@instruments/common/Shapes';
+import { isRatIndicationAmber } from '../ElecFailureStates';
 
 const EMER_GEN_VOLTAGE_NORMAL_RANGE_LOWER = 110;
 const EMER_GEN_VOLTAGE_NORMAL_RANGE_UPPER = 120;
@@ -24,10 +25,16 @@ export const EmergencyGenerator: FC<EmergencyGeneratorProps> = ({ x, y }) => {
   const ratOut = ratPosition > 0.9;
 
   const showRatIndication = emerGenCtorClosed || ratOut;
+  const [ratFault] = useSimVar('L:A32NX_ELEC_RAT_FAULT', 'bool', 500);
+  const ratAmber = isRatIndicationAmber(!!ratFault);
 
   return (
     <g id="emer-gen-indication" transform={`translate(${x} ${y})`}>
-      <text x={showRatIndication ? -85 : -69} y={showRatIndication ? -18 : 10} className="F25 White LS1">
+      <text
+        x={showRatIndication ? -85 : -69}
+        y={showRatIndication ? -18 : 10}
+        className={`F25 ${ratAmber ? 'Amber' : 'White'} LS1`}
+      >
         RAT
       </text>
 

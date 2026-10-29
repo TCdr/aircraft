@@ -12,7 +12,13 @@ import { AdirsValueProvider } from './shared/AdirsValueProvider';
 import { ArincValueProvider } from './shared/ArincValueProvider';
 import { PFDSimvarPublisher } from './shared/PFDSimvarPublisher';
 import { FcuEfisCpBusPublisher } from '@shared/publishers/EfisCpBusPublisher';
-import { FwcPublisher, RopRowOansPublisher, SecPublisher, TawsPublisher } from '@flybywiresim/msfs-avionics-common';
+import {
+  FwcPublisher,
+  ReactiveWindshearPublisher,
+  RopRowOansPublisher,
+  SecPublisher,
+  TawsPublisher,
+} from '@flybywiresim/msfs-avionics-common';
 import { FwsPfdSimvarPublisher } from '../MsfsAvionicsCommon/providers/FwsPfdPublisher';
 import { FcdcBusPublisher } from '@shared/publishers/FcdcPublisher';
 import { FcdcChoiceProvider } from './shared/FcdcChoiceProvider';
@@ -57,6 +63,8 @@ class A380X_PFD extends BaseInstrument {
   private readonly fwsPublisher = new FwcPublisher(this.bus);
 
   private readonly ropRowOansPublisher = new RopRowOansPublisher(this.bus);
+
+  private readonly reactiveWindshearPublisher = new ReactiveWindshearPublisher(this.bus);
 
   private readonly secPublisher = new SecPublisher(this.bus);
 
@@ -105,6 +113,7 @@ class A380X_PFD extends BaseInstrument {
     this.backplane.addPublisher('FmsDataPublisher', this.fmsDataPublisher);
     this.backplane.addPublisher('FwsPublisher', this.fwsPublisher);
     this.backplane.addPublisher('RopRowOansPublisher', this.ropRowOansPublisher);
+    this.backplane.addPublisher('ReactiveWindshearPublisher', this.reactiveWindshearPublisher);
     this.backplane.addPublisher('SecPublisher', this.secPublisher);
     this.backplane.addPublisher('TawsPublisher', this.tawsPublisher);
     this.backplane.addPublisher('FwsPfdPublisher', this.fwsPfdPublisher);

@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { EcamMemos } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { COMPANY_MSG_INHIBITED_FLIGHT_PHASES } from './FwsCompanyMessageAural';
 import {
   MappedSubject,
   MappedSubscribable,
@@ -39,6 +40,15 @@ export class FwsMemos {
       codesToReturn: ['210000001'],
       memoInhibit: () => false,
     },
+    '210000002': {
+      // RAM AIR: the emergency RAM air inlets are open, green on ground with no engine running, amber in all other
+      // cases (CabPressAlerts ramAirMemoIndex)
+      flightPhaseInhib: [],
+      simVarIsActive: this.fws.ramAirInletsOpen,
+      whichCodeToReturn: () => [this.fws.ramAirMemoIndex.get()],
+      codesToReturn: ['210000002', '210000003'],
+      memoInhibit: () => false,
+    },
     271000001: {
       // GND SPLRs ARMED
       flightPhaseInhib: [],
@@ -61,6 +71,38 @@ export class FwsMemos {
       simVarIsActive: this.fws.defuelInProgress,
       whichCodeToReturn: () => [0],
       codesToReturn: ['280000003'],
+      memoInhibit: () => false,
+    },
+    280000004: {
+      // FWD XFR IN PROGRESS
+      flightPhaseInhib: [],
+      simVarIsActive: this.fws.fwdXfrInProgress,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['280000004'],
+      memoInhibit: () => false,
+    },
+    280000007: {
+      // OUTR TK XFR IN PROG
+      flightPhaseInhib: [],
+      simVarIsActive: this.fws.outerTankXfrInProgress,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['280000007'],
+      memoInhibit: () => false,
+    },
+    280000008: {
+      // OUTR TKs XFRD: flight phase 8 only
+      flightPhaseInhib: [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12],
+      simVarIsActive: this.fws.outerTanksXfrd,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['280000008'],
+      memoInhibit: () => false,
+    },
+    280000012: {
+      // TRIM TK XFRD: flight phase 8 only
+      flightPhaseInhib: [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12],
+      simVarIsActive: this.fws.trimTankXfrd,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['280000012'],
       memoInhibit: () => false,
     },
     280000009: {
@@ -119,6 +161,22 @@ export class FwsMemos {
       ),
       whichCodeToReturn: () => [0],
       codesToReturn: ['300000003'],
+      memoInhibit: () => false,
+    },
+    '310000002': {
+      // EMERGENCY CANCEL ON: EMER CANC pb pressed with nothing to cancel
+      flightPhaseInhib: [],
+      simVarIsActive: this.fws.emergencyCancelOnMemo,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['310000002'],
+      memoInhibit: () => false,
+    },
+    '000000001': {
+      // NORMAL: RCL pb pressed with no alert to recall, for 3 s (FwsRecall.ts)
+      flightPhaseInhib: [],
+      simVarIsActive: this.fws.recallNormalMemo,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['000000001'],
       memoInhibit: () => false,
     },
     '0000170': {
@@ -225,6 +283,14 @@ export class FwsMemos {
       codesToReturn: ['230000003'],
       memoInhibit: () => false,
     },
+    '230000008': {
+      // PA IN USE: the PA transmission key of an RMP is on (CommunicationAlerts isPaInUse); no flight phase inhibition
+      flightPhaseInhib: [],
+      simVarIsActive: this.fws.paInUse,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['230000008'],
+      memoInhibit: () => false,
+    },
     '230000009': {
       // RMP 1+2+3 OFF
       flightPhaseInhib: [],
@@ -283,6 +349,15 @@ export class FwsMemos {
       simVarIsActive: this.fws.voiceVhf3,
       whichCodeToReturn: () => [0],
       codesToReturn: ['230000015'],
+      memoInhibit: () => false,
+    },
+    '230000016': {
+      // EVAC ACTIVE: the flight crew orders an evacuation with the EVAC COMMAND pb-sw, which shows EVAC ACTIVE on the
+      // ECAM. The Chief Purser order (CAPT & PURS) is not simulated.
+      flightPhaseInhib: [],
+      simVarIsActive: this.fws.evacCommandOn,
+      whichCodeToReturn: () => [0],
+      codesToReturn: ['230000016'],
       memoInhibit: () => false,
     },
 
@@ -627,16 +702,16 @@ export class FwsMemos {
     },
     '460000001': {
       // COMPANY MSG
-      flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
+      flightPhaseInhib: [...COMPANY_MSG_INHIBITED_FLIGHT_PHASES],
       simVarIsActive: this.fws.compMesgCount.map((c) => c > 0),
       whichCodeToReturn: () => [0],
       codesToReturn: ['460000001'],
       memoInhibit: () => false,
     },
     '709000001': {
-      // IGNITION
+      // IGNITION: manual (ENG START selector IGN START) or automatic (FADEC A + B) continuous ignition
       flightPhaseInhib: [],
-      simVarIsActive: this.fws.engSelectorPosition.map((v) => v === 2),
+      simVarIsActive: this.fws.ignitionMemo,
       whichCodeToReturn: () => [0],
       codesToReturn: ['709000001'],
       memoInhibit: () => false,

@@ -46,7 +46,7 @@ use self::{
     local_controllers::{
         full_digital_agu_controller::FullDigitalAGUController,
         outflow_valve_control_module::{OcsmShared, OutflowValveControlModule},
-        trim_air_drive_device::{TaddShared, TrimAirDriveDevice},
+        trim_air_drive_device::{hot_air_valve_feeding_zone, TaddShared, TrimAirDriveDevice},
         ventilation_control_module::VentilationControlModule,
     },
 };
@@ -165,6 +165,11 @@ impl A380AirConditioning {
         // This is here due to the ADIRS updating at a different rate than the pressurization system
         self.update_pressurization_ambient_conditions(context, adirs);
 
+        // Doors closed status of the outflow valve controllers: every passenger door and both cargo doors
+        let any_door_not_closed = self.a380_cabin.number_of_open_doors() > 0
+            || !cargo_door_open.fwd_cargo_door_locked()
+            || !cargo_door_open.aft_cargo_door_locked();
+
         for cur_time_step in self.pressurization_updater {
             self.a380_cabin.update(
                 &context.with_delta(cur_time_step),
@@ -182,6 +187,7 @@ impl A380AirConditioning {
                     self.a380_pressurization_system
                         .outflow_valve_control_module(),
                     pressurization_overhead,
+                    any_door_not_closed,
                 )
             });
             self.a380_pressurization_system.update(
@@ -244,29 +250,26 @@ impl SimulationElement for A380AirConditioning {
 }
 
 struct A380Cabin {
-    fwd_door_id: VariableIdentifier,
-    rear_door_id: VariableIdentifier,
-
-    fwd_door_is_open: bool,
-    rear_door_is_open: bool,
+    passenger_door_ids: [VariableIdentifier; A380Cabin::PASSENGER_DOORS],
+    passenger_door_is_open: [bool; A380Cabin::PASSENGER_DOORS],
     number_of_passengers: [u8; 18],
     cabin_air_simulation: CabinAirSimulation<A380PressurizationConstants, 18>,
 }
 
 impl A380Cabin {
-    const FWD_DOOR: &'static str = "INTERACTIVE POINT OPEN:0";
-    const REAR_DOOR: &'static str = "INTERACTIVE POINT OPEN:3";
+    /// The passenger doors are the sim interactive points 0 to 15 (flight_model.cfg [INTERACTIVE POINTS]): 0-9 main
+    /// deck M1L, M1R ... M5L, M5R and 10-15 upper deck U1L, U1R ... U3L, U3R, as on the DOOR/OXY SD page
+    const PASSENGER_DOORS: usize = 16;
 
     fn new(context: &mut InitContext, cabin_zones: &[ZoneType; 18]) -> Self {
         let mut number_of_passengers: [u8; 18] = [0; 18];
         number_of_passengers[0] = 2;
 
         Self {
-            fwd_door_id: context.get_identifier(Self::FWD_DOOR.to_owned()),
-            rear_door_id: context.get_identifier(Self::REAR_DOOR.to_owned()),
-
-            fwd_door_is_open: false,
-            rear_door_is_open: false,
+            passenger_door_ids: std::array::from_fn(|point| {
+                context.get_identifier(format!("INTERACTIVE POINT OPEN:{}", point))
+            }),
+            passenger_door_is_open: [false; Self::PASSENGER_DOORS],
             number_of_passengers,
             cabin_air_simulation: CabinAirSimulation::new(context, cabin_zones),
         }
@@ -299,7 +302,10 @@ impl A380Cabin {
     }
 
     fn number_of_open_doors(&self) -> u8 {
-        self.fwd_door_is_open as u8 + self.rear_door_is_open as u8
+        self.passenger_door_is_open
+            .iter()
+            .filter(|&&is_open| is_open)
+            .count() as u8
     }
 
     fn update_number_of_passengers(&mut self, number_of_passengers: &impl NumberOfPassengers) {
@@ -355,10 +361,14 @@ impl CabinSimulation for A380Cabin {
 
 impl SimulationElement for A380Cabin {
     fn read(&mut self, reader: &mut SimulatorReader) {
-        let rear_door_read: Ratio = reader.read(&self.rear_door_id);
-        self.rear_door_is_open = rear_door_read > Ratio::default();
-        let fwd_door_read: Ratio = reader.read(&self.fwd_door_id);
-        self.fwd_door_is_open = fwd_door_read > Ratio::default();
+        for (is_open, id) in self
+            .passenger_door_is_open
+            .iter_mut()
+            .zip(&self.passenger_door_ids)
+        {
+            let open_amount: Ratio = reader.read(id);
+            *is_open = open_amount > Ratio::default();
+        }
     }
 
     fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
@@ -416,6 +426,7 @@ impl A380AirConditioningSystem {
                     ElectricalBusType::AlternatingCurrent(2), // 117XP
                     ElectricalBusType::AlternatingCurrent(4), // 206XP
                 ],
+                cabin_zones,
             ),
             vcm: [
                 VentilationControlModule::new(
@@ -462,7 +473,8 @@ impl A380AirConditioningSystem {
                 &[1, 2],
                 Volume::new::<cubic_meter>(7.),
                 Volume::new::<cubic_meter>(0.2),
-            ),
+            )
+            .with_hot_air_valve_per_zone(cabin_zones.map(hot_air_valve_feeding_zone)),
 
             air_conditioning_overhead: A380AirConditioningSystemOverhead::new(context),
         }
@@ -640,6 +652,12 @@ impl A380AirConditioningSystem {
 
         self.air_conditioning_overhead
             .set_cargo_heater_fault(self.vcm[1].cargo_heater_has_failed());
+
+        self.air_conditioning_overhead
+            .set_hot_air_pushbutton_fault([
+                self.tadd.hot_air_pushbutton_has_fault(1),
+                self.tadd.hot_air_pushbutton_has_fault(2),
+            ]);
     }
 
     fn pack_fault_determination(&self) -> [bool; 2] {
@@ -748,6 +766,12 @@ impl TaddShared for A380AirConditioningSystem {
     fn trim_air_pressure_regulating_valve_is_open(&self, taprv_id: usize) -> bool {
         self.tadd
             .trim_air_pressure_regulating_valve_is_open(taprv_id)
+    }
+    fn duct_overheat(&self, zone_index: usize) -> bool {
+        self.tadd.duct_overheat(zone_index)
+    }
+    fn trim_air_valve_fault(&self, zone_index: usize) -> bool {
+        self.tadd.trim_air_valve_fault(zone_index)
     }
 }
 
@@ -875,6 +899,13 @@ impl A380AirConditioningSystemOverhead {
 
     fn set_cargo_heater_fault(&mut self, cargo_heater_fault: bool) {
         self.cargo_heater_pb.set_fault(cargo_heater_fault);
+    }
+
+    fn set_hot_air_pushbutton_fault(&mut self, pb_has_fault: [bool; 2]) {
+        self.hot_air_pbs
+            .iter_mut()
+            .zip(pb_has_fault)
+            .for_each(|(pushbutton, fault)| pushbutton.set_fault(fault));
     }
 }
 
@@ -1116,7 +1147,8 @@ impl PressurizationConstants for A380PressurizationConstants {
 
     const MAX_CLIMB_RATE: f64 = 1000.; // fpm
     const MAX_CLIMB_RATE_IN_DESCENT: f64 = 500.; // fpm
-    const MAX_DESCENT_RATE: f64 = -350.; // fpm
+                                                 // The cabin descent rate is limited to 300 ft/min.
+    const MAX_DESCENT_RATE: f64 = -300.; // fpm
     const MAX_ABORT_DESCENT_RATE: f64 = -500.; //fpm
     const MAX_TAKEOFF_DELTA_P: f64 = 0.1; // PSI
     const MAX_CLIMB_DELTA_P: f64 = 8.6; // PSI
@@ -1240,6 +1272,7 @@ mod tests {
         baro_correction: Pressure,
         baro_correction_ssm: SignStatus,
         ambient_pressure: Pressure,
+        ambient_pressure_ssm: SignStatus,
     }
     impl TestAdirs {
         fn new() -> Self {
@@ -1249,6 +1282,7 @@ mod tests {
                 baro_correction: Pressure::new::<hectopascal>(1013.25),
                 baro_correction_ssm: SignStatus::NormalOperation,
                 ambient_pressure: Pressure::new::<hectopascal>(1013.25),
+                ambient_pressure_ssm: SignStatus::NormalOperation,
             }
         }
         fn set_true_airspeed(&mut self, airspeed: Velocity) {
@@ -1267,6 +1301,13 @@ mod tests {
         fn set_ambient_pressure(&mut self, pressure: Pressure) {
             self.ambient_pressure = pressure;
         }
+        fn set_ambient_pressure_fault(&mut self, fault: bool) {
+            self.ambient_pressure_ssm = if fault {
+                SignStatus::FailureWarning
+            } else {
+                SignStatus::NormalOperation
+            }
+        }
     }
     impl AdirsToAirCondInterface for TestAdirs {
         fn ground_speed(&self, _adiru_number: usize) -> Arinc429Word<Velocity> {
@@ -1279,7 +1320,7 @@ mod tests {
             Arinc429Word::new(self.baro_correction, self.baro_correction_ssm)
         }
         fn ambient_static_pressure(&self, _adiru_number: usize) -> Arinc429Word<Pressure> {
-            Arinc429Word::new(self.ambient_pressure, SignStatus::NormalOperation)
+            Arinc429Word::new(self.ambient_pressure, self.ambient_pressure_ssm)
         }
     }
 
@@ -2202,6 +2243,8 @@ mod tests {
             test_bed.set_ambient_temperature(ThermodynamicTemperature::new::<degree_celsius>(24.));
             test_bed.command_pack_flow_selector_position(0);
             test_bed.command_engine_n1(Ratio::new::<percent>(30.));
+            // The FMS sends the landing elevation of a sea level destination
+            test_bed.command_fm_landing_elevation(Length::default(), SignStatus::NormalOperation);
 
             test_bed
         }
@@ -2592,6 +2635,15 @@ mod tests {
             self
         }
 
+        /// Opens or closes the passenger door of a sim interactive point (0-9 main deck, 10-15 upper deck)
+        fn command_door_at_point(mut self, point: usize, open: bool) -> Self {
+            self.write_by_name(
+                &format!("INTERACTIVE POINT OPEN:{}", point),
+                Ratio::new::<percent>(if open { 100. } else { 0. }),
+            );
+            self
+        }
+
         fn command_nav_cruise_altitude(mut self, target_altitude: Length) -> Self {
             self.write_by_name("FMA_LATERAL_MODE", 20);
             self.write_by_name("AIRLINER_CRUISE_ALTITUDE", target_altitude.get::<foot>());
@@ -2635,6 +2687,25 @@ mod tests {
         fn command_altimeter_setting_fault(mut self, fault: bool) -> Self {
             self.command(|a| a.adirs.set_baro_correction_fault(fault));
             self
+        }
+
+        fn command_ambient_pressure_fault(mut self, fault: bool) -> Self {
+            self.command(|a| a.adirs.set_ambient_pressure_fault(fault));
+            self
+        }
+
+        fn command_fm_landing_elevation(&mut self, elevation: Length, ssm: SignStatus) {
+            self.write_arinc429_by_name("FM1_LANDING_ELEVATION", elevation, ssm);
+        }
+
+        fn fm_landing_elevation_lost(mut self) -> Self {
+            self.command_fm_landing_elevation(Length::default(), SignStatus::NoComputedData);
+            self
+        }
+
+        fn cpcs_discrete_word_bit(&mut self, bit: u8) -> bool {
+            let word: Arinc429Word<u32> = self.read_by_name("COND_CPIOM_B1_CPCS_DISCRETE_WORD");
+            word.get_bit(bit)
         }
 
         fn command_on_ground(&mut self, on_ground: bool) {
@@ -2831,6 +2902,10 @@ mod tests {
                 .value()
         }
 
+        fn cabin_delta_pressure_word(&mut self) -> Arinc429Word<Pressure> {
+            self.read_arinc429_by_name("PRESS_CABIN_DELTA_PRESSURE_B1")
+        }
+
         fn cabin_target_vertical_speed(&mut self) -> Velocity {
             Velocity::new::<foot_per_minute>(
                 self.read_arinc429_by_name("PRESS_CABIN_VS_TARGET_B1")
@@ -2881,6 +2956,32 @@ mod tests {
                     .trim_air_system
                     .trim_air_valves_open_amount()[1]
             })
+        }
+
+        fn trim_air_valve_open_amount_in_zone(&self, zone_index: usize) -> Ratio {
+            self.query(|a| {
+                a.a380_cabin_air
+                    .a380_air_conditioning_system
+                    .trim_air_system
+                    .trim_air_valves_open_amount()[zone_index]
+            })
+        }
+
+        fn duct_overheat_in_zone(&mut self, zone: ZoneType) -> bool {
+            self.read_by_name(&format!("COND_{}_DUCT_OVHT", zone))
+        }
+
+        fn trim_air_valve_fault_in_zone(&mut self, zone: ZoneType) -> bool {
+            self.read_by_name(&format!("COND_{}_TRIM_AIR_VALVE_FAULT", zone))
+        }
+
+        fn hot_air_pb_has_fault(&mut self, pb_id: usize) -> bool {
+            self.read_by_name(&format!("OVHD_COND_HOT_AIR_{}_PB_HAS_FAULT", pb_id))
+        }
+
+        fn tcs_discrete_word_bit(&mut self, bit: u8) -> bool {
+            let word: Arinc429Word<u32> = self.read_by_name("COND_CPIOM_B1_TCS_DISCRETE_WORD");
+            word.get_bit(bit)
         }
 
         fn hot_air_is_enabled(&self) -> bool {
@@ -3006,6 +3107,36 @@ mod tests {
 
     mod a380_pressurization_tests {
         use super::*;
+
+        #[test]
+        fn no_residual_diff_pressure_when_the_adirs_ambient_pressure_comes_on_a_high_pressure_day()
+        {
+            // The ADIRUs need AC power: in a cold and dark aircraft their ambient pressure arrives only when EXT PWR
+            // comes on, after the outflow valve controllers and the CPCS have started
+            let high_pressure_day = Pressure::new::<hectopascal>(1030.);
+            let mut test_bed = test_bed()
+                .command_ambient_pressure_fault(true)
+                .on_ground()
+                .ambient_pressure_of(high_pressure_day)
+                .command_packs_on_off(false)
+                .iterate(20);
+            assert!(!test_bed.cabin_delta_pressure_word().is_normal_operation());
+
+            test_bed = test_bed.command_ambient_pressure_fault(false);
+            for _ in 0..50 {
+                test_bed = test_bed.iterate_with_delta(1, Duration::from_millis(100));
+                let delta_pressure = test_bed.cabin_delta_pressure_word();
+                if delta_pressure.is_normal_operation() {
+                    assert!(
+                        delta_pressure.value().get::<psi>()
+                            < A380PressurizationConstants::EXCESSIVE_RESIDUAL_PRESSURE_WARNING,
+                        "cabin delta pressure {} psi",
+                        delta_pressure.value().get::<psi>()
+                    );
+                }
+                assert!(!test_bed.cpcs_discrete_word_bit(18));
+            }
+        }
 
         #[test]
         fn conversion_from_pressure_to_altitude_works() {
@@ -3195,12 +3326,16 @@ mod tests {
 
         #[test]
         fn target_altitude_is_knob_when_in_man_mode() {
-            let mut test_bed = test_bed()
-                .iterate(10)
-                .command_alt_mode_sel_pb_man()
-                .iterate(10);
+            let mut test_bed = test_bed().iterate(10);
+            let cabin_altitude_at_engagement = test_bed.cabin_altitude();
+            test_bed = test_bed.command_alt_mode_sel_pb_man().iterate(10);
 
-            assert_eq!(test_bed.cabin_target_altitude(), Length::default());
+            // Before the selector turns, the target is the cabin altitude when MAN was engaged
+            assert_about_eq!(
+                test_bed.cabin_target_altitude().get::<foot>(),
+                cabin_altitude_at_engagement.get::<foot>(),
+                50.
+            );
 
             test_bed = test_bed.command_alt_sel_knob_value(5000.).iterate(10);
 
@@ -3241,12 +3376,16 @@ mod tests {
 
         #[test]
         fn target_altitude_resets_to_auto() {
-            let mut test_bed = test_bed_in_cruise()
-                .iterate(10)
-                .command_alt_mode_sel_pb_man()
-                .iterate(10);
+            let mut test_bed = test_bed_in_cruise().iterate(10);
+            let cabin_altitude_at_engagement = test_bed.cabin_altitude();
+            test_bed = test_bed.command_alt_mode_sel_pb_man().iterate(10);
 
-            assert_eq!(test_bed.cabin_target_altitude(), Length::default());
+            // Before the selector turns, the target is the cabin altitude when MAN was engaged
+            assert_about_eq!(
+                test_bed.cabin_target_altitude().get::<foot>(),
+                cabin_altitude_at_engagement.get::<foot>(),
+                50.
+            );
 
             test_bed = test_bed.command_alt_sel_knob_value(1000.).iterate(10);
 
@@ -3342,6 +3481,102 @@ mod tests {
         }
 
         #[test]
+        fn man_alt_mode_holds_the_current_cabin_altitude_until_a_target_is_selected() {
+            // In MAN the cabin altitude target stays at the current value until the crew selects a new one.
+            let mut test_bed = test_bed_in_cruise()
+                .command_alt_sel_knob_value(6000.)
+                .iterate(10);
+            let cabin_altitude = test_bed.cabin_altitude();
+            assert_gt!(cabin_altitude, Length::new::<foot>(500.));
+            assert_lt!(cabin_altitude, Length::new::<foot>(5000.));
+
+            test_bed = test_bed.command_alt_mode_sel_pb_man().iterate(10);
+
+            assert_about_eq!(
+                test_bed.cabin_target_altitude().get::<foot>(),
+                cabin_altitude.get::<foot>(),
+                50.
+            );
+            assert_about_eq!(
+                test_bed.cabin_altitude().get::<foot>(),
+                cabin_altitude.get::<foot>(),
+                50.
+            );
+
+            test_bed = test_bed.command_alt_sel_knob_value(3000.).iterate(10);
+
+            assert_about_eq!(test_bed.cabin_target_altitude().get::<foot>(), 3000., 10.);
+        }
+
+        #[test]
+        fn man_vs_mode_holds_zero_vertical_speed_until_a_target_is_selected() {
+            // In manual operation with no altitude or vertical speed selected, the cabin altitude stays steady and
+            // the cabin vertical speed is 0 ft/min.
+            let mut test_bed = test_bed_in_cruise()
+                .command_vs_sel_knob_value(400.)
+                .iterate(10)
+                .command_vs_mode_sel_pb_man()
+                .iterate(100);
+
+            assert_lt!(
+                test_bed.cabin_target_vertical_speed().abs(),
+                Velocity::new::<foot_per_minute>(5.)
+            );
+
+            test_bed = test_bed.command_vs_sel_knob_value(200.).iterate(100);
+
+            assert_about_eq!(
+                test_bed
+                    .cabin_target_vertical_speed()
+                    .get::<foot_per_minute>(),
+                200.,
+                5.
+            );
+        }
+
+        #[test]
+        fn lost_fms_landing_elevation_regulates_the_cabin_to_7000_ft_in_descent() {
+            // CAB PRESS LDG ELEVN FAULT: in descent the cabin altitude is regulated to 7 000 ft
+            let mut test_bed = test_bed_in_descent().fm_landing_elevation_lost().iterate(5);
+
+            assert_about_eq!(test_bed.cabin_target_altitude().get::<foot>(), 7000., 20.);
+        }
+
+        #[test]
+        fn lost_fms_landing_elevation_and_ambient_pressure_regulate_the_cabin_to_7500_ft_in_descent(
+        ) {
+            // CAB PRESS AUTO CTL FAULT: the landing field elevation is fixed at 7 000 ft (7 500 ft if the ambient
+            // pressure is also lost)
+            let mut test_bed = test_bed_in_descent()
+                .fm_landing_elevation_lost()
+                .command_ambient_pressure_fault(true)
+                .iterate(1);
+
+            assert_about_eq!(test_bed.cabin_target_altitude().get::<foot>(), 7500., 20.);
+        }
+
+        #[test]
+        fn fms_landing_elevation_is_the_descent_cabin_target() {
+            let mut test_bed = test_bed_in_descent();
+            test_bed.command_fm_landing_elevation(
+                Length::new::<foot>(1500.),
+                SignStatus::NormalOperation,
+            );
+            test_bed = test_bed.iterate(5);
+
+            assert_about_eq!(test_bed.cabin_target_altitude().get::<foot>(), 1500., 20.);
+        }
+
+        #[test]
+        fn lost_fms_landing_elevation_is_sent_to_the_fws() {
+            let mut test_bed = test_bed_in_cruise().iterate(2);
+            assert!(!test_bed.cpcs_discrete_word_bit(19));
+
+            test_bed = test_bed.fm_landing_elevation_lost().iterate(2);
+            assert!(test_bed.cpcs_discrete_word_bit(19));
+        }
+
+        #[test]
         fn aircraft_vs_starts_at_0() {
             let test_bed = test_bed().set_on_ground().iterate(300);
 
@@ -3405,6 +3640,102 @@ mod tests {
                 .iterate(10);
 
             assert_gt!(test_bed.aft_outflow_valve_open_amount(), Ratio::default());
+        }
+
+        /// On ground, with a door not closed and locked at takeoff power, the four cabin pressure controllers keep
+        /// the four outflow valves open: no cabin pressurization.
+        fn assert_all_outflow_valves_open(test_bed: &CabinAirTestBed) {
+            for ofv in 1..=4 {
+                assert_gt!(
+                    test_bed.outflow_valve_open_amount(ofv),
+                    Ratio::new::<percent>(99.)
+                );
+            }
+        }
+
+        #[test]
+        fn all_ofv_held_open_at_takeoff_power_with_a_passenger_door_open() {
+            // MAIN 5R (point 9) and UPPER 3R (point 15): every passenger door counts, not only MAIN 1L and 2R
+            for point in [9, 15] {
+                let test_bed = test_bed()
+                    .set_on_ground()
+                    .command_door_at_point(point, true)
+                    .iterate(50)
+                    .set_takeoff_power()
+                    .iterate_with_delta(400, Duration::from_millis(50));
+
+                assert_all_outflow_valves_open(&test_bed);
+            }
+        }
+
+        #[test]
+        fn all_ofv_held_open_at_takeoff_power_with_a_cargo_door_not_locked() {
+            let test_bed = test_bed()
+                .set_on_ground()
+                .command_open_aft_cargo_door(true)
+                .iterate(50)
+                .set_takeoff_power()
+                .iterate_with_delta(400, Duration::from_millis(50));
+
+            assert_all_outflow_valves_open(&test_bed);
+        }
+
+        #[test]
+        fn ofv_stay_open_after_a_takeoff_with_a_door_not_closed() {
+            let test_bed = test_bed()
+                .set_on_ground()
+                .command_door_at_point(12, true)
+                .iterate(50)
+                .set_takeoff_power()
+                .iterate_with_delta(400, Duration::from_millis(50))
+                .command_door_at_point(12, false)
+                .vertical_speed_of(Velocity::new::<foot_per_minute>(1000.))
+                .then()
+                .command_aircraft_climb(Length::new::<foot>(0.), Length::new::<foot>(5000.))
+                .and()
+                .iterate(10);
+
+            assert_all_outflow_valves_open(&test_bed);
+        }
+
+        #[test]
+        fn doors_closed_do_not_hold_ofv_open_at_takeoff_power() {
+            let test_bed = test_bed()
+                .set_on_ground()
+                .command_door_at_point(9, true)
+                .iterate(50)
+                .command_door_at_point(9, false)
+                .iterate(5)
+                .set_takeoff_power()
+                .iterate_with_delta(400, Duration::from_millis(50));
+
+            assert_eq!(test_bed.aft_outflow_valve_open_amount(), Ratio::default());
+        }
+
+        #[test]
+        fn doors_do_not_hold_ofv_open_in_manual_mode() {
+            // The manual pressurization works independently of the automatic one.
+            let test_bed = test_bed()
+                .set_on_ground()
+                .command_vs_mode_sel_pb_man()
+                .command_door_at_point(9, true)
+                .iterate(50)
+                .set_takeoff_power()
+                .iterate_with_delta(400, Duration::from_millis(50));
+
+            assert_eq!(test_bed.aft_outflow_valve_open_amount(), Ratio::default());
+        }
+
+        #[test]
+        fn cabin_pressure_stays_at_ambient_with_every_passenger_door_open() {
+            let mut test_bed = test_bed().on_ground();
+            for point in 0..16 {
+                test_bed = test_bed.command_door_at_point(point, true);
+            }
+            test_bed = test_bed.iterate(100);
+
+            assert!(test_bed.cabin_pressure().get::<psi>().is_finite());
+            assert_about_eq!(test_bed.cabin_pressure().get::<hectopascal>(), 1013.25, 1.);
         }
 
         #[test]
@@ -3488,6 +3819,20 @@ mod tests {
         }
 
         #[test]
+        // The cabin descent rate is limited to 300 ft/min.
+        fn cabin_descent_rate_is_limited_to_300_fpm() {
+            // A fast aircraft descent: the target cabin rate ramps to the limit and stays there
+            let mut test_bed = test_bed_in_cruise()
+                .vertical_speed_of(Velocity::new::<foot_per_minute>(-8000.))
+                .iterate(60);
+
+            let target_vs = test_bed.cabin_target_vertical_speed();
+            assert_ge!(target_vs, Velocity::new::<foot_per_minute>(-300.5));
+            assert_le!(target_vs, Velocity::new::<foot_per_minute>(-290.));
+            assert_ge!(test_bed.cabin_vs(), Velocity::new::<foot_per_minute>(-305.));
+        }
+
+        #[test]
         fn cabin_vs_changes_to_ground() {
             let test_bed = test_bed_in_descent()
                 .indicated_airspeed_of(Velocity::new::<knot>(99.))
@@ -3499,6 +3844,94 @@ mod tests {
                 (test_bed.cabin_vs() - Velocity::new::<foot_per_minute>(500.)).abs()
                     < Velocity::new::<foot_per_minute>(10.)
             );
+        }
+
+        // The differential pressure is normal from -0.2 PSI to 8.92 PSI, abnormal (amber, DIFF PRESS HI) from
+        // 8.92 PSI to 9.2 PSI.
+        const MAX_NORMAL_DELTA_P_PSI: f64 = 8.92;
+
+        /// Climbs to `flight_level` with the FMS cruise altitude `fms_cruise_altitude` (NAV mode)
+        /// or in HDG mode (`None`), then holds a steady level for 30 min in AUTO and returns the
+        /// highest differential pressure seen during the cruise.
+        fn highest_delta_p_in_steady_cruise(
+            flight_level: Length,
+            fms_cruise_altitude: Option<Length>,
+        ) -> Pressure {
+            let mut test_bed = test_bed()
+                .and_run()
+                .with()
+                .vertical_speed_of(Velocity::new::<foot_per_minute>(1000.))
+                .iterate(5);
+            if let Some(cruise_altitude) = fms_cruise_altitude {
+                test_bed = test_bed.command_nav_cruise_altitude(cruise_altitude);
+            }
+            test_bed = test_bed
+                .command_aircraft_climb(Length::new::<foot>(1000.), flight_level)
+                .with()
+                .vertical_speed_of(Velocity::default());
+
+            let mut highest_delta_p = test_bed.cabin_delta_p();
+            for _ in 0..1800 {
+                test_bed = test_bed.iterate(1);
+                highest_delta_p = highest_delta_p.max(test_bed.cabin_delta_p());
+            }
+            highest_delta_p
+        }
+
+        #[test]
+        fn cabin_delta_p_stays_normal_in_steady_cruise_at_fms_cruise_level() {
+            for flight_level in [36000., 41000., 43000.] {
+                let highest_delta_p = highest_delta_p_in_steady_cruise(
+                    Length::new::<foot>(flight_level),
+                    Some(Length::new::<foot>(flight_level)),
+                );
+                assert_lt!(
+                    highest_delta_p,
+                    Pressure::new::<psi>(MAX_NORMAL_DELTA_P_PSI),
+                    "at {} ft",
+                    flight_level
+                );
+            }
+        }
+
+        #[test]
+        fn cabin_delta_p_stays_normal_in_steady_cruise_above_fms_cruise_level() {
+            // Step climb flown on the FCU while the FMS cruise FL stays at FL320
+            let highest_delta_p = highest_delta_p_in_steady_cruise(
+                Length::new::<foot>(36000.),
+                Some(Length::new::<foot>(32000.)),
+            );
+            assert_lt!(
+                highest_delta_p,
+                Pressure::new::<psi>(MAX_NORMAL_DELTA_P_PSI)
+            );
+        }
+
+        #[test]
+        fn cabin_delta_p_stays_normal_in_steady_cruise_with_reset_fms_cruise_altitude() {
+            // The FMC writes -1 to the cruise altitude when it resets
+            let highest_delta_p = highest_delta_p_in_steady_cruise(
+                Length::new::<foot>(36000.),
+                Some(Length::new::<foot>(-1.)),
+            );
+            assert_lt!(
+                highest_delta_p,
+                Pressure::new::<psi>(MAX_NORMAL_DELTA_P_PSI)
+            );
+        }
+
+        #[test]
+        fn cabin_delta_p_stays_normal_in_steady_cruise_in_hdg_mode() {
+            for flight_level in [36000., 43000.] {
+                let highest_delta_p =
+                    highest_delta_p_in_steady_cruise(Length::new::<foot>(flight_level), None);
+                assert_lt!(
+                    highest_delta_p,
+                    Pressure::new::<psi>(MAX_NORMAL_DELTA_P_PSI),
+                    "at {} ft",
+                    flight_level
+                );
+            }
         }
 
         #[test]
@@ -5180,6 +5613,301 @@ mod tests {
                     .abs()
                         < 1.
                 );
+            }
+        }
+
+        mod trim_air_failure_tests {
+            use super::*;
+
+            // Zone indices of the zones used by the flyPad trim air failures (see `cabin_zones`)
+            const COCKPIT: usize = 0;
+            const MAIN_DECK_1: usize = 1;
+
+            // COND DUCT OVHT: a duct overheats above 70 deg C
+            const FCOM_DUCT_OVERHEAT_LIMIT_DEG_C: f64 = 70.;
+
+            fn test_bed_with_trim_air_valves_open() -> CabinAirTestBed {
+                test_bed()
+                    .with()
+                    .hot_air_pbs_on()
+                    .and()
+                    .engines_idle()
+                    .command_selected_temperature(ThermodynamicTemperature::new::<degree_celsius>(
+                        30.,
+                    ))
+                    .command_measured_temperature(ThermodynamicTemperature::new::<degree_celsius>(
+                        18.,
+                    ))
+                    .iterate(200)
+            }
+
+            #[test]
+            fn trim_air_fault_jams_the_valve_of_its_zone_only() {
+                let mut test_bed = test_bed_with_trim_air_valves_open();
+                let cockpit_open_amount = test_bed.trim_air_valve_open_amount_in_zone(COCKPIT);
+                assert_gt!(cockpit_open_amount, Ratio::new::<percent>(1.));
+                assert_gt!(
+                    test_bed.trim_air_valve_open_amount_in_zone(MAIN_DECK_1),
+                    Ratio::new::<percent>(1.)
+                );
+
+                test_bed.fail(FailureType::TrimAirFault(ZoneType::Cockpit));
+                // Now the zones are too hot: the controller commands every trim air valve closed
+                test_bed = test_bed
+                    .command_selected_temperature(ThermodynamicTemperature::new::<degree_celsius>(
+                        18.,
+                    ))
+                    .command_measured_temperature(ThermodynamicTemperature::new::<degree_celsius>(
+                        30.,
+                    ))
+                    .iterate(100);
+
+                assert_eq!(
+                    test_bed.trim_air_valve_open_amount_in_zone(COCKPIT),
+                    cockpit_open_amount
+                );
+                assert_lt!(
+                    test_bed.trim_air_valve_open_amount_in_zone(MAIN_DECK_1),
+                    Ratio::new::<percent>(1.)
+                );
+            }
+
+            #[test]
+            fn trim_air_overheat_heats_the_duct_of_its_zone_until_hot_air_is_set_off() {
+                let mut test_bed = test_bed()
+                    .with()
+                    .hot_air_pbs_on()
+                    .and()
+                    .engines_idle()
+                    .iterate(50);
+                assert_lt!(
+                    test_bed.duct_temperature()[COCKPIT].get::<degree_celsius>(),
+                    FCOM_DUCT_OVERHEAT_LIMIT_DEG_C
+                );
+
+                test_bed.fail(FailureType::TrimAirOverheat(ZoneType::Cockpit));
+                test_bed = test_bed.iterate(50);
+
+                assert_gt!(
+                    test_bed.duct_temperature()[COCKPIT].get::<degree_celsius>(),
+                    FCOM_DUCT_OVERHEAT_LIMIT_DEG_C
+                );
+                assert_lt!(
+                    test_bed.duct_temperature()[MAIN_DECK_1].get::<degree_celsius>(),
+                    FCOM_DUCT_OVERHEAT_LIMIT_DEG_C
+                );
+
+                // The COND DUCT OVHT procedure: HOT AIR OFF stops the overheat
+                test_bed = test_bed.hot_air_pbs_off().iterate(50);
+                assert_lt!(
+                    test_bed.duct_temperature()[COCKPIT].get::<degree_celsius>(),
+                    FCOM_DUCT_OVERHEAT_LIMIT_DEG_C
+                );
+            }
+
+            // CPIOM B TCS discrete word bits of the trim air monitoring (docs/a380-simvars.md)
+            const TCS_BIT_CKPT_DUCT_OVHT: u8 = 17;
+            const TCS_BIT_CABIN_DUCT_OVHT_HOT_AIR_1: u8 = 18;
+            const TCS_BIT_CABIN_DUCT_OVHT_HOT_AIR_2: u8 = 19;
+            const TCS_BIT_FWD_CARGO_DUCT_OVHT: u8 = 20;
+            const TCS_BIT_CKPT_TRIM_AIR_VALVE_FAULT: u8 = 21;
+            const TCS_BIT_CABIN_TRIM_AIR_VALVE_FAULT: u8 = 22;
+            const TCS_BIT_FWD_CARGO_TRIM_AIR_VALVE_FAULT: u8 = 23;
+
+            fn test_bed_with_hot_air_on() -> CabinAirTestBed {
+                test_bed()
+                    .with()
+                    .hot_air_pbs_on()
+                    .and()
+                    .engines_idle()
+                    .iterate(50)
+            }
+
+            fn all_monitored_zones() -> Vec<ZoneType> {
+                let mut zones = vec![ZoneType::Cockpit, ZoneType::Cargo(1)];
+                zones.extend((11..=18).map(ZoneType::Cabin));
+                zones.extend((21..=27).map(ZoneType::Cabin));
+                zones
+            }
+
+            #[test]
+            fn no_duct_overheat_or_valve_fault_in_normal_operation() {
+                let mut test_bed = test_bed_with_trim_air_valves_open()
+                    .command_selected_temperature(ThermodynamicTemperature::new::<degree_celsius>(
+                        20.,
+                    ))
+                    .iterate(200)
+                    .command_selected_temperature(ThermodynamicTemperature::new::<degree_celsius>(
+                        28.,
+                    ))
+                    .iterate(200);
+
+                for zone in all_monitored_zones() {
+                    assert!(!test_bed.duct_overheat_in_zone(zone), "{}", zone);
+                    assert!(!test_bed.trim_air_valve_fault_in_zone(zone), "{}", zone);
+                }
+                assert!(!test_bed.hot_air_pb_has_fault(1));
+                assert!(!test_bed.hot_air_pb_has_fault(2));
+                for bit in TCS_BIT_CKPT_DUCT_OVHT..=TCS_BIT_FWD_CARGO_TRIM_AIR_VALVE_FAULT {
+                    assert!(!test_bed.tcs_discrete_word_bit(bit), "bit {}", bit);
+                }
+            }
+
+            #[test]
+            fn cockpit_duct_overheat_is_detected_and_lights_the_hot_air_2_fault() {
+                let mut test_bed = test_bed_with_hot_air_on();
+                test_bed.fail(FailureType::TrimAirOverheat(ZoneType::Cockpit));
+                test_bed = test_bed.iterate(50);
+
+                assert!(test_bed.duct_overheat_in_zone(ZoneType::Cockpit));
+                assert!(!test_bed.duct_overheat_in_zone(ZoneType::Cabin(11)));
+                // COND DUCT OVHT: a cockpit duct overheat asks for HOT AIR 2 OFF
+                assert!(test_bed.hot_air_pb_has_fault(2));
+                assert!(!test_bed.hot_air_pb_has_fault(1));
+                assert!(test_bed.tcs_discrete_word_bit(TCS_BIT_CKPT_DUCT_OVHT));
+                assert!(!test_bed.tcs_discrete_word_bit(TCS_BIT_CABIN_DUCT_OVHT_HOT_AIR_1));
+                assert!(!test_bed.tcs_discrete_word_bit(TCS_BIT_CABIN_DUCT_OVHT_HOT_AIR_2));
+                assert!(!test_bed.tcs_discrete_word_bit(TCS_BIT_FWD_CARGO_DUCT_OVHT));
+            }
+
+            #[test]
+            fn hot_air_2_off_alone_ends_the_cockpit_duct_overheat() {
+                let mut test_bed = test_bed_with_hot_air_on();
+                test_bed.fail(FailureType::TrimAirOverheat(ZoneType::Cockpit));
+                test_bed = test_bed.iterate(50);
+                assert!(test_bed.duct_overheat_in_zone(ZoneType::Cockpit));
+
+                // HOT AIR 2 feeds the cockpit duct: closing it stops the hot air, HOT AIR 1 stays on
+                test_bed = test_bed.command_hot_air_pb_on(false, 2).iterate(50);
+
+                assert_lt!(
+                    test_bed.duct_temperature()[COCKPIT].get::<degree_celsius>(),
+                    FCOM_DUCT_OVERHEAT_LIMIT_DEG_C
+                );
+                assert!(!test_bed.duct_overheat_in_zone(ZoneType::Cockpit));
+                assert!(!test_bed.hot_air_pb_has_fault(2));
+                assert!(!test_bed.tcs_discrete_word_bit(TCS_BIT_CKPT_DUCT_OVHT));
+            }
+
+            #[test]
+            fn duct_overheat_stays_after_cooling_down_until_the_hot_air_pb_is_off() {
+                let mut test_bed = test_bed_with_hot_air_on();
+                test_bed.fail(FailureType::TrimAirOverheat(ZoneType::Cockpit));
+                test_bed = test_bed.iterate(50);
+
+                test_bed.unfail(FailureType::TrimAirOverheat(ZoneType::Cockpit));
+                test_bed = test_bed.iterate(50);
+                assert_lt!(
+                    test_bed.duct_temperature()[COCKPIT].get::<degree_celsius>(),
+                    FCOM_DUCT_OVERHEAT_LIMIT_DEG_C
+                );
+                // The FAULT light goes off below 70 deg C AND with the HOT AIR pb OFF
+                assert!(test_bed.duct_overheat_in_zone(ZoneType::Cockpit));
+                assert!(test_bed.hot_air_pb_has_fault(2));
+
+                // The HOT AIR 1 pb does not reset a duct fed by HOT AIR 2
+                test_bed = test_bed.command_hot_air_pb_on(false, 1).iterate(2);
+                assert!(test_bed.duct_overheat_in_zone(ZoneType::Cockpit));
+
+                test_bed = test_bed.command_hot_air_pb_on(false, 2).iterate(2);
+                assert!(!test_bed.duct_overheat_in_zone(ZoneType::Cockpit));
+                assert!(!test_bed.hot_air_pb_has_fault(2));
+            }
+
+            #[test]
+            fn cabin_duct_overheats_light_the_fault_of_the_hot_air_valve_feeding_them() {
+                let mut test_bed = test_bed_with_hot_air_on();
+                test_bed.fail(FailureType::TrimAirOverheat(ZoneType::Cabin(11)));
+                test_bed = test_bed.iterate(50);
+
+                assert!(test_bed.duct_overheat_in_zone(ZoneType::Cabin(11)));
+                assert!(test_bed.hot_air_pb_has_fault(1));
+                assert!(!test_bed.hot_air_pb_has_fault(2));
+                assert!(test_bed.tcs_discrete_word_bit(TCS_BIT_CABIN_DUCT_OVHT_HOT_AIR_1));
+                assert!(!test_bed.tcs_discrete_word_bit(TCS_BIT_CABIN_DUCT_OVHT_HOT_AIR_2));
+
+                let mut test_bed = test_bed_with_hot_air_on();
+                test_bed.fail(FailureType::TrimAirOverheat(ZoneType::Cabin(21)));
+                test_bed = test_bed.iterate(50);
+
+                assert!(test_bed.duct_overheat_in_zone(ZoneType::Cabin(21)));
+                assert!(test_bed.hot_air_pb_has_fault(2));
+                assert!(!test_bed.hot_air_pb_has_fault(1));
+                assert!(test_bed.tcs_discrete_word_bit(TCS_BIT_CABIN_DUCT_OVHT_HOT_AIR_2));
+                assert!(!test_bed.tcs_discrete_word_bit(TCS_BIT_CABIN_DUCT_OVHT_HOT_AIR_1));
+            }
+
+            #[test]
+            fn fwd_cargo_duct_overheat_lights_the_hot_air_1_fault() {
+                let mut test_bed = test_bed_with_hot_air_on();
+                test_bed.fail(FailureType::TrimAirOverheat(ZoneType::Cargo(1)));
+                test_bed = test_bed.iterate(50);
+
+                assert!(test_bed.duct_overheat_in_zone(ZoneType::Cargo(1)));
+                assert!(test_bed.hot_air_pb_has_fault(1));
+                assert!(!test_bed.hot_air_pb_has_fault(2));
+                assert!(test_bed.tcs_discrete_word_bit(TCS_BIT_FWD_CARGO_DUCT_OVHT));
+            }
+
+            #[test]
+            fn jammed_trim_air_valve_is_detected_when_it_does_not_follow_its_command() {
+                let mut test_bed = test_bed_with_trim_air_valves_open();
+                test_bed.fail(FailureType::TrimAirFault(ZoneType::Cockpit));
+                // The zones are now too hot: the controller commands the trim air valves closed
+                test_bed = test_bed
+                    .command_selected_temperature(ThermodynamicTemperature::new::<degree_celsius>(
+                        18.,
+                    ))
+                    .command_measured_temperature(ThermodynamicTemperature::new::<degree_celsius>(
+                        30.,
+                    ))
+                    .iterate(5);
+                // Not yet: a valve has some seconds to follow its command
+                assert!(!test_bed.trim_air_valve_fault_in_zone(ZoneType::Cockpit));
+
+                test_bed = test_bed.iterate(30);
+                assert!(test_bed.trim_air_valve_fault_in_zone(ZoneType::Cockpit));
+                assert!(!test_bed.trim_air_valve_fault_in_zone(ZoneType::Cabin(11)));
+                assert!(test_bed.tcs_discrete_word_bit(TCS_BIT_CKPT_TRIM_AIR_VALVE_FAULT));
+                assert!(!test_bed.tcs_discrete_word_bit(TCS_BIT_CABIN_TRIM_AIR_VALVE_FAULT));
+                assert!(!test_bed.tcs_discrete_word_bit(TCS_BIT_FWD_CARGO_TRIM_AIR_VALVE_FAULT));
+                // A jammed trim air valve is no duct overheat: the HOT AIR FAULT lights stay off
+                assert!(!test_bed.hot_air_pb_has_fault(1));
+                assert!(!test_bed.hot_air_pb_has_fault(2));
+
+                // Once the valve moves again the fault clears
+                test_bed.unfail(FailureType::TrimAirFault(ZoneType::Cockpit));
+                test_bed = test_bed.iterate(10);
+                assert!(!test_bed.trim_air_valve_fault_in_zone(ZoneType::Cockpit));
+                assert!(!test_bed.tcs_discrete_word_bit(TCS_BIT_CKPT_TRIM_AIR_VALVE_FAULT));
+            }
+
+            #[test]
+            fn jammed_cabin_and_fwd_cargo_trim_air_valves_set_their_own_bits() {
+                let mut test_bed = test_bed_with_trim_air_valves_open()
+                    .command_cargo_selected_temperature(ThermodynamicTemperature::new::<
+                        degree_celsius,
+                    >(25.))
+                    // A cold cargo compartment: the forward cargo trim air valve opens too
+                    .command_measured_temperature(ThermodynamicTemperature::new::<degree_celsius>(
+                        10.,
+                    ))
+                    .iterate(20);
+                assert_gt!(
+                    test_bed.trim_air_valve_open_amount_in_zone(ZoneType::Cargo(1).id()),
+                    Ratio::new::<percent>(20.)
+                );
+                test_bed.fail(FailureType::TrimAirFault(ZoneType::Cabin(21)));
+                test_bed.fail(FailureType::TrimAirFault(ZoneType::Cargo(1)));
+                // HOT AIR OFF: the controller closes every trim air valve, the jammed ones stay where they are
+                test_bed = test_bed.hot_air_pbs_off().iterate(30);
+
+                assert!(test_bed.trim_air_valve_fault_in_zone(ZoneType::Cabin(21)));
+                assert!(test_bed.trim_air_valve_fault_in_zone(ZoneType::Cargo(1)));
+                assert!(!test_bed.trim_air_valve_fault_in_zone(ZoneType::Cockpit));
+                assert!(test_bed.tcs_discrete_word_bit(TCS_BIT_CABIN_TRIM_AIR_VALVE_FAULT));
+                assert!(test_bed.tcs_discrete_word_bit(TCS_BIT_FWD_CARGO_TRIM_AIR_VALVE_FAULT));
+                assert!(!test_bed.tcs_discrete_word_bit(TCS_BIT_CKPT_TRIM_AIR_VALVE_FAULT));
             }
         }
 

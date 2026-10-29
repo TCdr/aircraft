@@ -318,6 +318,8 @@ pub trait ApuConstants {
     const AIR_INTAKE_FLAP_CLOSURE_PERCENT: f64;
     const SHOULD_BE_AVAILABLE_DURING_SHUTDOWN: bool;
     const FUEL_LINE_ID: u8;
+    /// The ECB shuts the APU down on a high oil temperature in flight too, not only on the ground
+    const HIGH_OIL_TEMPERATURE_SHUTDOWN_IN_FLIGHT: bool;
 }
 
 pub struct AuxiliaryPowerUnitFireOverheadPanel {
@@ -407,6 +409,7 @@ mod tests {
     };
 
     use super::*;
+    use crate::failures::FailureType;
     use crate::simulation::test::{ReadByName, WriteByName};
     use crate::simulation::InitContext;
     use rstest::rstest;
@@ -908,17 +911,47 @@ mod tests {
             self
         }
 
-        pub fn running_apu(mut self) -> Self {
-            self = self.starting_apu();
-            loop {
+        /// The longest a test bed loop waits for a state (start, shutdown, air intake flap travel), so that a test
+        /// whose condition never comes fails with the APU state instead of running forever.
+        const MAX_WAIT_SECONDS: u32 = 600;
+
+        /// Runs 1 s steps until `condition` holds, panics with the APU state after MAX_WAIT_SECONDS.
+        pub fn run_until(
+            mut self,
+            what: &str,
+            mut condition: impl FnMut(&mut Self) -> bool,
+        ) -> Self {
+            for _ in 0..Self::MAX_WAIT_SECONDS {
                 self = self.run(Duration::from_secs(1));
-                if self.apu_is_available() {
-                    self = self.run(Duration::from_secs(10));
-                    break;
+                if condition(&mut self) {
+                    return self;
                 }
             }
+            let state = self.state_summary();
+            panic!(
+                "APU test bed: no {} after {} s ({})",
+                what,
+                Self::MAX_WAIT_SECONDS,
+                state
+            );
+        }
 
-            self
+        fn state_summary(&mut self) -> String {
+            format!(
+                "N {:.3} %, flap {:.1} %, AVAIL {}, START {}, MASTER FAULT {}, auto shutdown {}",
+                self.n().value().get::<percent>(),
+                self.air_intake_flap_open_amount().get::<percent>(),
+                self.apu_is_available(),
+                self.start_is_on(),
+                self.master_has_fault(),
+                self.is_auto_shutdown(),
+            )
+        }
+
+        pub fn running_apu(mut self) -> Self {
+            self = self.starting_apu();
+            self = self.run_until("APU AVAIL", |bed| bed.apu_is_available());
+            self.run(Duration::from_secs(10))
         }
 
         fn running_apu_going_in_emergency_shutdown(mut self) -> Self {
@@ -934,29 +967,14 @@ mod tests {
         fn cooling_down_apu(mut self) -> Self {
             self = self.running_apu();
             self = self.master_off();
-            loop {
-                self = self.run(Duration::from_secs(1));
-
-                if self.turbine_is_shutdown() {
-                    break;
-                }
-            }
-
-            self
+            self.run_until("turbine shutdown", |bed| bed.turbine_is_shutdown())
         }
 
         fn apu_ready_to_start(mut self) -> Self {
             self = self.master_on();
-
-            loop {
-                self = self.run(Duration::from_secs(1));
-
-                if self.is_air_intake_flap_fully_open().normal_value().unwrap() {
-                    break;
-                }
-            }
-
-            self
+            self.run_until("air intake flap fully open", |bed| {
+                bed.is_air_intake_flap_fully_open().normal_value().unwrap()
+            })
         }
 
         fn running_apu_with_bleed_air(mut self) -> Self {
@@ -1000,6 +1018,16 @@ mod tests {
 
         fn powered_dc_bat_bus(mut self) -> Self {
             self.command(|a| a.power_dc_bat_bus());
+            self
+        }
+
+        fn with_failure(mut self, failure: FailureType) -> Self {
+            self.fail(failure);
+            self
+        }
+
+        fn without_failure(mut self, failure: FailureType) -> Self {
+            self.unfail(failure);
             self
         }
 
@@ -2501,7 +2529,58 @@ mod tests {
         #[rstest]
         #[case::aps3200(test_bed_aps3200())]
         #[case::pw980(test_bed_pw980())]
-        fn apu_continues_starting_when_dc_bat_bus_unpowered_while_above_n_70<
+        fn apu_shuts_down_with_fault_when_dc_bat_bus_unpowered_while_above_n_70<
+            T: ApuGenerator,
+            U: ApuStartMotor,
+            C: ApuConstants,
+            const N: usize,
+        >(
+            #[case] bed_with: AuxiliaryPowerUnitTestBed<T, U, C, N>,
+        ) {
+            // DC power lost: above N 70 % the ECB still runs on the APU and shuts it down with a FAULT
+            let mut test_bed = bed_with
+                .starting_apu()
+                .unpower_dc_bat_bus_between(Ratio::new::<percent>(70.), Ratio::new::<percent>(90.))
+                .run(Duration::from_secs(2));
+
+            assert!(test_bed.master_has_fault());
+            assert!(test_bed.is_auto_shutdown());
+
+            for _ in 0..10 {
+                test_bed = test_bed.run(Duration::from_secs(10));
+            }
+
+            assert!(!test_bed.apu_is_available());
+        }
+
+        #[rstest]
+        #[case::aps3200(test_bed_aps3200())]
+        #[case::pw980(test_bed_pw980())]
+        fn running_apu_shuts_down_with_fault_when_its_dc_supply_is_lost<
+            T: ApuGenerator,
+            U: ApuStartMotor,
+            C: ApuConstants,
+            const N: usize,
+        >(
+            #[case] bed_with: AuxiliaryPowerUnitTestBed<T, U, C, N>,
+        ) {
+            // A320: BAT OFF on batteries only is a DC power loss too
+            let mut test_bed = bed_with
+                .running_apu()
+                .and()
+                .unpowered_dc_bat_bus()
+                .run(Duration::from_secs(2));
+
+            assert!(test_bed.master_has_fault());
+            assert!(test_bed.is_auto_shutdown());
+            assert!(!test_bed.is_emergency_shutdown());
+            assert!(!test_bed.apu_is_available());
+        }
+
+        #[rstest]
+        #[case::aps3200(test_bed_aps3200())]
+        #[case::pw980(test_bed_pw980())]
+        fn running_apu_keeps_running_through_a_short_dc_supply_interruption<
             T: ApuGenerator,
             U: ApuStartMotor,
             C: ApuConstants,
@@ -2510,14 +2589,158 @@ mod tests {
             #[case] bed_with: AuxiliaryPowerUnitTestBed<T, U, C, N>,
         ) {
             let mut test_bed = bed_with
-                .starting_apu()
-                .unpower_dc_bat_bus_between(Ratio::new::<percent>(70.), Ratio::new::<percent>(90.));
+                .running_apu()
+                .and()
+                .unpowered_dc_bat_bus()
+                .run(Duration::from_millis(300))
+                .then_continue_with()
+                .powered_dc_bat_bus()
+                .run(Duration::from_secs(10));
 
-            for _ in 0..10 {
-                test_bed = test_bed.run(Duration::from_secs(10));
-            }
-
+            assert!(!test_bed.master_has_fault());
             assert!(test_bed.apu_is_available());
+        }
+
+        #[rstest]
+        #[case::aps3200_overspeed(test_bed_aps3200(), FailureType::ApuOverspeed)]
+        #[case::pw980_overspeed(test_bed_pw980(), FailureType::ApuOverspeed)]
+        #[case::aps3200_oil_low_pressure(test_bed_aps3200(), FailureType::ApuOilLowPressure)]
+        #[case::pw980_oil_low_pressure(test_bed_pw980(), FailureType::ApuOilLowPressure)]
+        #[case::aps3200_ecb(test_bed_aps3200(), FailureType::ApuElectronicControlBox)]
+        #[case::pw980_ecb(test_bed_pw980(), FailureType::ApuElectronicControlBox)]
+        fn running_apu_shuts_down_automatically_on_a_sensed_failure<
+            T: ApuGenerator,
+            U: ApuStartMotor,
+            C: ApuConstants,
+            const N: usize,
+        >(
+            #[case] bed_with: AuxiliaryPowerUnitTestBed<T, U, C, N>,
+            #[case] failure: FailureType,
+        ) {
+            // Both aircraft: overspeed, low oil pressure and ECB failure shut down in flight and on the ground
+            let mut test_bed = bed_with
+                .running_apu()
+                .and()
+                .with_failure(failure)
+                .run(Duration::from_secs(1));
+
+            assert!(test_bed.master_has_fault());
+            assert!(test_bed.is_auto_shutdown());
+            assert!(!test_bed.is_emergency_shutdown());
+            assert!(test_bed.is_inoperable());
+
+            test_bed = test_bed.run_until_n_decreases(Duration::from_millis(50));
+            assert!(!test_bed.apu_is_available());
+        }
+
+        #[rstest]
+        #[case::aps3200(test_bed_aps3200())]
+        #[case::pw980(test_bed_pw980())]
+        fn apu_with_a_failed_ecb_cannot_start<
+            T: ApuGenerator,
+            U: ApuStartMotor,
+            C: ApuConstants,
+            const N: usize,
+        >(
+            #[case] bed_with: AuxiliaryPowerUnitTestBed<T, U, C, N>,
+        ) {
+            let mut test_bed = bed_with
+                .with_failure(FailureType::ApuElectronicControlBox)
+                .starting_apu()
+                .run(Duration::from_secs(60));
+
+            assert!(test_bed.master_has_fault());
+            assert!(!test_bed.apu_is_available());
+            assert_about_eq!(test_bed.n().value().get::<percent>(), 0.);
+        }
+
+        #[rstest]
+        #[case::aps3200(test_bed_aps3200())]
+        #[case::pw980(test_bed_pw980())]
+        fn the_fault_ends_with_the_master_sw_off_and_the_apu_restarts_without_the_failure<
+            T: ApuGenerator,
+            U: ApuStartMotor,
+            C: ApuConstants,
+            const N: usize,
+        >(
+            #[case] bed_with: AuxiliaryPowerUnitTestBed<T, U, C, N>,
+        ) {
+            let mut test_bed = bed_with
+                .running_apu()
+                .and()
+                .with_failure(FailureType::ApuOilLowPressure)
+                .run(Duration::from_secs(1))
+                .then_continue_with()
+                .master_off();
+
+            // The ECB goes off once the turbine stopped and the air intake flap closed
+            test_bed = test_bed.run_until("air intake flap closed and turbine shutdown", |bed| {
+                bed.is_air_intake_flap_fully_closed() && bed.turbine_is_shutdown()
+            });
+            test_bed = test_bed.run(Duration::from_secs(1));
+            assert!(!test_bed.master_has_fault());
+            assert!(!test_bed.is_auto_shutdown());
+
+            test_bed = test_bed
+                .without_failure(FailureType::ApuOilLowPressure)
+                .running_apu();
+            assert!(test_bed.apu_is_available());
+            assert!(!test_bed.master_has_fault());
+        }
+
+        #[test]
+        fn aps3200_shuts_down_on_a_high_oil_temperature_in_flight() {
+            // A320: a high oil temperature shuts the APU down in flight too
+            let mut test_bed = test_bed_aps3200()
+                .on_ground(false)
+                .running_apu()
+                .and()
+                .with_failure(FailureType::ApuOilHighTemperature)
+                .run(Duration::from_secs(1));
+
+            assert!(test_bed.master_has_fault());
+            assert!(test_bed.is_auto_shutdown());
+        }
+
+        #[test]
+        fn pw980_shuts_down_on_a_high_oil_temperature_on_the_ground_only() {
+            // A380: a high oil temperature shuts the APU down on the ground only
+            let mut test_bed = test_bed_pw980()
+                .on_ground(false)
+                .running_apu()
+                .and()
+                .with_failure(FailureType::ApuOilHighTemperature)
+                .run(Duration::from_secs(10));
+
+            assert!(!test_bed.master_has_fault());
+            assert!(test_bed.apu_is_available());
+
+            test_bed = test_bed.on_ground(true).run(Duration::from_secs(1));
+
+            assert!(test_bed.master_has_fault());
+            assert!(test_bed.is_auto_shutdown());
+        }
+
+        #[rstest]
+        #[case::aps3200(test_bed_aps3200())]
+        #[case::pw980(test_bed_pw980())]
+        fn a_sensed_oil_failure_does_not_stop_a_start_before_the_apu_runs<
+            T: ApuGenerator,
+            U: ApuStartMotor,
+            C: ApuConstants,
+            const N: usize,
+        >(
+            #[case] bed_with: AuxiliaryPowerUnitTestBed<T, U, C, N>,
+        ) {
+            // The ECB senses the overspeed and oil conditions of a running APU: the start goes on until N 100 %, and
+            // the APU shuts down then
+            let mut test_bed = bed_with
+                .with_failure(FailureType::ApuOilLowPressure)
+                .starting_apu()
+                .run(Duration::from_secs(5));
+
+            assert!(!test_bed.master_has_fault());
+            assert_gt!(test_bed.n().normal_value().unwrap().get::<percent>(), 0.);
         }
 
         #[rstest]

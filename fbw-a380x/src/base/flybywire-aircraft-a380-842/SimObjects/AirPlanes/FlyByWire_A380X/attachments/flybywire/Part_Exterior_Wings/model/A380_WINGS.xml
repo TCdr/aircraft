@@ -263,42 +263,70 @@
 				<ANIM_CODE>(L:A32NX_RAT_PROPELLER_ANGLE) 100 *</ANIM_CODE>
 			</UseTemplate>
 		</Component>
+		<!--
+			Contrails, one per engine exhaust, only while that engine burns fuel: the sim's contrail conditions
+			(CONTRAILS CONDITIONS MET), ANDed with an engine running term of the same engine, so that a flamed out, shut
+			down or seized engine leaves no contrail (water vapour comes from the fuel burnt).
+			- Engine running term (design choice): the MSFS engine burns (GENERAL ENG COMBUSTION:n, the term of the stock
+			  ASOBO_CONTRAIL_QUAD_FX / RIBBON_FX templates of the SDK Generic/FX.xml) and the FADEC fuel flow is above 0
+			  (L:A32NX_ENGINE_FF:n, fadec_a380x EngineControl_A380X.cpp: 0 as soon as the fuel is cut by a flameout or a
+			  seizure, by the ENG MASTER OFF or by an unlit relight). The fuel flow covers the times MSFS kept its
+			  combustion flag with no fuel (20 to 60 s after a shutdown, 27 s after a FIRE pb push-in, sim
+			  recordings); the combustion covers an engine MSFS no longer burns while the FADEC still runs it. No N3
+			  threshold: an A380 core speed limit for "running" has no source (the A32NX N2 > 25 % is A32NX-specific).
+			- Exhaust node of each engine in A380_WINGS.gltf, from the node positions: LEFT1 = engine 1 (left outer), RIGHT2 =
+			  engine 2 (left inner), RIGHT3 = engine 3 (right inner), RIGHT4 = engine 4 (right outer). The ribbon contrails
+			  are on engines 2 and 4 only.
+			- This part owns these nodes: the fuselage part (A380_FUSELAGE.gltf) has none of them, so the contrails
+			  are declared here only.
+			- JettisonDripContrailEffects.spec.ts (src/systems/shared/src) checks these components.
+		-->
 		<Component ID="FX_CONTRAIL_QUAD">
 			<OverrideTemplateParameters>
-				<FX_CODE>(A:CONTRAILS CONDITIONS MET:1, Keyframe) 0 &gt;</FX_CODE>
 				<FX_OFFSET_X>0</FX_OFFSET_X>
 				<FX_OFFSET_Y>0</FX_OFFSET_Y>
 				<FX_OFFSET_Z>0</FX_OFFSET_Z>
 				<FX_GUID>{F42CE638-11EB-4FC8-B9B0-111A220D681F}</FX_GUID>
 				<FX_NAME>FX_CONTRAILS</FX_NAME>
 			</OverrideTemplateParameters>
-			<Component ID="FX_CONTRAIL_QUAD_LEFT_IN" Node="FX_EXHAUST_LEFT1">
-				<UseTemplate Name="ASOBO_GT_FX"/>
+			<Component ID="FX_CONTRAIL_QUAD_ENG_1" Node="FX_EXHAUST_LEFT1">
+				<UseTemplate Name="ASOBO_GT_FX">
+					<FX_CODE>(A:CONTRAILS CONDITIONS MET:1, Keyframe) 0 &gt; (A:GENERAL ENG COMBUSTION:1, Bool) and (L:A32NX_ENGINE_FF:1, Number) 0 &gt; and</FX_CODE>
+				</UseTemplate>
 			</Component>
-			<Component ID="FX_CONTRAIL_QUAD_LEFT_OUT" Node="FX_EXHAUST_LEFT2">
-				<UseTemplate Name="ASOBO_GT_FX"/>
+			<Component ID="FX_CONTRAIL_QUAD_ENG_2" Node="FX_EXHAUST_RIGHT2">
+				<UseTemplate Name="ASOBO_GT_FX">
+					<FX_CODE>(A:CONTRAILS CONDITIONS MET:1, Keyframe) 0 &gt; (A:GENERAL ENG COMBUSTION:2, Bool) and (L:A32NX_ENGINE_FF:2, Number) 0 &gt; and</FX_CODE>
+				</UseTemplate>
 			</Component>
-			<Component ID="FX_CONTRAIL_QUAD_RIGHT_IN" Node="FX_EXHAUST_RIGHT3">
-				<UseTemplate Name="ASOBO_GT_FX"/>
+			<Component ID="FX_CONTRAIL_QUAD_ENG_3" Node="FX_EXHAUST_RIGHT3">
+				<UseTemplate Name="ASOBO_GT_FX">
+					<FX_CODE>(A:CONTRAILS CONDITIONS MET:1, Keyframe) 0 &gt; (A:GENERAL ENG COMBUSTION:3, Bool) and (L:A32NX_ENGINE_FF:3, Number) 0 &gt; and</FX_CODE>
+				</UseTemplate>
 			</Component>
-			<Component ID="FX_CONTRAIL_QUAD_RIGHT_OUT" Node="FX_EXHAUST_RIGHT4">
-				<UseTemplate Name="ASOBO_GT_FX"/>
+			<Component ID="FX_CONTRAIL_QUAD_ENG_4" Node="FX_EXHAUST_RIGHT4">
+				<UseTemplate Name="ASOBO_GT_FX">
+					<FX_CODE>(A:CONTRAILS CONDITIONS MET:1, Keyframe) 0 &gt; (A:GENERAL ENG COMBUSTION:4, Bool) and (L:A32NX_ENGINE_FF:4, Number) 0 &gt; and</FX_CODE>
+				</UseTemplate>
 			</Component>
 		</Component>
 		<Component ID="FX_CONTRAIL_RIBBON">
 			<OverrideTemplateParameters>
-				<FX_CODE>(A:CONTRAILS CONDITIONS MET:1, Keyframe) 0 &gt;</FX_CODE>
 				<FX_OFFSET_X>0</FX_OFFSET_X>
 				<FX_OFFSET_Y>0</FX_OFFSET_Y>
 				<FX_OFFSET_Z>0</FX_OFFSET_Z>
 				<FX_GUID>{904EC2CE-F8DD-4480-99E7-B33F7CF6E114}</FX_GUID>
 				<FX_NAME>FX_CONTRAILS_RIBBON</FX_NAME>
 			</OverrideTemplateParameters>
-			<Component ID="FX_CONTRAIL_RIBBON_LEFT_OUT" Node="FX_EXHAUST_LEFT2">
-				<UseTemplate Name="ASOBO_GT_FX"/>
+			<Component ID="FX_CONTRAIL_RIBBON_ENG_2" Node="FX_EXHAUST_RIGHT2">
+				<UseTemplate Name="ASOBO_GT_FX">
+					<FX_CODE>(A:CONTRAILS CONDITIONS MET:1, Keyframe) 0 &gt; (A:GENERAL ENG COMBUSTION:2, Bool) and (L:A32NX_ENGINE_FF:2, Number) 0 &gt; and</FX_CODE>
+				</UseTemplate>
 			</Component>
-			<Component ID="FX_CONTRAIL_RIBBON_RIGHT_OUT" Node="FX_EXHAUST_RIGHT4">
-				<UseTemplate Name="ASOBO_GT_FX"/>
+			<Component ID="FX_CONTRAIL_RIBBON_ENG_4" Node="FX_EXHAUST_RIGHT4">
+				<UseTemplate Name="ASOBO_GT_FX">
+					<FX_CODE>(A:CONTRAILS CONDITIONS MET:1, Keyframe) 0 &gt; (A:GENERAL ENG COMBUSTION:4, Bool) and (L:A32NX_ENGINE_FF:4, Number) 0 &gt; and</FX_CODE>
+				</UseTemplate>
 			</Component>
 		</Component>
 		<Component ID="GND_EQUIPMENT">

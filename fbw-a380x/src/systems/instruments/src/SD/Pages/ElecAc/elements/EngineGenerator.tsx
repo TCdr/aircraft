@@ -2,6 +2,7 @@ import { useSimVar } from '@instruments/common/simVars';
 import React, { FC } from 'react';
 import { Triangle } from '@instruments/common/Shapes';
 import { AcElecBus } from './BusBar';
+import { isEngineGeneratorIndicationAmber } from '../ElecFailureStates';
 
 const ENG_GEN_VOLTAGE_NORMAL_RANGE_LOWER = 110;
 const ENG_GEN_VOLTAGE_NORMAL_RANGE_UPPER = 120;
@@ -24,7 +25,16 @@ export const EngineGenerator: FC<EngineGeneratorProps> = ({ x, y, bus }) => {
   const [lineContactorClosed] = useSimVar(`L:A32NX_ELEC_CONTACTOR_990XU${bus}_IS_CLOSED`, 'number', 500);
   const [genPushbuttonAuto] = useSimVar(`GENERAL ENG MASTER ALTERNATOR:${bus}`, 'number', 500);
   const [engineState] = useSimVar(`L:A32NX_ENGINE_STATE:${bus}`, 'Enum', 1000);
-  const engineGenFailed = false;
+  const [driveConnected] = useSimVar(`L:A32NX_ELEC_ENG_GEN_${bus}_IDG_IS_CONNECTED`, 'bool', 500);
+  const [potentialNormal] = useSimVar(`L:A32NX_ELEC_ENG_GEN_${bus}_POTENTIAL_NORMAL`, 'bool', 500);
+  const [frequencyNormal] = useSimVar(`L:A32NX_ELEC_ENG_GEN_${bus}_FREQUENCY_NORMAL`, 'bool', 500);
+  const genIndicationAmber = isEngineGeneratorIndicationAmber(
+    !!genPushbuttonAuto,
+    engineState === 1,
+    !!driveConnected,
+    !!potentialNormal,
+    !!frequencyNormal,
+  );
 
   return (
     <g id={`engine-generator-${bus}-indication`} transform={`translate(${x} ${y})`}>
@@ -32,18 +42,10 @@ export const EngineGenerator: FC<EngineGeneratorProps> = ({ x, y, bus }) => {
 
       <path className="BackgroundFill" d="M 0,0 l 0,84 l 76,0 l 0,-84 z" />
 
-      <text
-        x={5}
-        y={23}
-        className={`F26 ${genPushbuttonAuto && engineState === 1 && !engineGenFailed ? 'White' : 'Amber'}`}
-      >
+      <text x={5} y={23} className={`F26 ${genIndicationAmber ? 'Amber' : 'White'}`}>
         GEN
       </text>
-      <text
-        x={59}
-        y={23}
-        className={`F28 ${genPushbuttonAuto && engineState === 1 && !engineGenFailed ? 'White' : 'Amber'}`}
-      >
+      <text x={59} y={23} className={`F28 ${genIndicationAmber ? 'Amber' : 'White'}`}>
         {bus}
       </text>
 

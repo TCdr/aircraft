@@ -219,6 +219,10 @@ impl A380AlternatingCurrentElectrical {
         self.main_power_sources.gen_drive_connected(number)
     }
 
+    pub fn gen_drive_has_fault(&self, number: usize) -> bool {
+        self.main_power_sources.gen_drive_has_fault(number)
+    }
+
     pub fn emergency_generator_contactor_is_closed(&self) -> bool {
         self.emergency_gen_contactor.is_closed()
     }
@@ -675,6 +679,11 @@ impl A380MainPowerSources {
 
     fn gen_drive_connected(&self, number: usize) -> bool {
         self.engine_gens[number - 1].is_drive_connected()
+    }
+
+    fn gen_drive_has_fault(&self, number: usize) -> bool {
+        let gen = &self.engine_gens[number - 1];
+        gen.drive_oil_is_overheating() || gen.drive_oil_pressure_is_low()
     }
 
     /// Whether external power unit `number` (or its GGPCU) is failed: its GGPCU keeps its contactors open
