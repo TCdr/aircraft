@@ -21,6 +21,7 @@ import { AcElectricalBus, DcElectricalBus } from '@shared/electrical';
 import './oit-display-unit.scss';
 import { OitSimvars } from './OitSimvarPublisher';
 import { A380Failure } from '@failures';
+import { PowerUpGate, POWER_UP_SLOT_SECONDS } from '@shared/PowerUpStagger';
 import { OisDomain } from './OIT';
 import { OIT_RESTART_OFF_MS, PowerCycleRecovery } from './System/AnsuLogic';
 
@@ -78,6 +79,12 @@ export class OitDisplayUnit extends DisplayComponent<DisplayUnitProps & Componen
   private readonly realTime = ConsumerSubject.create(this.sub.on('realTime'), 0);
 
   private timeOut: number = 0;
+
+  private readonly powerUpGate = new PowerUpGate(
+    this.props.displayUnitId === OitDisplayUnitID.CaptOit ? POWER_UP_SLOT_SECONDS.CaptOit : POWER_UP_SLOT_SECONDS.FoOit,
+  );
+
+  private powerUpWaitSeconds = 0;
 
   private readonly selfTestRef = FSComponent.createRef<HTMLDivElement>();
 
@@ -206,7 +213,12 @@ export class OitDisplayUnit extends DisplayComponent<DisplayUnitProps & Componen
       supplied && this.brightness.get() !== 0,
       this.realTime.get(),
     );
+    const previousPowerUpWaitSeconds = this.powerUpWaitSeconds;
+    this.powerUpWaitSeconds = this.powerUpGate.update(supplied, Date.now() / 1000);
     this.powered.set(supplied && !failed);
+    if (previousPowerUpWaitSeconds > 0 && this.powerUpWaitSeconds === 0) {
+      this.updateState();
+    }
   }
 
   updateState() {
@@ -216,7 +228,13 @@ export class OitDisplayUnit extends DisplayComponent<DisplayUnitProps & Componen
     } else if (this.state.get() === DisplayUnitState.Standby && this.brightness.get() !== 0 && this.powered.get()) {
       this.state.set(DisplayUnitState.On);
       clearTimeout(this.timeOut);
-    } else if (this.state.get() === DisplayUnitState.Off && this.brightness.get() !== 0 && this.powered.get()) {
+    } else if (
+      this.state.get() === DisplayUnitState.Off &&
+      this.brightness.get() !== 0 &&
+      this.powered.get() &&
+      // update() calls this again when the slot has passed
+      this.powerUpWaitSeconds === 0
+    ) {
       this.state.set(DisplayUnitState.Bootup);
       this.setTimer(0.25 + Math.random() * 0.2);
     } else if (this.state.get() === DisplayUnitState.Bootup && this.brightness.get() !== 0 && this.powered.get()) {
