@@ -29,6 +29,7 @@ const NO_DATA: ReportPrefillData = {
   fuelOnBoard: null,
   outFuel: null,
   inFuel: null,
+  airspeed: null,
 };
 
 /**
@@ -66,6 +67,8 @@ describe('COMPANY COM report forms: pages', () => {
       'nss-avncs/company-com/in-flight/ramp-service',
       'nss-avncs/company-com/in-flight/diversion',
       'nss-avncs/company-com/in-flight/eta',
+      'nss-avncs/company-com/in-flight/flight-delay',
+      'nss-avncs/company-com/in-flight/flight-parameters',
       'nss-avncs/company-com/post-flight/asr-notification',
       'nss-avncs/company-com/post-flight/flight-summary',
       'nss-avncs/company-com/post-flight/gate-delay',
@@ -136,6 +139,7 @@ describe('COMPANY COM report forms: pre-fill', () => {
     fuelOnBoard: 123_456.4,
     outFuel: 150_000,
     inFuel: 20_000,
+    airspeed: 279.6,
   };
 
   it('formats the times HHMM UTC and the weights in the unit of the aircraft', () => {
@@ -208,6 +212,38 @@ describe('COMPANY COM report forms: messages', () => {
       'KG',
     );
     expect(check.message?.Message).toBe('ETA\nFLT NBR AFR006\nDEST KJFK\nETA 1745');
+  });
+
+  it('works out the flight delay from the scheduled and the new arrival time', () => {
+    const check = checkReport(
+      formAt('nss-avncs/company-com/in-flight/flight-delay'),
+      'AFROPS',
+      { flightNumber: 'AFR006', scheduledArrival: '1745', newEta: '1830', delayCode: '81' },
+      'KG',
+    );
+    expect(check.message?.Message).toBe(
+      'FLIGHT DELAY\nFLT NBR AFR006\nSTA 1745\nNEW ETA 1830\nDELAY CODE 81\nDELAY 0:45',
+    );
+    expect(
+      checkReport(formAt('nss-avncs/company-com/in-flight/flight-delay'), 'AFROPS', { flightNumber: 'AFR006' }, 'KG')
+        .invalidLabels,
+    ).toEqual(['NEW ETA', 'DELAY CODE']);
+  });
+
+  it('pre-fills the flight parameters with the fuel and the airspeed, and needs the flight level', () => {
+    const form = formAt('nss-avncs/company-com/in-flight/flight-parameters');
+    const entries = prefilledEntries(
+      form,
+      { ...NO_DATA, flightNumber: 'AFR006', fuelOnBoard: 100_000, airspeed: 279.6 },
+      'KG',
+    );
+    expect(entries.fuelOnBoard).toBe('100000');
+    expect(entries.airspeed).toBe('280');
+    const check = checkReport(form, 'AFROPS', { ...entries, flightLevel: '380', mach: '.85' }, 'KG');
+    expect(check.message?.Message).toBe(
+      'FLIGHT PARAMETERS\nFLT NBR AFR006\nFL 380\nMACH .85\nCAS KT 280\nFOB 100000 KG',
+    );
+    expect(checkReport(form, 'AFROPS', entries, 'KG').invalidLabels).toEqual(['FL']);
   });
 
   it('names the invalid and the empty required fields, and sends nothing then', () => {

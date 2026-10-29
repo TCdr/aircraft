@@ -4,6 +4,7 @@
 import { FSComponent, Subject, Subscribable, VNode } from '@microsoft/msfs-sdk';
 import { AbstractOitAvncsPageProps } from '../../../OIT';
 import { DestroyableComponent } from '@flybywiresim/msfs-avionics-common';
+import { Button } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
 import { AnsuOps } from '../../../System/AnsuOps';
 import { CompanyComInboxEntry } from '../../../System/CompanyComMailbox';
 
@@ -60,6 +61,10 @@ export class OitAvncsCompanyComInbox extends DestroyableComponent<OitAvncsCompan
   private readonly dateText = Subject.create('');
   private readonly messageText = Subject.create('');
 
+  /** Design choice: ZOOM shows the displayed message in larger characters; the next ZOOM goes back */
+  private readonly zoomed = Subject.create(false);
+  private readonly zoomLabel = this.zoomed.map((zoomed) => (zoomed ? 'UNZOOM' : 'ZOOM'));
+
   /** PRINT needs a displayed message */
   private readonly printable = this.selectedUid.map((uid) => uid !== null);
 
@@ -73,6 +78,7 @@ export class OitAvncsCompanyComInbox extends DestroyableComponent<OitAvncsCompan
     this.subscriptions.push(
       this.toText,
       this.printable,
+      this.zoomLabel,
       this.mailbox.messages.sub(() => this.refresh(), true),
       this.selectedUid.sub((selectedUid) => {
         this.lines.forEach((l) => l.selected.set(l.uid === selectedUid));
@@ -172,7 +178,10 @@ export class OitAvncsCompanyComInbox extends DestroyableComponent<OitAvncsCompan
           <div>{this.subjectText}</div>
           <div>{this.toText}</div>
         </div>
-        <div class="oit-ccom-inbox-msg-box">{this.messageText}</div>
+        <div class={{ 'oit-ccom-inbox-msg-box': true, zoomed: this.zoomed }}>{this.messageText}</div>
+        <div style="display: flex; flex-direction: row; justify-content: flex-end; margin: 5px 10px;">
+          <Button label={this.zoomLabel} onClick={() => this.zoomed.set(!this.zoomed.get())} />
+        </div>
         <div style="flex-grow: 1" />
       </>
     );

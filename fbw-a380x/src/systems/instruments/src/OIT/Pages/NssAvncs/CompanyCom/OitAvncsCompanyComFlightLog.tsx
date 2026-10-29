@@ -8,8 +8,13 @@ import { DestroyableComponent } from '@flybywiresim/msfs-avionics-common';
 import { FmsData, NXDataStore, NXUnits } from '@flybywiresim/fbw-sdk';
 import { OitSimvars } from '../../../OitSimvarPublisher';
 import { AnsuOps } from '../../../System/AnsuOps';
+import { InputField } from '../../../../MsfsAvionicsCommon/UiWidgets/InputField';
+import { FreeTextFormat } from '../../../../MFD/pages/common/DataEntryFormats';
 
 interface OitAvncsCompanyComFlightLogProps extends AbstractOitAvncsPageProps {}
+
+/** Maximum characters of a station callsign, as on the Free Text page */
+const OOOI_STATION_LENGTH = 8;
 
 export abstract class OitAvncsCompanyComFlightLog extends DestroyableComponent<OitAvncsCompanyComFlightLogProps> {
   private readonly sci = this.props.container.ansu.sci;
@@ -167,6 +172,24 @@ export abstract class OitAvncsCompanyComFlightLog extends DestroyableComponent<O
             <div class="oit-green-text mt20">{this.fltNumberText}</div>
             <div class="oit-align-right-sp25 mt20">Scheduled Date</div>
             <div class="oit-green-text mt20">{this.scheduledDateText}</div>
+          </div>
+        </div>
+        <div class="oit-labeled-box-container">
+          <span class="oit-labeled-box-label">OOOI reports</span>
+          <div style="display: flex; flex-direction: row; align-items: center; padding: 5px 15px;">
+            <span class="oit-label" style="width: 190px;">
+              Station
+            </span>
+            <InputField<string>
+              dataEntryFormat={new FreeTextFormat(OOOI_STATION_LENGTH)}
+              value={this.props.container.ansu.companyComReports.oooiStation}
+              containerStyle="width: 220px;"
+              alignText="flex-start"
+              canBeCleared={true}
+              hEventConsumer={this.props.container.hEventConsumer}
+              interactionMode={this.props.container.interactionMode}
+              errorHandler={() => {}}
+            />
           </div>
         </div>
         <div class="oit-ccom-flight-log-bottom-structure">

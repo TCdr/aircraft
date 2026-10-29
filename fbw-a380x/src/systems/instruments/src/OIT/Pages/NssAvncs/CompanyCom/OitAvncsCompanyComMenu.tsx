@@ -133,6 +133,16 @@ export class OitAvncsCompanyComMenu extends DestroyableComponent<OitAvncsCompany
               navigationTarget="nss-avncs/company-com/in-flight/eta"
             />
             <OitFile
+              name={'Flight Delay'}
+              uiService={this.props.uiService}
+              navigationTarget="nss-avncs/company-com/in-flight/flight-delay"
+            />
+            <OitFile
+              name={'Flight Parameters'}
+              uiService={this.props.uiService}
+              navigationTarget="nss-avncs/company-com/in-flight/flight-parameters"
+            />
+            <OitFile
               name={'Free Text'}
               uiService={this.props.uiService}
               navigationTarget="nss-avncs/company-com/in-flight/free-text"

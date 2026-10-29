@@ -37,6 +37,12 @@ export class CompanyComReports {
   public readonly lastStation = Subject.create<string | null>(null);
 
   /**
+   * The station the automatic OOOI reports go to. Design choice: it starts as the station of the first report sent from
+   * this OIT; the crew can change it on the Flight Log page.
+   */
+  public readonly oooiStation = Subject.create<string | null>(null);
+
+  /**
    * @param bus the bus of the OIT
    * @param downlinks the Outbox and Sent folders the reports go into
    */
@@ -88,6 +94,9 @@ export class CompanyComReports {
     );
     this.pending.set(requestId, { formUrl, downlinkId, timeout });
     this.lastStation.set(message.Station);
+    if (this.oooiStation.get() === null) {
+      this.oooiStation.set(message.Station);
+    }
     this.statusSubject(formUrl).set(CompanyComRequestStatus.Sending);
     this.bus.getPublisher<FmsAocMessages>().pub('aocSendFreetextMessage', { message, requestId }, true, false);
     return true;
