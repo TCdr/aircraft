@@ -60,6 +60,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OIT] COMPANY COM Inbox, Outbox and Sent have a ZOOM button that shows the displayed message in larger characters - @TCdr
 1. [A380X/OIT] COMPANY COM In-flight Reports: new Flight Delay and Flight Parameters reports - @TCdr
 1. [A380X/OIT] Restart FLT OPS startup sequence after laptop power loss - @HendersonTyler (Tyler Henderson)
+1. [A380X/OIT] New FLT OPS application OPS LIBRARY: the feature and simvar manuals, the ECAM procedures, the ECAM alerts of the flight, the deferred MEL and CDL items of the eLogbook, search, bookmarks and notes - @TCdr
 1. [A380X/MFD] Fix LS field remaining blank on F-PLN arrival page when no landing system is available or selected - @matze-tech (matze2346)
 1. [A380X/PRIM] Move FE to PRIM and add SPD LIM flag - @lukecologne (luke)
 1. [A380X/PRIM] Improve speed trend behaviour - @lukecologne (luke)

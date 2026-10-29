@@ -11,6 +11,7 @@ import { OitFltOpsStatus } from './Pages/FltOps/OitFltOpsStatus';
 import { OitFltOpsLoadBox } from './Pages/FltOps/OitFltOpsLoadBox';
 import { OitFltOpsExportBox } from './Pages/FltOps/OitFltOpsExportBox';
 import { OitFltOpsInFltPerf } from './Pages/FltOps/OitFltOpsInFltPerf';
+import { OitFltOpsOpsLibrary } from './Pages/FltOps/OpsLibrary/OitFltOpsOpsLibrary';
 import { OitNotFound } from './Pages/OitNotFound';
 import { OitUiService } from './OitUiService';
 import { OitFltOpsContainer } from './OitFltOpsContainer';
@@ -73,6 +74,8 @@ export function fltOpsPageForUrl(
       return <OitFltOpsExportBox bus={bus} uiService={uiService} container={container} />;
     case 'flt-ops/in-flt-perf':
       return <OitFltOpsInFltPerf bus={bus} uiService={uiService} container={container} />;
+    case 'flt-ops/ops-library':
+      return <OitFltOpsOpsLibrary bus={bus} uiService={uiService} container={container} />;
 
     default:
       return <OitNotFound uiService={uiService} />;

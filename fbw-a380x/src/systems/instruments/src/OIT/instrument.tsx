@@ -16,6 +16,7 @@ import {
 import { AdrBusPublisher, FwcBusPublisher, FailuresConsumer } from '@flybywiresim/fbw-sdk';
 import { OIT } from './OIT';
 import { InternalKbdKeyEvent, OitSimvarPublisher, OitSimvars } from './OitSimvarPublisher';
+import { EcamAbnormalSensedProcedures } from '../MsfsAvionicsCommon/EcamMessages';
 import { OisLaptop } from './OisLaptop';
 import { LaptopKeyChords } from './LaptopKeyboard';
 import { AircraftNetworkServerUnit } from './System/AircraftNetworkServerUnit';
@@ -48,6 +49,7 @@ class OitInstrument implements FsInstrument {
     this.bus,
     this.instrument.instrumentIndex === 1 ? 1 : 2,
     this.failuresConsumer,
+    EcamAbnormalSensedProcedures,
   );
 
   private readonly avncsAnsu = new AnsuOps(this.bus, 1, 'nss-avncs', this.failuresConsumer);

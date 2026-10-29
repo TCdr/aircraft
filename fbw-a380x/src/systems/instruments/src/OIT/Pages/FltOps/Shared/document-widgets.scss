@@ -1,0 +1,235 @@
+// Copyright (c) 2026 FlyByWire Simulations
+// SPDX-License-Identifier: GPL-3.0
+
+@import "../../../../MsfsAvionicsCommon/definitions";
+
+// Generic document widgets: navigation tree, search frame, search results
+
+.oit-doc-tree {
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: $display-background;
+  font-size: 22px;
+  color: $display-white;
+}
+
+.oit-doc-tree-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  min-height: 32px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.oit-doc-tree-row.selected {
+  border-color: $display-white;
+}
+
+.oit-doc-tree-row.hit .oit-doc-tree-title {
+  color: $display-green;
+}
+
+.oit-doc-tree-badge {
+  flex-shrink: 0;
+  margin-right: 6px;
+  color: $display-yellow;
+  font-weight: bold;
+}
+
+.oit-doc-tree-opener {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 22px;
+  text-align: center;
+  color: $display-light-grey;
+}
+
+.oit-doc-tree-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.oit-doc-tree-icon {
+  display: inline-block;
+  width: 16px;
+  height: 14px;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.oit-doc-tree-icon.folder {
+  background: $display-yellow;
+}
+
+.oit-doc-tree-icon.unit {
+  width: 12px;
+  height: 16px;
+  border: 2px solid $display-white;
+}
+
+.oit-doc-tree-icon.note {
+  width: 12px;
+  height: 16px;
+  background: $display-amber;
+}
+
+.oit-doc-frame {
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
+  border: 2px solid $display-light-grey;
+  margin-bottom: 12px;
+}
+
+.oit-doc-frame-title {
+  font-size: 22px;
+  color: $display-light-grey;
+  margin-bottom: 6px;
+}
+
+.oit-doc-search-line {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.oit-doc-warning {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  color: $display-amber;
+  font-size: 20px;
+}
+
+.oit-doc-warning.hidden {
+  display: none;
+}
+
+.oit-doc-results {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 8px;
+  border: 2px solid $display-light-grey;
+}
+
+.oit-doc-results-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  background: $display-background;
+  border: 1px solid $display-light-grey;
+  font-size: 22px;
+}
+
+.oit-doc-results-group {
+  color: $display-yellow;
+  padding: 2px 4px;
+}
+
+.oit-doc-results-hit {
+  color: $display-white;
+  padding: 2px 4px 2px 24px;
+  border: 1px solid transparent;
+}
+
+.oit-doc-results-hit.selected {
+  border-color: $display-white;
+}
+
+.oit-doc-results-buttons {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+.oit-doc-note {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  // A block of its own height above the footer: the field and both buttons always fit next to each other
+  height: 52px;
+  padding: 4px 0;
+  font-size: 22px;
+}
+
+.oit-doc-note > * {
+  flex: 0 0 auto;
+}
+
+.oit-doc-note-label {
+  color: $display-light-grey;
+}
+
+// The click-operated scroll bar of the scrolled panes: the cockpit screen has no mouse wheel. Absolute positions and
+// explicit sizes only, the sim browser does not size flex children reliably
+.oit-scroll-bar {
+  position: absolute;
+  z-index: 5;
+  width: 22px;
+  background: $display-background;
+  border: 1px solid $display-light-grey;
+}
+
+.oit-scroll-arrow {
+  position: absolute;
+  left: 0;
+  width: 20px;
+  height: 20px;
+  background: $display-dark-grey;
+  cursor: pointer;
+}
+
+.oit-scroll-arrow.up {
+  top: 0;
+  border-bottom: 1px solid $display-light-grey;
+}
+
+.oit-scroll-arrow.down {
+  bottom: 0;
+  border-top: 1px solid $display-light-grey;
+}
+
+.oit-scroll-arrow::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+}
+
+.oit-scroll-arrow.up::after {
+  top: 5px;
+  border-bottom: 9px solid $display-white;
+}
+
+.oit-scroll-arrow.down::after {
+  bottom: 5px;
+  border-top: 9px solid $display-white;
+}
+
+.oit-scroll-track {
+  position: absolute;
+  top: 20px;
+  bottom: 20px;
+  left: 0;
+  width: 20px;
+}
+
+.oit-scroll-thumb {
+  position: absolute;
+  left: 2px;
+  width: 16px;
+  background: $display-light-grey;
+  border: 1px solid $display-white;
+  cursor: pointer;
+}
