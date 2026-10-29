@@ -221,6 +221,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OIT] LOADSHEET MORE panel: the TOCG warning and the automatic ground transfer to the CG limit and to the refuel target - @TCdr
 1. [A380X/OIT] LOADSHEET DETAILED mode: crew, passengers and cargo with their distribution in the cabin and the holds, and the detailed loadsheet with its edition number - @TCdr
 1. [A380X/OIT] ACFT STS and SYNCHRO LOGBOOK in T.O PERF, LDG PERF and LOADSHEET: the deferred MEL and CDL items of the logbook, with the items the computation cannot take into account - @TCdr
+1. [A380X/OIT] The function keys, CTRL and ALT of the laptop keyboards work: F-keys press the OIT buttons that show them (COMPUTE <F8>...), CTRL and ALT latch for the next key (backlit) for the menu shortcuts (Ctrl P, Alt H...); the OIT BRIGHTNESS knob at OFF also switches off the keyboard and ACD; COMPANY COM and LOGBOOK start at the NSS AVNCS log-on - @TCdr
 
 ## 2024.1.0
 
