@@ -183,7 +183,7 @@ const SinglePreset = (props: SinglePresetParams) => {
   // variable didn't work in Javascript.
   // To tell the presets.wasm module to load a preset the LVAR "L:A32NX_LIGHTING_PRESET_LOAD"
   // needs to be set with a number > 0 where the number is the corresponding preset ID to be loaded.
-  // If a preset is not defined for this number a default preset (all lights at 50%) will be loaded.
+  // If a preset is not defined for this number a default preset (all lights at 50%, the A32NX dome light off) will be loaded.
   // To tell the presets.wasm module to save a preset the LVAR "L:A32NX_LIGHTING_PRESET_SAVE"
   // needs to be set with a number > 0 where the number is the corresponding preset ID to be saved..
   // After loading or saving the wasm module will reset the LVARs to 0.

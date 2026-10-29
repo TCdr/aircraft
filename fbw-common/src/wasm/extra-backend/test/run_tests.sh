@@ -10,3 +10,5 @@ clang++ -std=c++20 -Wall -Wextra -Werror ini_write_test.cpp -o ../obj/ini_write_
 ../obj/ini_write_test
 clang++ -std=c++20 -Wall -Wextra -Werror preset_runner_test.cpp -o ../obj/preset_runner_test
 ../obj/preset_runner_test
+clang++ -std=c++20 -Wall -Wextra -Werror dome_light_switch_test.cpp -o ../obj/dome_light_switch_test
+../obj/dome_light_switch_test

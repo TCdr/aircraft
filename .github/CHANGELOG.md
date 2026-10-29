@@ -23,6 +23,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 
 ## 2024.2.0
 
+1. [A32NX/EFB] Lighting presets move the DOME switch with the dome light (OFF, DIM or BRT) and the default preset leaves the dome light off, so a preset loaded at flyPad power-up no longer lights the cockpit with the switch still at OFF - @TCdr
 1. [ATSU] Add support for BeyondATC and SayIntentions AI as METAR/ATIS sources - @saschl
 1. [A32NX/TCAS] Improve PFD Resolution Advisory graphics, introduce TCAS bus - @lukecologne (luke)
 1. [A380X/FMS] Fix TOW on FUEL&LOAD page showing gross weight instead of takeoff weight in flight - @HendersonTyler
