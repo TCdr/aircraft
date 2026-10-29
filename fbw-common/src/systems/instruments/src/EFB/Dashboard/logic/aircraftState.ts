@@ -53,16 +53,21 @@ export type AdirsState = 'off' | 'aligning' | 'aligned';
 /** The ADIRU states of the systems: 0 off, 1 aligning, 2 aligned */
 const ADIRU_ALIGNING = 1;
 const ADIRU_ALIGNED = 2;
+/** The IR mode selector positions: 0 OFF, 1 NAV, 2 ATT */
+const IR_MODE_NAV = 1;
 
 /**
  * The ADIRS as one value: aligned only when every ADIRU is, aligning while any one is, with the remaining time of
- * the slowest IR (the systems publish one remaining time for all of them)
+ * the slowest IR (the systems publish one remaining time for all of them). An ADIRU counts only with its mode
+ * selector at NAV: with the Instant align time the systems report it aligned at OFF too.
  */
 export const adirsSummary = (
   adiruStates: readonly number[],
+  irModes: readonly number[],
   remainingSeconds: number,
 ): { state: AdirsState; minutesLeft: number | null } => {
-  if (adiruStates.length > 0 && adiruStates.every((state) => state === ADIRU_ALIGNED)) {
+  const atNav = (index: number) => irModes[index] === IR_MODE_NAV;
+  if (adiruStates.length > 0 && adiruStates.every((state, index) => state === ADIRU_ALIGNED && atNav(index))) {
     return { state: 'aligned', minutesLeft: null };
   }
   if (adiruStates.some((state) => state === ADIRU_ALIGNING)) {

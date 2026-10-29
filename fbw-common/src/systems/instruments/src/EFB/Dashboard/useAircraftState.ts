@@ -89,6 +89,9 @@ export const useAircraftState = (): AircraftState => {
   const [adiru1] = useSimVar('L:A32NX_ADIRS_ADIRU_1_STATE', 'enum', 1_000);
   const [adiru2] = useSimVar('L:A32NX_ADIRS_ADIRU_2_STATE', 'enum', 1_000);
   const [adiru3] = useSimVar('L:A32NX_ADIRS_ADIRU_3_STATE', 'enum', 1_000);
+  const [irMode1] = useSimVar('L:A32NX_OVHD_ADIRS_IR_1_MODE_SELECTOR_KNOB', 'enum', 1_000);
+  const [irMode2] = useSimVar('L:A32NX_OVHD_ADIRS_IR_2_MODE_SELECTOR_KNOB', 'enum', 1_000);
+  const [irMode3] = useSimVar('L:A32NX_OVHD_ADIRS_IR_3_MODE_SELECTOR_KNOB', 'enum', 1_000);
   const [alignSeconds] = useSimVar('L:A32NX_ADIRS_REMAINING_IR_ALIGNMENT_TIME', 'seconds', 1_000);
   const [engine1] = useSimVar('ENG COMBUSTION:1', 'bool', 1_000);
   const [engine2] = useSimVar('ENG COMBUSTION:2', 'bool', 1_000);
@@ -105,7 +108,7 @@ export const useAircraftState = (): AircraftState => {
     return () => window.clearInterval(timer);
   }, [isA380]);
 
-  const adirs = adirsSummary([adiru1, adiru2, adiru3], alignSeconds);
+  const adirs = adirsSummary([adiru1, adiru2, adiru3], [irMode1, irMode2, irMode3], alignSeconds);
   return {
     power: powerSource({ ...readings.power, engineRunning }),
     extPwrOnline: readings.power.extPwrOnline,
