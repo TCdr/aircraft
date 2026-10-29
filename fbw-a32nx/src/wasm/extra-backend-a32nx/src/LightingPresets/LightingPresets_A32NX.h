@@ -14,7 +14,7 @@ struct LightingValues_A32NX {
   // EFB
   FLOAT64 efbBrightness;  // A32NX_EFB_BRIGHTNESS 0..100
   // OVHD
-  FLOAT64 cabinLightLevel;         // 7 (0, 50, 100)
+  FLOAT64 cabinLightLevel;         // 7 (0, 20, 100: the DOME switch positions)
   FLOAT64 ovhdIntegralLightLevel;  // 86 (0..100)
   // Glareshield
   FLOAT64 glareshieldIntegralLightLevel;  // 84
@@ -135,9 +135,11 @@ class LightingPresets_A32NX : public LightingPresets {
   // The default preset, loaded for a preset row that was never saved. Values in the 0..100 scale of the stored presets,
   // like the defaults of loadFromIni: readFromAircraft/applyToAircraft convert the DCDU and MCDU brightness from and to
   // their own ranges, so a DCDU or MCDU value of 0.5 here would leave them dark.
+  // The dome light stays off: the flyPad loads this preset at every power-up, and a dome light that comes on by itself
+  // at night (with the DOME switch still at OFF) is not what the crew expects.
   const LightingValues_A32NX DEFAULT_50 = {
       50.0,  // efbBrightness
-      50.0,  // cabinLightLevel
+      0.0,   // cabinLightLevel
       50.0,  // ovhdIntegralLightLevel
       50.0,  // glareshieldIntegralLightLevel
       50.0,  // glareshieldLcdLightLevel
