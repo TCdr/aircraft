@@ -5,7 +5,6 @@
 import React, { useEffect, useState } from 'react';
 import {
   AircraftContext,
-  Dispatch,
   ErrorFallback,
   EventBusContextProvider,
   FailuresOrchestratorProvider,
@@ -164,13 +163,11 @@ export const OitEfbWrapper: React.FC<OitEfbWrapperProps> = ({ eventBus }) => {
 };
 
 const showChartSimvar = `L:A32NX_OIS_${getDisplayIndex()}_SHOW_CHARTS`;
-const showOfpSimvar = `L:A32NX_OIS_${getDisplayIndex()}_SHOW_OFP`;
 
 export const OitEfbPageWrapper: React.FC<OitEfbWrapperProps> = () => {
   const dispatch = useAppDispatch();
 
   const [showCharts] = useSimVar(showChartSimvar, 'Bool', 100);
-  const [showOfp] = useSimVar(showOfpSimvar, 'Bool', 100);
   const [synchroAvionics] = useSimVar('L:A32NX_OIS_SYNCHRO_AVIONICS', 'number', 100);
 
   const [fromAirport, setFromAirport] = useState<string>('');
@@ -183,7 +180,7 @@ export const OitEfbPageWrapper: React.FC<OitEfbWrapperProps> = () => {
   const [navigraphToken, setNavigraphToken] = useState<string>(NXDataStore.getLegacy('NAVIGRAPH_ACCESS_TOKEN'));
   const [reloadAircraft, setReloadAircraft] = useState<boolean>(false);
 
-  const showEfbOverlay = (showCharts === 1 && !reloadAircraft) || showOfp === 1;
+  const showEfbOverlay = showCharts === 1 && !reloadAircraft;
   document.getElementsByTagName('a380x-oitlegacy')[0].classList.toggle('nopointer', !showEfbOverlay);
 
   useEffect(() => {
@@ -259,10 +256,7 @@ export const OitEfbPageWrapper: React.FC<OitEfbWrapperProps> = () => {
           }}
         >
           <div className="flex flex-row">
-            <div className="h-screen w-screen p-2.5 pt-0">
-              {showCharts === 1 && !reloadAircraft && <Navigation />}
-              {showOfp === 1 && <Dispatch />}
-            </div>
+            <div className="h-screen w-screen p-2.5 pt-0">{showCharts === 1 && !reloadAircraft && <Navigation />}</div>
           </div>
         </div>
       )}

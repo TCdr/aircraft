@@ -9,6 +9,7 @@ import { OitFltOpsLandingPerf } from './Pages/FltOps/Performance/OitFltOpsLandin
 import { OitFltOpsLoadsheet } from './Pages/FltOps/Performance/OitFltOpsLoadsheet';
 import { OitFltOpsStatus } from './Pages/FltOps/OitFltOpsStatus';
 import { OitFltOpsLoadBox } from './Pages/FltOps/OitFltOpsLoadBox';
+import { OitFltOpsFlightFolder } from './Pages/FltOps/FlightFolder/OitFltOpsFlightFolder';
 import { OitFltOpsExportBox } from './Pages/FltOps/OitFltOpsExportBox';
 import { OitFltOpsInFltPerf } from './Pages/FltOps/OitFltOpsInFltPerf';
 import { OitFltOpsOpsLibrary } from './Pages/FltOps/OpsLibrary/OitFltOpsOpsLibrary';
@@ -67,7 +68,7 @@ export function fltOpsPageForUrl(
     case 'flt-ops/charts':
       return <OitFltOpsEfbOverlay bus={bus} uiService={uiService} container={container} />;
     case 'flt-ops/flt-folder':
-      return <OitFltOpsEfbOverlay bus={bus} uiService={uiService} container={container} />;
+      return <OitFltOpsFlightFolder bus={bus} uiService={uiService} container={container} />;
     case 'flt-ops/load-box':
       return <OitFltOpsLoadBox bus={bus} uiService={uiService} container={container} />;
     case 'flt-ops/export-box':

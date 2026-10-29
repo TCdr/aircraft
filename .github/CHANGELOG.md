@@ -59,6 +59,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/MFD] Alternate flightplan or go around legs can be loaded on the vertical revision pages - @BravoMike99 (bruno_pt99)
 1. [A380X/MFD] Show approach QNH and TEMP as mandatory only when closer than 180 NM to destination or when predictions are unavailable - @matze-tech (matze2346)
 1. [A380X/FWS] Improve ROW/ROP callouts, changed autobrake off master caution light to 3 seconds - @BravoMike99 (bruno_pt99)
+1. [A380X/OIT] FLT FOLDER is the electronic flight folder: the OFP loaded in the LOAD BOX opens as a document tree (flight information, weather, NOTAMs, loadsheet, flight plan, OFP) with NOTE, SEARCH, SIGN / CHECK and the FMS INIT, FLT INFO, ALTN and NAV LOG panels, and EXPORT FLIGHT FOLDER feeds the EXPORT BOX - @TCdr
 1. [A380X/OIT] The AOC sends the OOOI reports (OUT, OFF, ON, IN) by itself to the OOOI station set on the COMPANY COM Flight Log page - @TCdr
 1. [A380X/OIT] COMPANY COM Inbox, Outbox and Sent have a ZOOM button that shows the displayed message in larger characters - @TCdr
 1. [A380X/OIT] COMPANY COM In-flight Reports: new Flight Delay and Flight Parameters reports - @TCdr

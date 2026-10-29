@@ -3,38 +3,43 @@
 
 import { ComponentProps, DisplayComponent, FSComponent, MappedSubject, Subject, VNode } from '@microsoft/msfs-sdk';
 import { DestroyableComponent } from '@flybywiresim/msfs-avionics-common';
-import { Button } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
-import { FreeTextFormat } from '../../../../MFD/pages/common/DataEntryFormats';
-import { OitAvncsContainer } from '../../../OitAvncsContainer';
-import { LogbookDialog, LogbookDialogButton, TechLogbookStore } from '../../../System/TechLogbookStore';
-import { LogbookField } from './LogbookWidgets';
-import { LogbookPasswordFormat } from './LogbookEntryFormats';
-import { LOGBOOK_DIALOG_DRAFTS, personalIdAfterButton } from './LogbookDrafts';
+import { Button } from '../../../MsfsAvionicsCommon/UiWidgets/Button';
+import { FreeTextFormat } from '../../../MFD/pages/common/DataEntryFormats';
+import { OisDialog, OisDialogButton, personalIdAfterButton } from '../../System/OisDialog';
+import { OitPageDrafts } from '../../System/OitPageDrafts';
+import { LogbookField, LogbookFieldKeyboard } from '../NssAvncs/Logbook/LogbookWidgets';
+import { LogbookPasswordFormat } from '../NssAvncs/Logbook/LogbookEntryFormats';
 
-interface OitAvncsLogbookDialogProps extends ComponentProps {
-  readonly store: TechLogbookStore;
-  readonly container: OitAvncsContainer;
+interface OisIdentificationDialogProps extends ComponentProps {
+  /** The window shown, null when there is none */
+  readonly dialog: Subject<OisDialog | null>;
+  /** Where the personal ID is kept between two drawings of the page */
+  readonly drafts: OitPageDrafts;
+  /** The page entry of the personal ID in the drafts */
+  readonly draftsPage: string;
+  readonly keyboard: LogbookFieldKeyboard;
+  /** The title bar: the application */
+  readonly title: string;
 }
 
-/** The LOGBOOK message windows over the logbook pages: messages, the identification and the electronic signature */
-export class OitAvncsLogbookDialog extends DestroyableComponent<OitAvncsLogbookDialogProps> {
+/** The message windows of an application: messages, the identification and the electronic signature */
+export class OisIdentificationDialog extends DestroyableComponent<OisIdentificationDialogProps> {
   private readonly linesRef = FSComponent.createRef<HTMLDivElement>();
   private readonly buttonsRef = FSComponent.createRef<HTMLDivElement>();
 
   private buttons: VNode[] = [];
 
-  private readonly hidden = this.props.store.dialog.map((d) => d === null);
+  private readonly hidden = this.props.dialog.map((d) => d === null);
 
-  private readonly kindText = this.props.store.dialog.map((d) => (d ? `${d.kind}:` : ''));
-  private readonly kindIsCaution = this.props.store.dialog.map((d) => d?.kind === 'Caution');
+  private readonly kindText = this.props.dialog.map((d) => (d ? `${d.kind}:` : ''));
+  private readonly kindIsCaution = this.props.dialog.map((d) => d?.kind === 'Caution');
 
-  private readonly identification = this.props.store.dialog.map((d) => d?.identification ?? null);
+  private readonly identification = this.props.dialog.map((d) => d?.identification ?? null);
   private readonly identificationHidden = this.identification.map((i) => i === null);
   private readonly passwordHidden = this.identification.map((i) => i !== 'authentication');
 
   /** The PERSONAL ID survives a visit to another application and the next signature; the password never does */
-  private readonly drafts = this.props.container.ansu.pageDrafts;
-  private readonly personalId = this.drafts.field<string | null>(LOGBOOK_DIALOG_DRAFTS, 'personalId', null);
+  private readonly personalId = this.props.drafts.field<string | null>(this.props.draftsPage, 'personalId', null);
   private readonly password = Subject.create<string | null>(null);
 
   /** OK of an identification needs the personal ID, and the password when the logbook opens */
@@ -56,7 +61,7 @@ export class OitAvncsLogbookDialog extends DestroyableComponent<OitAvncsLogbookD
       this.identificationHidden,
       this.passwordHidden,
       this.okDisabled,
-      this.props.store.dialog.sub((dialog) => this.show(dialog), true),
+      this.props.dialog.sub((dialog) => this.show(dialog), true),
     );
   }
 
@@ -65,7 +70,7 @@ export class OitAvncsLogbookDialog extends DestroyableComponent<OitAvncsLogbookD
     super.destroy();
   }
 
-  private show(dialog: LogbookDialog | null): void {
+  private show(dialog: OisDialog | null): void {
     const lines = this.linesRef.getOrDefault();
     const buttons = this.buttonsRef.getOrDefault();
     if (!lines || !buttons) {
@@ -94,7 +99,7 @@ export class OitAvncsLogbookDialog extends DestroyableComponent<OitAvncsLogbookD
           label={button.label}
           disabled={button.label === 'OK' ? this.okDisabled : false}
           onClick={() => this.press(button)}
-          buttonStyle="width: 150px; font-size: 26px; height: 46px; margin-left: 12px;"
+          buttonStyle="min-width: 150px; padding: 0 14px; font-size: 26px; height: 46px; margin-left: 12px;"
         />
       );
       FSComponent.render(vnode, buttons);
@@ -102,9 +107,9 @@ export class OitAvncsLogbookDialog extends DestroyableComponent<OitAvncsLogbookD
     }
   }
 
-  private press(button: LogbookDialogButton): void {
+  private press(button: OisDialogButton): void {
     this.personalId.set(personalIdAfterButton(this.personalId.get(), button.label));
-    this.props.store.dialog.set(null);
+    this.props.dialog.set(null);
     button.action?.();
   }
 
@@ -121,7 +126,7 @@ export class OitAvncsLogbookDialog extends DestroyableComponent<OitAvncsLogbookD
     return (
       <div class={{ 'oit-logbook-dialog-overlay': true, hidden: this.hidden }}>
         <div class="oit-logbook-dialog">
-          <div class="oit-logbook-dialog-title">LOGBOOK</div>
+          <div class="oit-logbook-dialog-title">{this.props.title}</div>
           <div class="oit-logbook-dialog-body">
             <div class={{ 'oit-logbook-amber': this.kindIsCaution }}>{this.kindText}</div>
             <div ref={this.linesRef} />
@@ -131,7 +136,7 @@ export class OitAvncsLogbookDialog extends DestroyableComponent<OitAvncsLogbookD
                   PERSONAL ID
                 </div>
                 <LogbookField<string>
-                  container={this.props.container}
+                  container={this.props.keyboard}
                   format={new FreeTextFormat(12)}
                   value={this.personalId}
                   onModified={(v) => this.personalId.set(v)}
@@ -144,7 +149,7 @@ export class OitAvncsLogbookDialog extends DestroyableComponent<OitAvncsLogbookD
                   PASSWORD
                 </div>
                 <LogbookField<string>
-                  container={this.props.container}
+                  container={this.props.keyboard}
                   format={new LogbookPasswordFormat()}
                   value={this.password}
                   onModified={(v) => this.password.set(v)}
