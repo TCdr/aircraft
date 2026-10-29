@@ -965,6 +965,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [EFB] Failure details for the A32NX electrical, fire protection and hydraulic failures (ATA 24, 26, 29) - @TCdr
 1. [EFB] Failure details for the A32NX flight controls, ice and rain protection and pneumatic failures (ATA 27, 30, 36) - @TCdr
 1. [EFB] Failure details for the A32NX landing gear and navigation failures (ATA 32, 34) - @TCdr
+1. [EFB] Failure details for the remaining A32NX failures: auto flight, communication, fuel, indicating and recording, oxygen, information systems, APU and doors (ATA 22, 23, 28, 31, 35, 46, 49, 52); every A32NX failure now has its details - @TCdr
 
 ## 2024.1.0
 
