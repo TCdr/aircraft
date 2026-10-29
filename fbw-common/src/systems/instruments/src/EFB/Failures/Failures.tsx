@@ -10,10 +10,12 @@ import { useAppDispatch, useAppSelector } from '../Store/store';
 import { SimpleInput } from '../UtilComponents/Form/SimpleInput/SimpleInput';
 import { TooltipWrapper } from '../UtilComponents/TooltipWrapper';
 import { useFailuresOrchestrator } from '../failures-orchestrator-provider';
-import { setSearchQuery, setSelection } from '../Store/features/failuresPage';
+import { useToggleFailure } from './useToggleFailure';
+import { closeFailureDetail, openFailureDetail, setSearchQuery, setSelection } from '../Store/features/failuresPage';
 import { M3_INPUT, M3Button, M3Card, M3Chip } from '../UtilComponents/Material/Material';
 import { ScrollableContainer } from '../UtilComponents/ScrollableContainer';
 import { activeFailuresLabel, failuresCountLabel } from './activeFailuresLabel';
+import { CARD_HEIGHT, FailureDetailView } from './FailureDetailView';
 import { FailureRow } from './FailureRow';
 import { failureMatchesSearch, FailuresSelection, groupByChapter, resolveSelection } from './failuresView';
 
@@ -75,7 +77,9 @@ interface FailureGridProps {
 }
 
 const FailureGrid: FC<FailureGridProps> = ({ failures }) => {
-  const { activeFailures, activate, deactivate } = useFailuresOrchestrator();
+  const dispatch = useAppDispatch();
+  const { activeFailures } = useFailuresOrchestrator();
+  const toggleFailure = useToggleFailure();
   const { searchQuery } = useAppSelector((state) => state.failuresPage);
 
   return (
@@ -88,7 +92,8 @@ const FailureGrid: FC<FailureGridProps> = ({ failures }) => {
             name={failure.name}
             isActive={isActive}
             searchQuery={searchQuery}
-            onToggle={() => (isActive ? deactivate(failure.identifier) : activate(failure.identifier))}
+            onToggle={() => toggleFailure(failure.identifier)}
+            onOpen={() => dispatch(openFailureDetail(failure.identifier))}
             className={`${index % 2 !== 0 ? 'ml-2' : ''} ${index >= 2 ? 'mt-2' : ''}`}
           />
         );
@@ -117,14 +122,13 @@ const EmptyPane: FC<{ text: string }> = ({ text }) => (
   </div>
 );
 
-/** Height of the two cards (the tailwind content-section-reduced height) and of the chapter header of the right card, in rem */
-const CARD_HEIGHT = 54;
+/** Height of the chapter header of the right card, in rem; the card height is shared with the detail view */
 const PANE_HEADER_HEIGHT = 7;
 
 export const Failures = () => {
   const dispatch = useAppDispatch();
   const { allFailures, activeFailures, deactivate } = useFailuresOrchestrator();
-  const { searchQuery, selection: storedSelection } = useAppSelector((state) => state.failuresPage);
+  const { searchQuery, selection: storedSelection, detailFailure } = useAppSelector((state) => state.failuresPage);
 
   const searching = searchQuery !== '';
   const shownFailures = allFailures.filter((failure) =>
@@ -141,6 +145,8 @@ export const Failures = () => {
 
   const activeCountOf = (ata: AtaChapterNumber) =>
     allFailures.filter((failure) => failure.ata === ata && activeFailures.has(failure.identifier)).length;
+
+  const detailShown = allFailures.find((failure) => failure.identifier === detailFailure);
 
   let paneTitle: string;
   let paneCount: string;
@@ -256,28 +262,34 @@ export const Failures = () => {
         </M3Card>
 
         <M3Card low className="min-w-0 grow">
-          <div
-            className="flex shrink-0 flex-col overflow-hidden px-5 pb-3.5 pt-4"
-            style={{ height: `${PANE_HEADER_HEIGHT}rem` }}
-          >
-            <div className="flex min-h-[2.25rem] flex-row items-center">
-              <span className="text-2xl font-bold text-m3-text">{paneTitle}</span>
-              <span className="ml-3 rounded-sm bg-m3-tile px-2 py-1 text-xs font-bold leading-none text-m3-muted">
-                {paneCount}
-              </span>
-              <div className="grow" />
-              {paneAction}
-            </div>
-            {paneDescription && <p className="mt-1 text-sm leading-snug text-m3-muted">{paneDescription}</p>}
-          </div>
-          <ScrollableContainer
-            key={String(selection)}
-            height={CARD_HEIGHT - PANE_HEADER_HEIGHT}
-            className="px-5"
-            innerClassName="pb-5"
-          >
-            {paneBody}
-          </ScrollableContainer>
+          {detailShown ? (
+            <FailureDetailView failure={detailShown} onBack={() => dispatch(closeFailureDetail())} />
+          ) : (
+            <>
+              <div
+                className="flex shrink-0 flex-col overflow-hidden px-5 pb-3.5 pt-4"
+                style={{ height: `${PANE_HEADER_HEIGHT}rem` }}
+              >
+                <div className="flex min-h-[2.25rem] flex-row items-center">
+                  <span className="text-2xl font-bold text-m3-text">{paneTitle}</span>
+                  <span className="ml-3 rounded-sm bg-m3-tile px-2 py-1 text-xs font-bold leading-none text-m3-muted">
+                    {paneCount}
+                  </span>
+                  <div className="grow" />
+                  {paneAction}
+                </div>
+                {paneDescription && <p className="mt-1 text-sm leading-snug text-m3-muted">{paneDescription}</p>}
+              </div>
+              <ScrollableContainer
+                key={String(selection)}
+                height={CARD_HEIGHT - PANE_HEADER_HEIGHT}
+                className="px-5"
+                innerClassName="pb-5"
+              >
+                {paneBody}
+              </ScrollableContainer>
+            </>
+          )}
         </M3Card>
       </div>
     </>

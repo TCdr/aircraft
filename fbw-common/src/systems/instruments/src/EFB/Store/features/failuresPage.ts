@@ -8,9 +8,11 @@ interface FailurePageState {
   searchQuery: string;
   /** The pane the user opened last; null until they pick one */
   selection: FailuresSelection | null;
+  /** The failure whose detail view is open, null while the list shows */
+  detailFailure: number | null;
 }
 
-const FailurePageInitialState: FailurePageState = { searchQuery: '', selection: null };
+const FailurePageInitialState: FailurePageState = { searchQuery: '', selection: null, detailFailure: null };
 
 export const failurePageSlice = createSlice({
   name: 'failurePage',
@@ -21,9 +23,16 @@ export const failurePageSlice = createSlice({
     },
     setSelection: (state, action: PayloadAction<FailuresSelection>) => {
       state.selection = action.payload;
+      state.detailFailure = null;
+    },
+    openFailureDetail: (state, action: PayloadAction<number>) => {
+      state.detailFailure = action.payload;
+    },
+    closeFailureDetail: (state) => {
+      state.detailFailure = null;
     },
   },
 });
 
-export const { setSearchQuery, setSelection } = failurePageSlice.actions;
+export const { setSearchQuery, setSelection, openFailureDetail, closeFailureDetail } = failurePageSlice.actions;
 export default failurePageSlice.reducer;
