@@ -9,6 +9,7 @@ import { FreeTextFormat } from '../../../../MFD/pages/common/DataEntryFormats';
 import { OitAvncsContainer } from '../../../OitAvncsContainer';
 import { LogbookStoreTarget, canRecordData } from '../../../System/TechLogbook';
 import { LogbookField } from './LogbookWidgets';
+import { storeTargetChoice } from './LogbookDrafts';
 
 /** Design choice: the length of PILOT COMMENT, one line of the field */
 export const PILOT_COMMENT_LENGTH = 60;
@@ -50,6 +51,7 @@ export class LogbookDefectStorePanel extends DestroyableComponent<LogbookDefectS
 
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
+    this.props.target.set(storeTargetChoice(this.props.target.get()));
     this.subscriptions.push(this.storeDisabled);
   }
 
@@ -61,7 +63,7 @@ export class LogbookDefectStorePanel extends DestroyableComponent<LogbookDefectS
     const target = this.props.targets[index];
     this.props.onStore(target);
     this.props.pilotComment.set(null);
-    this.props.target.set(null);
+    this.props.target.set(storeTargetChoice(null));
     // Design choice: a short confirmation, the assistant pages give no other sign that the defect was recorded
     this.store.dialog.set({
       kind: 'Information',

@@ -298,8 +298,8 @@ export class OitAvncsLogbookFlightData extends DestroyableComponent<OitAvncsLogb
             <div class="oit-logbook-section">
               <span class="oit-logbook-section-title">ICING</span>
               <div class="oit-logbook-row">
-                {this.label('NIL', 230)}
                 <LogbookTickBox
+                  caption={{ text: 'NIL', width: 230 }}
                   checked={this.map(this.flight, (f) => f.preFlight.noDeIcing)}
                   disabled={this.readOnly}
                   label="NO DE-ICING"
@@ -333,8 +333,8 @@ export class OitAvncsLogbookFlightData extends DestroyableComponent<OitAvncsLogb
             <div class="oit-logbook-section">
               <span class="oit-logbook-section-title">NIL DEFECT</span>
               <div class="oit-logbook-row">
-                {this.label('NIL DEFECT', 230)}
                 <LogbookTickBox
+                  caption={{ text: 'NIL DEFECT', width: 230 }}
                   checked={this.map(this.post, (p) => p.nilDefect)}
                   disabled={this.readOnly}
                   onToggle={() =>

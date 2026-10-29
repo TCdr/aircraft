@@ -53,6 +53,8 @@ interface LogbookTickBoxProps extends ComponentProps {
   readonly disabled?: Subscribable<boolean>;
   readonly label?: string | Subscribable<string>;
   readonly labelClass?: string;
+  /** The caption left of the box (NIL, NIL DEFECT): part of the click target, like the label right of it */
+  readonly caption?: { readonly text: string; readonly width: number };
   readonly onToggle: () => void;
 }
 
@@ -70,6 +72,13 @@ export class LogbookTickBox extends DestroyableComponent<LogbookTickBoxProps> {
           }
         }}
       >
+        {this.props.caption ? (
+          <div class="oit-logbook-label" style={`width: ${this.props.caption.width}px;`}>
+            {this.props.caption.text}
+          </div>
+        ) : (
+          <></>
+        )}
         <span class={{ 'oit-logbook-tickbox': true, checked: this.props.checked, disabled: this.disabled }} />
         <span class={this.props.labelClass ?? ''}>{this.props.label ?? ''}</span>
       </LogbookClickable>
