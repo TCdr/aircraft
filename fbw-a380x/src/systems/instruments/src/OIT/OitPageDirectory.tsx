@@ -141,6 +141,8 @@ export function avncsCompanyComPageForUrl(
     case 'nss-avncs/company-com/in-flight/ramp-service':
     case 'nss-avncs/company-com/in-flight/diversion':
     case 'nss-avncs/company-com/in-flight/eta':
+    case 'nss-avncs/company-com/in-flight/flight-delay':
+    case 'nss-avncs/company-com/in-flight/flight-parameters':
     case 'nss-avncs/company-com/post-flight/asr-notification':
     case 'nss-avncs/company-com/post-flight/flight-summary':
     case 'nss-avncs/company-com/post-flight/gate-delay':

@@ -49,6 +49,8 @@ export interface ReportPrefillData {
   /** The fuel on board at OUT and IN (flight log), kg */
   readonly outFuel: number | null;
   readonly inFuel: number | null;
+  /** The computed airspeed now, kt */
+  readonly airspeed: number | null;
 }
 
 export interface ReportField {
@@ -446,6 +448,45 @@ const asrNotificationForm: ReportForm = {
   ],
 };
 
+/** Design choice: the time the flight was due to arrive, the new estimate and the delay code; the delay follows */
+const flightDelayForm: ReportForm = {
+  title: 'FLIGHT DELAY',
+  fields: [
+    flightNumberField,
+    originField,
+    destinationField,
+    timeField('scheduledArrival', 'STA'),
+    timeField('newEta', 'NEW ETA', true),
+    delayCodeField('delayCode', 'DELAY CODE', true),
+    textField('remarks', 'REMARKS'),
+  ],
+  derivedLines: (values) =>
+    values.scheduledArrival !== undefined && values.newEta !== undefined
+      ? [`DELAY ${durationBetween(values.scheduledArrival, values.newEta)}`]
+      : [],
+};
+
+/** Design choice: what the avionics parameter recorder gives the ground, in few figures: fuel and airspeed are pre-filled */
+const flightParametersForm: ReportForm = {
+  title: 'FLIGHT PARAMETERS',
+  fields: [
+    flightNumberField,
+    originField,
+    destinationField,
+    { id: 'flightLevel', label: 'FL', kind: ReportFieldKind.Count, length: 3, required: true },
+    { id: 'mach', label: 'MACH', kind: ReportFieldKind.Text, length: 4 },
+    {
+      id: 'airspeed',
+      label: 'CAS KT',
+      kind: ReportFieldKind.Count,
+      length: 3,
+      prefill: (data) => (data.airspeed === null ? null : String(Math.round(data.airspeed))),
+    },
+    weightField('fuelOnBoard', 'FOB', true, (data) => data.fuelOnBoard),
+    textField('remarks', 'REMARKS'),
+  ],
+};
+
 /** Design choice: the arrival airport and time, wheelchairs, and the services asked for in one line */
 const rampServiceForm: ReportForm = {
   title: 'RAMP SERVICE REQUEST',
@@ -539,6 +580,8 @@ const REPORT_FORM_PAGES: readonly { readonly path: string; readonly form: Report
   { path: 'in-flight/ramp-service', form: rampServiceForm },
   { path: 'in-flight/diversion', form: diversionForm },
   { path: 'in-flight/eta', form: etaForm },
+  { path: 'in-flight/flight-delay', form: flightDelayForm },
+  { path: 'in-flight/flight-parameters', form: flightParametersForm },
   { path: 'post-flight/asr-notification', form: asrNotificationForm },
   { path: 'post-flight/flight-summary', form: flightSummaryForm },
   { path: 'post-flight/gate-delay', form: gateDelayForm },

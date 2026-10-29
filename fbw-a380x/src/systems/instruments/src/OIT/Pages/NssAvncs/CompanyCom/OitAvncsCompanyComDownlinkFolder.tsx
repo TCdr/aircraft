@@ -4,6 +4,7 @@
 import { FSComponent, Subject, Subscribable, VNode } from '@microsoft/msfs-sdk';
 import { DestroyableComponent } from '@flybywiresim/msfs-avionics-common';
 import { AbstractOitAvncsPageProps } from '../../../OIT';
+import { Button } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
 import { AnsuOps } from '../../../System/AnsuOps';
 import { CompanyComDownlink, CompanyComDownlinkStatus, downlinkRecipient } from '../../../System/CompanyComDownlinks';
 import { OitAvncsCompanyComMessageLine } from './OitAvncsCompanyComInbox';
@@ -45,6 +46,10 @@ export class OitAvncsCompanyComDownlinkFolder extends DestroyableComponent<OitAv
   private readonly dateText = Subject.create('');
   private readonly messageText = Subject.create('');
 
+  /** Design choice: ZOOM shows the displayed message in larger characters; the next ZOOM goes back */
+  private readonly zoomed = Subject.create(false);
+  private readonly zoomLabel = this.zoomed.map((zoomed) => (zoomed ? 'UNZOOM' : 'ZOOM'));
+
   private readonly printable = this.selectedId.map((id) => id !== null);
 
   public onAfterRender(node: VNode): void {
@@ -57,6 +62,7 @@ export class OitAvncsCompanyComDownlinkFolder extends DestroyableComponent<OitAv
     this.subscriptions.push(
       this.fromText,
       this.printable,
+      this.zoomLabel,
       this.messages.sub(() => this.refresh(), true),
       this.selectedId.sub((selectedId) => {
         this.lines.forEach((l) => l.selected.set(l.id === selectedId));
@@ -161,7 +167,10 @@ export class OitAvncsCompanyComDownlinkFolder extends DestroyableComponent<OitAv
           <div>{this.subjectText}</div>
           <div>{this.toText}</div>
         </div>
-        <div class="oit-ccom-inbox-msg-box">{this.messageText}</div>
+        <div class={{ 'oit-ccom-inbox-msg-box': true, zoomed: this.zoomed }}>{this.messageText}</div>
+        <div style="display: flex; flex-direction: row; justify-content: flex-end; margin: 5px 10px;">
+          <Button label={this.zoomLabel} onClick={() => this.zoomed.set(!this.zoomed.get())} />
+        </div>
         <div style="flex-grow: 1" />
       </>
     );
