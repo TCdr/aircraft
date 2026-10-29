@@ -3,6 +3,7 @@
 
 #include <iostream>
 
+#include "LightingPresets/DomeLightSwitch.hpp"
 #include "LightingPresets/PresetLoadTarget.hpp"
 #include "LightingPresets_A32NX.h"
 #include "UpdateMode.h"
@@ -146,7 +147,7 @@ void LightingPresets_A32NX::loadFromIni(const mINI::INIStructure& ini, const std
   loadedLightValues = lighting_presets::presetLoadTarget(ini.has(iniSectionName), DEFAULT_50, [&]() {
     LightingValues_A32NX saved{};
     saved.efbBrightness                 = iniGetOrDefault(ini, iniSectionName, "efb_brightness", 80.0);
-    saved.cabinLightLevel               = iniGetOrDefault(ini, iniSectionName, "cabin_light", 50.0);
+    saved.cabinLightLevel               = iniGetOrDefault(ini, iniSectionName, "cabin_light", 0.0);
     saved.ovhdIntegralLightLevel        = iniGetOrDefault(ini, iniSectionName, "ovhd_int_lt", 50.0);
     saved.glareshieldIntegralLightLevel = iniGetOrDefault(ini, iniSectionName, "glareshield_int_lt", 50.0);
     saved.glareshieldLcdLightLevel      = iniGetOrDefault(ini, iniSectionName, "glareshield_lcd_lt", 50.0);
@@ -233,19 +234,11 @@ void LightingPresets_A32NX::saveToIni(mINI::INIStructure& ini, const std::string
 }
 
 void LightingPresets_A32NX::setValidCabinLightValue(FLOAT64 level) {
-  // cabin light level needs to either be 0, 50 or 100 for the switch position
-  // in the aircraft to work.
-  if (level <= 0.0) {
-    level = 0.0;
-  } else if (level > 0.0 && level <= 50.0) {
-    level = 50.0;
-  } else if ((level > 0.0 && level > 50.0)) {
-    level = 100.0;
-  }
+  const FLOAT64 switchLevel = lighting_presets::domeLightSwitchLevel(level);
   // cabin lights in the A32NX need to be controlled by two vars
   // one for the switch position and one for the actual light
-  lightCabinLevel->setAndWriteToSim(level);
-  lightCabin->setAndWriteToSim(level > 0 ? 1 : 0);
+  lightCabinLevel->setAndWriteToSim(switchLevel);
+  lightCabin->setAndWriteToSim(switchLevel > 0 ? 1 : 0);
 }
 
 bool LightingPresets_A32NX::calculateIntermediateValues(FLOAT64 stepSize) {

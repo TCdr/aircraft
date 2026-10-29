@@ -10,15 +10,15 @@ namespace lighting_presets {
  * The light values a preset load fades the cockpit lights to.
  *
  * A preset row that was saved from the flyPad has a section in the ini file and loads the saved values. A row that was
- * never saved has no section: it loads the default preset with all lights at 50 %, as the flyPad lighting presets page
- * promises ("If a preset is not defined for this number a default preset (all lights at 50%) will be loaded").
+ * never saved has no section: it loads the aircraft's default preset (all lights at 50 %, except what the aircraft
+ * keeps off, such as the A32NX dome light), as the flyPad lighting presets page promises.
  *
  * The target must always be set: the load fades every light from its current value to this target, so a target left
  * at its zero initial value (or at the values of the preset loaded before) would fade every light, including the PFD,
  * ND, ECAM and MCDU brightness, to that value instead.
  *
  * @param sectionExists whether the ini file has a section for the requested preset
- * @param defaultPreset the default preset (all lights at 50 %), in the same units as the saved values
+ * @param defaultPreset the aircraft's default preset, in the same units as the saved values
  * @param readSavedPreset reads the saved preset from its ini section; only called when the section exists
  * @return the values to fade the lights to
  */
