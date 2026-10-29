@@ -18,7 +18,7 @@ import {
 import { DataEntryFormat } from '../../MFD/pages/common/DataEntryFormats';
 import { A380FmsError } from '../../MFD/shared/A380FmsError';
 import { FmsError, FmsErrorType } from '@fmgc/FmsError';
-import { isInputFieldEntryApplied, isInputFieldEntryHandled } from './InputFieldEntry';
+import { isInputFieldEntryApplied, isInputFieldEntryHandled, SpaceKeyDeduplicator } from './InputFieldEntry';
 import { EfisSide } from '@flybywiresim/fbw-sdk';
 
 export enum InteractionMode {
@@ -287,7 +287,16 @@ export class InputField<
     if (ev.keyCode === KeyCode.KEY_ESCAPE) {
       this.handleEscape();
     }
+
+    // The sim does not always send the keypress of the space bar
+    if (ev.keyCode === KeyCode.KEY_SPACE) {
+      this.spaceKey.recordKeyDown(Date.now());
+      this.valueSelected.set(false);
+      this.handleKeyInput(' ');
+    }
   }
+
+  private readonly spaceKey = new SpaceKeyDeduplicator();
 
   private readonly onKeyDownHandler = this.onKeyDown.bind(this);
 
@@ -305,6 +314,10 @@ export class InputField<
 
   private onKeyPress = (ev: KeyboardEvent) => {
     if (!this.isFocused.get() || this.props.fixedValuesDropDown) {
+      return;
+    }
+
+    if (ev.keyCode === KeyCode.KEY_SPACE && !this.spaceKey.onKeyPress(Date.now())) {
       return;
     }
 
