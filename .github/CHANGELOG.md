@@ -56,6 +56,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/MFD] Alternate flightplan or go around legs can be loaded on the vertical revision pages - @BravoMike99 (bruno_pt99)
 1. [A380X/MFD] Show approach QNH and TEMP as mandatory only when closer than 180 NM to destination or when predictions are unavailable - @matze-tech (matze2346)
 1. [A380X/FWS] Improve ROW/ROP callouts, changed autobrake off master caution light to 3 seconds - @BravoMike99 (bruno_pt99)
+1. [A380X/OIT] The AOC sends the OOOI reports (OUT, OFF, ON, IN) by itself to the OOOI station set on the COMPANY COM Flight Log page - @TCdr
+1. [A380X/OIT] COMPANY COM Inbox, Outbox and Sent have a ZOOM button that shows the displayed message in larger characters - @TCdr
+1. [A380X/OIT] COMPANY COM In-flight Reports: new Flight Delay and Flight Parameters reports - @TCdr
 1. [A380X/OIT] Restart FLT OPS startup sequence after laptop power loss - @HendersonTyler (Tyler Henderson)
 1. [A380X/MFD] Fix LS field remaining blank on F-PLN arrival page when no landing system is available or selected - @matze-tech (matze2346)
 1. [A380X/PRIM] Move FE to PRIM and add SPD LIM flag - @lukecologne (luke)
@@ -298,6 +301,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OIT] LDG PERF on the FLT OPS side: DISPATCH and IN-FLIGHT landing distance, stop margin, MLW(perf), VAPP and go-around gradient for a runway of the destination - @TCdr
 1. [A380X/OIT] New technical logbook (LOGBOOK) on the NSS AVNCS side: STATUS, LOGBOOK ENTRY (ECAM alerts of the flight, cabin items, system & function, cockpit area, keyword and free text), HISTORY and FLIGHT DATA pages, the open, deferred, temporary and cabin item lists, the maintenance release report, PIC ACCEPT with the acceptance report and CLOSE FLIGHT with the closure report; at UPDATE the simulated ground maintenance defers some reported items (MEL, CDL, OTHER) and rectifies the others; the logbook is kept across flights and can be printed - @TCdr
 1. [A380X/OIT] New FLT OPS LOAD BOX: lists the flight folder of your SimBrief OFP sent from the ground and loads it into the laptops, with the loading status of each laptop - @TCdr
+1. [A380X/OIT] The NSS GATELINK pb-sw of the overhead panel works: with it OFF the EXPORT BOX has no gatelink and the LOAD BOX gets no data from the ground - @TCdr
+1. [A380X/OIT] A restart of an OIT (brightness knob OFF for 5 s) or of a laptop (OFF for 30 s) clears an injected failure of that device, and the NSS shuts down by itself when the aircraft is powered down (the AC busbar that feeds the server lost) - @TCdr
 1. [A380X/OIT] New FLT OPS EXPORT BOX: the loaded flight folder can be sent to the ground over the gatelink on the ground, or kept in the outbox until the gatelink is available - @TCdr
 1. [A380X/OIT] New FLT OPS IN-FLT PERF application with its ATMO module: speed conversions (IAS, Mach, TAS, GS), ISA information, true altitude and low altitude temperature corrections - @TCdr
 1. [ATSU] The AOC no longer receives company messages while it is off, and no COMPANY MSG stays after it powers down - @TCdr
@@ -402,6 +407,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] New COM ATC DATALINK FAULT (CPIOM D1 lost, ATC COM VOICE ONLY), COM ADS DATALINK FAULT, COM NSS DATA TO AVNCS XFR FAULT (pb-sw OFF) and COM NSS/AVNCS DATA XFR FAULT alerts, with new flyPad failures of SCI 1, SCI 2 and the ADS function; both SCIs failed stop the AOC - @TCdr
 1. [A380X/FWS] COM ATC DATALINK FAULT also comes on while the ATC RESET pb of the overhead RESET panel is pulled - @TCdr
 1. [A380X/FWS] No COMPANY MSG memo or COMPANY MESSAGE voice with NSS DATA TO AVNCS OFF or both SCIs lost, and the COMPANY MSG:PRNTR memo while received weather reports wait for their automatic printout - @TCdr
+1. [A380X/OIT] The function keys, CTRL and ALT of the laptop keyboards work: F-keys press the OIT buttons that show them (COMPUTE <F8>...), CTRL and ALT latch for the next key (backlit) for the menu shortcuts (Ctrl P, Alt H...); the OIT BRIGHTNESS knob at OFF also switches off the keyboard and ACD; COMPANY COM and LOGBOOK start at the NSS AVNCS log-on - @TCdr
+1. [A380X/OIT] LOADSHEET FUEL DISTR offers TRIM ADJUSTMENT and MANUAL DISTR next to CG TARGETING, and the MORE panel draws the CG diagram with the DOW, ZFW, TOW and LW points - @TCdr
 
 ## 2024.1.0
 

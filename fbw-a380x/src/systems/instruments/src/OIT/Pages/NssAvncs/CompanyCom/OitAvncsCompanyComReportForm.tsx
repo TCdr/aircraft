@@ -109,6 +109,7 @@ export class OitAvncsCompanyComReportForm extends DestroyableComponent<OitAvncsC
           fuelOnBoard: this.ansu.sci.fqmsFuelQuantity.get().valueOr(null),
           outFuel: this.ansu.outBlockFob.get(),
           inFuel: this.ansu.inBlockFob.get(),
+          airspeed: this.ansu.sci.airspeed.get().valueOr(null),
         },
         this.unit,
       );

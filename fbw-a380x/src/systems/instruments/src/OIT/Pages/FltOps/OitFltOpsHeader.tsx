@@ -4,6 +4,7 @@
 import {
   DisplayComponent,
   FSComponent,
+  Subscribable,
   SubscribableMapFunctions,
   SubscribableUtils,
   Subscription,
@@ -11,7 +12,8 @@ import {
 } from '@microsoft/msfs-sdk';
 import { PageSelectorDropdownMenu } from '../../../MsfsAvionicsCommon/UiWidgets/PageSelectorDropdownMenu';
 import { OitUiService } from '../../OitUiService';
-import { PageFunctionAvailability } from '../../OitPageFunctions';
+import { OitPageFunction, PageFunctionAvailability } from '../../OitPageFunctions';
+import { shortcutChord } from '../../LaptopKeyboard';
 import { OisMessageToolbar } from '../../System/OisMessageToolbar';
 import { OitMessageToolbarView } from '../OitMessageToolbarView';
 import { FLT_OPS_MENU_URI } from '../../System/XOisFunction';
@@ -61,6 +63,80 @@ export abstract class OitFltOpsHeader extends DisplayComponent<OitFltOpsHeaderPr
     (application) => application === null,
   );
 
+  /** The FUNCTIONS menu; the items that show a shortcut also work from the keyboard */
+  private readonly functionsMenuItems = [
+    { label: 'HOME', shortcut: 'Alt H', action: () => this.goHome(), disabled: this.homeDisabled },
+    {
+      label: 'PREVIOUS',
+      shortcut: 'Alt ←',
+      action: () => this.props.uiService.navigateTo('back'),
+      disabled: this.previousDisabled,
+    },
+    {
+      label: 'NEXT',
+      shortcut: 'Alt →',
+      action: () => this.props.uiService.navigateTo('forward'),
+      disabled: this.nextDisabled,
+      separatorBelow: true,
+    },
+    {
+      label: 'PRINT',
+      shortcut: 'Ctrl P',
+      action: () => this.props.uiService.runPageFunction('print'),
+      disabled: this.print.disabled,
+    },
+    {
+      label: 'STORE',
+      shortcut: 'Alt O',
+      action: () => this.props.uiService.runPageFunction('store'),
+      disabled: this.store.disabled,
+    },
+    {
+      label: 'UPDATE',
+      shortcut: 'Alt A',
+      action: () => this.props.uiService.runPageFunction('update'),
+      disabled: this.update.disabled,
+      separatorBelow: true,
+    },
+    {
+      label: 'UNDO',
+      shortcut: 'Ctrl Z',
+      action: () => this.props.uiService.runPageFunction('undo'),
+      disabled: this.undo.disabled,
+    },
+    {
+      label: 'REDO',
+      shortcut: 'Ctrl Y',
+      action: () => this.props.uiService.runPageFunction('redo'),
+      disabled: this.redo.disabled,
+      separatorBelow: true,
+    },
+    { label: 'HELP', shortcut: 'Alt L', action: () => {}, disabled: true, separatorBelow: true },
+    {
+      label: this.switchingBarLabel,
+      shortcut: 'F11',
+      action: () => this.props.uiService.fullScreen.set(!this.props.uiService.fullScreen.get()),
+      separatorBelow: true,
+    },
+    {
+      label: 'CLOSE APPLICATION',
+      shortcut: 'Alt F4',
+      action: () => this.closeApplication(),
+      disabled: this.closeApplicationDisabled,
+    },
+  ];
+
+  private registerShortcuts(): void {
+    const shortcuts: Record<string, OitPageFunction> = {};
+    for (const item of this.functionsMenuItems) {
+      const disabled: Subscribable<boolean> = SubscribableUtils.toSubscribable(item.disabled ?? false, true);
+      const available = disabled.map(SubscribableMapFunctions.not());
+      this.subs.push(available);
+      shortcuts[shortcutChord(item.shortcut)] = { run: item.action, available };
+    }
+    this.props.uiService.registerMenuShortcuts(shortcuts);
+  }
+
   private goHome(): void {
     const application = fltOpsApplicationOf(this.props.uiService.activeUri.get().uri);
     if (application !== null) {
@@ -78,6 +154,7 @@ export abstract class OitFltOpsHeader extends DisplayComponent<OitFltOpsHeaderPr
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
+    this.registerShortcuts();
     this.subs.push(
       this.oitHeading,
       this.homeDisabled,
@@ -156,67 +233,7 @@ export abstract class OitFltOpsHeader extends DisplayComponent<OitFltOpsHeaderPr
         <PageSelectorDropdownMenu
           isActive={SubscribableUtils.toSubscribable(false, true)}
           label="FUNCTIONS"
-          menuItems={[
-            { label: 'HOME', shortcut: 'Alt H', action: () => this.goHome(), disabled: this.homeDisabled },
-            {
-              label: 'PREVIOUS',
-              shortcut: 'Alt ←',
-              action: () => this.props.uiService.navigateTo('back'),
-              disabled: this.previousDisabled,
-            },
-            {
-              label: 'NEXT',
-              shortcut: 'Alt →',
-              action: () => this.props.uiService.navigateTo('forward'),
-              disabled: this.nextDisabled,
-              separatorBelow: true,
-            },
-            {
-              label: 'PRINT',
-              shortcut: 'Ctrl P',
-              action: () => this.props.uiService.runPageFunction('print'),
-              disabled: this.print.disabled,
-            },
-            {
-              label: 'STORE',
-              shortcut: 'Alt O',
-              action: () => this.props.uiService.runPageFunction('store'),
-              disabled: this.store.disabled,
-            },
-            {
-              label: 'UPDATE',
-              shortcut: 'Alt A',
-              action: () => this.props.uiService.runPageFunction('update'),
-              disabled: this.update.disabled,
-              separatorBelow: true,
-            },
-            {
-              label: 'UNDO',
-              shortcut: 'Ctrl Z',
-              action: () => this.props.uiService.runPageFunction('undo'),
-              disabled: this.undo.disabled,
-            },
-            {
-              label: 'REDO',
-              shortcut: 'Ctrl Y',
-              action: () => this.props.uiService.runPageFunction('redo'),
-              disabled: this.redo.disabled,
-              separatorBelow: true,
-            },
-            { label: 'HELP', shortcut: 'Alt L', action: () => {}, disabled: true, separatorBelow: true },
-            {
-              label: this.switchingBarLabel,
-              shortcut: 'F11',
-              action: () => this.props.uiService.fullScreen.set(!this.props.uiService.fullScreen.get()),
-              separatorBelow: true,
-            },
-            {
-              label: 'CLOSE APPLICATION',
-              shortcut: 'Alt F4',
-              action: () => this.closeApplication(),
-              disabled: this.closeApplicationDisabled,
-            },
-          ]}
+          menuItems={this.functionsMenuItems}
           idPrefix={`${this.props.uiService.captOrFo}_OIT_menu_functions`}
           dropdownMenuStyle="width: 420px;"
         />

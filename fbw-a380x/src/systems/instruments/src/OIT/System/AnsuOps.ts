@@ -1,9 +1,9 @@
 // Copyright (c) 2025 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { Subject } from '@microsoft/msfs-sdk';
+import { Subject, Subscription } from '@microsoft/msfs-sdk';
 import { AircraftNetworkServerUnit } from './AircraftNetworkServerUnit';
-import { NXLogicConfirmNode, UpdateThrottler } from '@flybywiresim/fbw-sdk';
+import { NXDataStore, NXLogicConfirmNode, UpdateThrottler } from '@flybywiresim/fbw-sdk';
 import { CompanyComMailbox } from './CompanyComMailbox';
 import { CompanyComRequests } from './CompanyComRequests';
 import { CompanyComDownlinks } from './CompanyComDownlinks';
@@ -13,6 +13,8 @@ import { TechLogbookStore } from './TechLogbookStore';
 import { formatOisDateTime, OIS_MONTHS } from './OisDateTime';
 import { OitPageDrafts } from './OitPageDrafts';
 import { linkDegradedToolbarText } from './NssAvionicsLink';
+import { OooiEvent, OooiReports } from './OooiReports';
+import { ReportWeightUnit } from './CompanyComReportForms';
 
 export class AnsuOps extends AircraftNetworkServerUnit {
   private lastUpdateTime: number | undefined = undefined;
@@ -61,6 +63,13 @@ export class AnsuOps extends AircraftNetworkServerUnit {
   /** The COMPANY COM report and request forms (AOC downlinks), kept here across the OIT page changes */
   public readonly companyComReports = new CompanyComReports(this.bus, this.companyComDownlinks);
 
+  /** The OOOI reports the AOC sends by itself when the aircraft goes out, off, on and in */
+  private readonly oooiReports = new OooiReports(
+    this.companyComReports.oooiStation,
+    (key, subject, message) => this.companyComReports.send(key, subject, message),
+    () => (NXDataStore.getSetting('CONFIG_USING_METRIC_UNIT').get() ? 'KG' : 'LB') as ReportWeightUnit,
+  );
+
   /** What the crew typed on the pages of the open NSS AVNCS applications, kept while a page is drawn again */
   public readonly pageDrafts = new OitPageDrafts();
 
@@ -83,6 +92,10 @@ export class AnsuOps extends AircraftNetworkServerUnit {
     this.techLogbook.init();
 
     this.subscriptions.push(
+      this.reportOnSet('OUT', this.outBlockTime, this.outBlockFob),
+      this.reportOnSet('OFF', this.offBlockTime, this.offBlockFob),
+      this.reportOnSet('ON', this.onBlockTime, this.onBlockFob),
+      this.reportOnSet('IN', this.inBlockTime, this.inBlockFob),
       this.sci.link.sub((link) => {
         const text = linkDegradedToolbarText(link);
         if (text !== null) {
@@ -108,6 +121,26 @@ export class AnsuOps extends AircraftNetworkServerUnit {
         }
       }, true),
     );
+  }
+
+  /**
+   * Sends the OOOI report of an event as soon as its time is set. The fuel on board is set before the time, so that the
+   * report sees both.
+   * @param event the OOOI event
+   * @param time the time of the event
+   * @param fuel the fuel on board at the event
+   * @returns the subscription
+   */
+  private reportOnSet(event: OooiEvent, time: Subject<number | null>, fuel: Subject<number | null>): Subscription {
+    return time.sub((t) => {
+      if (t !== null) {
+        this.oooiReports.report(event, t, fuel.get(), {
+          flightNumber: this.sci.fltNumber.get(),
+          origin: this.sci.fltOrigin.get(),
+          destination: this.sci.fltDestination.get(),
+        });
+      }
+    });
   }
 
   /** @inheritdoc */
@@ -149,22 +182,22 @@ export class AnsuOps extends AircraftNetworkServerUnit {
         this.onBlockTime.set(null);
         this.inBlockTime.set(null);
       }
-      this.outBlockTime.set(this.parkBrakeOffTime.get());
       this.outBlockFob.set(this.parkBrakeOffFob.get());
+      this.outBlockTime.set(this.parkBrakeOffTime.get());
     }
 
     // Off Block: Not on ground for 10 seconds
     this.offBlockConfNode.write(this.outBlockTime.get() !== null && !this.sci.onGround.get(), deltaTime);
     if (this.offBlockTime.get() === null && this.outBlockTime.get() !== null && this.offBlockConfNode.read()) {
-      this.offBlockTime.set(this.takeoffTime.get());
       this.offBlockFob.set(this.takeoffFob.get());
+      this.offBlockTime.set(this.takeoffTime.get());
     }
 
     // On Block: On ground for 10 seconds and <30kts CAS
     this.onBlockConfNode.write(this.sci.onGround.get() && this.sci.airspeed.get().valueOr(0) < 30, deltaTime);
     if (this.onBlockTime.get() === null && this.offBlockTime.get() !== null && this.onBlockConfNode.read()) {
-      this.onBlockTime.set(this.touchdownTime.get());
       this.onBlockFob.set(this.touchdownFob.get());
+      this.onBlockTime.set(this.touchdownTime.get());
     }
 
     // In Block: Park brake set
@@ -175,8 +208,8 @@ export class AnsuOps extends AircraftNetworkServerUnit {
       this.sci.doorsOpenPercentageOver100.get() > 0.25 &&
       !this.sci.hydraulicsPressurized.get()
     ) {
-      this.inBlockTime.set(this.parkBrakeOnTime.get());
       this.inBlockFob.set(this.parkBrakeOnFob.get());
+      this.inBlockTime.set(this.parkBrakeOnTime.get());
     }
 
     // Flight & block time
@@ -212,6 +245,7 @@ export class AnsuOps extends AircraftNetworkServerUnit {
   reset(): void {
     super.reset();
     this.pageDrafts.clear();
+    this.oooiReports.clear();
 
     if (this.lastUpdateTime !== undefined) {
       this.lastUpdateTime = undefined;

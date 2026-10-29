@@ -21,6 +21,8 @@ export type OitSimvars = {
   laptopFoPowered: boolean;
   nssMasterOff: boolean;
   nssDataToAvncsOff: boolean;
+  /** The NSS GATELINK pb-sw is pressed in: the TWLU is off */
+  nssGatelinkOff: boolean;
   parkBrakeSet: boolean;
   cabinDoorOpen: number;
   hydGreenPressurized: boolean;
@@ -33,6 +35,8 @@ export type OitSimvars = {
 
 export type InternalKbdKeyEvent = {
   kbdKeyEvent: [EfisSide, string];
+  /** A shortcut of the laptop keyboard such as F8 or CTRL+P (LaptopKeyChords) */
+  kbdShortcutEvent: [EfisSide, string];
 };
 
 /** A publisher to poll and publish nav/com simvars. */
@@ -55,6 +59,7 @@ export class OitSimvarPublisher extends SimVarPublisher<OitSimvars> {
     ['laptopCaptPowered', { name: 'L:A380X_SWITCH_LAPTOP_POWER_LEFT', type: SimVarValueType.Bool }],
     ['laptopFoPowered', { name: 'L:A380X_SWITCH_LAPTOP_POWER_RIGHT', type: SimVarValueType.Bool }],
     ['nssMasterOff', { name: 'L:A32NX_NSS_MASTER_OFF', type: SimVarValueType.Bool }],
+    ['nssGatelinkOff', { name: 'L:A32NX_OVHD_NSS_GATELINK_OFF', type: SimVarValueType.Bool }],
     // The pb-sw L:var is 1 in its normal (released) position and 0 when pressed in (OFF light)
     [
       'nssDataToAvncsOff',

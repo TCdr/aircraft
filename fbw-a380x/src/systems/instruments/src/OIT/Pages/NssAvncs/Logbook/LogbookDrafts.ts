@@ -1,7 +1,6 @@
 //  Copyright (c) 2026 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 
-import { LogbookDialog } from '../../../System/TechLogbookStore';
 import { LOGBOOK_URI } from './LogbookFlows';
 
 /** The entries of the LOGBOOK message windows, kept with the other logbook pages until the application closes */
@@ -24,15 +23,24 @@ export function selectionIndex(keys: readonly string[], selectedKey: string | nu
 }
 
 /**
- * Whether the PERSONAL ID typed stays when a message window shows: the crew who left the logbook during an
- * identification finds what they typed when the same identification is asked again; any other message starts empty.
- * @param typedFor the identification the personal ID was typed for
- * @param shown the message window shown, null when the window closes
- * @returns whether the personal ID stays
+ * The PERSONAL ID after a button of a message window: an accepted identification or signature keeps it for the next
+ * signature of the same log-on, so the crew types it once per flight phase; cancelling drops it. The password is never
+ * kept.
+ * @param personalId the personal ID typed
+ * @param buttonLabel the button pressed
+ * @returns the personal ID to keep
  */
-export function keepsPersonalId(
-  typedFor: LogbookDialog['identification'] | null,
-  shown: LogbookDialog | null,
-): boolean {
-  return shown === null || (shown.identification ?? null) === typedFor;
+export function personalIdAfterButton(personalId: string | null, buttonLabel: string): string | null {
+  return buttonLabel === 'CANCEL' ? null : personalId;
+}
+
+/**
+ * The STORE IN choice shown: the crew's own, else the first storage (OPEN ITEMS, the usual place of a defect).
+ * Design choice: the manual's examples show either storage chosen, none preselected; OPEN ITEMS keeps a defect that the
+ * crew forgot to route, and the crew can still change it.
+ * @param chosen the index chosen, null when none
+ * @returns the index to show
+ */
+export function storeTargetChoice(chosen: number | null): number {
+  return chosen ?? 0;
 }
