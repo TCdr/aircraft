@@ -48,6 +48,75 @@ export const EcamAbnormalSensedAta353642: { [n: number]: AbnormalProcedure } = {
   361800010: bleedLeak('L INR WING LEAK', 2),
   361800011: bleedLeak('R INR WING LEAK', 3),
   361800012: bleedLeak('R OUTR WING LEAK', 4),
+  // ATA 42 AVIONICS NETWORK (A380 FCOM PRO-ABN-ECAM-10-42, a380_fcom.txt l.169102-169800). The alert logic is in
+  // systems-host CpiomC/FlightWarningSystem/AvionicsNetworkAlerts.ts. The "(NETWORK DEGRADED)" / "(REDUNDANCY DEGRADED)"
+  // second title line of the FCOM is the first line of the procedure (the full title does not fit the EWD line).
+  420800001: {
+    title: '\x1b<4m\x1b4mAVIONICS NETWORK\x1bm ALL SWITCHES FAULT',
+    recommendation: 'LAND ANSA',
+    sensed: true,
+    // the "Depending on..." and DEFERRED PROC lines are not listed
+    items: [
+      { name: 'A/THR NOT USABLE', sensed: false, style: ChecklistLineStyle.Cyan },
+      { name: 'ALL THR LEVERS', sensed: false, labelNotCompleted: 'MOVE' },
+      { name: 'FMA NOT AVAIL', sensed: false, style: ChecklistLineStyle.Green },
+      { name: 'AP MODES AVAIL : LOC, G/S', sensed: false, style: ChecklistLineStyle.Green },
+      // One line in the procedure, split in two: longer than an EWD line (WD_LINE_CHARACTERS)
+      { name: 'CONSIDER BASIC AP MODES ONLY :', sensed: false, style: ChecklistLineStyle.Cyan },
+      { name: 'V/S, FPA, ALT', sensed: false, style: ChecklistLineStyle.Cyan, level: 1 },
+      { name: 'FOR NAV : STBY INSTRUMENTS ONLY', sensed: false, style: ChecklistLineStyle.Cyan },
+      { name: 'XPDR MODE A ONLY', sensed: false, style: ChecklistLineStyle.Cyan },
+      { name: 'ATC COM VOICE ONLY', sensed: false, style: ChecklistLineStyle.Cyan },
+      { name: 'ATC', sensed: false, labelNotCompleted: 'NOTIFY' },
+      { name: 'CABIN CREW', sensed: false, labelNotCompleted: 'ADVISE' },
+      { name: 'OVHD PNL', sensed: false, labelNotCompleted: 'MONITOR' },
+      { name: 'CAB PRESS MAN MODES : DO NOT USE', sensed: false, style: ChecklistLineStyle.Cyan },
+      { name: 'IN DES : CAB ALT REGULATED TO 7000 FT', sensed: false, style: ChecklistLineStyle.Green },
+      { name: 'BELOW 7000 FT : CAB ALT = ACFT ALT', sensed: false, style: ChecklistLineStyle.Green },
+      { name: 'BELOW 7000 FT : AVOID HI DES V/S', sensed: false, style: ChecklistLineStyle.Cyan },
+      { name: 'JETTISON NOT USABLE', sensed: false, style: ChecklistLineStyle.Cyan },
+      { name: 'L/G GRVTY EXTN ONLY', sensed: false, style: ChecklistLineStyle.Cyan },
+      { name: 'LDG DIST AFFECTED', sensed: false, style: ChecklistLineStyle.Cyan },
+      { name: 'WHEN ANY FEED TK<13000 KG (AUTO RCL)', sensed: false, condition: true },
+      { name: 'OUTR TK XFR', sensed: false, labelNotCompleted: 'MAN', level: 1 },
+    ],
+  },
+  420800002: {
+    // crew awareness
+    title: '\x1b<4m\x1b4mAVIONICS NETWORK\x1bm DOUBLE IOM FAULT',
+    sensed: true,
+    items: [],
+  },
+  420800003: {
+    // crew awareness
+    title: '\x1b<4m\x1b4mAVIONICS NETWORK\x1bm DOUBLE SWITCH FAULT',
+    sensed: true,
+    items: [],
+  },
+  420800004: {
+    // its lines "Depending on the affected IOMs" are not simulated
+    title: '\x1b<4m\x1b4mAVIONICS NETWORK\x1bm MULTIPLE IOM FAULT',
+    sensed: true,
+    items: [{ name: '(NETWORK DEGRADED)', sensed: true, style: ChecklistLineStyle.Amber }],
+  },
+  420800005: {
+    // crew awareness
+    title: '\x1b<4m\x1b4mAVIONICS NETWORK\x1bm MULTIPLE IOM FAULT',
+    sensed: true,
+    items: [{ name: '(REDUNDANCY DEGRADED)', sensed: true, style: ChecklistLineStyle.Amber }],
+  },
+  420800006: {
+    // its lines "Depending on the affected switches" are not simulated
+    title: '\x1b<4m\x1b4mAVIONICS NETWORK\x1bm MULTIPLE SWITCH FAULT',
+    sensed: true,
+    items: [{ name: '(NETWORK DEGRADED)', sensed: true, style: ChecklistLineStyle.Amber }],
+  },
+  420800007: {
+    // crew awareness
+    title: '\x1b<4m\x1b4mAVIONICS NETWORK\x1bm MULTIPLE SWITCH FAULT',
+    sensed: true,
+    items: [{ name: '(REDUNDANCY DEGRADED)', sensed: true, style: ChecklistLineStyle.Amber }],
+  },
 };
 
 /**

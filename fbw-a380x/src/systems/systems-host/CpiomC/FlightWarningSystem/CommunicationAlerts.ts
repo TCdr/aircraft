@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0
 
 /*
- * The ATA 23 COMMUNICATION alerts of the A380X FWS (A380 FCOM PRO-ABN-ECAM-10-23, a380_fcom.txt l.137020-137620,
- * airbus-a380-fcom PDF p.4811-4830) and the PA IN USE memo (DSC-23-20 MEMO, l.49491-49492, PDF p.1607).
- * Fed by flyPad failures (A380Failure 23008-23019) for what the sim does not model (the CIDS, the PTT switches), by the
- * RMP transmission keys (L:A380X_RMP_<n>_<key>, RMP AudioControlManager) and by VHF 3 (failure 23007, data or voice
- * mode on the RMP).
- * Not simulated: HF 1(2) EMITTING, HF 1(2) DATALINK FAULT and the SATCOM alerts (no HF or SATCOM radio), the ACR failure
- * part of COM DATALINK FAULT (DATALINK INIT FAULT, ATC COM VOICE ONLY).
+ * The ATA 23 COMMUNICATION alerts of the A380X FWS and the PA IN USE memo, plus the ATA 46 information system COM
+ * alerts (COM ADS DATALINK FAULT, COM ATC DATALINK FAULT, COM NSS DATA TO AVNCS XFR FAULT, COM NSS/AVNCS DATA XFR
+ * FAULT).
+ * The sim does not model the CIDS or the PTT switches: flyPad failures (A380Failure 23008-23019) stand in for them. The
+ * RMP transmission keys (L:A380X_RMP_<n>_<key>, RMP AudioControlManager) and VHF 3 (failure 23007, data or voice mode
+ * on the RMP) are read from the sim.
+ * Not simulated: HF 1(2) EMITTING, HF 1(2) DATALINK FAULT and the SATCOM alerts (no HF or SATCOM radio), the ACR
+ * failure part of COM DATALINK FAULT (DATALINK INIT FAULT, ATC COM VOICE ONLY).
  */
 
 /**
@@ -228,3 +229,85 @@ export function datalinkAlerts(inputs: DatalinkInputs): DatalinkAlerts {
  * last one is simulated (no ACR failure).
  */
 export const DATALINK_FAULT_ITEMS_TO_SHOW = [false, false, true];
+
+/*
+ * ATA 46 INFORMATION SYSTEM: the COM alerts of the ATC datalink applications (CPIOM D) and of the NSS / avionics data
+ * exchange (the two Secure Communication Interfaces, SCI).
+ */
+
+/**
+ * Inhibited in flight phases 3 to 7, 9 and 10: COM ADS DATALINK FAULT, COM ATC DATALINK FAULT, COM NSS DATA TO AVNCS
+ * XFR FAULT and COM NSS/AVNCS DATA XFR FAULT
+ */
+export const INFO_SYS_ALERT_PHASE_INHIBITION = [3, 4, 5, 6, 7, 9, 10];
+
+export const INFO_SYS_ALERT_IDS = {
+  adsDatalinkFault: '460800001',
+  atcDatalinkFault: '460800002',
+  nssDataToAvncsXfrFault: '460800003',
+  nssAvncsDataXfrFault: '460800004',
+} as const;
+
+/** STATUS INOP SYS ALL PHASES of COM ADS DATALINK FAULT: ADS DATALINK */
+export const ADS_DATALINK_FAULT_INOP_SYS = ['460300001'];
+
+/** STATUS INOP SYS ALL PHASES of COM ATC DATALINK FAULT: ATC DATALINK */
+export const ATC_DATALINK_FAULT_INOP_SYS = ['460300002'];
+
+/** LIMITATIONS ON ECAM ALL PHASES of COM ATC DATALINK FAULT: ATC COM VOICE ONLY */
+export const ATC_DATALINK_FAULT_LIMITATIONS = ['460400001'];
+
+/** STATUS INOP SYS ALL PHASES of COM NSS DATA TO AVNCS XFR FAULT: NSS DATA TO AVNCS */
+export const NSS_DATA_TO_AVNCS_XFR_FAULT_INOP_SYS = ['460300003'];
+
+/** STATUS INOP SYS ALL PHASES of COM NSS/AVNCS DATA XFR FAULT: NSS/AVNCS DATA XFR */
+export const NSS_AVNCS_DATA_XFR_FAULT_INOP_SYS = ['460300004'];
+
+export interface InformationSystemInputs {
+  /**
+   * CPIOM D1 available (L:A32NX_CPIOM_D1_AVAIL): the ATC system runs on CPIOM D, so CpiomD/AtcDatalink.ts powers the
+   * ATC datalink applications (CPDLC, ADS) down without it
+   */
+  readonly cpiomD1Available: boolean;
+  /** The ADS function failed (flyPad failure 46010): the sim has no ADS-C, only this failure stops it alone */
+  readonly adsFunctionFailed: boolean;
+  /**
+   * The NSS DATA TO AVNCS pb-sw is OFF (L:A32NX_OVHD_NSS_DATA_TO_AVNCS_TOGGLE = 0, OFF light; 1 = normal, the value of
+   * every flight file)
+   */
+  readonly nssDataToAvncsPbOff: boolean;
+  /** SCI 1 and SCI 2 failed (flyPad failures 46008, 46009) */
+  readonly sciFailed: readonly boolean[];
+}
+
+export interface InformationSystemAlerts {
+  readonly adsDatalinkFault: boolean;
+  readonly atcDatalinkFault: boolean;
+  readonly nssDataToAvncsXfrFault: boolean;
+  readonly nssAvncsDataXfrFault: boolean;
+}
+
+/**
+ * - COM ATC DATALINK FAULT: all ATC datalink applications, or the CPDLC, are stopped: CPIOM D1 not available, which
+ *   powers the ATC application of the sim down (CpiomD/AtcDatalink.ts). With CPIOM D lost every ATC datalink function
+ *   (ADS, CPDLC, digital ATIS) is lost and ATC COM is voice only.
+ * - COM ADS DATALINK FAULT: the ADS function is stopped: the ADS failure, or CPIOM D1 lost. Design choice: with the
+ *   whole ATC datalink lost only COM ATC DATALINK FAULT shows (its INFO ADS DATALINK STILL AVAIL tells the ADS state;
+ *   FwsAbnormalSensed sets notActiveWhenItemActive), as AVIONICS NETWORK ALL SWITCHES FAULT lists ATC DATALINK and no
+ *   ADS DATALINK.
+ * - COM NSS DATA TO AVNCS XFR FAULT: the SCIs are faulty or the NSS DATA TO AVNCS pb-sw is OFF; here the pb-sw OFF (the
+ *   one-way SCI state), the SCI failures give the next alert.
+ * - COM NSS/AVNCS DATA XFR FAULT: both SCIs are lost; it then replaces the previous one (notActiveWhenItemActive), the
+ *   data exchange is lost both ways.
+ * @param inputs the CPIOM D1, ADS, pb-sw and SCI states
+ * @returns the alerts
+ */
+export function informationSystemAlerts(inputs: InformationSystemInputs): InformationSystemAlerts {
+  const atcDatalinkFault = !inputs.cpiomD1Available;
+  return {
+    adsDatalinkFault: atcDatalinkFault || inputs.adsFunctionFailed,
+    atcDatalinkFault,
+    nssDataToAvncsXfrFault: inputs.nssDataToAvncsPbOff,
+    nssAvncsDataXfrFault: inputs.sciFailed.length === 2 && inputs.sciFailed.every((failed) => failed),
+  };
+}

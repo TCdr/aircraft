@@ -18,6 +18,31 @@ import { AbnormalProcedure, ChecklistLineStyle } from '..';
 
 /** All abnormal sensed procedures (alerts, via ECL) should be here. */
 export const EcamAbnormalSensedAta46495256: { [n: number]: AbnormalProcedure } = {
+  // ATA 46 INFORMATION SYSTEM. The alert logic is in systems-host CpiomC/FlightWarningSystem/CommunicationAlerts.ts
+  // informationSystemAlerts.
+  460800001: {
+    // crew awareness
+    title: '\x1b<4m\x1b4mCOM\x1bm ADS DATALINK FAULT',
+    sensed: true,
+    items: [],
+  },
+  460800002: {
+    title: '\x1b<4m\x1b4mCOM\x1bm ATC DATALINK FAULT',
+    sensed: true,
+    items: [{ name: 'ATC COM VOICE ONLY', sensed: false, style: ChecklistLineStyle.Cyan }],
+  },
+  460800003: {
+    // crew awareness
+    title: '\x1b<4m\x1b4mCOM\x1bm NSS DATA TO AVNCS XFR FAULT',
+    sensed: true,
+    items: [],
+  },
+  460800004: {
+    // crew awareness
+    title: '\x1b<4m\x1b4mCOM\x1bm NSS/AVNCS DATA XFR FAULT',
+    sensed: true,
+    items: [],
+  },
   // ATA 49 APU
   490800001: {
     // The lines shown are chosen by ApuFaultAlerts.ts apuFaultItemsToShow.

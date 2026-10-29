@@ -65,7 +65,22 @@ import {
   COM_DEGRADED_PHASE_INHIBITION,
   DATALINK_FAULT_ITEMS_TO_SHOW,
   VHF3_DATALINK_FAULT_INOP_SYS,
+  ADS_DATALINK_FAULT_INOP_SYS,
+  ATC_DATALINK_FAULT_INOP_SYS,
+  ATC_DATALINK_FAULT_LIMITATIONS,
+  INFO_SYS_ALERT_IDS,
+  INFO_SYS_ALERT_PHASE_INHIBITION,
+  NSS_AVNCS_DATA_XFR_FAULT_INOP_SYS,
+  NSS_DATA_TO_AVNCS_XFR_FAULT_INOP_SYS,
 } from './CommunicationAlerts';
+import {
+  ALL_SWITCHES_FAULT_LIMITATIONS_ALL_PHASES,
+  ALL_SWITCHES_FAULT_LIMITATIONS_APPR_LDG,
+  ALL_SWITCHES_FAULT_PHASE_INHIBITION,
+  AVIONICS_NETWORK_ALERT_IDS,
+  DOUBLE_FAULT_PHASE_INHIBITION,
+  MULTIPLE_FAULT_PHASE_INHIBITION,
+} from './AvionicsNetworkAlerts';
 // FIXME should not import from instruments
 import {
   ProcedureLinesGenerator,
@@ -718,6 +733,130 @@ export class FwsAbnormalSensed {
       };
     });
     return alerts;
+  }
+
+  /**
+   * The ATA 42 AVIONICS NETWORK alerts fed by the AFDX switch and IOM failures (see AvionicsNetworkAlerts.ts for the
+   * conditions and the flight phase inhibitions). SC and MASTER CAUT (failure 2) for ALL SWITCHES FAULT and the two
+   * NETWORK DEGRADED alerts, the others are crew awareness (failure 1).
+   */
+  private avionicsNetworkAlerts(): EwdAbnormalDict {
+    const ids = AVIONICS_NETWORK_ALERT_IDS;
+    const noItems = { whichItemsToShow: () => [], whichItemsChecked: () => [] };
+    const subTitleOnly = { whichItemsToShow: () => [true], whichItemsChecked: () => [false] };
+    return {
+      [ids.allSwitchesFault]: {
+        flightPhaseInhib: ALL_SWITCHES_FAULT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.avncsNetworkAllSwitchesFault,
+        notActiveWhenItemActive: [],
+        whichItemsToShow: showAllItems(Number(ids.allSwitchesFault)),
+        whichItemsChecked: () => EcamAbnormalProcedures[ids.allSwitchesFault].items.map(() => false),
+        failure: 2,
+        sysPage: SdPages.None,
+        limitationsAllPhases: () => ALL_SWITCHES_FAULT_LIMITATIONS_ALL_PHASES,
+        limitationsApprLdg: () => ALL_SWITCHES_FAULT_LIMITATIONS_APPR_LDG,
+      },
+      [ids.doubleSwitchFault]: {
+        flightPhaseInhib: DOUBLE_FAULT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.avncsNetworkDoubleSwitchFault,
+        notActiveWhenItemActive: [],
+        ...noItems,
+        failure: 1,
+        sysPage: SdPages.None,
+      },
+      [ids.multipleSwitchFaultNetworkDegraded]: {
+        flightPhaseInhib: MULTIPLE_FAULT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.avncsNetworkMultipleSwitchFaultNetworkDegraded,
+        notActiveWhenItemActive: [],
+        ...subTitleOnly,
+        failure: 2,
+        sysPage: SdPages.None,
+      },
+      [ids.multipleSwitchFaultRedundancyDegraded]: {
+        flightPhaseInhib: MULTIPLE_FAULT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.avncsNetworkMultipleSwitchFaultRedundancyDegraded,
+        notActiveWhenItemActive: [],
+        ...subTitleOnly,
+        failure: 1,
+        sysPage: SdPages.None,
+      },
+      [ids.doubleIomFault]: {
+        flightPhaseInhib: DOUBLE_FAULT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.avncsNetworkDoubleIomFault,
+        notActiveWhenItemActive: [],
+        ...noItems,
+        failure: 1,
+        sysPage: SdPages.None,
+      },
+      [ids.multipleIomFaultNetworkDegraded]: {
+        flightPhaseInhib: MULTIPLE_FAULT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.avncsNetworkMultipleIomFaultNetworkDegraded,
+        notActiveWhenItemActive: [],
+        ...subTitleOnly,
+        failure: 2,
+        sysPage: SdPages.None,
+      },
+      [ids.multipleIomFaultRedundancyDegraded]: {
+        flightPhaseInhib: MULTIPLE_FAULT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.avncsNetworkMultipleIomFaultRedundancyDegraded,
+        notActiveWhenItemActive: [],
+        ...subTitleOnly,
+        failure: 1,
+        sysPage: SdPages.None,
+      },
+    };
+  }
+
+  /**
+   * The ATA 46 information system COM alerts (see CommunicationAlerts.ts informationSystemAlerts): SC and MASTER CAUT
+   * for ADS and ATC DATALINK FAULT, crew awareness for the two NSS alerts.
+   */
+  private informationSystemAlerts(): EwdAbnormalDict {
+    const ids = INFO_SYS_ALERT_IDS;
+    return {
+      [ids.adsDatalinkFault]: {
+        flightPhaseInhib: INFO_SYS_ALERT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.comAdsDatalinkFault,
+        // the ADS is part of the ATC datalink: with the whole ATC datalink lost only COM ATC DATALINK FAULT shows
+        notActiveWhenItemActive: [ids.atcDatalinkFault],
+        whichItemsToShow: () => [],
+        whichItemsChecked: () => [],
+        failure: 2,
+        sysPage: SdPages.None,
+        inopSysAllPhases: () => ADS_DATALINK_FAULT_INOP_SYS,
+      },
+      [ids.atcDatalinkFault]: {
+        flightPhaseInhib: INFO_SYS_ALERT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.comAtcDatalinkFault,
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => [true],
+        whichItemsChecked: () => [false],
+        failure: 2,
+        sysPage: SdPages.None,
+        inopSysAllPhases: () => ATC_DATALINK_FAULT_INOP_SYS,
+        limitationsAllPhases: () => ATC_DATALINK_FAULT_LIMITATIONS,
+      },
+      [ids.nssDataToAvncsXfrFault]: {
+        flightPhaseInhib: INFO_SYS_ALERT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.comNssDataToAvncsXfrFault,
+        notActiveWhenItemActive: [ids.nssAvncsDataXfrFault],
+        whichItemsToShow: () => [],
+        whichItemsChecked: () => [],
+        failure: 1,
+        sysPage: SdPages.None,
+        inopSysAllPhases: () => NSS_DATA_TO_AVNCS_XFR_FAULT_INOP_SYS,
+      },
+      [ids.nssAvncsDataXfrFault]: {
+        flightPhaseInhib: INFO_SYS_ALERT_PHASE_INHIBITION,
+        simVarIsActive: this.fws.comNssAvncsDataXfrFault,
+        notActiveWhenItemActive: [],
+        whichItemsToShow: () => [],
+        whichItemsChecked: () => [],
+        failure: 1,
+        sysPage: SdPages.None,
+        inopSysAllPhases: () => NSS_AVNCS_DATA_XFR_FAULT_INOP_SYS,
+      },
+    };
   }
 
   public readonly abnormalShown = Subject.create(false);
@@ -2770,6 +2909,9 @@ export class FwsAbnormalSensed {
     // CAB COM CIDS 1+2+3 / CABIN COM FAULT, COM DEGRADED, PTT STUCK, DATALINK FAULT, VHF EMITTING and VHF 3 DATALINK
     // FAULT (230800001-007, 022-025), see comAlerts()
     ...this.comAlerts(),
+    // ATA 42 AVIONICS NETWORK (420800001-007) and ATA 46 COM ADS / ATC DATALINK, NSS XFR FAULTs (460800001-004)
+    ...this.avionicsNetworkAlerts(),
+    ...this.informationSystemAlerts(),
     230800012: {
       // RMP 1 FAULT
       flightPhaseInhib: [3, 4, 5, 6, 7, 9, 10],
