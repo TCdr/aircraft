@@ -22,17 +22,7 @@ export function selectionIndex(keys: readonly string[], selectedKey: string | nu
   return index < 0 ? null : index;
 }
 
-/**
- * The PERSONAL ID after a button of a message window: an accepted identification or signature keeps it for the next
- * signature of the same log-on, so the crew types it once per flight phase; cancelling drops it. The password is never
- * kept.
- * @param personalId the personal ID typed
- * @param buttonLabel the button pressed
- * @returns the personal ID to keep
- */
-export function personalIdAfterButton(personalId: string | null, buttonLabel: string): string | null {
-  return buttonLabel === 'CANCEL' ? null : personalId;
-}
+export { personalIdAfterButton } from '../../../System/OisDialog';
 
 /**
  * The STORE IN choice shown: the crew's own, else the first storage (OPEN ITEMS, the usual place of a defect).

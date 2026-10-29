@@ -7,7 +7,8 @@ import { AbstractOitAvncsPageProps } from '../../../OIT';
 import { OitAvncsSubHeader } from '../OitAvncsSubHeader';
 import { OitUriInformation } from '../../../OitUiService';
 import { avncsLogbookPageForUrl } from '../../../OitPageDirectory';
-import { OitAvncsLogbookDialog } from './OitAvncsLogbookDialog';
+import { OisIdentificationDialog } from '../../Common/OisIdentificationDialog';
+import { LOGBOOK_DIALOG_DRAFTS } from './LogbookDrafts';
 import { LogbookClickable } from './LogbookWidgets';
 import { LOGBOOK_URI, logbookPageFunctions, logbookPrintout, syncDialog, syncResultDialog } from './LogbookFlows';
 
@@ -157,7 +158,13 @@ export class OitAvncsLogbook extends DestroyableComponent<OitAvncsLogbookProps> 
               ))}
             </div>
             <div ref={this.activePageRef} class="oit-logbook-content" />
-            <OitAvncsLogbookDialog store={this.store} container={this.props.container} />
+            <OisIdentificationDialog
+              dialog={this.store.dialog}
+              drafts={this.props.container.ansu.pageDrafts}
+              draftsPage={LOGBOOK_DIALOG_DRAFTS}
+              keyboard={this.props.container}
+              title="LOGBOOK"
+            />
           </div>
         </div>
       </>

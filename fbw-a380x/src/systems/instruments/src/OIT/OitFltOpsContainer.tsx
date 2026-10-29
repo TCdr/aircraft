@@ -80,7 +80,6 @@ export abstract class OitFltOpsContainer extends DisplayComponent<OitFltOpsConta
   private activePage: VNode = (<OitNotFound uiService={this.uiService} />);
 
   private readonly showChartsSimvar = `L:A32NX_OIS_${getDisplayIndex()}_SHOW_CHARTS`;
-  private readonly showOfpSimvar = `L:A32NX_OIS_${getDisplayIndex()}_SHOW_OFP`;
 
   private overlaySub: MappedSubscribable<void> | undefined;
 
@@ -147,20 +146,11 @@ export abstract class OitFltOpsContainer extends DisplayComponent<OitFltOpsConta
 
     this.overlaySub = MappedSubject.create(
       ([uri, displayFailed, displayPowered, laptopHealthy, operationMode]) => {
-        // Activate EFB overlay if on charts or flt-folder page
+        // Activate EFB overlay if on the charts page
         SimVar.SetSimVarValue(
           this.showChartsSimvar,
           SimVarValueType.Bool,
           uri.uri === 'flt-ops/charts' &&
-            operationMode === 'flt-ops' &&
-            !displayFailed &&
-            displayPowered &&
-            laptopHealthy,
-        );
-        SimVar.SetSimVarValue(
-          this.showOfpSimvar,
-          SimVarValueType.Bool,
-          uri.uri === 'flt-ops/flt-folder' &&
             operationMode === 'flt-ops' &&
             !displayFailed &&
             displayPowered &&
@@ -186,6 +176,8 @@ export abstract class OitFltOpsContainer extends DisplayComponent<OitFltOpsConta
           this.uiService.resetFltOpsSession();
         }
       }, true),
+      // The pages of a closed application start empty at its next opening
+      this.uiService.fltOpsApplications.open.sub((open) => this.laptop.pageDrafts.keepApplications(open)),
       this.hEventConsumer.handle(([, key]) => this.onKeyboardKey(key)),
       this.props.bus
         .getSubscriber<InternalKbdKeyEvent>()

@@ -24,7 +24,6 @@ const KEPT_ENTRIES: Record<string, readonly string[]> = {
   'OitAvncsLogbookCockpitInterface.tsx': ['area', 'stdDefectMode', 'selectedIndex', 'pilotComment', 'storeTarget'],
   'OitAvncsLogbookFlightData.tsx': ['panel'],
   'OitAvncsLogbookRelease.tsx': ['panel', 'selectedRef', 'servicedCategory'],
-  'OitAvncsLogbookDialog.tsx': ['personalId'],
   'OitAvncsLogbookOpenItems.tsx': ['unticked', 'selectedRef'],
   'OitAvncsLogbookDeferredItems.tsx': ['panel', 'selectedRef'],
   'OitAvncsLogbookTemporaryItems.tsx': ['selectedItemRef'],
@@ -61,8 +60,12 @@ describe('logbook page drafts', () => {
     }
   });
 
+  it('keeps the personal ID of the identification in the page drafts', () => {
+    expect(takesFromDrafts(source('../../Common/OisIdentificationDialog.tsx'), 'personalId')).toBe(true);
+  });
+
   it('never keeps the password of the identification', () => {
-    const dialog = source('OitAvncsLogbookDialog.tsx');
+    const dialog = source('../../Common/OisIdentificationDialog.tsx');
     expect(takesFromDrafts(dialog, 'password')).toBe(false);
     expect(dialog).toContain('private readonly password = Subject.create<string | null>(null);');
   });

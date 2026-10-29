@@ -14,7 +14,7 @@ import { DestroyableComponent } from '@flybywiresim/msfs-avionics-common';
 import { IconButton } from '../../../../MsfsAvionicsCommon/UiWidgets/IconButton';
 import { DataEntryFormat } from '../../../../MFD/pages/common/DataEntryFormats';
 import { InputField } from '../../../../MsfsAvionicsCommon/UiWidgets/InputField';
-import { OitAvncsContainer } from '../../../OitAvncsContainer';
+import type { OitAvncsContainer } from '../../../OitAvncsContainer';
 import { allRowsTicked } from './LogbookFlows';
 
 interface LogbookClickableProps extends ComponentProps {
@@ -294,8 +294,14 @@ export class LogbookSelectionList extends DestroyableComponent<LogbookSelectionL
   }
 }
 
+/** What an entry field needs of the container that shows it: the keyboard and the interaction mode (both containers have it) */
+export interface LogbookFieldKeyboard {
+  readonly hEventConsumer: OitAvncsContainer['hEventConsumer'];
+  readonly interactionMode: OitAvncsContainer['interactionMode'];
+}
+
 interface LogbookFieldProps<T> extends ComponentProps {
-  readonly container: OitAvncsContainer;
+  readonly container: LogbookFieldKeyboard;
   readonly format: DataEntryFormat<T>;
   readonly value: Subscribable<T | null>;
   readonly onModified: (value: T | null) => void;

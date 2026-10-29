@@ -1,0 +1,575 @@
+// Copyright (c) 2026 FlyByWire Simulations
+// SPDX-License-Identifier: GPL-3.0
+
+@import "../../../../MsfsAvionicsCommon/definitions.scss";
+
+$eff-blue: #3399ff;
+$eff-panel-border: #868a9c;
+
+.oit-eff-app {
+  position: relative;
+  display: flex;
+  // flex-basis 0 and hidden overflow: the page takes the height left between the menu bar and the switching bar, so
+  // the document window scrolls inside it instead of the page growing past the screen
+  flex: 1 1 0;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  margin-top: 6px;
+  font-size: 20px;
+  color: $display-white;
+}
+
+// The message windows and the plain classes set their own display, a plain .hidden does not outweigh them
+.oit-eff-app .hidden {
+  display: none !important;
+}
+
+.oit-eff-line {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  margin-bottom: 4px;
+}
+
+.oit-eff-line .mfd-button {
+  height: 34px;
+  font-size: 20px;
+}
+
+.oit-eff-line .mfd-fms-fpln-button-dropdown {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.oit-eff-line .mfd-fms-fpln-button-dropdown-label {
+  flex: 1 1 auto;
+  text-align: center;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.oit-eff-line .mfd-fms-fpln-button-dropdown-arrow {
+  flex: 0 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// The list of folders is written in green
+.oit-eff-app > .oit-eff-line:first-child .mfd-fms-fpln-button-dropdown-label {
+  color: $display-green;
+}
+
+.oit-eff-standalone {
+  flex: 1 1 auto;
+  text-align: center;
+  color: $display-amber;
+  font-size: 22px;
+  align-self: center;
+}
+
+.oit-eff-spacer {
+  flex: 1 1 auto;
+}
+
+.oit-eff-main {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: row;
+  min-height: 0;
+}
+
+.oit-eff-tree {
+  flex: 0 0 330px;
+  width: 330px;
+  margin-right: 6px;
+  overflow: auto;
+  background: $display-background;
+  border: 2px solid $display-light-grey;
+  padding: 2px 0;
+}
+
+.oit-eff-tree .oit-doc-tree {
+  height: 100%;
+  min-height: 0;
+  font-size: 18px;
+}
+
+.oit-eff-tree .oit-doc-tree-row {
+  height: 26px;
+  min-height: 26px;
+  border: 0;
+  cursor: pointer;
+}
+
+.oit-eff-tree .oit-doc-tree-row.selected {
+  background-color: $display-dark-grey;
+  color: $display-background;
+}
+
+.oit-eff-tree .oit-doc-tree-row.active-plan {
+  background-color: #1f8f3a;
+}
+
+.oit-eff-tree .oit-doc-tree-opener {
+  width: 18px;
+  flex: 0 0 18px;
+  font-size: 16px;
+}
+
+.oit-eff-tree .oit-doc-tree-icon {
+  width: 22px;
+  height: auto;
+  margin-right: 0;
+  flex: 0 0 22px;
+  background: none;
+  border: 0;
+  text-align: center;
+}
+
+.oit-eff-tree .oit-doc-tree-title.blue {
+  color: $eff-blue;
+}
+
+.oit-eff-tree .oit-doc-tree-title.green {
+  color: $display-green;
+}
+
+.oit-eff-tree .oit-doc-tree-title.white {
+  color: $display-white;
+}
+
+.oit-eff-tree .oit-doc-tree-row.selected .oit-doc-tree-title {
+  color: $display-background;
+}
+
+.oit-eff-tree .oit-doc-tree-title.folder {
+  font-weight: bold;
+}
+
+.oit-eff-document {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  background: $display-background;
+  border: 2px solid $display-light-grey;
+}
+
+.oit-eff-doc-head {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  min-height: 30px;
+  padding: 0 6px;
+}
+
+.oit-eff-doc-title {
+  flex: 1 1 auto;
+  font-size: 18px;
+  color: $display-light-grey;
+}
+
+.oit-eff-note,
+.oit-eff-search {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  padding: 4px 6px;
+}
+
+.oit-eff-search-label {
+  width: 90px;
+  font-size: 18px;
+  color: $display-light-grey;
+}
+
+.oit-eff-search-count {
+  padding: 0 6px 4px 96px;
+  font-size: 16px;
+  color: $display-light-grey;
+}
+
+.oit-eff-search .mfd-button {
+  width: 36px;
+  height: 30px;
+  margin-left: 4px;
+}
+
+.oit-eff-text {
+  flex: 0 0 auto;
+  overflow: visible;
+  margin: 0;
+  padding: 10px 24px;
+  font-family: monospace;
+  font-size: 18px;
+  line-height: 24px;
+  white-space: pre;
+  color: $display-white;
+}
+
+.oit-eff-text .hit {
+  background-color: $display-dark-grey;
+  color: $display-background;
+}
+
+.oit-eff-text .hit.current {
+  background-color: $display-yellow;
+  color: $display-background;
+}
+
+.oit-eff-listing {
+  flex: 0 0 auto;
+  overflow: visible;
+  padding: 8px 12px;
+}
+
+.oit-eff-listing-line {
+  display: flex;
+  flex-direction: row;
+  height: 28px;
+  font-size: 19px;
+  cursor: pointer;
+}
+
+.oit-eff-listing-empty {
+  color: $display-light-grey;
+}
+
+// Flight plan panels
+
+.oit-eff-tabs {
+  display: flex;
+  flex-direction: row;
+  padding: 2px 6px 0 6px;
+}
+
+.oit-eff-tab {
+  padding: 3px 10px;
+  margin-right: 4px;
+  font-size: 16px;
+  color: $display-light-grey;
+  border: 1px solid $eff-panel-border;
+  cursor: pointer;
+}
+
+.oit-eff-tab.selected {
+  color: $display-white;
+  border: 2px solid $display-cyan;
+}
+
+.oit-eff-panel {
+  flex: 0 0 auto;
+  overflow: visible;
+  padding: 6px 12px;
+  font-size: 18px;
+}
+
+.oit-eff-group {
+  position: relative;
+  border: 1px solid $eff-panel-border;
+  margin: 12px 0 8px 0;
+  padding: 14px 10px 8px 10px;
+}
+
+.oit-eff-group-title {
+  position: absolute;
+  top: -12px;
+  left: 10px;
+  padding: 0 6px;
+  background: $display-background;
+  color: $display-white;
+}
+
+.oit-eff-form {
+  display: grid;
+  grid-template-columns: 170px 160px 170px 160px;
+  row-gap: 6px;
+  column-gap: 10px;
+  align-items: center;
+}
+
+.oit-eff-form .label {
+  text-align: right;
+}
+
+.oit-eff-route {
+  word-break: break-word;
+}
+
+.oit-eff-header-grid {
+  display: grid;
+  grid-template-columns: 100px 90px 90px 90px 70px 100px 100px 110px 110px;
+  row-gap: 4px;
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.oit-eff-plan-line {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-around;
+  margin-bottom: 6px;
+}
+
+.oit-eff-fuel-load {
+  display: grid;
+  grid-template-columns: 90px 80px 80px 100px 80px 70px 24px 60px 90px 100px 110px;
+  row-gap: 8px;
+  column-gap: 4px;
+  align-items: center;
+  text-align: right;
+}
+
+.oit-eff-fuel-load .head {
+  text-align: right;
+  color: $display-white;
+}
+
+.oit-eff-fuel-load .sep {
+  text-align: center;
+}
+
+.oit-eff-fuel-load .left {
+  text-align: left;
+}
+
+.oit-eff-cell {
+  border: 2px solid $display-light-grey;
+  height: 30px;
+  min-width: 90px;
+  overflow: hidden;
+}
+
+// The entry field keeps its own height otherwise: it is taller than the row and the boxes touch each other
+.oit-eff-cell .mfd-input-field-root,
+.oit-eff-cell .mfd-input-field-container {
+  height: 100%;
+  min-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.oit-eff-cell .mfd-input-field-container {
+  align-items: stretch;
+}
+
+.oit-eff-cell .mfd-input-field-text-input-container,
+.oit-eff-cell .mfd-input-field-text-input {
+  height: 100%;
+  min-height: 22px;
+  line-height: 22px;
+}
+
+.oit-eff-fuel-load .head.update,
+.oit-eff-altn-grid .update {
+  text-align: center;
+}
+
+.oit-eff-cell .mfd-input-field-text-input {
+  text-align: right;
+}
+
+.oit-eff-cell.cyan .mfd-input-field-text-input {
+  color: $display-cyan;
+}
+
+.oit-eff-cell.green .mfd-input-field-text-input {
+  color: $display-green;
+}
+
+.oit-eff-altn-grid {
+  display: grid;
+  grid-template-columns: 110px 100px 100px 100px 110px 110px 130px;
+  row-gap: 6px;
+  text-align: right;
+  align-items: center;
+}
+
+.oit-eff-altn-grid .left {
+  text-align: left;
+}
+
+.oit-eff-navlog {
+  display: grid;
+  grid-template-columns: 150px 90px 110px 110px 110px 110px;
+  row-gap: 2px;
+  text-align: right;
+}
+
+.oit-eff-navlog .head {
+  color: $display-white;
+}
+
+.oit-eff-navlog .band {
+  border-top: 1px solid $eff-panel-border;
+}
+
+.oit-eff-navlog .green {
+  color: $display-green;
+}
+
+.oit-eff-navlog .left {
+  text-align: left;
+}
+
+// Start-up window
+
+.oit-eff-launch {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: rgba(0, 0, 0, 0.4);
+  z-index: 11;
+}
+
+.oit-eff-launch-window {
+  width: 620px;
+  border: 3px solid $display-white;
+  background-color: $display-background;
+}
+
+.oit-eff-launch-title {
+  background: repeating-linear-gradient(45deg, $display-grey, $display-grey 3px, $display-dark-grey 3px, $display-dark-grey 6px);
+  padding: 2px 8px;
+  font-size: 20px;
+}
+
+.oit-eff-launch-body {
+  padding: 24px 20px 28px 20px;
+  font-size: 24px;
+}
+
+.oit-eff-progress {
+  margin-top: 20px;
+  height: 22px;
+  border: 2px solid $display-light-grey;
+  background-color: $display-grey;
+}
+
+.oit-eff-progress-bar {
+  height: 100%;
+  width: 0%;
+  background-color: $eff-blue;
+}
+
+// Export view
+
+.oit-eff-export {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  padding: 10px 6px;
+}
+
+.oit-eff-export-id {
+  font-size: 22px;
+  margin-bottom: 12px;
+}
+
+.oit-eff-export-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: row;
+  min-height: 0;
+}
+
+.oit-eff-export-left {
+  flex: 0 0 380px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  font-size: 22px;
+}
+
+.oit-eff-export-list {
+  flex: 1 1 auto;
+  border: 2px solid $display-light-grey;
+  background-color: $display-grey;
+  padding: 8px 12px;
+  font-size: 18px;
+  overflow: auto;
+}
+
+.oit-eff-export-buttons {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  margin-top: 12px;
+}
+
+.oit-eff-export-buttons .mfd-button {
+  width: 150px;
+  height: 40px;
+  margin-left: 12px;
+  font-size: 22px;
+}
+
+.oit-eff-radio {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  margin-top: 14px;
+  cursor: pointer;
+}
+
+.oit-eff-radio-dot {
+  width: 22px;
+  height: 22px;
+  border-radius: 11px;
+  border: 2px solid $display-white;
+  margin-right: 10px;
+}
+
+.oit-eff-radio.selected .oit-eff-radio-dot {
+  background-color: $display-cyan;
+}
+
+.oit-eff-content {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
+}
+
+.oit-eff-export-host {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.oit-eff-tree .oit-doc-tree-icon.folder::before {
+  content: "";
+  display: inline-block;
+  width: 16px;
+  height: 11px;
+  background-color: $display-yellow;
+}
+
+.oit-eff-tree .oit-doc-tree-icon.unit::before {
+  content: "";
+  display: inline-block;
+  width: 11px;
+  height: 15px;
+  border: 2px solid $display-light-grey;
+  background-color: $display-white;
+}
+
+.oit-eff-tree .oit-doc-tree-icon.note::before {
+  content: "";
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  background-color: $display-cyan;
+}
