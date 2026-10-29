@@ -5,7 +5,10 @@ import type { AtaChapterNumber, FailureDetailTable } from '@flybywiresim/fbw-sdk
 import { Ata21Entries, Ata21Families } from './details/ata21';
 import { Ata24Entries, Ata24Families } from './details/ata24';
 import { Ata26Entries, Ata26Families } from './details/ata26';
+import { Ata27Entries, Ata27Families } from './details/ata27';
 import { Ata29Entries, Ata29Families } from './details/ata29';
+import { Ata30Entries, Ata30Families } from './details/ata30';
+import { Ata36Entries, Ata36Families } from './details/ata36';
 import { Ata72Entries, Ata72Families } from './details/ata72';
 import { Ata73Entries, Ata73Families } from './details/ata73';
 import { Ata74Entries, Ata74Families } from './details/ata74';
@@ -15,14 +18,19 @@ import { Ata79Entries, Ata79Families } from './details/ata79';
 import { Ata80Entries, Ata80Families } from './details/ata80';
 
 /** Chapters whose failures all have a detail; the coverage spec only demands these. */
-export const A320_DETAIL_CHAPTERS_DONE: readonly AtaChapterNumber[] = [21, 24, 26, 29, 72, 73, 74, 77, 78, 79, 80];
+export const A320_DETAIL_CHAPTERS_DONE: readonly AtaChapterNumber[] = [
+  21, 24, 26, 27, 29, 30, 36, 72, 73, 74, 77, 78, 79, 80,
+];
 
 export const A320FailureDetails: FailureDetailTable = {
   entries: {
     ...Ata21Entries,
     ...Ata24Entries,
     ...Ata26Entries,
+    ...Ata27Entries,
     ...Ata29Entries,
+    ...Ata30Entries,
+    ...Ata36Entries,
     ...Ata72Entries,
     ...Ata73Entries,
     ...Ata74Entries,
@@ -35,7 +43,10 @@ export const A320FailureDetails: FailureDetailTable = {
     ...Ata21Families,
     ...Ata24Families,
     ...Ata26Families,
+    ...Ata27Families,
     ...Ata29Families,
+    ...Ata30Families,
+    ...Ata36Families,
     ...Ata72Families,
     ...Ata73Families,
     ...Ata74Families,

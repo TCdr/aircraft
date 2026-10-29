@@ -962,6 +962,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [EFB] Add a detail view to each failure on the Failures page: what it is, what you will see, the procedure mirrored live from the EWD, and how to clear it - @TCdr
 1. [EFB] Failure details for the A32NX engine failures (ATA 72 to 80) - @TCdr
 1. [EFB] Failure details for the A32NX electrical, fire protection and hydraulic failures (ATA 24, 26, 29) - @TCdr
+1. [EFB] Failure details for the A32NX flight controls, ice and rain protection and pneumatic failures (ATA 27, 30, 36) - @TCdr
 
 ## 2024.1.0
 
