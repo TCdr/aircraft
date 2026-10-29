@@ -42,6 +42,7 @@ module.exports = {
     msfsAvionicsInstrument('PFD', 'instrument.tsx', true, { mouseTransparent: true }),
     msfsAvionicsInstrument('RMP'),
     msfsAvionicsInstrument('SDv2', 'instrument.tsx', true, { mouseOnlyWhenShown: true }),
+    msfsAvionicsInstrument('SND'),
     msfsAvionicsInstrument('popup'),
 
     reactInstrument('BAT'),

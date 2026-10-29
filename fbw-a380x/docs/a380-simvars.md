@@ -25,6 +25,7 @@
   - [Lights ATA 33](#lights-ata-33)
   - [Surveillance ATA 34](#surveillance-ata-34)
   - [Navigation ATA 34](#navigation-ata-34)
+  - [Standby Instruments ATA 34](#standby-instruments-ata-34)
   - [Bleed Air ATA 36](#bleed-air-ata-36)
   - [Integrated Modular Avionics ATA 42](#integrated-modular-avionics-ata-42)
   - [Information Systems ATA 46](#information-systems-ata-46)
@@ -2048,6 +2049,19 @@ The PRIMs perform the flight guidance and flight envelope functions.
 - A32NX_GNSS_UTC_UNIX_SECONDS
     - Number (seconds)
     - The sim UTC date and time as seconds since 1 January 1970 0000 UTC, for the GPS constellation
+## Standby Instruments ATA 34
+
+- `L:A380X_ISIS_CONFIGURATION`
+    - Enum
+    - Set by the MODE pb of either ISIS, which goes to the next configuration (SFD/SND reconfiguration, A380 FCOM
+      DSC-34-10-20-20-10). The other ISIS controls act on the display of their ISIS.
+    - Back to 0 at each power-up of the ISIS (after the unit has gone off, not after a short power loss). The FCOM is
+      silent on it: a design choice.
+      | State | ISIS 1 | ISIS 2 |
+      |-------|--------|--------|
+      | 0     | SFD    | SND    |
+      | 1     | SND    | SFD    |
+      | 2     | SFD    | Off    |
 
 ## Bleed Air ATA 36
 

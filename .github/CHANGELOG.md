@@ -30,6 +30,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X] Update aircraft to MSFS2024 native modular aircraft - @heclak (Heclak)
 1. [A380X/MODEL] Performance optimization of 3D model with reduced draw calls - @heclak (Heclak)
 1. [A380X/MODEL] VRAM usage reduction with texture optimization and use of mipmaps for lower spec systems - @heclak (Heclak)
+1. [A380X/ISIS] Second ISIS as Standby Navigation Display (SND): heading rose, track, ground speed and position - @TCdr
 1. [A380X/MODEL] Add new cabinless variant for better performance on low spec systems - @heclak (Heclak)
 1. [A380X/MODEL] Add parallax windows on cabinless variant based on cabin layout - @heclak (Heclak)
 1. [A380X/MODEL] Update windshield texture to be cleaner - @heclak (Heclak)
@@ -158,6 +159,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/ECAM] STATUS page filled by the FWC (INOP SYS, information), automatic STATUS page and STS reminder; GPS lines on both aircraft - @TCdr
 1. [A380X/FWS] ECAM raises the first ELEC alerts from the electrical network: AC BUS 1(2)(3)(4), AC ESS BUS, DC BUS 1(2), DC ESS BUS, GEN 1(2)(3)(4), APU GEN A(B), TR 1(2)(ESS) and APU TR FAULT, GEN OFF, DRIVE DISCONNECTED, BUS TIE OFF, AC ESS BUS ALTN and ELEC EMER CONFIG, with the flight phase inhibitions and sensed procedure lines - @TCdr
 1. [A380X/ELEC] The loads the aircraft puts on AC ESS (SURV SYS 1 XPDR/TCAS/TAWS/WXR, RA SYS C, slat motor, 427XP EHAs, feed 2 main/feed 3 stby/trim L pumps, pack controllers channel 1, F/O OIT, FLT OPS ANSU) are on the AC ESS busbar instead of AC EMER; XPDR 2 is wired (failure and AC 4 power of the selected XPDR system, MFD SURV status), NSS AVNCS ANSU 2 is built and takes over from ANSU 1; manual crossbleed control is powered by DC ESS; SURV TCAS 1/2 FAULT are per system (no false TCAS 2 FAULT with AC ESS lost, TCAS 2 on AC 4), TCAS 1(2) shows failed on the MFD SURV STATUS page with XPDR 1(2) failed, new SURV XPDR 1, 2 and 1+2 FAULT alerts - @TCdr
+1. [A380X/ISIS] The SND shows INIT during its power-up self-test, like the SFD - @TCdr
+1. [A380X/ISIS] SFD/SND reconfiguration with the MODE pb: each ISIS displays the SFD or the SND - @TCdr
+1. [A380X/ISIS] The ISIS go back to their normal configuration (SFD on the upper ISIS, SND on the lower one) at each power-up - @TCdr
 1. [A380X/FMS] Added FMS WIND page - @BravoMike99 (bruno_pt99)
 1. [A380X/FMS] Added "ENTRY NOT IN LIST" message - @BravoMike99 (bruno_pt99)
 1. [A380X/FMS] Fixed minimums of non active flightplans being taken into account - @BravoMike99 (bruno_pt99)
