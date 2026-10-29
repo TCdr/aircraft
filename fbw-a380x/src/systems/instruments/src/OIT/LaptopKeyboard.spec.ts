@@ -22,8 +22,13 @@ describe('ACD and OIS keys for the OIT', () => {
     expect(laptopKeyToOitKey('OIS_XFR')).toBe('OIS_XFR');
   });
 
+  it('turns the space bars into the SP key of the entry fields', () => {
+    expect(laptopKeyToOitKey('SPACE_LH')).toBe('SP');
+    expect(laptopKeyToOitKey('SPACE_RH')).toBe('SP');
+  });
+
   it('drops any other key', () => {
-    for (const key of ['A', '5', 'SPACE_LH', 'BACKSPACE', 'F1']) {
+    for (const key of ['A', '5', 'BACKSPACE', 'F1']) {
       expect(laptopKeyToOitKey(key)).toBeNull();
     }
   });
