@@ -25,3 +25,29 @@ export function isInputFieldEntryHandled<T>(
 export function isInputFieldEntryApplied(dataHandlerResult: boolean | void, dataHandlerThrew: boolean): boolean {
   return !dataHandlerThrew && dataHandlerResult !== false;
 }
+
+/**
+ * A space typed on a PC keyboard: the sim does not always send the keypress of the space bar, so the field also takes
+ * it on keydown. When both events arrive, one space is entered.
+ */
+export class SpaceKeyDeduplicator {
+  /** The two events of one key press come within this time, ms */
+  private static readonly SAME_PRESS_MS = 150;
+
+  private lastKeyDownMs = -Infinity;
+
+  /** @param nowMs the time of the keydown, which always enters its space */
+  public recordKeyDown(nowMs: number): void {
+    this.lastKeyDownMs = nowMs;
+  }
+
+  /**
+   * @param nowMs the time of the event
+   * @returns whether the keypress of a space enters a space: not when the keydown of the same press already did
+   */
+  public onKeyPress(nowMs: number): boolean {
+    const alreadyEntered = nowMs - this.lastKeyDownMs <= SpaceKeyDeduplicator.SAME_PRESS_MS;
+    this.lastKeyDownMs = -Infinity;
+    return !alreadyEntered;
+  }
+}
