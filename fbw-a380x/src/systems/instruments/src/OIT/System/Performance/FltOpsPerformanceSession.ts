@@ -6,6 +6,7 @@ import { WindEntry, roundWeightUpForPerformance } from './PerformanceEntries';
 import { TakeoffComputation, TakeoffConditions, TakeoffThrustOption } from './TakeoffPerformance';
 import { LandingComputation, LandingConditions } from './LandingPerformance';
 import {
+  LOADSHEET_FUEL_TANKS,
   LoadsheetComputation,
   LoadsheetLoading,
   LtsEdition,
@@ -294,6 +295,11 @@ export class LoadsheetState {
   public readonly tab = Subject.create<LoadsheetTab>('lmc');
   public readonly allTanksShown = Subject.create(false);
 
+  /** FUEL DISTR: the mode (index in FUEL_MODE_LABELS), the TRIM ADJUSTMENT trim tank and the MANUAL DISTR tanks, kg */
+  public readonly fuelMode = Subject.create(0);
+  public readonly trimFuel = Subject.create<number | null>(null);
+  public readonly manualFuel = LOADSHEET_FUEL_TANKS.map(() => Subject.create<number | null>(null));
+
   constructor() {
     for (let i = 0; i < LTS_CAPT_INFO_NOTES_LINES; i++) {
       this.captInfoNotes.push(Subject.create<string | null>(null));
@@ -446,6 +452,14 @@ export class LoadsheetState {
     this.lmcCargo.set(null);
     this.computation.set(null);
     this.report.set(null);
+    this.resetFuelDistribution();
+  }
+
+  /** The FUEL DISTR panel back to CG TARGETING without entries */
+  public resetFuelDistribution(): void {
+    this.fuelMode.set(0);
+    this.trimFuel.set(null);
+    this.manualFuel.forEach((tank) => tank.set(null));
   }
 }
 
