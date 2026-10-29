@@ -5,6 +5,8 @@
 import { AircraftGithubVersionChecker, NXDataStore, UniversalConfigProvider } from '@flybywiresim/fbw-sdk';
 import { ISimbriefData } from './simbriefInterface';
 import { ofpMetarsByIcao, ofpTafsByIcao } from './simbriefReports';
+import { ofpNotams } from './simbriefNotams';
+import { optionalNumber } from './simbriefNumbers';
 
 const SIMBRIEF_BASE_URL = 'https://www.simbrief.com/api/xml.fetcher.php';
 
@@ -123,6 +125,7 @@ export const simbriefDataParser = (simbriefJson: any): ISimbriefData => {
       bagWeight: weights.bag_weight,
       payload: weights.payload,
       freight: weights.freight_added,
+      oew: weights.oew,
     },
     fuel: {
       avgFuelFlow: fuel.avg_fuel_flow,
@@ -151,6 +154,9 @@ export const simbriefDataParser = (simbriefJson: any): ISimbriefData => {
       averageWindDirection: parseInt(alternate.avg_wind_dir, 10),
       averageWindSpeed: parseInt(alternate.avg_wind_spd, 10),
       cruiseAltitude: parseInt(alternate.cruise_altitude, 10),
+      groundDistance: optionalNumber(alternate.distance),
+      airDistance: optionalNumber(alternate.air_distance),
+      ete: optionalNumber(alternate.ete),
     },
     times: {
       contFuelTime: times.contfuel_time,
@@ -182,5 +188,13 @@ export const simbriefDataParser = (simbriefJson: any): ISimbriefData => {
       metars: ofpMetarsByIcao(weather),
     },
     text: text.plan_html.replace(/^<div [^>]+>/, '').replace(/<\/div>$/, ''),
+    generatedTime: optionalNumber(params.time_generated),
+    planNumber: params.sequence_id !== undefined ? String(params.sequence_id) : undefined,
+    groundDistance: optionalNumber(general.route_distance),
+    airDistance: optionalNumber(general.air_distance),
+    avgTempDev: optionalNumber(general.avg_temp_dev),
+    avgWindComp: optionalNumber(general.avg_wind_comp),
+    cruiseMach: optionalNumber(general.cruise_mach),
+    notams: ofpNotams(simbriefJson, origin.icao_code, destination.icao_code, alternate.icao_code),
   };
 };
