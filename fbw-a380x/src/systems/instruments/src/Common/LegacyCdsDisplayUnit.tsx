@@ -3,6 +3,7 @@ import React, { forwardRef, PropsWithChildren, useCallback, useEffect, useRef, u
 import { NXDataStore } from '@flybywiresim/fbw-sdk';
 import { DcElectricalBus } from '@shared/electrical';
 import { DisplayUnitID, displayUnitDisplayVar, displayUnitFailedVar } from '@shared/CdsDisplayUnits';
+import { DISPLAY_UNIT_POWER_UP_SLOT_SECONDS, PowerUpGate } from '@shared/PowerUpStagger';
 import { normalDisplayOf, resolveDisplay } from '@shared/CdsReconfiguration';
 import { useSimVar } from './simVars';
 import { useUpdate } from './hooks';
@@ -78,6 +79,8 @@ export const LegacyCdsDisplayUnit = forwardRef<SVGSVGElement, PropsWithChildren<
     );
     const [timer, setTimer] = useState<number | null>(null);
     const thalesBootupEndTime = useRef<number | null>(null);
+    const powerUpGate = useRef(new PowerUpGate(DISPLAY_UNIT_POWER_UP_SLOT_SECONDS[physicalDisplayUnit]));
+    const [, setWaitEndedCount] = useState(0);
 
     const [potentiometer] = useSimVar(
       `LIGHT POTENTIOMETER:${DisplayUnitToPotentiometer[physicalDisplayUnit]}`,
@@ -94,6 +97,8 @@ export const LegacyCdsDisplayUnit = forwardRef<SVGSVGElement, PropsWithChildren<
       'bool',
       200,
     );
+    const hasSupply = electricityState0 !== 0 || electricityState1 !== 0;
+    const powerUpWaitSeconds = powerUpGate.current.update(hasSupply, Date.now() / 1000);
     const [homeCockpit] = useSimVar('L:A32NX_HOME_COCKPIT_ENABLED', 'bool', 200);
     // The DU shows another display (CDS reconfiguration, e.g. the EWD on the SD DU): this one draws nothing
     const [duDisplay] = useSimVar(displayUnitDisplayVar(physicalDisplayUnit), 'number', 200);
@@ -102,6 +107,11 @@ export const LegacyCdsDisplayUnit = forwardRef<SVGSVGElement, PropsWithChildren<
     useUpdate(
       useCallback(
         (deltaTime) => {
+          // Renders the DU again when its slot has passed, so that the effect below can start it
+          if (powerUpWaitSeconds > 0 && powerUpGate.current.update(hasSupply, Date.now() / 1000) === 0) {
+            setWaitEndedCount((count) => count + 1);
+          }
+
           if (timer !== null && thalesBootupEndTime.current !== null) {
             if (state === DisplayUnitState.ThalesBootup || DisplayUnitState.Selftest) {
               setTimer((current) => {
@@ -131,7 +141,7 @@ export const LegacyCdsDisplayUnit = forwardRef<SVGSVGElement, PropsWithChildren<
             document.documentElement.classList.add('animationsEnabled');
           }
         },
-        [timer, state],
+        [timer, state, hasSupply, powerUpWaitSeconds],
       ),
     );
 
@@ -157,7 +167,8 @@ export const LegacyCdsDisplayUnit = forwardRef<SVGSVGElement, PropsWithChildren<
         state === DisplayUnitState.Off &&
         potentiometer !== 0 &&
         (electricityState0 !== 0 || electricityState1 !== 0) &&
-        !failed
+        !failed &&
+        powerUpWaitSeconds === 0
       ) {
         setState(DisplayUnitState.ThalesBootup);
         const delay = parseInt(NXDataStore.getLegacy('CONFIG_SELF_TEST_TIME', '15')) - 0.5 + Math.random();
@@ -170,7 +181,7 @@ export const LegacyCdsDisplayUnit = forwardRef<SVGSVGElement, PropsWithChildren<
         setState(DisplayUnitState.Off);
         setTimer(null);
       }
-    }, [timer, state, potentiometer, electricityState0, electricityState1, failed]);
+    }, [timer, state, potentiometer, electricityState0, electricityState1, failed, powerUpWaitSeconds]);
 
     if (!shown) {
       return <></>;

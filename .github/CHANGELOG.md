@@ -23,6 +23,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 
 ## 2024.2.0
 
+1. [A380X] Displays, radio panels, OITs and ISIS power up one after another instead of in the same frame, less stutter at power-up - @TCdr
 1. [ATSU] Add support for BeyondATC and SayIntentions AI as METAR/ATIS sources - @saschl
 1. [A32NX/TCAS] Improve PFD Resolution Advisory graphics, introduce TCAS bus - @lukecologne (luke)
 1. [A380X/FMS] Fix TOW on FUEL&LOAD page showing gross weight instead of takeoff weight in flight - @HendersonTyler

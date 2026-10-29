@@ -5,6 +5,8 @@ import { EventBus, Instrument, KeyEventManager, MappedSubject, SimVarValueType, 
 import { RmpState, RmpStateControllerEvents } from '@flybywiresim/rmp';
 import { FailuresConsumer } from '@flybywiresim/fbw-sdk';
 import { A380Failure } from '@failures';
+import { POWER_UP_SLOT_SECONDS, PowerUpGate } from '@shared/PowerUpStagger';
+import { resolveRmpState } from './RmpPowerState';
 
 /** A controller to manage the power and init state of the RMP. */
 export class A380xRmpStateController implements Instrument {
@@ -26,6 +28,14 @@ export class A380xRmpStateController implements Instrument {
   private readonly standbyLedVar = `L:A380X_RMP_${this.rmpIndex}_GREEN_LED`;
 
   private readonly failuresConsumer = new FailuresConsumer();
+
+  private readonly powerUpGate = new PowerUpGate(
+    this.rmpIndex === 1
+      ? POWER_UP_SLOT_SECONDS.Rmp1
+      : this.rmpIndex === 2
+        ? POWER_UP_SLOT_SECONDS.Rmp2
+        : POWER_UP_SLOT_SECONDS.Rmp3,
+  );
 
   private readonly rmp3BusA = Subject.create(false);
 
@@ -113,15 +123,8 @@ export class A380xRmpStateController implements Instrument {
     this.failuresConsumer.update();
     const failed = this.failuresConsumer.isActive(this.failureKey);
 
-    if (powerOn) {
-      if (failed) {
-        this.state.set(brightnessOn ? RmpState.OnFailed : RmpState.OffFailed);
-      } else {
-        this.state.set(brightnessOn ? RmpState.On : RmpState.OffStandby);
-      }
-    } else {
-      this.state.set(brightnessOn ? RmpState.OnFailed : RmpState.OffFailed);
-    }
+    const powerUpWaitSeconds = this.powerUpGate.update(powerOn, Date.now() / 1000);
+    this.state.set(resolveRmpState(powerOn, brightnessOn, failed, powerUpWaitSeconds));
 
     if (this.rmpIndex !== 3) {
       this.rmp3BusA.set(SimVar.GetSimVarValue(this.rmp3BusAVar, SimVarValueType.Bool) > 0);
