@@ -4842,9 +4842,15 @@
                     </UseTemplate>
 
 					<!-- NSS -->
+					<!-- TWLU: the pb-sw pressed in (OFF light) cuts the gatelink to the ground; the L:var reads 0 in every flight file -->
 					<UseTemplate Name="FBW_Push_Toggle">
                         <NODE_ID>PUSH_OVHD_GATELINK</NODE_ID>
-						<INOP></INOP>
+                        <TOGGLE_SIMVAR>L:A32NX_OVHD_NSS_GATELINK_OFF</TOGGLE_SIMVAR>
+                        <DOWN_CODE>(L:A32NX_OVHD_NSS_GATELINK_OFF, Bool) !</DOWN_CODE>
+                        <SEQ_POWERED>(L:A32NX_ELEC_AC_1_BUS_IS_POWERED, Bool)</SEQ_POWERED>
+                        <SEQ2_EMISSIVE_DRIVES_VISIBILITY>False</SEQ2_EMISSIVE_DRIVES_VISIBILITY>
+                        <SEQ1_CODE_DRIVES_VISIBILITY>False</SEQ1_CODE_DRIVES_VISIBILITY>
+                        <SEQ2_CODE_DRIVES_VISIBILITY>False</SEQ2_CODE_DRIVES_VISIBILITY>
                     </UseTemplate>
 					<UseTemplate Name="FBW_Push_Toggle">
                         <NODE_ID>PUSH_OVHD_CAB_DATA_TO_NSS</NODE_ID>

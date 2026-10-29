@@ -192,8 +192,10 @@ describe('FMS data on the FLT OPS STS page', () => {
     const clock = bus.getPublisher<ClockEvents>();
     clock.pub('simTime', 0);
     laptop.onUpdate();
-    clock.pub('simTime', 10_000);
-    laptop.onUpdate();
+    for (let simTimeMs = 10_000; simTimeMs <= 22_000; simTimeMs += 500) {
+      clock.pub('simTime', simTimeMs);
+      laptop.onUpdate();
+    }
     const loseBothScis = (lost: boolean) => {
       for (const sciFailure of [A380Failure.Sci1, A380Failure.Sci2]) {
         if (lost) {

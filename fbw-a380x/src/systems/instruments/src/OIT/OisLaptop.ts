@@ -16,11 +16,22 @@ import {
   FailuresConsumer,
   FmsData,
   getSimBriefOfp,
+  NXDataStore,
   NXUnits,
 } from '@flybywiresim/fbw-sdk';
 import { A380Failure } from '@failures';
 import { OitSimvars } from './OitSimvarPublisher';
-import { AruStartup, isNssAvncsAvailable, LaptopNetworkConnection } from './System/AnsuLogic';
+import {
+  aruStartDurationMs,
+  AruStartup,
+  isGatelinkAvailable,
+  isGroundWirelessAvailable,
+  isNssAvncsAvailable,
+  LAPTOP_RESTART_OFF_MS,
+  LaptopNetworkConnection,
+  PowerCycleRecovery,
+  sampleFrameStepMs,
+} from './System/AnsuLogic';
 import { OisMessageToolbar } from './System/OisMessageToolbar';
 import { FltOpsPerformanceSession } from './System/Performance/FltOpsPerformanceSession';
 import { A380_CERTIFIED_WEIGHTS } from './System/Performance/A380PerformanceCalculators';
@@ -38,6 +49,11 @@ import {
 
 export class OisLaptop implements Instrument {
   private readonly subscriptions: Subscription[] = [];
+
+  /** @returns the self-test time of the flyPad realism page, read as the OIT loading screens do */
+  private static selfTestTimeSetting(): number {
+    return parseInt(NXDataStore.getLegacy('CONFIG_SELF_TEST_TIME', '12'));
+  }
 
   public readonly data = new OisLaptopData();
 
@@ -61,7 +77,9 @@ export class OisLaptop implements Instrument {
   private lastUpdateSimTime: number | null = null;
 
   /** The ARU, through which the laptop connects to the FLT OPS network */
-  private readonly aru = new AruStartup();
+  private readonly aru = new AruStartup(aruStartDurationMs(OisLaptop.selfTestTimeSetting()));
+
+  private wasHealthy = false;
 
   private readonly networkConnection = new LaptopNetworkConnection();
 
@@ -90,6 +108,11 @@ export class OisLaptop implements Instrument {
   );
 
   private readonly nssMasterOff = ConsumerSubject.create(this.sub.on('nssMasterOff'), false);
+
+  private readonly gatelinkPbOff = ConsumerSubject.create(this.sub.on('nssGatelinkOff'), false);
+
+  /** A restart of the laptop clears a failure */
+  private readonly failureRecovery = new PowerCycleRecovery(LAPTOP_RESTART_OFF_MS);
 
   private readonly fltNumberBus = ConsumerSubject.create(this.sub.on('fmsFlightNumber'), null);
   private readonly fromAirportBus = ConsumerSubject.create(this.sub.on('fmsOrigin'), null);
@@ -170,6 +193,7 @@ export class OisLaptop implements Instrument {
     );
 
     this.subscriptions.push(
+      this.gatelinkPbOff,
       this.fltNumberBus,
       this.fromAirportBus,
       this.toAirportBus,
@@ -195,8 +219,6 @@ export class OisLaptop implements Instrument {
 
   /** @inheritdoc */
   onUpdate(): void {
-    const failed = this.failuresConsumer.isActive(this.failureKey);
-
     if (this.index === 1) {
       this.powered.set(
         SimVar.GetSimVarValue('L:A32NX_ELEC_DC_1_BUS_IS_POWERED', SimVarValueType.Bool) && this.laptopSwitchedOn.get(),
@@ -209,10 +231,20 @@ export class OisLaptop implements Instrument {
       );
     }
 
-    this._isHealthy.set(!failed && this.powered.get() && !this.nssMasterOff.get());
-
     const now = this.simTime.get();
-    const deltaTimeMs = this.lastUpdateSimTime === null ? 0 : now - this.lastUpdateSimTime;
+    const failed = this.failureRecovery.update(
+      this.failuresConsumer.isActive(this.failureKey),
+      this.powered.get(),
+      now,
+    );
+    this._isHealthy.set(!failed && this.powered.get() && !this.nssMasterOff.get());
+    if (this._isHealthy.get() && !this.wasHealthy) {
+      // the setting may have changed in the session: a laptop start reads it again, as the loading screens do
+      this.aru.setStartDurationMs(aruStartDurationMs(OisLaptop.selfTestTimeSetting()));
+    }
+    this.wasHealthy = this._isHealthy.get();
+
+    const deltaTimeMs = sampleFrameStepMs(this.lastUpdateSimTime, now);
     this.lastUpdateSimTime = now;
     // the FLT OPS ANSU of this OIT instrument (AircraftNetworkServerUnit 'flt-ops')
     const fltOpsAnsuHealthy = SimVar.GetSimVarValue('L:A32NX_FLTOPS_ANSU_1_IS_HEALTHY', SimVarValueType.Bool) > 0;
@@ -225,12 +257,22 @@ export class OisLaptop implements Instrument {
     const statusPageRunning = this._isHealthy.get() && !this.aru.isFlightLoading();
     this.fltOpsStatus.update(statusPageRunning, !this._standalone.get(), this.fmsFlight());
 
-    // Design choice: every airport has a gatelink, reached on the ground through the network.
-    const gatelinkAvailable =
-      this._isHealthy.get() &&
-      !this._standalone.get() &&
-      SimVar.GetSimVarValue('SIM ON GROUND', SimVarValueType.Bool) > 0;
-    this.exportBox.update(gatelinkAvailable, now);
+    // Design choice: every airport has a gatelink, so only the aircraft side (on the ground, the NSS GATELINK pb-sw on)
+    // decides.
+    this.exportBox.update(isGatelinkAvailable(this.isConnected(), this.isOnGround(), this.gatelinkPbOff.get()), now);
+  }
+
+  private isConnected(): boolean {
+    return this._isHealthy.get() && !this._standalone.get();
+  }
+
+  private isOnGround(): boolean {
+    return SimVar.GetSimVarValue('SIM ON GROUND', SimVarValueType.Bool) > 0;
+  }
+
+  /** @returns whether data from the ground (the LOAD BOX) can reach this laptop: gatelink on the ground, SATCOM in flight */
+  public isGroundWirelessAvailable(): boolean {
+    return isGroundWirelessAvailable(this.isConnected(), this.isOnGround(), this.gatelinkPbOff.get());
   }
 
   destroy() {

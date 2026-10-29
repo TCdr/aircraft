@@ -22,6 +22,7 @@ import './oit-display-unit.scss';
 import { OitSimvars } from './OitSimvarPublisher';
 import { A380Failure } from '@failures';
 import { OisDomain } from './OIT';
+import { OIT_RESTART_OFF_MS, PowerCycleRecovery } from './System/AnsuLogic';
 
 export const getDisplayIndex = () => {
   const url = Array.from(document.querySelectorAll('vcockpit-panel > *'))
@@ -70,6 +71,11 @@ export class OitDisplayUnit extends DisplayComponent<DisplayUnitProps & Componen
 
   private readonly failureKey =
     this.props.displayUnitId === OitDisplayUnitID.CaptOit ? A380Failure.CaptainOit : A380Failure.FirstOfficerOit;
+
+  /** A restart of the OIT clears a failure */
+  private readonly failureRecovery = new PowerCycleRecovery(OIT_RESTART_OFF_MS);
+
+  private readonly realTime = ConsumerSubject.create(this.sub.on('realTime'), 0);
 
   private timeOut: number = 0;
 
@@ -159,6 +165,7 @@ export class OitDisplayUnit extends DisplayComponent<DisplayUnitProps & Componen
 
     this.subs.push(
       this.brightness,
+      this.realTime,
       this.nssAnsu1Failed,
       this.nssAnsu2Failed,
       this.allNssAnsuFailed,
@@ -192,9 +199,14 @@ export class OitDisplayUnit extends DisplayComponent<DisplayUnitProps & Componen
     const poweredByBus3 = DisplayUnitToDCBus[this.props.displayUnitId][2]
       ? SimVar.GetSimVarValue(this.bus3Simvar, 'Bool')
       : false;
-    this.powered.set(
-      (poweredByBus1 || poweredByBus2 || poweredByBus3) && !this.props.failuresConsumer.isActive(this.failureKey),
+    const supplied = poweredByBus1 || poweredByBus2 || poweredByBus3;
+    // The brightness knob at OFF switches the OIT off
+    const failed = this.failureRecovery.update(
+      this.props.failuresConsumer.isActive(this.failureKey),
+      supplied && this.brightness.get() !== 0,
+      this.realTime.get(),
     );
+    this.powered.set(supplied && !failed);
   }
 
   updateState() {
