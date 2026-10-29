@@ -77,3 +77,47 @@ describe('ISIS unit power-up', () => {
     expect(unit.state).toBe(IsisUnitState.On);
   });
 });
+
+describe('ISIS unit power-up slot', () => {
+  it('stays off until its slot has passed after the supply appeared', () => {
+    const unit = new IsisPowerUnit(true, 2);
+    unit.update(false, 5);
+
+    expect(unit.update(true, 0)).toBe(false);
+    expect(unit.state).toBe(IsisUnitState.Off);
+    unit.update(true, 1.5);
+    expect(unit.state).toBe(IsisUnitState.Off);
+
+    expect(unit.update(true, 0.5)).toBe(true);
+    expect(unit.state).toBe(IsisUnitState.SelfTest);
+  });
+
+  it('starts the wait again after a power loss during the wait', () => {
+    const unit = new IsisPowerUnit(true, 2);
+    unit.update(true, 0);
+    unit.update(true, 1.5);
+    unit.update(false, 0.1);
+    unit.update(true, 0.1);
+    unit.update(true, 1.5);
+    expect(unit.state).toBe(IsisUnitState.Off);
+    unit.update(true, 0.5);
+    expect(unit.state).toBe(IsisUnitState.SelfTest);
+  });
+
+  it('counts the slot from the moment the supply comes back after a power loss', () => {
+    const unit = new IsisPowerUnit(false, 3);
+    unit.update(true, 0);
+    unit.update(true, 4);
+    expect(unit.state).toBe(IsisUnitState.On);
+    unit.update(false, 0);
+    for (let i = 0; i < 12; i++) {
+      unit.update(false, 1);
+    }
+    expect(unit.state).toBe(IsisUnitState.Off);
+    // the supply comes back: the slot counts from this moment
+    unit.update(true, 0);
+    expect(unit.state).toBe(IsisUnitState.Off);
+    unit.update(true, 3);
+    expect(unit.state).toBe(IsisUnitState.SelfTest);
+  });
+});

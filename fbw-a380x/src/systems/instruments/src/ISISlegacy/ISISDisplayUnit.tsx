@@ -2,8 +2,10 @@
 //
 // SPDX-License-Identifier: GPL-3.0
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useSimVar, useUpdate } from '@flybywiresim/fbw-sdk-react';
+import { IsisUnit } from '@shared/IsisConfiguration';
+import { POWER_UP_SLOT_SECONDS, PowerUpGate } from '@shared/PowerUpStagger';
 import { PressureIndicator } from './PressureIndicator';
 
 enum DisplayUnitState {
@@ -15,9 +17,10 @@ enum DisplayUnitState {
 
 type ISISDisplayUnitProps = {
   indicatedAirspeed: number;
+  unit: IsisUnit;
 };
 
-export const ISISDisplayUnit: React.FC<ISISDisplayUnitProps> = ({ indicatedAirspeed, children }) => {
+export const ISISDisplayUnit: React.FC<ISISDisplayUnitProps> = ({ indicatedAirspeed, unit, children }) => {
   const powerUpTime = 90;
   const [isColdAndDark] = useSimVar('L:A32NX_COLD_AND_DARK_SPAWN', 'Bool', 200);
 
@@ -29,7 +32,16 @@ export const ISISDisplayUnit: React.FC<ISISDisplayUnitProps> = ({ indicatedAirsp
 
   const hasElectricity = (indicatedAirspeed > 50 && dcHotLive) || dcEssLive;
 
+  const powerUpGate = useRef(new PowerUpGate(unit === 1 ? POWER_UP_SLOT_SECONDS.Isis1 : POWER_UP_SLOT_SECONDS.Isis2));
+  const powerUpWaitSeconds = powerUpGate.current.update(!!hasElectricity, Date.now() / 1000);
+  const [, setWaitEndedCount] = useState(0);
+
   useUpdate((deltaTime) => {
+    // Renders the ISIS again when its slot has passed, so that the effect below can start it
+    if (powerUpWaitSeconds > 0 && powerUpGate.current.update(!!hasElectricity, Date.now() / 1000) === 0) {
+      setWaitEndedCount((count) => count + 1);
+    }
+
     if (timer !== null) {
       if (timer > 0) {
         setTimer(timer - deltaTime / 1000);
@@ -55,7 +67,7 @@ export const ISISDisplayUnit: React.FC<ISISDisplayUnitProps> = ({ indicatedAirsp
     } else if (state === DisplayUnitState.Standby && hasElectricity) {
       setState(DisplayUnitState.On);
       setTimer(null);
-    } else if (state === DisplayUnitState.Off && hasElectricity) {
+    } else if (state === DisplayUnitState.Off && hasElectricity && powerUpWaitSeconds === 0) {
       setState(DisplayUnitState.Selftest);
       setTimer(powerUpTime);
     } else if (state === DisplayUnitState.Selftest && !hasElectricity) {

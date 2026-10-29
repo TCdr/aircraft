@@ -21,6 +21,7 @@ import {
   displayUnitFailedVar,
   isDisplayUnitPowered,
 } from '@shared/CdsDisplayUnits';
+import { DISPLAY_UNIT_POWER_UP_SLOT_SECONDS, PowerUpGate } from '@shared/PowerUpStagger';
 import { normalDisplayOf, resolveDisplay } from '@shared/CdsReconfiguration';
 import { DisplayVars } from './SimVarTypes';
 import { findInstrumentUrl } from './HostedDisplay';
@@ -105,6 +106,10 @@ export class CdsDisplayUnit extends DisplayComponent<DisplayUnitProps> {
   private shown = true;
 
   private timeOut: number = 0;
+
+  private readonly powerUpGate = new PowerUpGate(DISPLAY_UNIT_POWER_UP_SLOT_SECONDS[this.physicalDisplayUnit]);
+
+  private powerUpWaitSeconds = 0;
 
   private selfTestRef = FSComponent.createRef<SVGElement>();
 
@@ -212,12 +217,16 @@ export class CdsDisplayUnit extends DisplayComponent<DisplayUnitProps> {
     );
 
     this.brightness.set(potentiometer);
-    this.powered.set(
-      isDisplayUnitPowered(
-        this.physicalDisplayUnit,
-        (bus) => SimVar.GetSimVarValue(`L:A32NX_ELEC_${bus}_BUS_IS_POWERED`, 'Bool') > 0,
-      ),
+    const powered = isDisplayUnitPowered(
+      this.physicalDisplayUnit,
+      (bus) => SimVar.GetSimVarValue(`L:A32NX_ELEC_${bus}_BUS_IS_POWERED`, 'Bool') > 0,
     );
+    const previousPowerUpWaitSeconds = this.powerUpWaitSeconds;
+    this.powerUpWaitSeconds = this.powerUpGate.update(powered, Date.now() / 1000);
+    this.powered.set(powered);
+    if (previousPowerUpWaitSeconds > 0 && this.powerUpWaitSeconds === 0) {
+      this.updateState();
+    }
 
     const shown =
       resolveDisplay(this.physicalDisplayUnit, SimVar.GetSimVarValue(this.displayVar, 'number')) === this.display;
@@ -242,7 +251,9 @@ export class CdsDisplayUnit extends DisplayComponent<DisplayUnitProps> {
       this.state === DisplayUnitState.Off &&
       this.brightness.get() !== 0 &&
       this.powered.get() &&
-      !this.failed
+      !this.failed &&
+      // update() calls this again when the slot has passed
+      this.powerUpWaitSeconds === 0
     ) {
       this.state = DisplayUnitState.ThalesBootup;
       this.setTimer(0.25 + Math.random() * 0.2);

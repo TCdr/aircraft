@@ -3,6 +3,7 @@
 
 import { FSComponent, Subject } from '@microsoft/msfs-sdk';
 import { readSndNavigation, SndNavigation } from './SndData';
+import { POWER_UP_SLOT_SECONDS } from '@shared/PowerUpStagger';
 import { IsisPowerUnit, IsisUnitState } from './SndPower';
 import {
   isisDisplay,
@@ -143,7 +144,10 @@ class A380X_SND extends BaseInstrument {
     const now = Date.now();
     const deltaSeconds = this.lastUpdate !== null ? (now - this.lastUpdate) / 1000 : 0;
     this.lastUpdate = now;
-    this.powerUnit ??= new IsisPowerUnit(SimVar.GetSimVarValue('L:A32NX_COLD_AND_DARK_SPAWN', 'bool'));
+    this.powerUnit ??= new IsisPowerUnit(
+      SimVar.GetSimVarValue('L:A32NX_COLD_AND_DARK_SPAWN', 'bool'),
+      this.unit === 1 ? POWER_UP_SLOT_SECONDS.Isis1 : POWER_UP_SLOT_SECONDS.Isis2,
+    );
     if (this.powerUnit.update(powered, deltaSeconds)) {
       // The ISIS start in their normal configuration (ISIS 1 SFD, ISIS 2 SND) at each power-up, whatever the MODE pb
       // selected before. Design choice: the real behaviour is not documented. Both SND gauges see the same power-up and

@@ -1,6 +1,8 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
+import { PowerUpGate } from '@shared/PowerUpStagger';
+
 /**
  * The power states of the ISIS unit. The two ISIS of the A380 are the same unit, SFD or SND, so
  * the SND unit behaves as the SFD one (ISISlegacy/ISISDisplayUnit): the power-up tests (INIT and a countdown), and a
@@ -24,11 +26,19 @@ export class IsisPowerUnit {
 
   private timer: number | null = null;
 
+  private readonly powerUpGate: PowerUpGate;
+
+  /** The sum of the updates, the clock of the power-up gate */
+  private clockSeconds = 0;
+
   /**
    * @param coldAndDark a cold and dark spawn: the unit starts unpowered, and runs its tests at the first power-up; in
    * any other spawn it starts in standby, on again as soon as it is powered
+   * @param powerUpSlotSeconds the seconds the unit stays off after its supply appears, so that the displays do not
+   * all start in the same frame
    */
-  constructor(coldAndDark: boolean) {
+  constructor(coldAndDark: boolean, powerUpSlotSeconds = 0) {
+    this.powerUpGate = new PowerUpGate(powerUpSlotSeconds);
     this.currentState = coldAndDark ? IsisUnitState.Off : IsisUnitState.Standby;
   }
 
@@ -50,6 +60,9 @@ export class IsisPowerUnit {
    * a power-up)
    */
   update(powered: boolean, deltaSeconds: number): boolean {
+    this.clockSeconds += deltaSeconds;
+    const powerUpWaitSeconds = this.powerUpGate.update(powered, this.clockSeconds);
+
     if (this.timer !== null) {
       if (this.timer > 0) {
         this.timer -= deltaSeconds;
@@ -68,7 +81,7 @@ export class IsisPowerUnit {
     } else if (this.currentState === IsisUnitState.Standby && powered) {
       this.currentState = IsisUnitState.On;
       this.timer = null;
-    } else if (this.currentState === IsisUnitState.Off && powered) {
+    } else if (this.currentState === IsisUnitState.Off && powered && powerUpWaitSeconds === 0) {
       this.currentState = IsisUnitState.SelfTest;
       this.timer = ISIS_POWER_UP_TEST_S;
       return true;
