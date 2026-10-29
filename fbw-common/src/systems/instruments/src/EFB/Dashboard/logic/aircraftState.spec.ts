@@ -57,13 +57,20 @@ describe('openDoors', () => {
 
 describe('adirsSummary', () => {
   it('is aligned only when every ADIRU is', () => {
-    expect(adirsSummary([2, 2, 2], 0)).toEqual({ state: 'aligned', minutesLeft: null });
-    expect(adirsSummary([2, 1, 2], 400)).toEqual({ state: 'aligning', minutesLeft: 7 });
+    expect(adirsSummary([2, 2, 2], [1, 1, 1], 0)).toEqual({ state: 'aligned', minutesLeft: null });
+    expect(adirsSummary([2, 1, 2], [1, 1, 1], 400)).toEqual({ state: 'aligning', minutesLeft: 7 });
   });
 
   it('is off when no ADIRU aligns', () => {
-    expect(adirsSummary([0, 0, 0], 0)).toEqual({ state: 'off', minutesLeft: null });
-    expect(adirsSummary([], 0).state).toBe('off');
+    expect(adirsSummary([0, 0, 0], [0, 0, 0], 0)).toEqual({ state: 'off', minutesLeft: null });
+    expect(adirsSummary([], [], 0).state).toBe('off');
+  });
+
+  it('ignores the aligned state of an IR whose mode selector is not at NAV', () => {
+    // Instant align time reports every ADIRU aligned, knobs at OFF included
+    expect(adirsSummary([2, 2, 2], [0, 0, 0], 0)).toEqual({ state: 'off', minutesLeft: null });
+    expect(adirsSummary([2, 2, 2], [1, 1, 0], 0).state).toBe('off');
+    expect(adirsSummary([2, 2, 2], [1, 2, 1], 0).state).toBe('off');
   });
 });
 
