@@ -8,7 +8,9 @@ import { FwcFlightPhase } from './FwsFlightPhases';
  * together with the COMPANY MSG (or COMPANY MSG: PRNTR) memo. The AOC inhibits it below 10 000 ft in flight phase 8.
  *
  * The AOC (fbw-common datalink) counts the unread company messages in L:A32NX_COMPANY_MSG_COUNT, the source of the
- * COMPANY MSG memo (FwsMemos.ts '460000001'): a new message raises the count.
+ * COMPANY MSG memo (FwsMemos.ts '460000001'): a new message raises the count. The unread messages that wait for their
+ * automatic printout (systems host CpiomD/AocAutoPrint.ts, L:A32NX_COMPANY_MSG_PRNTR_COUNT) turn it into COMPANY
+ * MSG:PRNTR. The AOC raises the memo and the voice through the SCIs, in the NSS to avionics direction.
  *
  * Design choices:
  * - The voice goes with the COMPANY MSG memo: it is also inhibited in the flight phases where the memo is inhibited
@@ -28,6 +30,14 @@ export const COMPANY_MSG_INHIBITED_FLIGHT_PHASES: readonly number[] = [
   FwcFlightPhase.AtOrBelow800Feet,
   FwcFlightPhase.TouchDown,
 ];
+
+/**
+ * @param waitingPrintoutCount the unread company messages that wait for their automatic printout
+ * @returns the line of the memo: 0 COMPANY MSG, 1 COMPANY MSG:PRNTR
+ */
+export function companyMessageMemoIndex(waitingPrintoutCount: number): number {
+  return waitingPrintoutCount > 0 ? 1 : 0;
+}
 
 /** Below this altitude in flight phase 8 the voice is inhibited, feet */
 const COMPANY_MESSAGE_AURAL_MIN_ALTITUDE_FT = 10_000;
@@ -55,11 +65,17 @@ export class FwsCompanyMessageAural {
    * @param unreadCount the number of unread company messages (L:A32NX_COMPANY_MSG_COUNT)
    * @param flightPhase the FWS flight phase
    * @param altitudeFt the pressure altitude, feet, null when no ADR gives it
+   * @param aocAlertsReachFws whether the AOC alerts reach the FWS; a message received without it is not said later
    * @returns true when the COMPANY MESSAGE voice is to be said now
    */
-  public update(unreadCount: number, flightPhase: number, altitudeFt: number | null): boolean {
+  public update(
+    unreadCount: number,
+    flightPhase: number,
+    altitudeFt: number | null,
+    aocAlertsReachFws: boolean,
+  ): boolean {
     const newMessage = this.previousUnreadCount !== null && unreadCount > this.previousUnreadCount;
     this.previousUnreadCount = unreadCount;
-    return newMessage && !isCompanyMessageAuralInhibited(flightPhase, altitudeFt);
+    return newMessage && aocAlertsReachFws && !isCompanyMessageAuralInhibited(flightPhase, altitudeFt);
   }
 }
