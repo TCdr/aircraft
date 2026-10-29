@@ -162,17 +162,20 @@ export function syncDialog(operation: LogbookSyncOperation): LogbookDialog {
 }
 
 /**
- * The message at the end of a synchronisation, null when the STATUS page shows the result by itself.
+ * The message at the end of a synchronisation, null when the STATUS page shows the result by itself (flight closure).
  * @param result the end of the synchronisation
  * @returns the message
  */
 export function syncResultDialog(result: LogbookSyncResult): LogbookDialog | null {
   const ok = [{ label: 'OK' }];
   switch (result) {
-    case 'update-done':
-    case 'give-back-done':
     case 'closure-sent':
       return null;
+    // Design choice: the manual shows no message here; a plain line tells the crew the synchronisation finished
+    case 'update-done':
+      return { kind: 'Information', lines: ['Aircraft status updated.'], buttons: ok };
+    case 'give-back-done':
+      return { kind: 'Information', lines: ['Logbook given back to ground.'], buttons: ok };
     case 'update-failed':
     case 'give-back-failed':
       return { kind: 'Caution', lines: ['Synchronization with ground failed.'], buttons: ok };
