@@ -27,6 +27,7 @@ import {
   signAcceptance,
   startSending,
 } from './TechLogbook';
+import { OisDialog, OisDialogButton } from './OisDialog';
 
 /** The flight log values the logbook reuses (AnsuOps) */
 export interface LogbookFlightLogSource {
@@ -53,23 +54,10 @@ export type LogbookSyncResult =
   | 'closure-sent'
   | 'closure-not-sent';
 
-/** A button of a logbook message window */
-export interface LogbookDialogButton {
-  readonly label: string;
-  readonly action?: () => void;
-}
+export type LogbookDialogButton = OisDialogButton;
 
-/**
- * A LOGBOOK message window: Information or Caution, its text and buttons. Without buttons it stays until the
- * synchronisation it tells about ends (it cannot be aborted). With an identification, it asks the personal ID (and the
- * password when the logbook opens) and OK needs them.
- */
-export interface LogbookDialog {
-  readonly kind: 'Information' | 'Caution';
-  readonly lines: readonly string[];
-  readonly buttons: readonly LogbookDialogButton[];
-  readonly identification?: 'signature' | 'authentication';
-}
+/** A LOGBOOK message window: see OisDialog */
+export type LogbookDialog = OisDialog;
 
 /** Design choice: the duration of a synchronisation with the ground station, ms */
 const SYNC_DURATION_MS = 5_000;

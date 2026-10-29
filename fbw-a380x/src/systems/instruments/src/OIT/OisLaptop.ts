@@ -36,7 +36,9 @@ import {
 import { OisMessageToolbar } from './System/OisMessageToolbar';
 import { FltOpsPerformanceSession } from './System/Performance/FltOpsPerformanceSession';
 import { A380_CERTIFIED_WEIGHTS } from './System/Performance/A380PerformanceCalculators';
-import { effExportIdentifier, OisLoadBox } from './System/OisLoadBox';
+import { OisLoadBox } from './System/OisLoadBox';
+import { FlightFolderNetworkEvents, FlightFolderSession } from './System/FlightFolderSession';
+import { OitPageDrafts } from './System/OitPageDrafts';
 import { OisExportBox } from './System/OisExportBox';
 import { InFltPerfAtmoSession } from './System/InFltPerfAtmoSession';
 import {
@@ -61,8 +63,19 @@ export class OisLaptop implements Instrument {
 
   public readonly data = new OisLaptopData();
 
-  /** The data from the ground to load: the airline OFP (SimBrief) */
-  public readonly loadBox = new OisLoadBox(() => getSimBriefOfp());
+  /** The data from the ground to load: the airline OFP (SimBrief). What the crew loads loads on the other laptop too. */
+  public readonly loadBox = new OisLoadBox(
+    () => getSimBriefOfp(),
+    (items) =>
+      items.forEach((item) =>
+        this.networkPublisher.pub(
+          'oisEffLoaded',
+          { sender: this.index, identifier: item.identifier, generatedMs: item.generatedMs },
+          true,
+          false,
+        ),
+      ),
+  );
 
   public readonly exportBox = new OisExportBox();
 
@@ -75,7 +88,7 @@ export class OisLaptop implements Instrument {
   private readonly isHealthySimVar = `L:A32NX_FLTOPS_LAPTOP_${this.index.toFixed(0)}_IS_HEALTHY`;
 
   private readonly sub = this.bus.getSubscriber<
-    FmsData & FltOpsStatusNetworkEvents & OitSimvars & ClockEvents & FwsEvents
+    FmsData & FltOpsStatusNetworkEvents & FlightFolderNetworkEvents & OitSimvars & ClockEvents & FwsEvents
   >();
 
   private readonly simTime = ConsumerSubject.create(this.sub.on('simTime'), 0);
@@ -137,7 +150,22 @@ export class OisLaptop implements Instrument {
     this.avionicsDataReachNss = available;
   }
 
-  private readonly networkPublisher = this.bus.getPublisher<FltOpsStatusNetworkEvents>();
+  private readonly networkPublisher = this.bus.getPublisher<FltOpsStatusNetworkEvents & FlightFolderNetworkEvents>();
+
+  /** What the crew typed or selected on the pages of the open FLT OPS applications */
+  public readonly pageDrafts = new OitPageDrafts();
+
+  /** The electronic flight folders of this laptop, shared with the laptop of the other OIT (synced bus events) */
+  public readonly flightFolder = new FlightFolderSession(
+    this.index,
+    {
+      sendCurrent: (message) => this.networkPublisher.pub('oisEffCurrent', message, true, false),
+      sendMaster: (message) => this.networkPublisher.pub('oisEffMaster', message, true, false),
+      sendSynchronize: (message) => this.networkPublisher.pub('oisEffSynchronize', message, true, false),
+    },
+    () => NXUnits.metricWeight,
+    (identifier, source, nowMs) => this.exportBox.add(identifier, source, nowMs),
+  );
 
   /** The FLT OPS STS page, shared with the laptop of the other OIT (another instrument: synced bus events) */
   public readonly fltOpsStatus = new FltOpsStatusSync(this.index, this.data, {
@@ -212,10 +240,32 @@ export class OisLaptop implements Instrument {
     this.subscriptions.push(
       this.sub.on('oisFltOpsStsPage').handle((message) => this.fltOpsStatus.receivePage(message)),
       this.sub.on('oisFltOpsStsRequest').handle((sender) => this.fltOpsStatus.receiveRequest(sender)),
+      this.sub.on('oisEffLoaded').handle((message) => {
+        if (message.sender !== this.index && this._isHealthy.get()) {
+          // Not awaited: the item shows as loaded when the ground has answered
+          this.loadBox.loadFromOffside(
+            message.identifier,
+            message.generatedMs,
+            this.index === 1 ? 'CAPT' : 'FO',
+            !this._standalone.get(),
+          );
+        }
+      }),
+      this.sub
+        .on('oisEffCurrent')
+        .handle((message) => this.onNetworkMessage(() => this.flightFolder.receiveCurrent(message))),
+      this.sub
+        .on('oisEffMaster')
+        .handle((message) => this.onNetworkMessage(() => this.flightFolder.receiveMaster(message))),
+      this.sub
+        .on('oisEffSynchronize')
+        .handle((message) => this.onNetworkMessage(() => this.flightFolder.receiveSynchronize(message))),
+      this.loadBox.loaded.sub((items) => this.flightFolder.onLoaded(items)),
       this._isHealthy.sub((v) => SimVar.SetSimVarValue(this.isHealthySimVar, SimVarValueType.Bool, v)),
       this._isHealthy.sub((healthy) => {
         if (!healthy) {
           this.messageToolbar.clear();
+          this.flightFolder.resetLaunch();
           this.opsLibrarySession?.reset();
         }
       }),
@@ -250,16 +300,21 @@ export class OisLaptop implements Instrument {
     AircraftGithubVersionChecker.getBuildInfo('a380x')
       .then((info) => this.oisVersion.set(oisVersionLabel(info)))
       .catch(() => this.oisVersion.set(''));
+  }
 
-    // The FLT FOLDER of the OIT is the flyPad, without its EXPORT FLIGHT FOLDER function: an EFF loaded into the
-    // laptop enters the EXPORT BOX as its before push back export.
-    this.subscriptions.push(
-      this.loadBox.loadedEff.sub((eff) => {
-        if (eff !== null) {
-          this.exportBox.add(effExportIdentifier(eff), 'FLT FOLDER', this.simTime.get());
-        }
-      }),
-    );
+  /**
+   * A message of the other laptop reaches a running laptop only
+   * @param take applies the message
+   */
+  private onNetworkMessage(take: () => void): void {
+    if (this._isHealthy.get()) {
+      take();
+    }
+  }
+
+  /** @returns the simulation time, unix ms: what the time stamps of the FLT OPS laptop use */
+  public simTimeMs(): number {
+    return this.simTime.get();
   }
 
   /** @inheritdoc */
