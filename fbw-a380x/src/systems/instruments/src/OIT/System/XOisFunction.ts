@@ -26,6 +26,7 @@ const FLT_OPS_PAGE_URIS: readonly string[] = [
   'flt-ops/in-flt-perf',
   'flt-ops/load-box',
   'flt-ops/export-box',
+  'flt-ops/ops-library',
 ];
 
 /** The FLT OPS Menu page, shown by the OIS MENU key */

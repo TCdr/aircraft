@@ -12,6 +12,7 @@ import {
   LogbookAvionicsInfo,
   LogbookBlockData,
   LogbookDefectEntry,
+  TECH_LOGBOOK_STORAGE_KEY,
   TechLogbookState,
   appearedEcamAlerts,
   closeFlight,
@@ -69,9 +70,6 @@ export interface LogbookDialog {
   readonly buttons: readonly LogbookDialogButton[];
   readonly identification?: 'signature' | 'authentication';
 }
-
-/** The stored logbook, shared by both OITs and kept across flights: the NSS database is permanent */
-export const TECH_LOGBOOK_STORAGE_KEY = 'OIS_TECH_LOGBOOK';
 
 /** Design choice: the duration of a synchronisation with the ground station, ms */
 const SYNC_DURATION_MS = 5_000;

@@ -36,8 +36,14 @@ describe('FLT OPS page codes of the OITs', () => {
         'flt-ops/in-flt-perf',
         'flt-ops/load-box',
         'flt-ops/export-box',
+        'flt-ops/ops-library',
       ].map(fltOpsPageCode),
-    ).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    ).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]);
+  });
+
+  it('codes the OPS LIBRARY 11 and takes it back to its page', () => {
+    expect(fltOpsPageCode('flt-ops/ops-library')).toBe(11);
+    expect(fltOpsPageUri(11)).toBe('flt-ops/ops-library');
   });
 
   it('codes every FLT OPS page of the page directory, each with its own code', () => {

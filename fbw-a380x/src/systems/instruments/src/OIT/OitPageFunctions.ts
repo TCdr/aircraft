@@ -5,11 +5,12 @@ import { MappedSubscribable, Subject, Subscribable, SubscribableMapFunctions, Su
 
 /**
  * The functions of the OIS menu bars that act on the displayed page: PRINT, STORE, UPDATE, UNDO and REDO of the FLT OPS
- * FUNCTIONS list, PRINT and UPDATE of the NSS AVNCS line 2. Which of them are active depends on the application, so
- * each page registers the ones it has (OitUiService.registerPageFunctions, from its onAfterRender); the menu bars keep
- * the others greyed. A navigation drops the registrations of the previous page.
+ * FUNCTIONS list (and HOME, for a page whose home is inside the page), PRINT and UPDATE of the NSS AVNCS line 2. Which
+ * of them are active depends on the application, so each page registers the ones it has
+ * (OitUiService.registerPageFunctions, from its onAfterRender); the menu bars keep the others greyed. A navigation
+ * drops the registrations of the previous page.
  */
-export type OitPageFunctionName = 'print' | 'store' | 'update' | 'undo' | 'redo';
+export type OitPageFunctionName = 'print' | 'store' | 'update' | 'undo' | 'redo' | 'home';
 
 export interface OitPageFunction {
   /** Does the function on the displayed page */
@@ -35,6 +36,18 @@ export type OitShortcuts = Readonly<Record<string, OitPageFunction>>;
 export function isPageFunctionAvailable(functions: OitPageFunctions, name: OitPageFunctionName): boolean {
   const pageFunction = functions[name];
   return pageFunction !== undefined && (pageFunction.available?.get() ?? true);
+}
+
+/**
+ * HOME of the FLT OPS FUNCTIONS list: greyed on the home page of the displayed application and on the FLT OPS MENU
+ * page, unless the page has its own way home (a page that shows a document inside the application).
+ * @param application the application of the displayed page, null on pages outside an application
+ * @param uri the displayed page
+ * @param pageHomeAvailable whether the page registered a HOME function that can be used now
+ * @returns whether HOME is greyed
+ */
+export function isHomeDisabled(application: string | null, uri: string, pageHomeAvailable: boolean): boolean {
+  return !pageHomeAvailable && (application === null || application === uri);
 }
 
 /** Follows whether one function of the displayed page can be used, for the greyed state of its menu item or button */
