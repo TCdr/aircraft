@@ -63,7 +63,7 @@ export class OitFltOpsLoadBox extends DisplayComponent<OitFltOpsLoadBoxProps> {
 
   private refresh(): void {
     // Not awaited: the LOAD BOX shows the new data when the ground answers.
-    this.loadBox.refresh(!this.props.container.laptop.standalone.get());
+    this.loadBox.refresh(this.props.container.laptop.isGroundWirelessAvailable());
   }
 
   public onAfterRender(node: VNode): void {
