@@ -35,6 +35,8 @@ export type OitSimvars = {
 
 export type InternalKbdKeyEvent = {
   kbdKeyEvent: [EfisSide, string];
+  /** A shortcut of the laptop keyboard such as F8 or CTRL+P (LaptopKeyChords) */
+  kbdShortcutEvent: [EfisSide, string];
 };
 
 /** A publisher to poll and publish nav/com simvars. */

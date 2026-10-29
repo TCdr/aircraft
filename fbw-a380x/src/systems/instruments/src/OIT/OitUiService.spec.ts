@@ -68,6 +68,17 @@ describe('OIS EXIT SESSION', () => {
   });
 });
 
+describe('NSS AVNCS log-on', () => {
+  it('starts COMPANY COM and the LOGBOOK, and closes all applications at the log-off', () => {
+    const ui = new OitUiService('CAPT');
+    expect(ui.nssAvncsApplications.open.get()).toEqual([]);
+    ui.nssAvncsLoginScreenVisible.set(false);
+    expect(ui.nssAvncsApplications.open.get()).toEqual(['nss-avncs/company-com', 'nss-avncs/logbook']);
+    ui.nssAvncsLoginScreenVisible.set(true);
+    expect(ui.nssAvncsApplications.open.get()).toEqual([]);
+  });
+});
+
 describe('OIT navigation', () => {
   it('opens COMPANY COM on its Inbox, so that BACK never shows an empty COMPANY COM page', () => {
     const ui = new OitUiService('CAPT');
@@ -112,6 +123,29 @@ describe('OIT navigation', () => {
     ui.navigateTo('nss-avncs/company-com/sent');
     expect(ui.runPageFunction('print')).toBe(false);
     expect(printed).toBe(1);
+  });
+
+  it('runs a shortcut of the displayed page first, then of the menu bars, only while its button could be clicked', () => {
+    const ui = new OitUiService('CAPT');
+    ui.navigateTo('flt-ops/to-perf');
+    const calls: string[] = [];
+    const enabled = Subject.create(false);
+    ui.registerMenuShortcuts({
+      'CTRL+P': { run: () => calls.push('menu print') },
+      F8: { run: () => calls.push('menu') },
+    });
+    ui.registerPageShortcuts({ F8: { run: () => calls.push('compute'), available: enabled } });
+
+    expect(ui.runShortcut('F8')).toBe(false);
+    enabled.set(true);
+    expect(ui.runShortcut('F8')).toBe(true);
+    expect(ui.runShortcut('CTRL+P')).toBe(true);
+    expect(ui.runShortcut('F6')).toBe(false);
+    expect(calls).toEqual(['compute', 'menu print']);
+
+    ui.navigateTo('flt-ops/loadsheet');
+    expect(ui.runShortcut('F8')).toBe(true);
+    expect(calls[2]).toBe('menu');
   });
 
   it('UPDATE shows the displayed page again, without a new BACK step', () => {

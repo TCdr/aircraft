@@ -270,6 +270,14 @@ export class OitFltOpsTakeoffPerf extends OitPerfPageBase<OitFltOpsTakeoffPerfPr
     this.props.uiService.registerPageFunctions({
       print: { run: () => this.print(), available: this.tracked(this.results.map((r) => r !== null)) },
     });
+    this.props.uiService.registerPageShortcuts({
+      ...this.runwayComputationShortcuts(this.state),
+      ...this.aircraftStatusShortcuts(),
+      F6: this.shortcut(() => this.clear()),
+      F7: this.shortcut(() => this.runCrosscheck(), this.crosscheckDisabled),
+      F8: this.shortcut(() => this.compute(), this.computeDisabled),
+      F10: this.shortcut(() => this.moreShown.set(!this.moreShown.get()), this.hideResults),
+    });
 
     // Results of other entries than the computed ones are not shown (the computation is deleted)
     const deleteResults = () => this.state.deleteResults();

@@ -9,13 +9,15 @@ import {
   FsInstrument,
   FsBaseInstrument,
   ClockPublisher,
+  ConsumerSubject,
   HEvent,
+  SimVarValueType,
 } from '@microsoft/msfs-sdk';
 import { AdrBusPublisher, FwcBusPublisher, FailuresConsumer } from '@flybywiresim/fbw-sdk';
 import { OIT } from './OIT';
-import { InternalKbdKeyEvent, OitSimvarPublisher } from './OitSimvarPublisher';
+import { InternalKbdKeyEvent, OitSimvarPublisher, OitSimvars } from './OitSimvarPublisher';
 import { OisLaptop } from './OisLaptop';
-import { laptopKeyToOitKey } from './LaptopKeyboard';
+import { LaptopKeyChords } from './LaptopKeyboard';
 import { AircraftNetworkServerUnit } from './System/AircraftNetworkServerUnit';
 import { AnsuOps } from './System/AnsuOps';
 import { ResetPanelSimvarPublisher } from '../MsfsAvionicsCommon/providers/ResetPanelPublisher';
@@ -54,6 +56,23 @@ class OitInstrument implements FsInstrument {
   // (AnsuLogic.isNssAvncsAvailable).
   private readonly avncsAnsu2 = new AircraftNetworkServerUnit(this.bus, 2, 'nss-avncs', this.failuresConsumer);
   private readonly fltOpsAnsu = new AircraftNetworkServerUnit(this.bus, 1, 'flt-ops', this.failuresConsumer);
+
+  private readonly keyChords = new LaptopKeyChords();
+
+  /** The OIT BRIGHTNESS knob of this side, 0 at OFF */
+  private readonly brightness = ConsumerSubject.create(
+    this.bus
+      .getSubscriber<OitSimvars>()
+      .on(this.instrument.instrumentIndex === 1 ? 'potentiometerCaptain' : 'potentiometerFo'),
+    75,
+  );
+
+  /** The backlight of the CTRL and ALT keys shows the latch (keyboard.xml) */
+  private publishModifierLamps(): void {
+    const side = this.instrument.instrumentIndex === 1 ? 'CPT' : 'FO';
+    SimVar.SetSimVarValue(`L:A380X_OIT_${side}_KBD_CTRL_LATCH`, SimVarValueType.Bool, this.keyChords.ctrlLatched);
+    SimVar.SetSimVarValue(`L:A380X_OIT_${side}_KBD_ALT_LATCH`, SimVarValueType.Bool, this.keyChords.altLatched);
+  }
 
   constructor(public readonly instrument: BaseInstrument) {
     this.hEventPublisher = new HEventPublisher(this.bus);
@@ -101,17 +120,26 @@ class OitInstrument implements FsInstrument {
       .getSubscriber<HEvent>()
       .on('hEvent')
       .handle((eventName) => {
-        // H:A380X_LAPTOP_KEYBOARD_L(R)_<key> of the laptop OIS keys and the ACD keys (keyboard.xml), e.g. A380X_LAPTOP_KEYBOARD_L_OIS_MENU
+        // H:A380X_LAPTOP_KEYBOARD_L(R)_<key> of the laptop keys and the ACD keys (keyboard.xml), e.g. A380X_LAPTOP_KEYBOARD_L_OIS_MENU
         const prefix = this.instrument.instrumentIndex === 1 ? 'A380X_LAPTOP_KEYBOARD_L_' : 'A380X_LAPTOP_KEYBOARD_R_';
-        if (eventName.startsWith(prefix)) {
-          const key = laptopKeyToOitKey(eventName.substring(prefix.length));
-          if (key === null) {
-            return;
-          }
+        if (!eventName.startsWith(prefix)) {
+          return;
+        }
 
-          this.bus
-            .getPublisher<InternalKbdKeyEvent>()
-            .pub('kbdKeyEvent', [this.instrument.instrumentIndex === 1 ? 'L' : 'R', key]);
+        // The brightness knob at OFF also switches off the keyboard and the ACD of that side
+        if (this.brightness.get() === 0) {
+          this.keyChords.reset();
+          this.publishModifierLamps();
+          return;
+        }
+
+        const side = this.instrument.instrumentIndex === 1 ? 'L' : 'R';
+        const action = this.keyChords.press(eventName.substring(prefix.length));
+        this.publishModifierLamps();
+        if (action.kind === 'oit-key') {
+          this.bus.getPublisher<InternalKbdKeyEvent>().pub('kbdKeyEvent', [side, action.key]);
+        } else if (action.kind === 'shortcut') {
+          this.bus.getPublisher<InternalKbdKeyEvent>().pub('kbdShortcutEvent', [side, action.chord]);
         }
       });
 

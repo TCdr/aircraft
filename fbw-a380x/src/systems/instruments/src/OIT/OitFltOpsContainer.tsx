@@ -110,11 +110,7 @@ export abstract class OitFltOpsContainer extends DisplayComponent<OitFltOpsConta
     if (key !== 'OIS_MENU' && key !== 'OIS_XFR') {
       return;
     }
-    if (
-      this.props.avncsOrFltOps.get() !== 'flt-ops' ||
-      !this.laptopHealthy.get() ||
-      this.uiService.fltOpsLoginScreenVisible.get()
-    ) {
+    if (!this.keyboardUsable()) {
       return;
     }
 
@@ -127,6 +123,15 @@ export abstract class OitFltOpsContainer extends DisplayComponent<OitFltOpsConta
       this.uiService.navigateTo(uri);
     }
     this.publishOwnPage();
+  }
+
+  /** @returns whether the keyboard acts: FLT OPS side only, laptop running, crew logged in */
+  private keyboardUsable(): boolean {
+    return (
+      this.props.avncsOrFltOps.get() === 'flt-ops' &&
+      this.laptopHealthy.get() &&
+      !this.uiService.fltOpsLoginScreenVisible.get()
+    );
   }
 
   private publishOwnPage(): void {
@@ -182,6 +187,14 @@ export abstract class OitFltOpsContainer extends DisplayComponent<OitFltOpsConta
         }
       }, true),
       this.hEventConsumer.handle(([, key]) => this.onKeyboardKey(key)),
+      this.props.bus
+        .getSubscriber<InternalKbdKeyEvent>()
+        .on('kbdShortcutEvent')
+        .handle(([, chord]) => {
+          if (this.keyboardUsable()) {
+            this.uiService.runShortcut(chord);
+          }
+        }),
       this.otherOitPage.sub((code) => {
         const uri = this.xOis.onOtherOitPage(code);
         if (uri !== null) {

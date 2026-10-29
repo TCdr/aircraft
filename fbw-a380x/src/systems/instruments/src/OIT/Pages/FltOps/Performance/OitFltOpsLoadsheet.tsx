@@ -530,6 +530,36 @@ export class OitFltOpsLoadsheet extends OitPerfPageBase<OitFltOpsLoadsheetProps,
     distribution.forEach((sectionPax, i) => s.paxPerSection[i].set(pax !== null ? sectionPax : null));
   }
 
+  /** The shortcuts of the buttons and tabs of each view: F10 is MORE on the loadsheet view, GENERATE on the edition */
+  private registerKeyboardShortcuts(): void {
+    const view = this.view;
+    const notInView = (name: string) => this.tracked(view.map((v) => v !== name));
+    const notInLoadsheet = notInView('loadsheet');
+    const inLoadsheetWhen = (disabled: Subscribable<boolean>) =>
+      this.tracked(MappedSubject.create(([other, off]) => other || off, notInLoadsheet, disabled));
+    const firstTab = () => this.tab.set(this.state.isDetailed() ? 'payload' : 'lmc');
+    this.props.uiService.registerPageShortcuts({
+      ...this.aircraftStatusShortcuts(notInLoadsheet),
+      F2: this.shortcut(firstTab, notInLoadsheet),
+      'ALT+F2': this.shortcut(() => this.tab.set('fuel'), notInLoadsheet),
+      'CTRL+F2': this.shortcut(() => this.tab.set('refuel'), notInLoadsheet),
+      F6: this.shortcut(() => this.state.clearEntries(), notInLoadsheet),
+      F8: this.shortcut(() => this.compute(), inLoadsheetWhen(this.computeDisabled)),
+      F9: this.shortcut(() => this.view.set('edition'), inLoadsheetWhen(this.editDisabled)),
+      F10: this.shortcut(
+        () => (view.get() === 'edition' ? this.generate() : view.set('more')),
+        this.tracked(
+          MappedSubject.create(
+            ([v, noResults]) => (v === 'loadsheet' ? noResults : v !== 'edition'),
+            view,
+            this.hideResults,
+          ),
+        ),
+      ),
+      F7: this.shortcut(() => this.exportReport(), notInView('display')),
+    });
+  }
+
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
@@ -555,6 +585,7 @@ export class OitFltOpsLoadsheet extends OitPerfPageBase<OitFltOpsLoadsheetProps,
     this.props.uiService.registerPageFunctions({
       print: { run: () => this.print(), available: this.tracked(s.report.map((lines) => lines !== null)) },
     });
+    this.registerKeyboardShortcuts();
     const entries: Subscribable<unknown>[] = [
       s.entryMode,
       s.mtow,
