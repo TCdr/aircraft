@@ -79,9 +79,31 @@ import {
   refuelZfFields,
   takeoffCgLimits,
 } from '../../../System/Performance/LoadsheetFuel';
+import {
+  FUEL_MODE_LABELS,
+  FUEL_MODE_MANUAL,
+  FUEL_MODE_TRIM_ADJUSTMENT,
+  manualDistribution,
+  manualDistributionMatchesFob,
+  trimAdjustmentDistribution,
+} from '../../../System/Performance/LoadsheetFuelModes';
+import { OitCgDiagram } from './OitCgDiagram';
 import { applicationExportIdentifier } from '../../../System/OisExportBox';
 
 interface OitFltOpsLoadsheetProps extends AbstractOitFltOpsPageProps {}
+
+/** The CG diagram of the MORE panel */
+const CG_DIAGRAM_SIZE = {
+  width: 420,
+  height: 330,
+  marginLeft: 44,
+  marginBottom: 40,
+  marginTop: 14,
+  marginRight: 14,
+};
+
+/** The tank fields of the MANUAL DISTR mode accept up to the largest tank at the highest fuel density, kg */
+const MANUAL_TANK_MAX = 45_000;
 
 /** Design choice: the standard taxi fuel when the crew enters none, the FBW A380X FMS taxi fuel default */
 const STANDARD_TAXI_FUEL = 1_500;
@@ -360,6 +382,9 @@ export class OitFltOpsLoadsheet extends OitPerfPageBase<OitFltOpsLoadsheetProps,
     return { zfw: this.state.refuelZfw.get(), zfcg: this.state.refuelZfcg.get() };
   }
 
+  /** The exact tank quantities the MANUAL DISTR fields started with; the boxes only show them rounded */
+  private manualBaseline: number[] = [];
+
   private density(): number {
     return this.state.density.get() ?? LOADSHEET_AIRCRAFT.standardDensity;
   }
@@ -373,9 +398,41 @@ export class OitFltOpsLoadsheet extends OitPerfPageBase<OitFltOpsLoadsheetProps,
     this.refuelZfcgShown.set(shown.zfcg !== null ? Math.round(shown.zfcg * 10) / 10 : null);
     const refuelZf = refuelZfData(s.refuelZfSource.get(), this.refuelZfEntries(), loading);
     const fob = this.state.fob.get() ?? 0;
-    this.distribution.set(
-      refuelZf !== null ? cgTargetingDistribution(fob, refuelZf, this.density()) : LOADSHEET_FUEL_TANKS.map(() => 0),
-    );
+    const mode = s.fuelMode.get();
+    if (mode === FUEL_MODE_MANUAL) {
+      this.distribution.set(
+        manualDistribution(
+          s.manualFuel.map((tank) => tank.get()),
+          this.density(),
+          this.manualBaseline,
+          this.metric,
+        ),
+      );
+    } else if (mode === FUEL_MODE_TRIM_ADJUSTMENT && s.trimFuel.get() !== null) {
+      this.distribution.set(trimAdjustmentDistribution(fob, s.trimFuel.get()!, this.density()));
+    } else {
+      this.distribution.set(
+        refuelZf !== null ? cgTargetingDistribution(fob, refuelZf, this.density()) : LOADSHEET_FUEL_TANKS.map(() => 0),
+      );
+    }
+  }
+
+  /**
+   * The fuel mode changes: the fields of the new mode start with the distribution shown so far.
+   * @param mode the new mode
+   */
+  private onFuelModeChanged(mode: number): void {
+    const s = this.state;
+    const shown = this.distribution.get();
+    if (shown.reduce((sum, kg) => sum + kg, 0) <= 0) {
+      return;
+    }
+    if (mode === FUEL_MODE_TRIM_ADJUSTMENT) {
+      s.trimFuel.set(shown[TRIM_TANK_INDEX]);
+    } else if (mode === FUEL_MODE_MANUAL) {
+      this.manualBaseline = [...shown];
+      s.manualFuel.forEach((tank, i) => tank.set(shown[i]));
+    }
   }
 
   private compute(): void {
@@ -402,6 +459,13 @@ export class OitFltOpsLoadsheet extends OitPerfPageBase<OitFltOpsLoadsheetProps,
       return;
     }
     this.updateFuelDistribution();
+    if (
+      s.fuelMode.get() === FUEL_MODE_MANUAL &&
+      !manualDistributionMatchesFob(this.distribution.get(), loading.fob ?? 0)
+    ) {
+      fail(['FUEL DISTR FOB differs from the FOB of the loading']);
+      return;
+    }
     this.session.onLoadsheetComputed(
       computeLoadsheet(this.configuration(), loading, this.distribution.get(), this.perPaxWeight(), (cg, weight) =>
         A380_TAKEOFF_CALCULATOR.isCgWithinLimits(cg, weight),
@@ -575,6 +639,9 @@ export class OitFltOpsLoadsheet extends OitPerfPageBase<OitFltOpsLoadsheetProps,
       s.refuelZfSource,
       s.refuelZfw,
       s.refuelZfcg,
+      s.fuelMode,
+      s.trimFuel,
+      ...s.manualFuel,
     ];
     // The MORE panel of results kept in the session needs their fuel distribution
     this.updateFuelDistribution();
@@ -582,6 +649,12 @@ export class OitFltOpsLoadsheet extends OitPerfPageBase<OitFltOpsLoadsheetProps,
       this.errorLines.sub((lines) => this.showErrorLines(this.errorListRef, lines), true),
       s.report.sub((lines) => this.showReport(lines), true),
       this.detailed.sub((detailed) => this.onEntryModeChanged(detailed)),
+      s.fuelMode.sub((mode) => {
+        this.onFuelModeChanged(mode);
+        if (mode === FUEL_MODE_MANUAL) {
+          this.allTanksShown.set(true);
+        }
+      }),
       s.pax.sub(() => this.distributeStandard()),
       s.paxDistributionStandard.sub(() => this.distributeStandard()),
       ...entries.map((entry) => entry.sub(deleteResults)),
@@ -854,8 +927,22 @@ export class OitFltOpsLoadsheet extends OitPerfPageBase<OitFltOpsLoadsheetProps,
   }
 
   private renderFuelDistribution(): VNode {
-    const fobText = this.tracked(this.state.fob.map((fob) => formatWeight(fob, this.metric)));
+    const s = this.state;
+    const mode = s.fuelMode;
+    const fobText = this.tracked(s.fob.map((fob) => formatWeight(fob, this.metric)));
     const tankText = (index: number) => this.tracked(this.distribution.map((d) => formatWeight(d[index], this.metric)));
+    const tankFormat = this.weightFormat(MANUAL_TANK_MAX);
+    const notMode = (wanted: number) => this.tracked(mode.map((m) => m !== wanted));
+    const notTrimEntry = notMode(FUEL_MODE_TRIM_ADJUSTMENT);
+    const notManual = notMode(FUEL_MODE_MANUAL);
+    const distributionFob = this.tracked(
+      this.distribution.map((d) =>
+        formatWeight(
+          d.reduce((sum, kg) => sum + kg, 0),
+          this.metric,
+        ),
+      ),
+    );
     return (
       <div class={{ fc: true, hidden: this.tracked(this.tab.map((t) => t !== 'fuel')) }} style="padding: 8px;">
         <div class="oit-perf-row">
@@ -865,15 +952,19 @@ export class OitFltOpsLoadsheet extends OitPerfPageBase<OitFltOpsLoadsheetProps,
           <span class="oit-perf-text" style="padding-left: 40px;">
             TRIM
           </span>
-          {this.value(tankText(TRIM_TANK_INDEX))}
+          <span class={{ hidden: this.tracked(notTrimEntry.map((hidden) => !hidden)) }}>
+            {this.value(tankText(TRIM_TANK_INDEX))}
+          </span>
+          <span class={{ hidden: notTrimEntry }}>{this.numberBox(tankFormat, s.trimFuel, 150)}</span>
           <span class="oit-perf-unit">{this.weightUnit}</span>
         </div>
         <div class="oit-perf-row">
-          {this.list('fuelMode', ['CG TARGETING'], Subject.create(0), 240)}
+          {this.list('fuelMode', [...FUEL_MODE_LABELS], mode, 300)}
           <div style="width: 30px;" />
           <Button
             label={this.tracked(this.allTanksShown.map((all) => (all ? 'TRIM TK ONLY' : 'DISPLAY ALL TKS')))}
             onClick={() => this.allTanksShown.set(!this.allTanksShown.get())}
+            disabled={this.tracked(mode.map((m) => m === FUEL_MODE_MANUAL))}
           />
         </div>
         <div
@@ -881,13 +972,21 @@ export class OitFltOpsLoadsheet extends OitPerfPageBase<OitFltOpsLoadsheetProps,
           style="grid-template-columns: 1fr 1fr; grid-auto-rows: 30px;"
         >
           {LOADSHEET_FUEL_TANKS.map((tank, i) => (
-            <div>
+            <div style="display: flex; align-items: center;">
               <span class="oit-perf-text" style="display: inline-block; width: 150px;">
                 {tank.name}
               </span>
-              {this.value(tankText(i))}
+              <span class={{ hidden: this.tracked(notManual.map((hidden) => !hidden)) }}>
+                {this.value(tankText(i))}
+              </span>
+              <span class={{ hidden: notManual }}>{this.numberBox(tankFormat, s.manualFuel[i], 130)}</span>
             </div>
           ))}
+        </div>
+        <div class={{ 'oit-perf-row': true, hidden: notManual }}>
+          <span class="oit-perf-text">FOB (DISTR)</span>
+          {this.value(distributionFob)}
+          <span class="oit-perf-unit">{this.weightUnit}</span>
         </div>
       </div>
     );
@@ -1050,10 +1149,15 @@ export class OitFltOpsLoadsheet extends OitPerfPageBase<OitFltOpsLoadsheetProps,
         <div class="oit-perf-panel grow">
           <div class="oit-perf-panel-title">MORE RESULTS</div>
           <div class="fr">
-            <div class="fc" style="width: 640px; padding: 6px 10px;">
+            <div class="fc" style="width: 500px; padding: 6px 10px;">
               {this.renderResultLines()}
             </div>
             <div ref={this.moreLinesRef} class="oit-perf-more-lines" />
+            <OitCgDiagram
+              results={this.results}
+              size={CG_DIAGRAM_SIZE}
+              cgWithinLimits={(cg, weight) => A380_TAKEOFF_CALCULATOR.isCgWithinLimits(cg, weight)}
+            />
           </div>
         </div>
         <div class="oit-perf-bottom jend">

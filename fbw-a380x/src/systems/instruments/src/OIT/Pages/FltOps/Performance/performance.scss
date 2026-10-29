@@ -457,3 +457,49 @@
 .oit-perf-radio.on {
   background-color: $display-green;
 }
+
+// LOADSHEET CG diagram: the envelope with the DOW, ZFW, TOW and LW points
+.oit-cg-diagram {
+  flex: 0 0 auto;
+}
+
+.oit-cg-frame {
+  fill: none;
+  stroke: $display-white;
+  stroke-width: 1;
+}
+
+.oit-cg-envelope {
+  fill: rgba(0, 200, 0, 0.18);
+  stroke: $display-green;
+  stroke-width: 2;
+}
+
+.oit-cg-axis {
+  fill: $display-white;
+  font-size: 14px;
+}
+
+.oit-cg-point {
+  fill: $display-cyan;
+  stroke: #000000;
+  stroke-width: 1;
+}
+
+.oit-cg-label {
+  fill: $display-cyan;
+  font-size: 14px;
+}
+
+.oit-cg-point.red {
+  fill: $display-red;
+}
+
+.oit-cg-label.red {
+  fill: $display-red;
+}
+
+.oit-cg-point.hidden,
+.oit-cg-label.hidden {
+  display: none;
+}
