@@ -554,6 +554,7 @@ impl A380EngineFailure {
                 <= Self::THRUST_LEVER_IDLE_MAX_ANGLE_DEGREES,
             preset_quick_mode: self.preset_quick_mode,
             relight_pending: self.failure.is_flamed_out() || self.failure.is_seized(),
+            crew_relight_without_light_up: self.failure.crew_relight_without_light_up(),
             // Not modelled on the A380X (its continuous ignition of the FADEC AUTO RELIGHT is in
             // the FADEC, EngineIgnition_A380X.hpp).
             automatic_continuous_ignition: false,

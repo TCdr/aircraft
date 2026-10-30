@@ -67,6 +67,8 @@ pub struct ThrustLeverConditions {
     pub on_ground: bool,
     /// The slats are extended (FLAPS lever not at 0, as the FADEC model's approach idle input).
     pub slats_extended: bool,
+    /// The FLAPS lever position (0 to 4).
+    pub flaps_lever_position: f64,
     /// The FADEC selected FLX TO (a flexible takeoff temperature above TAT).
     pub flex_active: bool,
 }
@@ -103,6 +105,9 @@ pub struct A320ThrustLeverFailure {
     rating: ThrustLeverRating,
     /// The lever angle at the detection: the frozen TO/FLX angle, or the faulty resolver.
     tla_at_detection_deg: f64,
+    /// The least FLAPS lever position flown since the detection: the slats extend for the approach
+    /// only beyond it, not for the configuration of the takeoff.
+    least_flaps_lever_in_flight: f64,
 }
 impl A320ThrustLeverFailure {
     /// Both resolvers failed: THR LEVER FAULT (it takes precedence over a disagreement).
@@ -157,7 +162,16 @@ impl A320ThrustLeverFailure {
         self.resolvers_disagree = resolvers_disagree;
         if !self.lever_lost() && !self.resolvers_disagree() {
             self.rating = ThrustLeverRating::Normal;
+            self.least_flaps_lever_in_flight = 0.;
             return;
+        }
+        let detected_now = self.rating == ThrustLeverRating::Normal;
+        if detected_now {
+            self.least_flaps_lever_in_flight = conditions.flaps_lever_position;
+        } else if !conditions.on_ground {
+            self.least_flaps_lever_in_flight = self
+                .least_flaps_lever_in_flight
+                .min(conditions.flaps_lever_position);
         }
 
         self.rating = match self.rating {
@@ -182,8 +196,11 @@ impl A320ThrustLeverFailure {
                 }
             }
             ThrustLeverRating::Climb => {
-                // "idle thrust for the approach when slats are extended"
-                if !conditions.on_ground && conditions.slats_extended {
+                // ground is idle power only; in flight the slats extending beyond the flown configuration
+                // are the approach
+                let extends_for_approach = conditions.slats_extended
+                    && conditions.flaps_lever_position > self.least_flaps_lever_in_flight + 0.5;
+                if conditions.on_ground || extends_for_approach {
                     ThrustLeverRating::Idle
                 } else {
                     ThrustLeverRating::Climb
@@ -367,7 +384,7 @@ impl A320EngineControl {
     fn update(
         &mut self,
         on_ground: bool,
-        slats_extended: bool,
+        flaps_lever_position: f64,
         mach: f64,
         flex_active: bool,
         eiu_operative: bool,
@@ -377,7 +394,13 @@ impl A320EngineControl {
         self.approach_configuration.update(mach);
         let slats_extended = self
             .approach_configuration
-            .slats_extended(eiu_operative, slats_extended);
+            .slats_extended(eiu_operative, flaps_lever_position > 0.5);
+        // Without the EIU the Mach substitute stands for the slats, which the lever alone does not show.
+        let flaps_lever_position = if slats_extended {
+            flaps_lever_position.max(1.)
+        } else {
+            flaps_lever_position
+        };
         self.thrust_lever.update(
             self.thrust_lever_resolvers.is_active(),
             self.thrust_lever_disagree.is_active(),
@@ -385,6 +408,7 @@ impl A320EngineControl {
                 lever_tla_deg: self.lever_tla_deg,
                 on_ground,
                 slats_extended,
+                flaps_lever_position,
                 flex_active,
             },
         );
@@ -483,7 +507,6 @@ impl A320EngineControlFailures {
         reversers: [A320ReverserMonitoring; 2],
         eius_operative: [bool; 2],
     ) {
-        let slats_extended = self.flaps_handle_index > 0.5;
         let flex_active = (self.thrust_limit_type - THRUST_LIMIT_TYPE_FLEX).abs() < 0.5;
         let mach = context.mach_number().0;
         for ((engine, reverser), eiu_operative) in self
@@ -494,7 +517,7 @@ impl A320EngineControlFailures {
         {
             engine.update(
                 on_ground,
-                slats_extended,
+                self.flaps_handle_index,
                 mach,
                 flex_active,
                 eiu_operative,
@@ -547,6 +570,7 @@ mod tests {
             lever_tla_deg,
             on_ground: false,
             slats_extended: false,
+            flaps_lever_position: 0.,
             flex_active: false,
         }
     }
@@ -556,6 +580,7 @@ mod tests {
             lever_tla_deg,
             on_ground: true,
             slats_extended: true,
+            flaps_lever_position: 1.,
             flex_active,
         }
     }
@@ -570,6 +595,7 @@ mod tests {
     fn approach(lever_tla_deg: f64) -> ThrustLeverConditions {
         ThrustLeverConditions {
             slats_extended: true,
+            flaps_lever_position: 3.,
             ..cruise(lever_tla_deg)
         }
     }
@@ -718,6 +744,54 @@ mod tests {
         assert_eq!(lever.fadec_tla_deg(45.), 45.);
         lever.update(&initial_climb(25., false));
         assert_eq!(lever.rating(), ThrustLeverRating::Climb);
+        // the slats are still out after the takeoff: not the approach
+        lever.update(&initial_climb(25., false));
+        assert_eq!(lever.rating(), ThrustLeverRating::Climb);
+        assert_eq!(lever.fadec_tla_deg(25.), CLB_TLA_DEG);
+    }
+
+    #[test]
+    fn disagree_after_takeoff_goes_to_idle_when_the_slats_extend_for_the_approach() {
+        let mut lever = lever_disagree();
+        lever.update(&takeoff_roll(45., false));
+        lever.update(&initial_climb(45., false));
+        lever.update(&initial_climb(25., false));
+        lever.update(&cruise(25.));
+        assert_eq!(lever.rating(), ThrustLeverRating::Climb);
+        lever.update(&approach(25.));
+        assert_eq!(lever.rating(), ThrustLeverRating::Idle);
+        // definitive, even for a go-around
+        lever.update(&cruise(45.));
+        assert_eq!(lever.rating(), ThrustLeverRating::Idle);
+        assert_eq!(lever.fadec_tla_deg(45.), IDLE_TLA_DEG);
+    }
+
+    #[test]
+    fn disagree_at_takeoff_goes_to_idle_when_the_flaps_extend_for_the_immediate_return() {
+        let mut lever = lever_disagree();
+        lever.update(&takeoff_roll(45., false));
+        lever.update(&initial_climb(45., false));
+        lever.update(&initial_climb(25., false));
+        assert_eq!(lever.rating(), ThrustLeverRating::Climb);
+        lever.update(&ThrustLeverConditions {
+            slats_extended: true,
+            flaps_lever_position: 2.,
+            ..initial_climb(25., false)
+        });
+        assert_eq!(lever.rating(), ThrustLeverRating::Idle);
+        assert_eq!(lever.fadec_tla_deg(0.), IDLE_TLA_DEG);
+    }
+
+    #[test]
+    fn disagree_in_climb_goes_to_idle_at_touchdown() {
+        let mut lever = lever_disagree();
+        lever.update(&cruise(25.));
+        assert_eq!(lever.rating(), ThrustLeverRating::Climb);
+        lever.update(&ThrustLeverConditions {
+            on_ground: true,
+            ..cruise(25.)
+        });
+        assert_eq!(lever.rating(), ThrustLeverRating::Idle);
     }
 
     #[test]

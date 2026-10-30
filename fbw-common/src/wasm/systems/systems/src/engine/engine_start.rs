@@ -264,6 +264,8 @@ pub struct EngineStartInputs {
     pub preset_quick_mode: bool,
     /// In flight, the engine waits for a relight (flamed out or seized, see `engine_failure`).
     pub relight_pending: bool,
+    /// See `EngineFailure::crew_relight_without_light_up`; the FADEC automatic relight is not one.
+    pub crew_relight_without_light_up: bool,
     /// The aircraft conditions for which the FADEC selects the continuous ignition by itself, in
     /// flight and on the ground (e.g. the A320 engine anti-ice valve open).
     pub automatic_continuous_ignition: bool,
@@ -856,7 +858,13 @@ impl EngineStartSequence {
         }
         let energized = self.ground_start_igniters(schedule, inputs);
         let sparking = self.working(energized);
-        if energized.any() {
+        // The restart gives no fuel while the EGT still shows the overlimit of the previous stage,
+        // since a light-up at once would trip the limit again.
+        let waiting_for_egt_to_fall = schedule.stall_or_egt_restart_before_crank
+            && !self.manual_start
+            && !self.lit
+            && inputs.egt > schedule.start_egt_limit;
+        if energized.any() && !waiting_for_egt_to_fall {
             self.since_ignition = Some(self.since_ignition.unwrap_or_default() + delta);
             if energized.only_one() {
                 self.single_igniter_used = true;
@@ -875,7 +883,8 @@ impl EngineStartSequence {
         };
         // The FADEC opens the HP fuel valve with the ignition at the light-up speed; a valve stuck
         // closed gives the engine no fuel (hp_fuel_valve_failure).
-        let fuel_on = energized.any() && inputs.core_speed >= light_up_n2;
+        let fuel_on =
+            energized.any() && inputs.core_speed >= light_up_n2 && !waiting_for_egt_to_fall;
         self.attempt_fuel_on = self.attempt_fuel_on || fuel_on;
         if !self.lit && fuel_on && sparking.any() && !inputs.hp_fuel_valve_stuck_closed {
             self.lit = true;
@@ -1053,7 +1062,7 @@ impl EngineStartSequence {
         inputs: &EngineStartInputs,
         on_ground: bool,
     ) {
-        if Self::is_in_flight_start(inputs, on_ground) {
+        if Self::is_in_flight_start(inputs, on_ground) && inputs.crew_relight_without_light_up {
             self.in_flight_no_light_up_time += context.delta();
         } else {
             self.in_flight_no_light_up_time = Duration::ZERO;
@@ -1645,6 +1654,7 @@ mod tests {
                     thrust_lever_at_idle: true,
                     preset_quick_mode: false,
                     relight_pending: false,
+                    crew_relight_without_light_up: false,
                     automatic_continuous_ignition: false,
                     hp_fuel_valve_stuck_closed: false,
                     other_fault_light_conditions: false,
@@ -2724,7 +2734,10 @@ mod tests {
     fn in_flight_an_engine_that_does_not_relight_is_reported() {
         let mut test_bed = StartTestBed::new()
             .in_flight()
-            .with(|inputs| inputs.relight_pending = true)
+            .with(|inputs| {
+                inputs.relight_pending = true;
+                inputs.crew_relight_without_light_up = true;
+            })
             .engine_state(EngineState::Restarting)
             .master(true)
             .and_run_for(Duration::from_secs(17));
@@ -2741,6 +2754,54 @@ mod tests {
     }
 
     #[test]
+    fn in_flight_the_no_light_up_fault_needs_a_crew_relight_attempt() {
+        let mut test_bed = StartTestBed::new()
+            .with_schedule(|schedule| {
+                schedule.in_flight_no_light_up_time = Duration::from_secs(30);
+            })
+            .in_flight()
+            .with(|inputs| inputs.relight_pending = true)
+            .engine_state(EngineState::Restarting)
+            .master(true)
+            .and_run_for(Duration::from_secs(40));
+        assert_eq!(test_bed.fault(), EngineStartFault::None);
+
+        test_bed = test_bed
+            .with(|inputs| inputs.crew_relight_without_light_up = true)
+            .and_run_for(Duration::from_secs(29));
+        assert_eq!(test_bed.fault(), EngineStartFault::None);
+
+        test_bed = test_bed.and_run_for(Duration::from_secs(2));
+        assert_eq!(test_bed.fault(), EngineStartFault::NoLightUp);
+    }
+
+    #[test]
+    fn in_flight_the_no_light_up_fault_stays_while_the_crew_relight_has_not_lit_up() {
+        let mut test_bed = StartTestBed::new()
+            .with_schedule(|schedule| {
+                schedule.in_flight_no_light_up_time = Duration::from_secs(30);
+            })
+            .in_flight()
+            .with(|inputs| {
+                inputs.relight_pending = true;
+                inputs.crew_relight_without_light_up = true;
+            })
+            .engine_state(EngineState::Restarting)
+            .master(true)
+            .and_run_for(Duration::from_secs(31));
+        assert_eq!(test_bed.fault(), EngineStartFault::NoLightUp);
+
+        // the flag stays true after the attempt window: the fault holds
+        test_bed = test_bed.and_run_for(Duration::from_secs(5));
+        assert_eq!(test_bed.fault(), EngineStartFault::NoLightUp);
+
+        test_bed = test_bed
+            .with(|inputs| inputs.crew_relight_without_light_up = false)
+            .and_run();
+        assert_eq!(test_bed.fault(), EngineStartFault::None);
+    }
+
+    #[test]
     fn in_flight_the_no_light_up_time_is_the_one_of_the_relight() {
         // A380 FCOM ENG RELIGHT IN FLIGHT (l.174943): "Engine must relight within 30 s", while the
         // ground start of the same aircraft has 20 s
@@ -2750,7 +2811,10 @@ mod tests {
                 schedule.in_flight_no_light_up_time = Duration::from_secs(30);
             })
             .in_flight()
-            .with(|inputs| inputs.relight_pending = true)
+            .with(|inputs| {
+                inputs.relight_pending = true;
+                inputs.crew_relight_without_light_up = true;
+            })
             .engine_state(EngineState::Restarting)
             .master(true)
             .and_run_for(Duration::from_secs(29));
@@ -2988,6 +3052,36 @@ mod tests {
         assert_eq!(test_bed.fault(), EngineStartFault::EgtOverlimit);
         assert_eq!(test_bed.phase(), EngineStartPhase::Starting);
         assert_eq!(test_bed.attempt(), 2);
+        assert!(!test_bed.fuel_is_cut());
+    }
+
+    #[test]
+    fn an_egt_over_limit_restart_waits_for_the_egt_to_fall_below_the_limit() {
+        let mut test_bed = StartTestBed::new()
+            .with_schedule(|schedule| schedule.stall_or_egt_restart_before_crank = true)
+            .failing(FailureType::EngineHotStart(1))
+            .automatic_start()
+            .core_at_light_up_speed()
+            .n2(35.)
+            .egt(730.)
+            .and_run();
+        assert_eq!(test_bed.attempt(), 2);
+
+        // the engine is still hot: the new attempt gets no fuel and uses up no further attempt
+        test_bed = test_bed.and_run_for(Duration::from_secs(2));
+        assert_eq!(test_bed.attempt(), 2);
+        assert_eq!(test_bed.phase(), EngineStartPhase::Starting);
+        assert!(test_bed.fuel_is_cut());
+
+        // the long wait is no NO LIGHT UP either
+        test_bed = test_bed.and_run_for(Duration::from_secs(20));
+        assert_eq!(test_bed.attempt(), 2);
+        assert_eq!(test_bed.phase(), EngineStartPhase::Starting);
+        assert_eq!(test_bed.fault(), EngineStartFault::EgtOverlimit);
+
+        test_bed = test_bed.egt(600.).and_run_for(Duration::from_secs(1));
+        assert_eq!(test_bed.attempt(), 2);
+        assert_eq!(test_bed.phase(), EngineStartPhase::Starting);
         assert!(!test_bed.fuel_is_cut());
     }
 
