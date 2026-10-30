@@ -6,15 +6,29 @@ import { Ata21AvionicsEntries, Ata21AvionicsFamilies } from './details/ata21Avio
 import { Ata21CabinEntries, Ata21CabinFamilies } from './details/ata21Cabin';
 import { Ata21ComputersFamilies } from './details/ata21Computers';
 import { Ata21PacksPressureEntries, Ata21PacksPressureFamilies } from './details/ata21PacksPressure';
+import { Ata24BusesEntries, Ata24BusesFamilies } from './details/ata24Buses';
+import { Ata24DistributionEntries, Ata24DistributionFamilies } from './details/ata24Distribution';
+import { Ata24SourcesEntries, Ata24SourcesFamilies } from './details/ata24Sources';
 
 /** Chapters whose failures all have a detail; the coverage spec only demands these. */
-export const A380_DETAIL_CHAPTERS_DONE: readonly AtaChapterNumber[] = [21];
+export const A380_DETAIL_CHAPTERS_DONE: readonly AtaChapterNumber[] = [21, 24];
 
 export const A380FailureDetails: FailureDetailTable = {
   entries: {
     ...Ata21CabinEntries,
     ...Ata21PacksPressureEntries,
     ...Ata21AvionicsEntries,
+    ...Ata24SourcesEntries,
+    ...Ata24BusesEntries,
+    ...Ata24DistributionEntries,
   },
-  families: [...Ata21CabinFamilies, ...Ata21ComputersFamilies, ...Ata21PacksPressureFamilies, ...Ata21AvionicsFamilies],
+  families: [
+    ...Ata21CabinFamilies,
+    ...Ata21ComputersFamilies,
+    ...Ata21PacksPressureFamilies,
+    ...Ata21AvionicsFamilies,
+    ...Ata24SourcesFamilies,
+    ...Ata24BusesFamilies,
+    ...Ata24DistributionFamilies,
+  ],
 };
