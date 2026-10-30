@@ -6,6 +6,7 @@ import {
   ConsumerSubject,
   EventBus,
   Instrument,
+  MappedSubject,
   SimVarValueType,
   Subject,
   Subscribable,
@@ -58,6 +59,9 @@ import {
 import { OpsLibrarySession } from './System/OpsLibrary/OpsLibrarySession';
 import { readLogbook } from './System/FltOpsLogbookReader';
 import { TECH_LOGBOOK_STORAGE_KEY } from './System/TechLogbook';
+import { ChartsClipboard, ChartsNetworkEvents } from './System/Charts/ChartsClipboard';
+import { ChartsSession } from './System/Charts/ChartsSession';
+import { MsfsLidoChartSource } from './System/Charts/MsfsLidoChartSource';
 
 export class OisLaptop implements Instrument {
   private readonly subscriptions: Subscription[] = [];
@@ -97,6 +101,7 @@ export class OisLaptop implements Instrument {
     FmsData &
       FltOpsStatusNetworkEvents &
       FlightFolderNetworkEvents &
+      ChartsNetworkEvents &
       OitSimvars &
       ClockEvents &
       FwsEvents &
@@ -191,7 +196,9 @@ export class OisLaptop implements Instrument {
     this.flightTimesSource = times;
   }
 
-  private readonly networkPublisher = this.bus.getPublisher<FltOpsStatusNetworkEvents & FlightFolderNetworkEvents>();
+  private readonly networkPublisher = this.bus.getPublisher<
+    FltOpsStatusNetworkEvents & FlightFolderNetworkEvents & ChartsNetworkEvents
+  >();
 
   /** What the crew typed or selected on the pages of the open FLT OPS applications */
   public readonly pageDrafts = new OitPageDrafts();
@@ -215,6 +222,21 @@ export class OisLaptop implements Instrument {
     sendPage: (message) => this.networkPublisher.pub('oisFltOpsStsPage', message, true, false),
     requestPage: (sender) => this.networkPublisher.pub('oisFltOpsStsRequest', sender, true, false),
   });
+
+  /**
+   * The terminal charts of this laptop (NAV CHARTS). Its clipboard is shared with the laptop of the other OIT (a synced
+   * bus event), as long as both laptops are on the network.
+   */
+  public readonly charts = new ChartsSession(
+    new MsfsLidoChartSource(),
+    this.data.fromAirport,
+    this.data.toAirport,
+    new ChartsClipboard(
+      this.index,
+      { sendClipboard: (message) => this.networkPublisher.pub('oisChartsClipboard', message, true, false) },
+      MappedSubject.create(([healthy, standalone]) => healthy && !standalone, this._isHealthy, this._standalone),
+    ),
+  );
 
   private opsLibrarySession: OpsLibrarySession | null = null;
 
@@ -309,6 +331,7 @@ export class OisLaptop implements Instrument {
       this.sub
         .on('oisEffRefreshReply')
         .handle((message) => this.onNetworkMessage(() => this.flightFolder.receiveRefreshReply(message))),
+      this.sub.on('oisChartsClipboard').handle((message) => this.charts.clipboard.receive(message)),
       this.loadBox.loaded.sub((items) => this.flightFolder.onLoaded(items)),
       this._isHealthy.sub((v) => SimVar.SetSimVarValue(this.isHealthySimVar, SimVarValueType.Bool, v)),
       this._isHealthy.sub((healthy) => {
@@ -316,6 +339,7 @@ export class OisLaptop implements Instrument {
           this.messageToolbar.clear();
           this.flightFolder.resetLaunch();
           this.opsLibrarySession?.reset();
+          this.charts.reset();
         }
       }),
       this.sub.on('fws_abn_sensed_procedures').handle((procedures) => {

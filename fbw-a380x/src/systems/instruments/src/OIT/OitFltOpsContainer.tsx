@@ -28,6 +28,7 @@ import { InteractionMode } from '../MsfsAvionicsCommon/UiWidgets/InputField';
 import { OitFltOpsLoadingScreen } from './Pages/FltOps/OitFltOpsLoadingScreen';
 import { OitFltOpsLogin } from './Pages/FltOps/OitFltOpsLogin';
 import { XOisFunction, fltOpsPageCode } from './System/XOisFunction';
+import { LEGACY_CHARTS_OVERLAY_URI } from './Pages/FltOps/OitFltOpsEfbOverlay';
 
 interface OitFltOpsContainerProps {
   readonly bus: EventBus;
@@ -146,11 +147,11 @@ export abstract class OitFltOpsContainer extends DisplayComponent<OitFltOpsConta
 
     this.overlaySub = MappedSubject.create(
       ([uri, displayFailed, displayPowered, laptopHealthy, operationMode]) => {
-        // Activate EFB overlay if on the charts page
+        // Activate the EFB overlay on its own page (the CHARTS application is the native terminal charts)
         SimVar.SetSimVarValue(
           this.showChartsSimvar,
           SimVarValueType.Bool,
-          uri.uri === 'flt-ops/charts' &&
+          uri.uri === LEGACY_CHARTS_OVERLAY_URI &&
             operationMode === 'flt-ops' &&
             !displayFailed &&
             displayPowered &&

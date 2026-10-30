@@ -2,7 +2,8 @@
 //  SPDX-License-Identifier: GPL-3.0
 
 import { EventBus, FSComponent, VNode } from '@microsoft/msfs-sdk';
-import { OitFltOpsEfbOverlay } from './Pages/FltOps/OitFltOpsEfbOverlay';
+import { LEGACY_CHARTS_OVERLAY_URI, OitFltOpsEfbOverlay } from './Pages/FltOps/OitFltOpsEfbOverlay';
+import { OitFltOpsTerminalCharts } from './Pages/FltOps/Charts/OitFltOpsTerminalCharts';
 import { OitFltOpsMenuPage } from './Pages/FltOps/OitFltOpsMenuPage';
 import { OitFltOpsTakeoffPerf } from './Pages/FltOps/Performance/OitFltOpsTakeoffPerf';
 import { OitFltOpsLandingPerf } from './Pages/FltOps/Performance/OitFltOpsLandingPerf';
@@ -66,6 +67,8 @@ export function fltOpsPageForUrl(
     case 'flt-ops/ldg-perf':
       return <OitFltOpsLandingPerf bus={bus} uiService={uiService} container={container} />;
     case 'flt-ops/charts':
+      return <OitFltOpsTerminalCharts bus={bus} uiService={uiService} container={container} />;
+    case LEGACY_CHARTS_OVERLAY_URI:
       return <OitFltOpsEfbOverlay bus={bus} uiService={uiService} container={container} />;
     case 'flt-ops/flt-folder':
       return <OitFltOpsFlightFolder bus={bus} uiService={uiService} container={container} />;

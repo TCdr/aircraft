@@ -218,6 +218,29 @@
   margin-bottom: 40px;
 }
 
+.oit-flt-ops-sts-charts {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  padding: 24px 0 0 0;
+  border-bottom: 3px solid $display-light-grey;
+}
+
+.oit-flt-ops-sts-charts.blank .oit-label {
+  visibility: hidden;
+}
+
+.oit-flt-ops-sts-charts-title {
+  // Design choice: centred above the values, which sit in the right part of the line (5 of the 7 shares of the width)
+  padding-left: 28.6%;
+  text-align: center;
+}
+
+.oit-flt-ops-sts-charts .oit-flt-ops-sts-line {
+  margin-top: 24px;
+  margin-bottom: 24px;
+}
+
 .oit-flt-ops-sts-lower {
   flex: 1;
   display: flex;
