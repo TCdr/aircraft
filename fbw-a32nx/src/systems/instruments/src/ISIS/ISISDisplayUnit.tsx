@@ -4,24 +4,18 @@
 
 import React, { useEffect, useState } from 'react';
 import { useSimVar, useUpdate } from '@flybywiresim/fbw-sdk-react';
+import { IsisDisplayUnitState, IsisPowerSequence, IsisPowerSequenceChange } from '@flybywiresim/fbw-sdk';
 import { PressureIndicator } from './PressureIndicator';
-
-enum DisplayUnitState {
-  On,
-  Off,
-  Selftest,
-  Standby,
-}
 
 type ISISDisplayUnitProps = {
   indicatedAirspeed: number;
 };
 
 export const ISISDisplayUnit: React.FC<ISISDisplayUnitProps> = ({ indicatedAirspeed, children }) => {
-  const powerUpTime = 90;
   const [isColdAndDark] = useSimVar('L:A32NX_COLD_AND_DARK_SPAWN', 'Bool', 200);
 
-  const [state, setState] = useState(isColdAndDark ? DisplayUnitState.Off : DisplayUnitState.Standby);
+  const [state, setState] = useState(isColdAndDark ? IsisDisplayUnitState.Off : IsisDisplayUnitState.Standby);
+  const [powerSequence] = useState(() => new IsisPowerSequence(state));
   const [timer, setTimer] = useState<number | null>(null);
 
   const [dcEssLive] = useSimVar('L:A32NX_ELEC_DC_ESS_BUS_IS_POWERED', 'bool');
@@ -33,23 +27,18 @@ export const ISISDisplayUnit: React.FC<ISISDisplayUnitProps> = ({ indicatedAirsp
 
   const hasElectricity = (indicatedAirspeed > 50 && dcHotLive) || dcEssLive;
 
-  useUpdate((deltaTime) => {
-    if (timer !== null) {
-      if (timer > 0) {
-        // aircraft preset quick mode skips self-test
-        if (aircraftPresetQuickMode) {
-          setTimer(0);
-          return;
-        }
-        setTimer(timer - deltaTime / 1000);
-      } else if (state === DisplayUnitState.Standby) {
-        setState(DisplayUnitState.Off);
-        setTimer(null);
-      } else if (state === DisplayUnitState.Selftest) {
-        setState(DisplayUnitState.On);
-        setTimer(null);
-      }
+  const renderChange = (change: IsisPowerSequenceChange) => {
+    if (change & IsisPowerSequenceChange.State) {
+      setState(powerSequence.state);
     }
+    if (change & IsisPowerSequenceChange.Timer) {
+      setTimer(powerSequence.remainingSeconds);
+    }
+  };
+
+  useUpdate((deltaTime) => {
+    // aircraft preset quick mode skips self-test
+    renderChange(powerSequence.update(deltaTime, !!aircraftPresetQuickMode));
 
     // override MSFS menu animations setting for this instrument
     if (!document.documentElement.classList.contains('animationsEnabled')) {
@@ -58,22 +47,10 @@ export const ISISDisplayUnit: React.FC<ISISDisplayUnitProps> = ({ indicatedAirsp
   });
 
   useEffect(() => {
-    if (state === DisplayUnitState.On && !hasElectricity) {
-      setState(DisplayUnitState.Standby);
-      setTimer(10);
-    } else if (state === DisplayUnitState.Standby && hasElectricity) {
-      setState(DisplayUnitState.On);
-      setTimer(null);
-    } else if (state === DisplayUnitState.Off && hasElectricity) {
-      setState(DisplayUnitState.Selftest);
-      setTimer(powerUpTime);
-    } else if (state === DisplayUnitState.Selftest && !hasElectricity) {
-      setState(DisplayUnitState.Off);
-      setTimer(null);
-    }
+    renderChange(powerSequence.applyPower(!!hasElectricity));
   });
 
-  if (state === DisplayUnitState.Selftest) {
+  if (state === IsisDisplayUnitState.Selftest) {
     return (
       <>
         <svg
@@ -116,7 +93,7 @@ export const ISISDisplayUnit: React.FC<ISISDisplayUnitProps> = ({ indicatedAirsp
     );
   }
 
-  if (state === DisplayUnitState.Off) {
+  if (state === IsisDisplayUnitState.Off) {
     return (
       <svg id="Off" style={{ backgroundColor: 'black' }} className="SelfTest" version="1.1" viewBox="0 0 512 512" />
     );

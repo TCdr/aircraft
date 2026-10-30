@@ -4,16 +4,10 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { useSimVar, useUpdate } from '@flybywiresim/fbw-sdk-react';
+import { IsisDisplayUnitState, IsisPowerSequence, IsisPowerSequenceChange } from '@flybywiresim/fbw-sdk';
 import { IsisUnit } from '@shared/IsisConfiguration';
 import { POWER_UP_SLOT_SECONDS, PowerUpGate } from '@shared/PowerUpStagger';
 import { PressureIndicator } from './PressureIndicator';
-
-enum DisplayUnitState {
-  On,
-  Off,
-  Selftest,
-  Standby,
-}
 
 type ISISDisplayUnitProps = {
   indicatedAirspeed: number;
@@ -21,10 +15,10 @@ type ISISDisplayUnitProps = {
 };
 
 export const ISISDisplayUnit: React.FC<ISISDisplayUnitProps> = ({ indicatedAirspeed, unit, children }) => {
-  const powerUpTime = 90;
   const [isColdAndDark] = useSimVar('L:A32NX_COLD_AND_DARK_SPAWN', 'Bool', 200);
 
-  const [state, setState] = useState(isColdAndDark ? DisplayUnitState.Off : DisplayUnitState.Standby);
+  const [state, setState] = useState(isColdAndDark ? IsisDisplayUnitState.Off : IsisDisplayUnitState.Standby);
+  const [powerSequence] = useState(() => new IsisPowerSequence(state));
   const [timer, setTimer] = useState<number | null>(null);
 
   const [dcEssLive] = useSimVar('L:A32NX_ELEC_DC_ESS_BUS_IS_POWERED', 'bool');
@@ -36,23 +30,22 @@ export const ISISDisplayUnit: React.FC<ISISDisplayUnitProps> = ({ indicatedAirsp
   const powerUpWaitSeconds = powerUpGate.current.update(!!hasElectricity, Date.now() / 1000);
   const [, setWaitEndedCount] = useState(0);
 
+  const renderChange = (change: IsisPowerSequenceChange) => {
+    if (change & IsisPowerSequenceChange.State) {
+      setState(powerSequence.state);
+    }
+    if (change & IsisPowerSequenceChange.Timer) {
+      setTimer(powerSequence.remainingSeconds);
+    }
+  };
+
   useUpdate((deltaTime) => {
     // Renders the ISIS again when its slot has passed, so that the effect below can start it
     if (powerUpWaitSeconds > 0 && powerUpGate.current.update(!!hasElectricity, Date.now() / 1000) === 0) {
       setWaitEndedCount((count) => count + 1);
     }
 
-    if (timer !== null) {
-      if (timer > 0) {
-        setTimer(timer - deltaTime / 1000);
-      } else if (state === DisplayUnitState.Standby) {
-        setState(DisplayUnitState.Off);
-        setTimer(null);
-      } else if (state === DisplayUnitState.Selftest) {
-        setState(DisplayUnitState.On);
-        setTimer(null);
-      }
-    }
+    renderChange(powerSequence.update(deltaTime));
 
     // override MSFS menu animations setting for this instrument
     if (!document.documentElement.classList.contains('animationsEnabled')) {
@@ -61,22 +54,10 @@ export const ISISDisplayUnit: React.FC<ISISDisplayUnitProps> = ({ indicatedAirsp
   });
 
   useEffect(() => {
-    if (state === DisplayUnitState.On && !hasElectricity) {
-      setState(DisplayUnitState.Standby);
-      setTimer(10);
-    } else if (state === DisplayUnitState.Standby && hasElectricity) {
-      setState(DisplayUnitState.On);
-      setTimer(null);
-    } else if (state === DisplayUnitState.Off && hasElectricity && powerUpWaitSeconds === 0) {
-      setState(DisplayUnitState.Selftest);
-      setTimer(powerUpTime);
-    } else if (state === DisplayUnitState.Selftest && !hasElectricity) {
-      setState(DisplayUnitState.Off);
-      setTimer(null);
-    }
+    renderChange(powerSequence.applyPower(!!hasElectricity, powerUpWaitSeconds === 0));
   });
 
-  if (state === DisplayUnitState.Selftest) {
+  if (state === IsisDisplayUnitState.Selftest) {
     return (
       <>
         <svg
@@ -119,7 +100,7 @@ export const ISISDisplayUnit: React.FC<ISISDisplayUnitProps> = ({ indicatedAirsp
     );
   }
 
-  if (state === DisplayUnitState.Off) {
+  if (state === IsisDisplayUnitState.Off) {
     return (
       <svg id="Off" style={{ backgroundColor: 'black' }} className="SelfTest" version="1.1" viewBox="0 0 512 512" />
     );

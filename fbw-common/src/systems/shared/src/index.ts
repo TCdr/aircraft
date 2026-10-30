@@ -50,6 +50,7 @@ export * from './simvar';
 export * from './units';
 export * from './GPUManagement';
 export * from './GsxSync';
+export * from './IsisPowerSequence';
 export * from './SimVarUtils';
 export * from './Troubleshooting';
 export * from './types';
