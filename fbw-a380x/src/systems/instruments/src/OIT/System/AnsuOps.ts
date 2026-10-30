@@ -18,6 +18,7 @@ import { ReportWeightUnit } from './CompanyComReportForms';
 
 export class AnsuOps extends AircraftNetworkServerUnit {
   private lastUpdateTime: number | undefined = undefined;
+  private startStateRecorded = false;
   private readonly ansuUpdateThrottler = new UpdateThrottler(500); // has to be > 100 due to pulse nodes
 
   // OOOI times, ref: https://patents.google.com/patent/US6308044B1/en
@@ -102,25 +103,47 @@ export class AnsuOps extends AircraftNetworkServerUnit {
           this.messageToolbar.post(text);
         }
       }),
-      this.sci.parkBrakeSet.sub((v) => {
-        if (v) {
-          this.parkBrakeOnTime.set(this.sci.zuluTime.get());
-          this.parkBrakeOnFob.set(this.sci.fqmsFuelQuantity.get().valueOr(null));
-        } else {
-          this.parkBrakeOffTime.set(this.sci.zuluTime.get());
-          this.parkBrakeOffFob.set(this.sci.fqmsFuelQuantity.get().valueOr(null));
-        }
-      }, true),
-      this.sci.onGround.sub((v) => {
-        if (v) {
-          this.touchdownTime.set(this.sci.zuluTime.get());
-          this.touchdownFob.set(this.sci.fqmsFuelQuantity.get().valueOr(null));
-        } else {
-          this.takeoffTime.set(this.sci.zuluTime.get());
-          this.takeoffFob.set(this.sci.fqmsFuelQuantity.get().valueOr(null));
-        }
-      }, true),
+      this.sci.parkBrakeSet.sub((set) => this.recordParkBrake(set)),
+      this.sci.onGround.sub((onGround) => this.recordGround(onGround)),
     );
+  }
+
+  /**
+   * Records the time and the fuel on board of a park brake change
+   * @param set whether the park brake is set now
+   */
+  private recordParkBrake(set: boolean): void {
+    if (set) {
+      this.parkBrakeOnTime.set(this.sci.zuluTime.get());
+      this.parkBrakeOnFob.set(this.sci.fqmsFuelQuantity.get().valueOr(null));
+    } else {
+      this.parkBrakeOffTime.set(this.sci.zuluTime.get());
+      this.parkBrakeOffFob.set(this.sci.fqmsFuelQuantity.get().valueOr(null));
+    }
+  }
+
+  /**
+   * Records the time and the fuel on board of a change between ground and air
+   * @param onGround whether the aircraft is on the ground now
+   */
+  private recordGround(onGround: boolean): void {
+    if (onGround) {
+      this.touchdownTime.set(this.sci.zuluTime.get());
+      this.touchdownFob.set(this.sci.fqmsFuelQuantity.get().valueOr(null));
+    } else {
+      this.takeoffTime.set(this.sci.zuluTime.get());
+      this.takeoffFob.set(this.sci.fqmsFuelQuantity.get().valueOr(null));
+    }
+  }
+
+  /**
+   * The state the aircraft starts in counts as the last change. It is recorded at the first update, not at init: the
+   * sim clock and the avionics data have not arrived by then, the time would be the one of the PC and the fuel unknown.
+   */
+  private recordStartState(): void {
+    this.startStateRecorded = true;
+    this.recordParkBrake(this.sci.parkBrakeSet.get());
+    this.recordGround(this.sci.onGround.get());
   }
 
   /**
@@ -146,6 +169,9 @@ export class AnsuOps extends AircraftNetworkServerUnit {
   /** @inheritdoc */
   onUpdate(): void {
     super.onUpdate();
+    if (!this.startStateRecorded) {
+      this.recordStartState();
+    }
     const _deltaTime = this.lastUpdateTime === undefined ? 1_000 : this.sci.zuluTime.get() - this.lastUpdateTime;
     this.lastUpdateTime = this.sci.zuluTime.get();
 

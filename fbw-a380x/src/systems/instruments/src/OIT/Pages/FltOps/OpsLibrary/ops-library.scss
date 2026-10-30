@@ -374,6 +374,11 @@
   padding: 6px 10px;
 }
 
+// A row that the flex layout shrinks to nothing would be drawn over the note and the text below it
+.oit-ops-right > * {
+  flex-shrink: 0;
+}
+
 .oit-ops-search-area {
   display: flex;
   flex-direction: row;

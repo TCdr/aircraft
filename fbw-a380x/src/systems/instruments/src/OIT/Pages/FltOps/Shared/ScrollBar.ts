@@ -110,6 +110,16 @@ export function pageScrollTop(
 }
 
 /**
+ * @param elementTop the distance from the top of the content to the element
+ * @param clientHeight the visible height of the pane
+ * @param scrollHeight the height of all the content
+ * @returns the scrolled distance that brings the element into view, one line below the top of the pane
+ */
+export function scrollTopToShow(elementTop: number, clientHeight: number, scrollHeight: number): number {
+  return clampScrollTop(elementTop - SCROLL_LINE_PX, clientHeight, scrollHeight);
+}
+
+/**
  * A click-operated vertical scroll bar for a scroll container: an arrow at each end (hold to repeat), a track that
  * pages, and a thumb to drag. The cockpit screen sends clicks and mouse moves only, no wheel and no native scroll bars,
  * so scrollTop written by this bar is the only way to scroll. Only mouse events on the bar and on the document are

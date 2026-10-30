@@ -8,6 +8,7 @@ import {
   SCROLL_LINES_PER_CLICK,
   ScrollBar,
   scrollTopForThumb,
+  scrollTopToShow,
   stepScrollTop,
   thumbGeometry,
 } from './ScrollBar';
@@ -43,6 +44,17 @@ describe('scroll bar maths', () => {
     expect(scrollTopForThumb(200, 500, 1000, 400)).toBe(500);
     expect(scrollTopForThumb(100, 500, 1000, 400)).toBe(250);
     expect(scrollTopForThumb(9999, 500, 1000, 400)).toBe(500);
+  });
+});
+
+describe('scrolling to an element', () => {
+  it('brings the element one line below the top of the pane', () => {
+    expect(scrollTopToShow(500, 400, 1000)).toBe(500 - SCROLL_LINE_PX);
+    expect(scrollTopToShow(10, 400, 1000)).toBe(0);
+  });
+
+  it('stops at the end of the content', () => {
+    expect(scrollTopToShow(900, 400, 1000)).toBe(600);
   });
 });
 

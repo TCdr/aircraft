@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import type { INavlogFix, ISimbriefData } from '@flybywiresim/fbw-sdk';
+import { oisTime } from './OisDateTime';
 
 /*
  * The flight plan document of the electronic flight folder: the OFP laid out as the FMS INIT, FLT INFO, ALTN and NAV LOG
@@ -50,6 +51,40 @@ export interface EffNavLogRow {
   readonly etaMs: number | null;
   readonly efobKg: number | null;
   readonly efuKg: number | null;
+  /** Where the waypoint is, degrees; null when the OFP has no position for it */
+  readonly latitudeDeg: number | null;
+  readonly longitudeDeg: number | null;
+}
+
+/** What the flight follow-up recorded at a waypoint: from the avionics, or typed by the crew who has the master status */
+export interface EffNavLogActual {
+  ataMs: number | null;
+  afobKg: number | null;
+  afuKg: number | null;
+}
+
+/** A waypoint the crew added with NEXT WPT: it comes right after another waypoint of the log */
+export interface EffInsertedWaypoint {
+  readonly key: string;
+  readonly ident: string;
+  readonly afterKey: string;
+}
+
+/**
+ * The flight follow-up of the navigation log. The rows are named by a key: W followed by the index of the OFP waypoint,
+ * and I followed by a number for the waypoints the crew inserted.
+ */
+export interface EffNavLogFollowUp {
+  inserted: EffInsertedWaypoint[];
+  /** How many waypoints were inserted: a deleted waypoint does not give its key again */
+  insertedCount: number;
+  /** NEXT WPT inside the flight plan: the key of the initial waypoint and the key of the waypoint to go to */
+  directTo: Record<string, string>;
+  actuals: Record<string, EffNavLogActual>;
+  /** The rows the crew checked with FUEL CHK: their data are saved */
+  checked: Record<string, boolean>;
+  /** The remarks of the FLT REPORT panel */
+  remarks: string;
 }
 
 /** What the crew entered in the Update column of the panels, kg */
@@ -96,7 +131,42 @@ export interface EffFlightPlan {
   readonly maxStruct: Readonly<Record<'zfw' | 'tow' | 'lw', number | null>>;
   readonly altnRows: readonly EffAltnRow[];
   readonly navLog: readonly EffNavLogRow[];
+  /** The time the plan counts the navigation log from, unix ms */
+  readonly baseMs: number | null;
   readonly updates: EffCrewUpdates;
+  readonly followUp: EffNavLogFollowUp;
+}
+
+/** @returns a flight follow-up with nothing recorded */
+function emptyFollowUp(): EffNavLogFollowUp {
+  return { inserted: [], insertedCount: 0, directTo: {}, actuals: {}, checked: {}, remarks: '' };
+}
+
+/**
+ * @param followUp a flight follow-up
+ * @returns a copy that shares nothing with it
+ */
+export function copyFollowUp(followUp: EffNavLogFollowUp): EffNavLogFollowUp {
+  const actuals: Record<string, EffNavLogActual> = {};
+  Object.keys(followUp.actuals).forEach((key) => {
+    actuals[key] = { ...followUp.actuals[key] };
+  });
+  return {
+    inserted: followUp.inserted.map((waypoint) => ({ ...waypoint })),
+    insertedCount: followUp.insertedCount,
+    directTo: { ...followUp.directTo },
+    actuals,
+    checked: { ...followUp.checked },
+    remarks: followUp.remarks,
+  };
+}
+
+/**
+ * @param target the follow-up of a plan, which keeps its identity
+ * @param source what it takes over
+ */
+export function replaceFollowUp(target: EffNavLogFollowUp, source: EffNavLogFollowUp): void {
+  Object.assign(target, copyFollowUp(source));
 }
 
 /**
@@ -274,9 +344,13 @@ export function buildFlightPlan(ofp: ISimbriefData): EffFlightPlan {
         etaMs: baseMs !== null && cumS !== null ? baseMs + cumS * 1000 : null,
         efobKg: kg(fix.fuel_plan_onboard, units),
         efuKg: kg(fix.fuel_totalused, units),
+        latitudeDeg: num(fix.pos_lat),
+        longitudeDeg: num(fix.pos_long),
       };
     }),
+    baseMs,
     updates: { fuel: {}, load: {}, altnFuel: [] },
+    followUp: emptyFollowUp(),
   };
 }
 
@@ -427,6 +501,38 @@ export function durationText(seconds: number | null): string {
 }
 
 /**
+ * @param timeMs unix ms
+ * @returns the UTC time as HH:MM, an empty text for none
+ */
+export function clockText(timeMs: number | null): string {
+  return timeMs === null ? '' : oisTime(timeMs);
+}
+
+const DAY_MS = 24 * 3600 * 1000;
+
+/**
+ * @param text a time typed as HHMM or HH:MM, UTC
+ * @param referenceMs a time the typed one is close to, unix ms: the entry has no date, so the day is the one that puts
+ * it nearest to the reference (a flight crosses midnight)
+ * @returns the time in unix ms, null for an invalid text
+ */
+export function parseClockTime(text: string, referenceMs: number): number | null {
+  const match = /^(\d{2}):?(\d{2})$/.exec(text.trim());
+  if (match === null || Number(match[1]) > 23 || Number(match[2]) > 59) {
+    return null;
+  }
+  const dayStartMs = Math.floor(referenceMs / DAY_MS) * DAY_MS;
+  const timeOfDayMs = (Number(match[1]) * 60 + Number(match[2])) * 60 * 1000;
+  let nearest = dayStartMs + timeOfDayMs;
+  for (const shift of [-DAY_MS, DAY_MS]) {
+    if (Math.abs(dayStartMs + timeOfDayMs + shift - referenceMs) < Math.abs(nearest - referenceMs)) {
+      nearest = dayStartMs + timeOfDayMs + shift;
+    }
+  }
+  return nearest;
+}
+
+/**
  * @param value a wind component or temperature, positive or negative
  * @returns it with the sign as a letter, P for plus and M for minus, three digits: M049
  */
@@ -497,12 +603,340 @@ export function flightPlanPrintText(plan: EffFlightPlan, metric: boolean): strin
     lines.push(`${label.padEnd(9)}${estimate.padStart(10)}${update.padStart(9)}`);
   }
   if (plan.navLog.length > 0) {
-    lines.push('', 'WPT      AWY      MORA  ET     CT     EFOB   EFU');
-    for (const row of plan.navLog) {
+    lines.push('', 'WPT      AWY      MORA  ET     CT     EFOB   EFU    ATA    AFOB   AFU');
+    for (const row of navLogLines(plan)) {
       lines.push(
-        `${row.ident.padEnd(9)}${row.airway.padEnd(9)}${String(row.moraHundredFeet ?? '').padEnd(6)}${durationText(row.legS).padEnd(7)}${durationText(row.cumS).padEnd(7)}${weightText(row.efobKg, metric).padEnd(7)}${weightText(row.efuKg, metric)}`,
+        `${row.ident.padEnd(9)}${row.airway.padEnd(9)}${String(row.moraHundredFeet ?? '').padEnd(6)}${durationText(row.legS).padEnd(7)}${durationText(row.cumS).padEnd(7)}${weightText(row.efobKg, metric).padEnd(7)}${weightText(row.efuKg, metric).padEnd(7)}${clockText(row.ataMs).padEnd(7)}${weightText(row.afobKg, metric).padEnd(7)}${weightText(row.afuKg, metric)}`.replace(
+          /\s+$/,
+          '',
+        ),
       );
     }
   }
   return lines.join('\n');
+}
+
+/**
+ * @param index the index of a waypoint of the OFP
+ * @returns the key of its row in the navigation log
+ */
+function navLogKey(index: number): string {
+  return `W${index}`;
+}
+
+/** The key of the origin row: it takes the take-off, not an overflight, and has no fuel check */
+export const NAV_LOG_ORIGIN_KEY = navLogKey(0);
+
+/**
+ * @param plan the flight plan
+ * @param key a row key
+ * @returns the waypoint of the OFP the row stands for, undefined for an inserted waypoint
+ */
+export function navLogOfpRow(plan: EffFlightPlan, key: string): EffNavLogRow | undefined {
+  return key.charAt(0) === 'W' ? plan.navLog[Number(key.substring(1))] : undefined;
+}
+
+/**
+ * @param plan the flight plan
+ * @returns the keys of the rows in the order of the log: an inserted waypoint follows the waypoint it was inserted
+ * after, the newest first
+ */
+function navLogKeys(plan: EffFlightPlan): string[] {
+  const keys: string[] = [];
+  const emit = (key: string): void => {
+    keys.push(key);
+    const inserted = plan.followUp.inserted.filter((waypoint) => waypoint.afterKey === key);
+    for (let i = inserted.length - 1; i >= 0; i--) {
+      emit(inserted[i].key);
+    }
+  };
+  plan.navLog.forEach((_, index) => emit(navLogKey(index)));
+  return keys;
+}
+
+/**
+ * @param plan the flight plan
+ * @param key a row key
+ * @returns the name of the waypoint of the row, undefined for a key that is not in the log
+ */
+function identOf(plan: EffFlightPlan, key: string): string | undefined {
+  return navLogOfpRow(plan, key)?.ident ?? plan.followUp.inserted.find((waypoint) => waypoint.key === key)?.ident;
+}
+
+/**
+ * @param plan the flight plan
+ * @param keys the keys of the rows in the order of the log
+ * @returns the rows NEXT WPT skipped: the ones between the initial waypoint and the one it goes to
+ */
+function skippedKeys(plan: EffFlightPlan, keys: readonly string[]): Set<string> {
+  const skipped = new Set<string>();
+  Object.keys(plan.followUp.directTo).forEach((fromKey) => {
+    const from = keys.indexOf(fromKey);
+    const to = keys.indexOf(plan.followUp.directTo[fromKey]);
+    for (let i = from + 1; from >= 0 && i < to; i++) {
+      skipped.add(keys[i]);
+    }
+  });
+  return skipped;
+}
+
+/** A row of the NAV LOG panel as the crew sees it */
+export interface EffNavLogLine {
+  readonly key: string;
+  readonly ident: string;
+  readonly airway: string;
+  /** The crew inserted the waypoint with NEXT WPT */
+  readonly inserted: boolean;
+  /** NEXT WPT went past the waypoint */
+  readonly skipped: boolean;
+  /** The name of the waypoint NEXT WPT goes to from this one, inside the flight plan */
+  readonly directTo: string | null;
+  readonly moraHundredFeet: number | null;
+  readonly legS: number | null;
+  readonly cumS: number | null;
+  /** What the OFP plans, counted from the take-off once it happened */
+  readonly etaMs: number | null;
+  readonly ataMs: number | null;
+  /** The time the actual leg took */
+  readonly atS: number | null;
+  /** The planned time revised from the last waypoint flown */
+  readonly retaMs: number | null;
+  readonly efobKg: number | null;
+  readonly afobKg: number | null;
+  readonly deltaFobKg: number | null;
+  readonly efuKg: number | null;
+  readonly afuKg: number | null;
+  readonly deltaFuelKg: number | null;
+  /** Flown and not checked yet: the row shows in a yellow frame */
+  readonly pending: boolean;
+  readonly checked: boolean;
+  /** FUEL CHK shows for a flown waypoint other than the origin */
+  readonly fuelCheckShown: boolean;
+}
+
+/**
+ * @param plan the flight plan
+ * @returns the rows of the navigation log with their planned and actual values. The planned time counts from the
+ * take-off once the origin has it. The revised time counts from the last waypoint flown: the waypoint itself shows its
+ * own time until the crew checks it.
+ */
+export function navLogLines(plan: EffFlightPlan): EffNavLogLine[] {
+  const keys = navLogKeys(plan);
+  const skipped = skippedKeys(plan, keys);
+  const { actuals, checked, directTo } = plan.followUp;
+  const originAtaMs = actuals[NAV_LOG_ORIGIN_KEY]?.ataMs ?? null;
+
+  let lastFlownKey: string | null = null;
+  let lastFlownIndex = -1;
+  for (let index = 0; index < keys.length; index++) {
+    if (navLogOfpRow(plan, keys[index]) !== undefined && (actuals[keys[index]]?.ataMs ?? null) !== null) {
+      lastFlownKey = keys[index];
+      lastFlownIndex = index;
+    }
+  }
+  const lastFlownAtaMs = lastFlownKey !== null ? (actuals[lastFlownKey].ataMs as number) : null;
+  const lastFlownCumS = lastFlownKey !== null ? navLogOfpRow(plan, lastFlownKey)?.cumS ?? null : null;
+
+  let previousAtaMs: number | null = null;
+  return keys.map((key, index) => {
+    const row = navLogOfpRow(plan, key);
+    const actual = actuals[key];
+    const ataMs = actual?.ataMs ?? null;
+    // A waypoint that was flown stays as it is, whatever NEXT WPT says
+    const isSkipped = skipped.has(key) && ataMs === null;
+    const inserted = row === undefined;
+    const isOrigin = key === NAV_LOG_ORIGIN_KEY;
+
+    let etaMs: number | null = null;
+    if (row !== undefined && row.cumS !== null) {
+      etaMs = originAtaMs !== null ? originAtaMs + row.cumS * 1000 : row.etaMs;
+    }
+
+    const atS = ataMs !== null && previousAtaMs !== null ? Math.round((ataMs - previousAtaMs) / 1000) : null;
+    if (ataMs !== null) {
+      previousAtaMs = ataMs;
+    }
+
+    let retaMs: number | null = null;
+    if (row !== undefined && row.cumS !== null && lastFlownAtaMs !== null && lastFlownCumS !== null) {
+      if (index > lastFlownIndex && !isSkipped) {
+        retaMs = lastFlownAtaMs + (row.cumS - lastFlownCumS) * 1000;
+      } else if (index === lastFlownIndex && !isOrigin && !checked[key]) {
+        retaMs = lastFlownAtaMs;
+      }
+    }
+
+    const afobKg = actual?.afobKg ?? null;
+    const afuKg = actual?.afuKg ?? null;
+    const efobKg = row?.efobKg ?? null;
+    const efuKg = row?.efuKg ?? null;
+    return {
+      key,
+      ident: identOf(plan, key) ?? '',
+      airway: row?.airway ?? '',
+      inserted,
+      skipped: isSkipped,
+      directTo: directTo[key] !== undefined ? identOf(plan, directTo[key]) ?? null : null,
+      moraHundredFeet: row?.moraHundredFeet ?? null,
+      legS: row?.legS ?? null,
+      cumS: row?.cumS ?? null,
+      etaMs,
+      ataMs,
+      atS,
+      retaMs,
+      efobKg,
+      afobKg,
+      deltaFobKg: afobKg !== null && efobKg !== null ? afobKg - efobKg : null,
+      efuKg,
+      afuKg,
+      deltaFuelKg: afuKg !== null && efuKg !== null ? afuKg - efuKg : null,
+      pending: ataMs !== null && !isOrigin && !checked[key],
+      checked: checked[key] === true,
+      fuelCheckShown: ataMs !== null && !isOrigin,
+    };
+  });
+}
+
+/** The waypoints of one NAV LOG page. Design choice: fourteen two-line rows fit the document window. */
+export const NAV_LOG_ROWS_PER_PAGE = 14;
+
+export const FLIGHT_REPORT_TAB = 'FLT REPORT';
+
+/**
+ * @param rowCount the rows of the navigation log, the waypoints the crew inserted included
+ * @returns the tabs of the flight plan, one NAV LOG page for each group of rows
+ */
+export function flightPlanTabs(rowCount: number): string[] {
+  const pages = Math.max(1, Math.ceil(rowCount / NAV_LOG_ROWS_PER_PAGE));
+  const tabs = ['FMS INIT', 'FLT INFO', 'ALTN'];
+  for (let page = 1; page <= pages; page++) {
+    tabs.push(`NAV LOG ${page}`);
+  }
+  tabs.push(FLIGHT_REPORT_TAB);
+  return tabs;
+}
+
+/**
+ * @param lines the rows of the navigation log
+ * @param index a row
+ * @param baseMs the time the plan counts from
+ * @returns a time near the row, for a time typed without a date: the last actual time up to the row, else its planned time
+ */
+export function nearbyTimeMs(lines: readonly EffNavLogLine[], index: number, baseMs: number | null): number {
+  for (let i = index; i >= 0; i--) {
+    const ataMs = lines[i].ataMs;
+    if (ataMs !== null) {
+      return ataMs;
+    }
+  }
+  return lines[index]?.etaMs ?? baseMs ?? 0;
+}
+
+/**
+ * @param lines the rows of the navigation log
+ * @returns the index of the last row with an actual time, the waypoint FLOWN WPT shows; -1 when none was flown
+ */
+export function lastFlownLineIndex(lines: readonly EffNavLogLine[]): number {
+  let last = -1;
+  lines.forEach((line, index) => {
+    if (line.ataMs !== null) {
+      last = index;
+    }
+  });
+  return last;
+}
+
+/** The longest waypoint name. Design choice: the length of the longest names in the navigation data */
+export const WAYPOINT_NAME_MAX_LENGTH = 7;
+
+const WAYPOINT_NAME = new RegExp(`^[A-Z0-9]{2,${WAYPOINT_NAME_MAX_LENGTH}}$`);
+
+export type NextWaypointOutcome = 'in-plan' | 'inserted' | 'rejected';
+
+/**
+ * NEXT WPT from a waypoint. A waypoint of the log after the initial one is gone to directly: the waypoints in between
+ * are skipped. Any other name is a waypoint outside the flight plan, inserted right after the initial waypoint.
+ * @param plan the flight plan
+ * @param fromKey the initial waypoint
+ * @param entry the name chosen in the list or typed
+ * @returns what happened; a rejected entry changes nothing
+ */
+export function setNextWaypoint(plan: EffFlightPlan, fromKey: string, entry: string): NextWaypointOutcome {
+  const keys = navLogKeys(plan);
+  const fromIndex = keys.indexOf(fromKey);
+  const ident = entry.trim().toUpperCase();
+  if (fromIndex < 0 || !WAYPOINT_NAME.test(ident)) {
+    return 'rejected';
+  }
+  const followUp = plan.followUp;
+  delete followUp.directTo[fromKey];
+  const target = keys.slice(fromIndex + 1).find((key) => identOf(plan, key) === ident);
+  if (target !== undefined) {
+    followUp.directTo[fromKey] = target;
+    return 'in-plan';
+  }
+  followUp.insertedCount += 1;
+  followUp.inserted.push({ key: `I${followUp.insertedCount}`, ident, afterKey: fromKey });
+  return 'inserted';
+}
+
+/**
+ * DELETE: only a waypoint the crew inserted goes, and not once the crew has checked it
+ * @param plan the flight plan
+ * @param key a row
+ * @returns whether the waypoint was removed
+ */
+export function deleteInsertedWaypoint(plan: EffFlightPlan, key: string): boolean {
+  const followUp = plan.followUp;
+  const waypoint = followUp.inserted.find((w) => w.key === key);
+  if (waypoint === undefined || followUp.checked[key]) {
+    return false;
+  }
+  // The waypoints inserted after the removed one move up to its place
+  followUp.inserted = followUp.inserted
+    .filter((w) => w.key !== key)
+    .map((w) => (w.afterKey === key ? { ...w, afterKey: waypoint.afterKey } : w));
+  delete followUp.actuals[key];
+  delete followUp.directTo[key];
+  Object.keys(followUp.directTo).forEach((fromKey) => {
+    if (followUp.directTo[fromKey] === key) {
+      delete followUp.directTo[fromKey];
+    }
+  });
+  return true;
+}
+
+/**
+ * @param plan the flight plan
+ * @param key a row
+ * @param patch the values to set, null to clear one
+ * @returns whether the values were kept: not for an unknown row or one the crew checked
+ */
+export function setNavLogActual(plan: EffFlightPlan, key: string, patch: Partial<EffNavLogActual>): boolean {
+  const followUp = plan.followUp;
+  if (!navLogKeys(plan).includes(key) || followUp.checked[key]) {
+    return false;
+  }
+  const actual = { ...(followUp.actuals[key] ?? { ataMs: null, afobKg: null, afuKg: null }), ...patch };
+  if (actual.ataMs === null && actual.afobKg === null && actual.afuKg === null) {
+    delete followUp.actuals[key];
+  } else {
+    followUp.actuals[key] = actual;
+  }
+  return true;
+}
+
+/**
+ * FUEL CHK: the data of a flown waypoint are saved and cannot change any more
+ * @param plan the flight plan
+ * @param key a row
+ * @returns whether the row was checked
+ */
+export function checkNavLogRow(plan: EffFlightPlan, key: string): boolean {
+  const line = navLogLines(plan).find((l) => l.key === key);
+  if (line === undefined || !line.fuelCheckShown || line.checked) {
+    return false;
+  }
+  plan.followUp.checked[key] = true;
+  return true;
 }
