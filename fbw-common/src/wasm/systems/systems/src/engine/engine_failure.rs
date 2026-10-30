@@ -123,6 +123,9 @@ pub struct EngineFailure {
     /// The attempt in progress is the automatic FADEC relight that began at the flameout (its time
     /// is then the time since the flameout), not a crew attempt that began at a MASTER ON.
     automatic_relight_attempt: bool,
+    /// A crew relight attempt ran its 30 s without lighting the engine up; it holds until the
+    /// ENG MASTER is set OFF.
+    crew_relight_expired: bool,
     fuel_cut: bool,
     relight_ignition: bool,
     windmill_n1: Ratio,
@@ -155,6 +158,7 @@ impl EngineFailure {
             flamed_out: false,
             relight_attempt_time: None,
             automatic_relight_attempt: false,
+            crew_relight_expired: false,
             fuel_cut: false,
             relight_ignition: false,
             windmill_n1: Ratio::default(),
@@ -180,6 +184,7 @@ impl EngineFailure {
             self.flamed_out = true;
             self.relight_attempt_time = None;
             self.automatic_relight_attempt = false;
+            self.crew_relight_expired = false;
         }
         self.flameout_was_active = flameout_is_active;
 
@@ -195,6 +200,7 @@ impl EngineFailure {
         {
             self.relight_attempt_time = Some(Duration::ZERO);
             self.automatic_relight_attempt = true;
+            self.crew_relight_expired = false;
         }
 
         let master_switch_turned_on =
@@ -216,11 +222,13 @@ impl EngineFailure {
             if self.flamed_out && !seized {
                 self.relight_attempt_time = Some(Duration::ZERO);
                 self.automatic_relight_attempt = false;
+                self.crew_relight_expired = false;
             }
         }
         if !inputs.master_switch_is_on {
             self.relight_attempt_time = None;
             self.automatic_relight_attempt = false;
+            self.crew_relight_expired = false;
         }
 
         if let Some(attempt_time) = self.relight_attempt_time {
@@ -241,16 +249,25 @@ impl EngineFailure {
                     self.master_off_duration
                 },
             };
-            if inputs.ignition_available && envelope.engine_lights_up(&conditions) {
+            // The fuel is cut from the flameout frame: the FADEC only relights once it has
+            // detected the flameout.
+            let flameout_detected = !self.automatic_relight_attempt
+                || attempt_time >= Self::FADEC_FLAMEOUT_DETECTION_TIME;
+            if flameout_detected
+                && inputs.ignition_available
+                && envelope.engine_lights_up(&conditions)
+            {
                 self.flamed_out = false;
                 self.relight_attempt_time = None;
                 self.automatic_relight_attempt = false;
+                self.crew_relight_expired = false;
             } else {
                 let attempt_time = attempt_time + context.delta();
                 self.relight_attempt_time = if attempt_time < Self::RELIGHT_ATTEMPT_DURATION {
                     Some(attempt_time)
                 } else {
                     // No light-up within 30 s: the engine stays out until a crew relight.
+                    self.crew_relight_expired = !self.automatic_relight_attempt;
                     self.automatic_relight_attempt = false;
                     None
                 };
@@ -304,6 +321,13 @@ impl EngineFailure {
             && self
                 .relight_attempt_time
                 .is_some_and(|time| time >= Self::FADEC_FLAMEOUT_DETECTION_TIME)
+    }
+
+    /// The crew's relight attempt (ENG MASTER OFF then ON) has not lit the engine up: in progress,
+    /// or over without light-up until the MASTER OFF. A seized core gets no attempt.
+    pub fn crew_relight_without_light_up(&self) -> bool {
+        (self.relight_attempt_time.is_some() && !self.automatic_relight_attempt)
+            || self.crew_relight_expired
     }
 
     /// A relight attempt is in progress (MASTER ON, not lit up yet, within its 30 s).
@@ -867,7 +891,7 @@ mod tests {
     fn the_automatic_continuous_ignition_also_confirms_the_fadec_relight() {
         let mut test_bed = fadec_relight_flameout()
             .with(|inputs| inputs.automatic_continuous_ignition = true)
-            .and_run();
+            .and_run_for(Duration::from_secs(6));
 
         assert!(!test_bed.fuel_is_cut());
     }
@@ -892,8 +916,70 @@ mod tests {
         test_bed.fail(FailureType::EngineFlameout(1));
         test_bed = test_bed.and_run();
 
+        // the fuel is cut first; the quick relight follows once the flameout is detected
+        assert!(test_bed.fuel_is_cut());
+        assert!(test_bed.flamed_out());
+
+        test_bed = test_bed.and_run_for(Duration::from_secs(6));
         assert!(!test_bed.fuel_is_cut());
         assert!(!test_bed.flamed_out());
+    }
+
+    #[test]
+    fn the_fadec_relight_cuts_the_fuel_until_the_flameout_is_detected() {
+        let mut test_bed = EngineFailureTestBed::new()
+            .with_fadec_relight()
+            .with(|inputs| inputs.automatic_continuous_ignition = true)
+            .and_run();
+        test_bed.fail(FailureType::EngineFlameout(1));
+        test_bed = test_bed.and_run();
+        assert!(test_bed.fuel_is_cut());
+        assert!(test_bed.flamed_out());
+
+        // 50 ms frames: the flameout frame and 99 more end at 4.95 s of attempt time
+        for _ in 0..99 {
+            test_bed = test_bed.and_run();
+            assert!(test_bed.fuel_is_cut());
+            assert!(test_bed.flamed_out());
+        }
+
+        // the frame that reaches 5 s lights the engine up
+        test_bed = test_bed.and_run();
+        assert!(!test_bed.fuel_is_cut());
+        assert!(!test_bed.flamed_out());
+    }
+
+    #[test]
+    fn a_crew_relight_that_expires_stays_reported_until_the_master_off() {
+        // out of the envelope: no light-up
+        let mut test_bed = flamed_out_engine()
+            .altitude_feet(35_000.)
+            .with(|inputs| inputs.ignition_selected = true)
+            .master_off_then_on()
+            .and_run_for(Duration::from_secs(29));
+        assert!(test_bed.query(|a| a.engine_failure.crew_relight_without_light_up()));
+
+        test_bed = test_bed.and_run_for(Duration::from_secs(5));
+        assert!(test_bed.query(|a| a.engine_failure.crew_relight_without_light_up()));
+
+        test_bed = test_bed
+            .with(|inputs| inputs.master_switch_is_on = false)
+            .and_run();
+        assert!(!test_bed.query(|a| a.engine_failure.crew_relight_without_light_up()));
+    }
+
+    #[test]
+    fn a_seizure_during_a_crew_relight_ends_the_attempt_without_a_no_light_up() {
+        let mut test_bed = flamed_out_engine()
+            .altitude_feet(35_000.)
+            .with(|inputs| inputs.ignition_selected = true)
+            .master_off_then_on()
+            .and_run_for(Duration::from_secs(2));
+        assert!(test_bed.query(|a| a.engine_failure.crew_relight_without_light_up()));
+
+        test_bed.fail(FailureType::EngineSeizure(1));
+        test_bed = test_bed.and_run_for(Duration::from_secs(40));
+        assert!(!test_bed.query(|a| a.engine_failure.crew_relight_without_light_up()));
     }
 
     #[test]

@@ -212,7 +212,7 @@ pub fn a320_engine_start_schedule() -> EngineStartSchedule {
         start_abort_inhibition_n2: Ratio::new::<percent>(50.),
         // ENG 1(2) START FAULT: no light up within 18 s of the ignition start.
         no_light_up_time: Duration::from_secs(18),
-        // Design choice: the same 18 s in flight, the A32NX in-flight relight timing.
+        // The same 18 s as on the ground, the IGNITION FAULT time after the ignition start.
         in_flight_no_light_up_time: Duration::from_secs(18),
         // The A320 START FAULT LO START AIR PRESS procedure has no in-flight branch: the fault
         // stays a ground start fault.
@@ -378,6 +378,7 @@ impl A320EngineFailure {
                 <= Self::THRUST_LEVER_IDLE_MAX_ANGLE_DEGREES,
             preset_quick_mode: self.preset_quick_mode,
             relight_pending: self.failure.is_flamed_out() || self.failure.is_seized(),
+            crew_relight_without_light_up: self.failure.crew_relight_without_light_up(),
             automatic_continuous_ignition: self.automatic_continuous_ignition(),
             hp_fuel_valve_stuck_closed: self.hp_fuel_valve.is_stuck_closed(),
             other_fault_light_conditions: self.hp_fuel_valve.position_is_abnormal()
