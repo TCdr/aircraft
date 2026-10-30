@@ -980,6 +980,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [EFB] Failure details for the remaining A32NX failures: auto flight, communication, fuel, indicating and recording, oxygen, information systems, APU and doors (ATA 22, 23, 28, 31, 35, 46, 49, 52); every A32NX failure now has its details - @TCdr
 1. [EFB] Failure details for the A380X air conditioning failures (ATA 21) - @TCdr
 1. [EFB] Failure details for the A380X electrical power failures (ATA 24) - @TCdr
+1. [EFB] Failure details for the A380X fire and smoke protection failures (ATA 26) - @TCdr
 
 ## 2024.1.0
 
