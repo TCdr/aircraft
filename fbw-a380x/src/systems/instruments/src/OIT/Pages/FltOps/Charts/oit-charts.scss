@@ -1,0 +1,193 @@
+// Copyright (c) 2026 FlyByWire Simulations
+// SPDX-License-Identifier: GPL-3.0
+
+@import "../../../../MsfsAvionicsCommon/definitions";
+
+// TERML CHART: airport keys, tabs, chart list and chart viewer. The panes get explicit heights from PaneScope (the sim
+// browser does not shrink flex items), and nothing scrolls by wheel or drag.
+
+.oit-charts {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  overflow: hidden;
+  margin: 6px 10px 0 10px;
+  font-size: 22px;
+  color: $display-white;
+}
+
+// One line of buttons: every key in a bar has the same height, and a key with a menu keeps its label and arrow on one line
+.oit-charts-bar,
+.oit-charts-viewer-bar {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  flex: 0 0 auto;
+  height: 42px;
+  margin-bottom: 8px;
+}
+
+.oit-charts-bar > *,
+.oit-charts-viewer-bar > * {
+  margin-right: 8px;
+}
+
+.oit-charts .mfd-button {
+  box-sizing: border-box;
+  height: 36px;
+  padding: 0 12px;
+  white-space: nowrap;
+  font-size: 22px;
+}
+
+.oit-charts .mfd-fms-fpln-button-dropdown {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  white-space: nowrap;
+}
+
+.oit-charts .mfd-fms-fpln-button-dropdown-label {
+  flex: 0 1 auto;
+  white-space: nowrap;
+}
+
+.oit-charts .mfd-fms-fpln-button-dropdown-arrow {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  margin-left: 4px;
+}
+
+.oit-charts-caption {
+  flex: 0 0 auto;
+  width: 110px;
+  color: $display-light-grey;
+}
+
+.oit-charts-add-caption {
+  flex: 0 0 auto;
+  margin-right: 10px;
+  color: $display-light-grey;
+}
+
+.oit-charts-spacer {
+  flex: 1 1 auto;
+}
+
+.oit-charts .hidden {
+  display: none !important;
+}
+
+.oit-charts-body {
+  display: flex;
+  flex-direction: row;
+  flex: 1 1 auto;
+}
+
+.oit-charts-left {
+  position: relative;
+  flex: 0 0 380px;
+  width: 380px;
+  margin-right: 10px;
+  border: 2px solid $display-light-grey;
+  background: $display-background;
+}
+
+.oit-charts-list {
+  width: 100%;
+  background: $display-background;
+}
+
+.oit-charts-row {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  height: 34px;
+  padding: 0 6px;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  color: $display-white;
+}
+
+.oit-charts-row:hover {
+  border-color: $display-cyan;
+}
+
+.oit-charts-row.selected {
+  color: $display-cyan;
+  border-color: $display-cyan;
+}
+
+.oit-charts-row-name {
+  flex: 0 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.oit-charts-row-note {
+  flex: 0 0 auto;
+  margin-left: 10px;
+  font-size: 18px;
+  color: $display-light-grey;
+}
+
+.oit-charts-message {
+  padding: 16px 10px;
+  text-align: center;
+  color: $display-white;
+}
+
+.oit-charts-message.amber {
+  color: $display-amber;
+}
+
+.oit-charts-message .mfd-button {
+  display: inline-flex;
+  margin-top: 16px;
+}
+
+.oit-charts-right {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.oit-charts-page-label {
+  flex: 0 0 auto;
+  width: 130px;
+  text-align: center;
+}
+
+.oit-charts-arrow {
+  display: block;
+}
+
+.oit-charts-viewer {
+  position: relative;
+  overflow: hidden;
+  flex: 0 0 auto;
+  background: $display-background;
+  border: 2px solid $display-light-grey;
+}
+
+.oit-charts-image {
+  position: absolute;
+  display: block;
+  max-width: none;
+  background: $display-white;
+}
+
+.oit-charts-viewer .oit-charts-message {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  padding-top: 120px;
+}

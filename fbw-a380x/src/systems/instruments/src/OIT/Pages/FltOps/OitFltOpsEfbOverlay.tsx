@@ -4,6 +4,12 @@
 import { DisplayComponent, FSComponent, Subscription, VNode } from '@microsoft/msfs-sdk';
 import { AbstractOitFltOpsPageProps } from '../../OIT';
 
+/**
+ * The page of the EFB overlay, the former CHARTS application. CHARTS now opens the native terminal charts, so no key of
+ * the OIT leads here; the overlay stays available for a route that points to it.
+ */
+export const LEGACY_CHARTS_OVERLAY_URI = 'flt-ops/charts-overlay';
+
 interface OitFltOpsEfbOverlayPageProps extends AbstractOitFltOpsPageProps {}
 
 export class OitFltOpsEfbOverlay extends DisplayComponent<OitFltOpsEfbOverlayPageProps> {
