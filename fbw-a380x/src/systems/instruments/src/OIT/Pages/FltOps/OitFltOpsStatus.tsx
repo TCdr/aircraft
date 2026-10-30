@@ -16,6 +16,7 @@ import { InputField } from '../../../MsfsAvionicsCommon/UiWidgets/InputField';
 import { AirportFormat, LongAlphanumericFormat } from '../../../MFD/pages/common/DataEntryFormats';
 import { Button } from '../../../MsfsAvionicsCommon/UiWidgets/Button';
 import { registrationList } from '../../System/FltOpsStatusSync';
+import { formatChartValidity } from '../../System/Charts/TerminalChartCatalog';
 
 /** Design choice: the sim gives no manufacturer serial number (MSN): a fixed one */
 const MSN = '225';
@@ -34,12 +35,22 @@ export class OitFltOpsStatus extends DisplayComponent<OitFltOpsStatusPageProps> 
     SubscribableMapFunctions.not(),
   );
 
+  /**
+   * The validity of the charts database: blank until the crew has started the CHARTS application on this laptop. The
+   * block keeps its place when blank, so that the page does not move when the dates appear.
+   */
+  private readonly chartsValidity = this.props.container.laptop.charts.validity.map((validity) =>
+    validity === null ? '' : formatChartValidity(validity),
+  );
+
+  private readonly chartsBlank = this.chartsValidity.map((text) => text === '');
+
   private readonly registrations = registrationList(SimVar.GetSimVarValue('ATC ID', 'string'));
 
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
-    this.subs.push(this.hideSynchronizationNotAvail);
+    this.subs.push(this.hideSynchronizationNotAvail, this.chartsValidity, this.chartsBlank);
   }
 
   public destroy(): void {
@@ -92,6 +103,13 @@ export class OitFltOpsStatus extends DisplayComponent<OitFltOpsStatusPageProps> 
             <div class={{ 'oit-flt-ops-sts-line': true, hidden: this.hideSynchronizationNotAvail }}>
               <div class="oit-flt-ops-sts-line-left oit-label bigger" />
               <div class="oit-flt-ops-sts-line-right oit-label bigger amber">SYNCHRONIZATION NOT AVAIL</div>
+            </div>
+          </div>
+          <div class={{ 'oit-flt-ops-sts-charts': true, blank: this.chartsBlank }}>
+            <div class="oit-label bigger oit-flt-ops-sts-charts-title">ACTIVE</div>
+            <div class="oit-flt-ops-sts-line">
+              <div class="oit-flt-ops-sts-line-left oit-label bigger">CHARTS</div>
+              <div class="oit-flt-ops-sts-line-right oit-label bigger green">{this.chartsValidity}</div>
             </div>
           </div>
           <div class="oit-flt-ops-sts-lower">
