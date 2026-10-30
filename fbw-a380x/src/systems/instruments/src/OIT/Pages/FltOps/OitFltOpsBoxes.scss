@@ -156,3 +156,27 @@
   color: $display-white;
   padding: 15px 20px;
 }
+
+// The pop-up of the performance applications after STORE: over the page, fixed heights
+.oit-stored-popup {
+  left: 400px;
+  top: 340px;
+  width: 560px;
+  z-index: 60;
+}
+
+.oit-stored-popup .oit-box-popup-text {
+  height: 150px;
+}
+
+.oit-stored-popup-message {
+  padding: 24px 0 0 30px;
+}
+
+.oit-stored-popup-buttons {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  height: 40px;
+  padding-right: 15px;
+}
