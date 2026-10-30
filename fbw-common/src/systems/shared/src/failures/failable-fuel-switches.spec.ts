@@ -2,7 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { beforeEach, describe, expect, it } from 'vitest';
-import { FailableFuelSwitch, FailableFuelSwitchesDriver, FuelSwitchAccess } from './failable-fuel-switches';
+import { mockSimVars } from '../../../../jest/MockedSimVars';
+import {
+  FailableFuelSwitch,
+  FailableFuelSwitchesDriver,
+  FuelSwitchAccess,
+  msfsFuelPumpAccess,
+  msfsFuelValveAccess,
+} from './failable-fuel-switches';
 
 /**
  * MSFS fuel switches: a switch changes at the next frame after a key event, a valve travels towards its switch position
@@ -376,5 +383,31 @@ describe('FailableFuelSwitchesDriver.setAutomaticSelection', () => {
     run(500);
     expect(driver.getSelection(0)).toBe(true);
     expect(sim.isSwitchOn(5)).toBe(true);
+  });
+});
+
+describe('the MSFS fuel switch access reads registered simvars', () => {
+  it('reads the valves and pumps with no read by name', () => {
+    const simVars = new Map<string, number | boolean | string>([
+      ['A:FUELSYSTEM VALVE SWITCH:46', 1],
+      ['A:FUELSYSTEM VALVE OPEN:46', 0.75],
+      ['A:FUELSYSTEM PUMP SWITCH:3', 1],
+      ['A:FUELSYSTEM PUMP ACTIVE:3', 1],
+      ['A:FUELSYSTEM PUMP ACTIVE:4', 0],
+      ['L:TEST_SELECTION', 1],
+    ]);
+    const { getSimVarValue } = mockSimVars(simVars);
+
+    for (let update = 0; update < 3; update++) {
+      expect(msfsFuelValveAccess.isSwitchOn(46)).toBe(true);
+      expect(msfsFuelValveAccess.isSwitchOn(47)).toBe(false);
+      expect(msfsFuelValveAccess.position(46)).toBe(0.75);
+      expect(msfsFuelPumpAccess.isSwitchOn(3)).toBe(true);
+      expect(msfsFuelPumpAccess.position(3)).toBe(1);
+      expect(msfsFuelPumpAccess.position(4)).toBe(0);
+      expect(msfsFuelPumpAccess.isSelected('L:TEST_SELECTION')).toBe(true);
+    }
+
+    expect(getSimVarValue).not.toHaveBeenCalled();
   });
 });

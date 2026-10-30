@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { mockSimVars } from '../../../../../fbw-common/src/jest/MockedSimVars';
 import { Arinc429SignStatusMatrix, Arinc429Word } from '@flybywiresim/fbw-sdk';
 import { A380Failure } from '@failures';
 import {
@@ -54,11 +55,7 @@ describe('FuelAutomaticTransfers', () => {
     failures.clear();
     commandedOn.clear();
     transferFaults.restrictions = NO_TRANSFER_RESTRICTION;
-    vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) => simVars.get(name) ?? 0);
-    vi.spyOn(SimVar, 'SetSimVarValue').mockImplementation((name: string, _unit: string, value: number | boolean) => {
-      simVars.set(name, value);
-      return Promise.resolve();
-    });
+    mockSimVars(simVars);
     simVars.set('FUEL WEIGHT PER GALLON', POUNDS_PER_GALLON);
     CAPACITIES.forEach((capacity, index) => simVars.set(`FUELSYSTEM TANK CAPACITY:${index + 1}`, capacity));
     for (const circuit of TRANSFER_PUMP_CIRCUITS) {

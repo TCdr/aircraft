@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { mockSimVars } from '../../../../../fbw-common/src/jest/MockedSimVars';
 import { FailuresConsumer } from '@flybywiresim/fbw-sdk';
 import { A380Failure } from '@failures';
 import {
@@ -156,11 +157,7 @@ describe('feed tank leak failures', () => {
   beforeEach(() => {
     simVars.clear();
     failures.clear();
-    vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) => simVars.get(name) ?? 0);
-    vi.spyOn(SimVar, 'SetSimVarValue').mockImplementation((name: string, _unit: string, value: number | boolean) => {
-      simVars.set(name, value);
-      return Promise.resolve();
-    });
+    mockSimVars(simVars);
     simVars.set('FUEL WEIGHT PER GALLON', POUNDS_PER_GALLON);
     for (const tank of [2, 5, 6, 9]) {
       simVars.set(`FUELSYSTEM TANK QUANTITY:${tank}`, 5000);

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { mockSimVars } from '../../../../../fbw-common/src/jest/MockedSimVars';
 import { A380Failure } from '@failures';
 import {
   FuelRefuelFaults,
@@ -55,11 +56,7 @@ describe('A380 refuel system failures in the systems host', () => {
   beforeEach(() => {
     simVars.clear();
     failures.clear();
-    vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) => simVars.get(name) ?? 0);
-    vi.spyOn(SimVar, 'SetSimVarValue').mockImplementation((name: string, _unit: string, value: number | boolean) => {
-      simVars.set(name, value);
-      return Promise.resolve();
-    });
+    mockSimVars(simVars);
     faults = new FuelRefuelFaults({ isActive: (failure) => failures.has(failure) });
   });
 

@@ -1,8 +1,8 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { Instrument, SimVarValueType } from '@microsoft/msfs-sdk';
-import { FuelSwitchAccess, msfsFuelValveAccess } from '@flybywiresim/fbw-sdk';
+import { Instrument } from '@microsoft/msfs-sdk';
+import { FuelSwitchAccess, msfsFuelValveAccess, RegisteredSimVar } from '@flybywiresim/fbw-sdk';
 import {
   isOuterTransferByGravity,
   L_OUTR_TK_PUMP,
@@ -44,6 +44,18 @@ export class FuelEmerOuterTransfer implements Instrument {
 
   private settleTimeLeftMs = 0;
 
+  private readonly emerOuterTransferPbOn = RegisteredSimVar.createBoolean(EMER_OUTR_TK_XFR_PB_IS_ON_VAR);
+
+  private readonly outerTransferPbAuto = RegisteredSimVar.createBoolean(OUTR_TK_XFR_PB_IS_AUTO_VAR);
+
+  private readonly leftOuterPumpCircuitConnected = RegisteredSimVar.createBoolean(
+    `A:CIRCUIT CONNECTION ON:${L_OUTR_TK_PUMP.circuit}`,
+  );
+
+  private readonly rightOuterPumpCircuitConnected = RegisteredSimVar.createBoolean(
+    `A:CIRCUIT CONNECTION ON:${R_OUTR_TK_PUMP.circuit}`,
+  );
+
   constructor(
     private readonly sysHost: { deltaTime: number },
     private readonly fuelValves: FuelSwitchAccess = msfsFuelValveAccess,
@@ -65,11 +77,11 @@ export class FuelEmerOuterTransfer implements Instrument {
     }
 
     const commandedOpen = isEmerOuterTransferCommandedOpen(
-      SimVar.GetSimVarValue(EMER_OUTR_TK_XFR_PB_IS_ON_VAR, SimVarValueType.Bool) > 0,
+      this.emerOuterTransferPbOn.get(),
       isOuterTransferByGravity(
-        SimVar.GetSimVarValue(OUTR_TK_XFR_PB_IS_AUTO_VAR, SimVarValueType.Bool) <= 0,
-        SimVar.GetSimVarValue(`A:CIRCUIT CONNECTION ON:${L_OUTR_TK_PUMP.circuit}`, SimVarValueType.Bool) > 0,
-        SimVar.GetSimVarValue(`A:CIRCUIT CONNECTION ON:${R_OUTR_TK_PUMP.circuit}`, SimVarValueType.Bool) > 0,
+        !this.outerTransferPbAuto.get(),
+        this.leftOuterPumpCircuitConnected.get(),
+        this.rightOuterPumpCircuitConnected.get(),
       ),
     );
     for (const valve of A380_EMER_OUTER_TRANSFER_VALVES) {

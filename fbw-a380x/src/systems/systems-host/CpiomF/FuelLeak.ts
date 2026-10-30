@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { Instrument, SimVarValueType } from '@microsoft/msfs-sdk';
-import { FailuresConsumer } from '@flybywiresim/fbw-sdk';
+import { FailuresConsumer, RegisteredSimVar } from '@flybywiresim/fbw-sdk';
 import { A380Failure } from '@failures';
 
 const KG_PER_LB = 0.45359237;
@@ -231,9 +231,42 @@ export class FuelLeak implements Instrument {
   private readonly engineDetections = A380_FEED_TANK_LEAKS.map(() => new EngineFuelLeakDetection());
 
   /** Whether each engine runs with its fuel leak failure */
-  private engineFuelLeaks: boolean[] = A380_FEED_TANK_LEAKS.map(() => false);
+  private readonly engineFuelLeaks: boolean[] = A380_FEED_TANK_LEAKS.map(() => false);
 
   private timeSinceWriteMs = 0;
+
+  private readonly engineStates = A380_FEED_TANK_LEAKS.map((_, index) =>
+    RegisteredSimVar.create(`L:A32NX_ENGINE_STATE:${index + 1}`, SimVarValueType.Enum),
+  );
+
+  private readonly engineFuelLeakOutputs = A380_FEED_TANK_LEAKS.map((_, index) =>
+    RegisteredSimVar.createBoolean(engineFuelLeakVar(index + 1)),
+  );
+
+  private readonly fuelUsedKg = A380_FEED_TANK_LEAKS.map((_, index) =>
+    RegisteredSimVar.create(`L:A32NX_FUEL_USED:${index + 1}`, SimVarValueType.Number),
+  );
+
+  private readonly fuelWeightPerGallon = RegisteredSimVar.create('FUEL WEIGHT PER GALLON', SimVarValueType.Pounds);
+
+  private readonly onGround = RegisteredSimVar.createBoolean('SIM ON GROUND');
+
+  private readonly jettisonInProgress = RegisteredSimVar.createBoolean('L:A380X_FUEL_JETTISON_IN_PROGRESS');
+
+  private readonly fobKg = RegisteredSimVar.create('L:A32NX_TOTAL_FUEL_QUANTITY', SimVarValueType.Number);
+
+  private readonly leakDetectedOutput = RegisteredSimVar.createBoolean(FUEL_LEAK_DETECTED_VAR);
+
+  private readonly detectionFaultOutput = RegisteredSimVar.createBoolean(FUEL_LEAK_DET_FAULT_VAR);
+
+  /** Refilled at each update, to avoid a new object */
+  private readonly detectionInputs: FuelLeakDetectionInputs = {
+    onGround: false,
+    allEnginesRunning: false,
+    jettisonInProgress: false,
+    fobKg: 0,
+    fuelUsedKg: 0,
+  };
 
   constructor(
     private readonly sysHost: { deltaTime: number },
@@ -247,21 +280,19 @@ export class FuelLeak implements Instrument {
   public onUpdate(): void {
     const deltaTimeMs = this.sysHost.deltaTime;
 
-    this.engineFuelLeaks = A380_FEED_TANK_LEAKS.map(
-      ({ engineFuelLeakFailure }, index) =>
-        this.failures.isActive(engineFuelLeakFailure) &&
-        SimVar.GetSimVarValue(`L:A32NX_ENGINE_STATE:${index + 1}`, 'Enum') === 1,
-    );
-    this.engineDetections.forEach((detection, index) => {
-      detection.update(this.engineFuelLeaks[index], deltaTimeMs / 1000);
-      SimVar.SetSimVarValue(engineFuelLeakVar(index + 1), SimVarValueType.Bool, detection.isLeakDetected());
-    });
+    for (let index = 0; index < A380_FEED_TANK_LEAKS.length; index++) {
+      this.engineFuelLeaks[index] =
+        this.failures.isActive(A380_FEED_TANK_LEAKS[index].engineFuelLeakFailure) &&
+        this.engineStates[index].get() === 1;
+      this.engineDetections[index].update(this.engineFuelLeaks[index], deltaTimeMs / 1000);
+      this.engineFuelLeakOutputs[index].set(this.engineDetections[index].isLeakDetected());
+    }
 
     this.timeSinceWriteMs += deltaTimeMs;
     if (this.timeSinceWriteMs >= FuelLeak.WRITE_PERIOD_MS) {
       const elapsedMs = this.timeSinceWriteMs;
       this.timeSinceWriteMs = 0;
-      const poundsPerGallon = SimVar.GetSimVarValue('FUEL WEIGHT PER GALLON', SimVarValueType.Pounds);
+      const poundsPerGallon = this.fuelWeightPerGallon.get();
       A380_FEED_TANK_LEAKS.forEach(({ failure, msfsTank }, index) => {
         const leakKgPerHour =
           (this.failures.isActive(failure) ? FEED_TANK_LEAK_RATE_KG_PER_HOUR : 0) +
@@ -279,21 +310,18 @@ export class FuelLeak implements Instrument {
 
     let allEnginesRunning = true;
     let fuelUsedKg = 0;
-    for (let engine = 1; engine <= 4; engine++) {
-      allEnginesRunning = allEnginesRunning && SimVar.GetSimVarValue(`L:A32NX_ENGINE_STATE:${engine}`, 'Enum') === 1;
-      fuelUsedKg += SimVar.GetSimVarValue(`L:A32NX_FUEL_USED:${engine}`, SimVarValueType.Number);
+    for (let engine = 0; engine < this.engineStates.length; engine++) {
+      allEnginesRunning = allEnginesRunning && this.engineStates[engine].get() === 1;
+      fuelUsedKg += this.fuelUsedKg[engine].get();
     }
-    this.detection.update(
-      {
-        onGround: SimVar.GetSimVarValue('SIM ON GROUND', SimVarValueType.Bool) > 0,
-        allEnginesRunning,
-        jettisonInProgress: SimVar.GetSimVarValue('L:A380X_FUEL_JETTISON_IN_PROGRESS', SimVarValueType.Bool) > 0,
-        fobKg: SimVar.GetSimVarValue('L:A32NX_TOTAL_FUEL_QUANTITY', SimVarValueType.Number),
-        fuelUsedKg,
-      },
-      deltaTimeMs / 1000,
-    );
-    SimVar.SetSimVarValue(FUEL_LEAK_DETECTED_VAR, SimVarValueType.Bool, this.detection.isLeakDetected());
-    SimVar.SetSimVarValue(FUEL_LEAK_DET_FAULT_VAR, SimVarValueType.Bool, this.detection.isDetectionFault());
+    const inputs = this.detectionInputs;
+    inputs.onGround = this.onGround.get();
+    inputs.allEnginesRunning = allEnginesRunning;
+    inputs.jettisonInProgress = this.jettisonInProgress.get();
+    inputs.fobKg = this.fobKg.get();
+    inputs.fuelUsedKg = fuelUsedKg;
+    this.detection.update(inputs, deltaTimeMs / 1000);
+    this.leakDetectedOutput.set(this.detection.isLeakDetected());
+    this.detectionFaultOutput.set(this.detection.isDetectionFault());
   }
 }
