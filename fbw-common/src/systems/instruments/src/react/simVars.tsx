@@ -1,11 +1,51 @@
 // @ts-strict-ignore
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useInteractionEvents, useUpdate } from './hooks';
 
 type SimVarSetter = <T extends SimVarValue>(oldValue: T) => T;
 
 type UnitName = SimVar.SimVarUnit;
 type SimVarValue = number | any;
+
+// These units are read as a wrapper object or a string, which only GetSimVarValue builds.
+const UNITS_READ_BY_NAME = ['latlonalt', 'latlonaltpbh', 'pbh', 'pid_struct', 'xyz', 'string'];
+
+/**
+ * Reads through the registered id, which skips the by-name lookup that GetSimVarValue does on every call. All
+ * instruments share one JavaScript heap, so garbage made per read shows up as garbage collection pauses everywhere.
+ */
+const createSimVarReader = (name: string, unit: UnitName): (() => SimVarValue) => {
+  const readByName = () => SimVar.GetSimVarValue(name, unit);
+
+  if (typeof SimVar.GetSimVarValueFastReg !== 'function' || UNITS_READ_BY_NAME.includes(String(unit).toLowerCase())) {
+    return readByName;
+  }
+
+  const registeredId = SimVar.GetRegisteredId(name, unit, '');
+  if (typeof registeredId !== 'number' || registeredId < 0) {
+    return readByName;
+  }
+
+  return () => SimVar.GetSimVarValueFastReg(registeredId);
+};
+
+/**
+ * A state whose latest value is also kept in a ref, so that an unchanged value skips setState altogether
+ * (React would bail out of the render, but still allocates an update for every call).
+ */
+const useValueState = (readInitialValue: () => SimVarValue): [SimVarValue, (value: SimVarValue) => void] => {
+  const [stateValue, setStateValue] = useState(readInitialValue);
+  const latestValue = useRef(stateValue);
+
+  const setValue = useCallback((value: SimVarValue) => {
+    if (!Object.is(value, latestValue.current)) {
+      latestValue.current = value;
+      setStateValue(value);
+    }
+  }, []);
+
+  return [stateValue, setValue];
+};
 
 /**
  * The useSimVar hook provides an easy way to read and write SimVars from React.
@@ -46,7 +86,9 @@ export const useSimVar = (
 ): [SimVarValue, (newValueOrSetter: SimVarValue | SimVarSetter) => void] => {
   const lastUpdate = useRef(Date.now() - refreshInterval - 1);
 
-  const [stateValue, setStateValue] = useState(() => SimVar.GetSimVarValue(name, unit));
+  const readSimVar = useMemo(() => createSimVarReader(name, unit), [name, unit]);
+
+  const [stateValue, setStateValue] = useValueState(readSimVar);
 
   const updateCallback = useCallback(() => {
     const delta = Date.now() - lastUpdate.current;
@@ -54,11 +96,9 @@ export const useSimVar = (
     if (delta >= refreshInterval) {
       lastUpdate.current = Date.now();
 
-      const newValue = SimVar.GetSimVarValue(name, unit);
-
-      setStateValue(newValue);
+      setStateValue(readSimVar());
     }
-  }, [name, unit, refreshInterval]);
+  }, [readSimVar, refreshInterval]);
 
   useUpdate(updateCallback);
 
@@ -131,9 +171,13 @@ export const useSimVarList = (
 
     if (delta >= refreshInterval) {
       lastUpdate.current = Date.now();
-      setStateList((prevStateList) =>
-        prevStateList.map((value, index) => SimVar.GetSimVarValue(names[index], units[index])),
-      );
+      setStateList((prevStateList) => {
+        const newStateList = prevStateList.map((value, index) => SimVar.GetSimVarValue(names[index], units[index]));
+        // Returning the previous array lets React skip the render
+        return newStateList.every((value, index) => Object.is(value, prevStateList[index]))
+          ? prevStateList
+          : newStateList;
+      });
     }
   }, [names, units, refreshInterval]);
 
@@ -176,7 +220,7 @@ export const useSimVarList = (
 export const useGlobalVar = (name: string, unit: UnitName, refreshInterval = 0): SimVarValue => {
   const lastUpdate = useRef(Date.now() - refreshInterval - 1);
 
-  const [stateValue, setStateValue] = useState(() => SimVar.GetGlobalVarValue(name, unit));
+  const [stateValue, setStateValue] = useValueState(() => SimVar.GetGlobalVarValue(name, unit));
 
   const updateCallback = useCallback(() => {
     const delta = Date.now() - lastUpdate.current;
@@ -216,7 +260,7 @@ export const useGlobalVar = (name: string, unit: UnitName, refreshInterval = 0):
 export const useGameVar = (name: string, unit: UnitName, refreshInterval = 0): SimVarValue => {
   const lastUpdate = useRef(Date.now() - refreshInterval - 1);
 
-  const [stateValue, setStateValue] = useState(() => SimVar.GetGameVarValue(name, unit));
+  const [stateValue, setStateValue] = useValueState(() => SimVar.GetGameVarValue(name, unit));
 
   const updateCallback = useCallback(() => {
     const delta = Date.now() - lastUpdate.current;
@@ -274,7 +318,7 @@ export const useInteractionSimVar = (
 ): [SimVarValue, (newValueOrSetter: SimVarValue | SimVarSetter) => void] => {
   const lastUpdate = useRef(Date.now() - refreshInterval - 1);
 
-  const [stateValue, setStateValue] = useState(() => SimVar.GetSimVarValue(name, unit));
+  const [stateValue, setStateValue] = useValueState(() => SimVar.GetSimVarValue(name, unit));
 
   const updateCallback = useCallback(() => {
     const delta = Date.now() - lastUpdate.current;
