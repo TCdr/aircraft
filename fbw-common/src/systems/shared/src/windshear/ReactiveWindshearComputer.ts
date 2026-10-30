@@ -1,7 +1,9 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { Arinc429Word } from '../arinc429';
+import { SimVarValueType } from '@microsoft/msfs-sdk';
+import { Arinc429Register } from '../arinc429';
+import { RegisteredSimVar } from '../SimVarUtils';
 import { ReactiveWindshearDetection } from './ReactiveWindshearDetection';
 
 /**
@@ -36,21 +38,54 @@ export class ReactiveWindshearComputer {
 
   private lastWarning: boolean | null = null;
 
+  private readonly simulationTime = RegisteredSimVar.create('E:SIMULATION TIME', SimVarValueType.Seconds);
+
+  private readonly leftGearCompressed = RegisteredSimVar.createBoolean('L:A32NX_LGCIU_1_LEFT_GEAR_COMPRESSED');
+
+  private readonly rightGearCompressed = RegisteredSimVar.createBoolean('L:A32NX_LGCIU_1_RIGHT_GEAR_COMPRESSED');
+
+  private readonly flapsHandleIndex = RegisteredSimVar.create('L:A32NX_FLAPS_HANDLE_INDEX', SimVarValueType.Number);
+
+  private readonly computerHealthyHandles: RegisteredSimVar<boolean>[];
+
+  /** Filled in place every update, to avoid an array per update */
+  private readonly computersHealthy: boolean[];
+
+  private readonly trueAirspeedWords = ReactiveWindshearComputer.adiruHandles('L:A32NX_ADIRS_ADR_#_TRUE_AIRSPEED');
+
+  private readonly groundSpeedWords = ReactiveWindshearComputer.adiruHandles('L:A32NX_ADIRS_IR_#_GROUND_SPEED');
+
+  private readonly verticalSpeedWords = ReactiveWindshearComputer.adiruHandles('L:A32NX_ADIRS_IR_#_VERTICAL_SPEED');
+
+  private readonly pitchWords = ReactiveWindshearComputer.adiruHandles('L:A32NX_ADIRS_IR_#_PITCH');
+
+  private readonly rollWords = ReactiveWindshearComputer.adiruHandles('L:A32NX_ADIRS_IR_#_ROLL');
+
+  private readonly angleOfAttackWords = ReactiveWindshearComputer.adiruHandles('L:A32NX_ADIRS_ADR_#_ANGLE_OF_ATTACK');
+
+  private readonly radioAltitudeWords = ReactiveWindshearComputer.RADIO_ALTIMETER_NUMBERS.map((ra) =>
+    RegisteredSimVar.create(`L:A32NX_RA_${ra}_RADIO_ALTITUDE`, SimVarValueType.Number),
+  );
+
+  private readonly word = Arinc429Register.empty();
+
   /**
    * @param computerHealthyVars the L:vars of the computers that run the detection (true when healthy)
    * @param minimumWarningDurationS how long the warning stays at least (A320 15 s, A380 0 s)
    * @param isDetectionFailed whether the detection function itself is failed
    */
   constructor(
-    private readonly computerHealthyVars: readonly string[],
+    computerHealthyVars: readonly string[],
     minimumWarningDurationS: number,
     private readonly isDetectionFailed: () => boolean = () => false,
   ) {
     this.detection = new ReactiveWindshearDetection(minimumWarningDurationS);
+    this.computerHealthyHandles = computerHealthyVars.map((name) => RegisteredSimVar.createBoolean(name));
+    this.computersHealthy = computerHealthyVars.map(() => false);
   }
 
   update(): void {
-    const simulationTimeS: number = SimVar.GetSimVarValue('E:SIMULATION TIME', 'seconds');
+    const simulationTimeS = this.simulationTime.get();
     const deltaTime = this.lastSimulationTimeS === null ? 0 : simulationTimeS - this.lastSimulationTimeS;
     this.lastSimulationTimeS = simulationTimeS;
     // Paused or reloaded: nothing to compute
@@ -60,21 +95,16 @@ export class ReactiveWindshearComputer {
 
     this.detection.update({
       deltaTime,
-      onGround:
-        SimVar.GetSimVarValue('L:A32NX_LGCIU_1_LEFT_GEAR_COMPRESSED', 'bool') > 0 ||
-        SimVar.GetSimVarValue('L:A32NX_LGCIU_1_RIGHT_GEAR_COMPRESSED', 'bool') > 0,
-      computerAvailable: isReactiveWindshearDetectionAvailable(
-        this.computerHealthyVars.map((v) => SimVar.GetSimVarValue(v, 'bool') > 0),
-        this.isDetectionFailed(),
-      ),
-      flapsLeverOutOfZero: SimVar.GetSimVarValue('L:A32NX_FLAPS_HANDLE_INDEX', 'number') >= 1,
-      radioAltitudeFt: ReactiveWindshearComputer.radioAltitude(),
-      trueAirspeedKt: ReactiveWindshearComputer.adiruValue('L:A32NX_ADIRS_ADR_#_TRUE_AIRSPEED'),
-      groundSpeedKt: ReactiveWindshearComputer.adiruValue('L:A32NX_ADIRS_IR_#_GROUND_SPEED'),
-      inertialVerticalSpeedFtMin: ReactiveWindshearComputer.adiruValue('L:A32NX_ADIRS_IR_#_VERTICAL_SPEED'),
-      pitchDeg: ReactiveWindshearComputer.adiruValue('L:A32NX_ADIRS_IR_#_PITCH'),
-      rollDeg: ReactiveWindshearComputer.adiruValue('L:A32NX_ADIRS_IR_#_ROLL'),
-      angleOfAttackDeg: ReactiveWindshearComputer.adiruValue('L:A32NX_ADIRS_ADR_#_ANGLE_OF_ATTACK'),
+      onGround: this.leftGearCompressed.get() || this.rightGearCompressed.get(),
+      computerAvailable: isReactiveWindshearDetectionAvailable(this.readComputersHealthy(), this.isDetectionFailed()),
+      flapsLeverOutOfZero: this.flapsHandleIndex.get() >= 1,
+      radioAltitudeFt: this.radioAltitude(),
+      trueAirspeedKt: this.adiruValue(this.trueAirspeedWords),
+      groundSpeedKt: this.adiruValue(this.groundSpeedWords),
+      inertialVerticalSpeedFtMin: this.adiruValue(this.verticalSpeedWords),
+      pitchDeg: this.adiruValue(this.pitchWords),
+      rollDeg: this.adiruValue(this.rollWords),
+      angleOfAttackDeg: this.adiruValue(this.angleOfAttackWords),
     });
 
     const warning = this.detection.warning;
@@ -84,10 +114,24 @@ export class ReactiveWindshearComputer {
     }
   }
 
-  /** The first valid value of the word over the ADIRUs, # standing for the ADIRU number; null when none is valid */
-  private static adiruValue(name: string): number | null {
-    for (const adiru of ReactiveWindshearComputer.ADIRU_NUMBERS) {
-      const word = Arinc429Word.fromSimVarValue(name.replace('#', adiru.toString()));
+  /** The registered simvar of a word for each ADIRU, # standing for the ADIRU number in the name */
+  private static adiruHandles(name: string): RegisteredSimVar<number>[] {
+    return ReactiveWindshearComputer.ADIRU_NUMBERS.map((adiru) =>
+      RegisteredSimVar.create(name.replace('#', adiru.toString()), SimVarValueType.Number),
+    );
+  }
+
+  private readComputersHealthy(): readonly boolean[] {
+    for (let index = 0; index < this.computerHealthyHandles.length; index++) {
+      this.computersHealthy[index] = this.computerHealthyHandles[index].get();
+    }
+    return this.computersHealthy;
+  }
+
+  /** The value of the first ADIRU word that is valid; null when none is */
+  private adiruValue(adiruWords: readonly RegisteredSimVar<number>[]): number | null {
+    for (const adiruWord of adiruWords) {
+      const word = this.word.set(adiruWord.get());
       if (word.isNormalOperation()) {
         return word.value;
       }
@@ -99,10 +143,10 @@ export class ReactiveWindshearComputer {
    * The radio altitude of the first valid radio altimeter. A radio altimeter out of range (no computed data, above
    * 2 500 ft) gives an infinite altitude: the aircraft is above the 1 300 ft detection limit.
    */
-  private static radioAltitude(): number | null {
+  private radioAltitude(): number | null {
     let outOfRange = false;
-    for (const ra of ReactiveWindshearComputer.RADIO_ALTIMETER_NUMBERS) {
-      const word = Arinc429Word.fromSimVarValue(`L:A32NX_RA_${ra}_RADIO_ALTITUDE`);
+    for (const radioAltitudeWord of this.radioAltitudeWords) {
+      const word = this.word.set(radioAltitudeWord.get());
       if (word.isNormalOperation()) {
         return word.value;
       }

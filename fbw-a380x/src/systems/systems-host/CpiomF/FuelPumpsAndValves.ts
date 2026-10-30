@@ -10,6 +10,7 @@ import {
   msfsFuelPumpAccess,
   msfsFuelValveAccess,
   NXLogicConfirmNode,
+  RegisteredSimVar,
 } from '@flybywiresim/fbw-sdk';
 import { A380Failure } from '@failures';
 
@@ -347,6 +348,29 @@ export class FuelPumpsAndValves implements Instrument {
   /** The FUELSYSTEM TRIGGER STATUS of the FQMS_PUMP_TRIGGERS at the last update, null before the first update */
   private fqmsTriggerStates: boolean[] | null = null;
 
+  private readonly fqmsTriggerHandles = FQMS_PUMP_TRIGGERS.map((trigger) =>
+    RegisteredSimVar.createBoolean(`A:FUELSYSTEM TRIGGER STATUS:${trigger}`),
+  );
+
+  private readonly feedPumpHandles = A380_FEED_PUMPS.map(({ tank, kind, pump, circuit }) => ({
+    circuitConnected: RegisteredSimVar.createBoolean(`A:CIRCUIT CONNECTION ON:${circuit}`),
+    running: RegisteredSimVar.createBoolean(`A:FUELSYSTEM PUMP ACTIVE:${pump}`),
+    lowPressure: RegisteredSimVar.createBoolean(feedPumpLowPressureVar(tank, kind)),
+  }));
+
+  private readonly transferPumpHandles = A380_TRANSFER_PUMPS.map(({ pump, circuit, tank, faultVar }) => ({
+    circuitConnected: RegisteredSimVar.createBoolean(`A:CIRCUIT CONNECTION ON:${circuit}`),
+    running: RegisteredSimVar.createBoolean(`A:FUELSYSTEM PUMP ACTIVE:${pump}`),
+    tankQuantityGal: RegisteredSimVar.create(`A:FUELSYSTEM TANK QUANTITY:${tank}`, SimVarValueType.GAL),
+    fault: RegisteredSimVar.createBoolean(faultVar),
+  }));
+
+  private readonly crossFeedValveHandles = A380_CROSSFEED_VALVES.map(({ number, valve, selectionVar }) => ({
+    openRatio: RegisteredSimVar.create(`A:FUELSYSTEM VALVE OPEN:${valve}`, SimVarValueType.PercentOver100),
+    selection: RegisteredSimVar.createBoolean(selectionVar),
+    abnormal: RegisteredSimVar.createBoolean(crossFeedValveAbnormalVar(number)),
+  }));
+
   constructor(
     private readonly sysHost: { deltaTime: number },
     private readonly failures: FailureStates,
@@ -399,36 +423,26 @@ export class FuelPumpsAndValves implements Instrument {
     this.transferPumps.update(deltaTime);
     this.valves.update(deltaTime);
 
-    for (const { tank, kind, pump, circuit } of A380_FEED_PUMPS) {
-      const lowPressure = isFeedPumpLowPressure(
-        SimVar.GetSimVarValue(`A:CIRCUIT CONNECTION ON:${circuit}`, SimVarValueType.Bool) > 0,
-        SimVar.GetSimVarValue(`A:FUELSYSTEM PUMP ACTIVE:${pump}`, SimVarValueType.Bool) > 0,
-      );
-      SimVar.SetSimVarValue(feedPumpLowPressureVar(tank, kind), SimVarValueType.Bool, lowPressure);
+    for (const { circuitConnected, running, lowPressure } of this.feedPumpHandles) {
+      lowPressure.set(isFeedPumpLowPressure(circuitConnected.get(), running.get()));
     }
 
-    A380_TRANSFER_PUMPS.forEach(({ failure, pump, circuit, tank, faultVar }, index) => {
+    for (let index = 0; index < A380_TRANSFER_PUMPS.length; index++) {
+      const handles = this.transferPumpHandles[index];
       const faulty = isTransferPumpFaulty(
-        SimVar.GetSimVarValue(`A:CIRCUIT CONNECTION ON:${circuit}`, SimVarValueType.Bool) > 0,
-        this.failures.isActive(failure),
-        SimVar.GetSimVarValue(`A:FUELSYSTEM PUMP ACTIVE:${pump}`, SimVarValueType.Bool) > 0,
-        SimVar.GetSimVarValue(`A:FUELSYSTEM TANK QUANTITY:${tank}`, SimVarValueType.GAL),
+        handles.circuitConnected.get(),
+        this.failures.isActive(A380_TRANSFER_PUMPS[index].failure),
+        handles.running.get(),
+        handles.tankQuantityGal.get(),
       );
-      SimVar.SetSimVarValue(
-        faultVar,
-        SimVarValueType.Bool,
-        this.transferPumpFaultConfirms[index].write(faulty, deltaTime),
-      );
-    });
+      handles.fault.set(this.transferPumpFaultConfirms[index].write(faulty, deltaTime));
+    }
 
-    A380_CROSSFEED_VALVES.forEach(({ number, valve, selectionVar }, index) => {
-      const disagree = isCrossFeedValveDisagree(
-        SimVar.GetSimVarValue(`A:FUELSYSTEM VALVE OPEN:${valve}`, SimVarValueType.PercentOver100),
-        SimVar.GetSimVarValue(selectionVar, SimVarValueType.Bool) > 0,
-      );
-      const abnormal = this.crossFeedDisagreeConfirms[index].write(disagree, deltaTime);
-      SimVar.SetSimVarValue(crossFeedValveAbnormalVar(number), SimVarValueType.Bool, abnormal);
-    });
+    for (let index = 0; index < this.crossFeedValveHandles.length; index++) {
+      const handles = this.crossFeedValveHandles[index];
+      const disagree = isCrossFeedValveDisagree(handles.openRatio.get(), handles.selection.get());
+      handles.abnormal.set(this.crossFeedDisagreeConfirms[index].write(disagree, deltaTime));
+    }
   }
 
   /**
@@ -438,20 +452,19 @@ export class FuelPumpsAndValves implements Instrument {
    * the end of a CG control transfer would then empty the trim tank). Each trigger change applies its effects here.
    */
   private followFqmsCommandsOfFailedTransferPumps(): void {
-    const triggerStates = FQMS_PUMP_TRIGGERS.map(
-      (trigger) => SimVar.GetSimVarValue(`A:FUELSYSTEM TRIGGER STATUS:${trigger}`, SimVarValueType.Bool) > 0,
-    );
     const previousStates = this.fqmsTriggerStates;
-    this.fqmsTriggerStates = triggerStates;
     if (previousStates === null) {
+      this.fqmsTriggerStates = this.fqmsTriggerHandles.map((handle) => handle.get());
       return;
     }
 
-    FQMS_PUMP_TRIGGERS.forEach((trigger, triggerIndex) => {
-      const active = triggerStates[triggerIndex];
+    for (let triggerIndex = 0; triggerIndex < FQMS_PUMP_TRIGGERS.length; triggerIndex++) {
+      const trigger = FQMS_PUMP_TRIGGERS[triggerIndex];
+      const active = this.fqmsTriggerHandles[triggerIndex].get();
       if (active === previousStates[triggerIndex]) {
-        return;
+        continue;
       }
+      previousStates[triggerIndex] = active;
       for (const effect of A380_FQMS_PUMP_EFFECTS) {
         if (effect.trigger !== trigger || effect.whenActive !== active) {
           continue;
@@ -461,6 +474,6 @@ export class FuelPumpsAndValves implements Instrument {
           this.transferPumps.setAutomaticSelection(pumpIndex, effect.start);
         }
       }
-    });
+    }
   }
 }

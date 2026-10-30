@@ -3,7 +3,8 @@
 
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { mockSimVars } from '../../../../../fbw-common/src/jest/MockedSimVars';
 import { FuelSwitchAccess } from '@flybywiresim/fbw-sdk';
 import { A380Failure } from '@failures';
 import {
@@ -83,11 +84,7 @@ describe('A380 feed pump and crossfeed valve failures', () => {
 
   beforeEach(() => {
     simVars.clear();
-    vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) => simVars.get(name) ?? 0);
-    vi.spyOn(SimVar, 'SetSimVarValue').mockImplementation((name: string, _unit: string, value: number | boolean) => {
-      simVars.set(name, value);
-      return Promise.resolve();
-    });
+    mockSimVars(simVars);
     activeFailures.clear();
     pumpCommands.length = 0;
     valveCommands.length = 0;
@@ -245,11 +242,14 @@ describe('A380 transfer pump failures', () => {
 
   const leftOuter = A380_TRANSFER_PUMPS.find(({ name }) => name === 'L OUTR TK')!;
 
+  /** The circuits of the pumps whose pb-sw is set OFF */
+  const disconnectedCircuits = new Set<number>();
+
   /** The MSFS fuel system: every pb-sw ON; a transfer pump runs while its MSFS switch is on and its tank has fuel */
   const run = (durationMs: number) => {
     for (let time = 0; time < durationMs; time += sysHost.deltaTime) {
       for (const { pump, circuit, tank } of A380_TRANSFER_PUMPS) {
-        simVars.set(`A:CIRCUIT CONNECTION ON:${circuit}`, 1);
+        simVars.set(`A:CIRCUIT CONNECTION ON:${circuit}`, disconnectedCircuits.has(circuit) ? 0 : 1);
         const running =
           simVars.get(`A:FUELSYSTEM PUMP SWITCH:${pump}`) === 1 &&
           Number(simVars.get(`A:FUELSYSTEM TANK QUANTITY:${tank}`) ?? 0) > 0;
@@ -274,12 +274,9 @@ describe('A380 transfer pump failures', () => {
 
   beforeEach(() => {
     simVars.clear();
-    vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) => simVars.get(name) ?? 0);
-    vi.spyOn(SimVar, 'SetSimVarValue').mockImplementation((name: string, _unit: string, value: number | boolean) => {
-      simVars.set(name, value);
-      return Promise.resolve();
-    });
+    mockSimVars(simVars);
     activeFailures.clear();
+    disconnectedCircuits.clear();
     pumpCommands.length = 0;
     system = new FuelPumpsAndValves(sysHost, { isActive: (failure) => activeFailures.has(failure) }, pumps, valves);
     simVars.set(`A:FUELSYSTEM TANK QUANTITY:${leftOuter.tank}`, 800);
@@ -305,9 +302,7 @@ describe('A380 transfer pump failures', () => {
     expect(simVars.get(leftOuter.faultVar)).toBe(true);
 
     // the FAULT light goes off with the pb-sw OFF (the pump circuit disconnected)
-    vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) =>
-      name === `A:CIRCUIT CONNECTION ON:${leftOuter.circuit}` ? 0 : simVars.get(name) ?? 0,
-    );
+    disconnectedCircuits.add(leftOuter.circuit);
     run(500);
     expect(simVars.get(leftOuter.faultVar)).toBe(false);
   });
