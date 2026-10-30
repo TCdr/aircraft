@@ -79,6 +79,8 @@ export function testOfp(overrides: Record<string, unknown> = {}): ISimbriefData 
     navlog: [
       {
         ident: 'RJAA',
+        pos_lat: '35.7647',
+        pos_long: '140.3864',
         via_airway: 'DCT',
         is_sid_star: '0',
         mora: '30',
@@ -89,6 +91,8 @@ export function testOfp(overrides: Record<string, unknown> = {}): ISimbriefData 
       },
       {
         ident: 'ABC',
+        pos_lat: '36.0000',
+        pos_long: '140.0000',
         via_airway: 'SID1A',
         is_sid_star: '1',
         mora: '3300',
@@ -99,6 +103,8 @@ export function testOfp(overrides: Record<string, unknown> = {}): ISimbriefData 
       },
       {
         ident: 'XYZ',
+        pos_lat: '37.0000',
+        pos_long: '139.0000',
         via_airway: 'UL1',
         is_sid_star: '0',
         mora: '41',
@@ -111,4 +117,27 @@ export function testOfp(overrides: Record<string, unknown> = {}): ISimbriefData 
     text: '<pre>OFP  AIB406\nROUTE &lt;DCT&gt;<br/>END</pre>',
     ...overrides,
   } as unknown as ISimbriefData;
+}
+
+/**
+ * An OFP with a longer navigation log, for the specs of the flight follow-up: six waypoints one degree of latitude
+ * (60 nm) apart on a meridian, ten minutes between them, a thousand kg of fuel burnt on each leg
+ * @param overrides fields to replace
+ * @returns the OFP
+ */
+export function testFollowUpOfp(overrides: Record<string, unknown> = {}): ISimbriefData {
+  const idents = ['RJAA', 'ABC', 'DEF', 'GHI', 'JKL', 'LFBO'];
+  const navlog = idents.map((ident, index) => ({
+    ident,
+    via_airway: index === 0 ? 'DCT' : 'UL1',
+    is_sid_star: '0',
+    pos_lat: String(36 + index),
+    pos_long: '140.0000',
+    mora: '40',
+    time_leg: index === 0 ? '0' : '600',
+    time_total: String(index * 600),
+    fuel_plan_onboard: String(25000 - index * 1000),
+    fuel_totalused: String(index * 1000),
+  }));
+  return testOfp({ navlog, ...overrides });
 }

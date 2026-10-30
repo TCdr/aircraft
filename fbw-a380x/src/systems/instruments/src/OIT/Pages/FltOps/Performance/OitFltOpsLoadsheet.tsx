@@ -11,7 +11,7 @@ import {
   VNode,
 } from '@microsoft/msfs-sdk';
 import { NXUnits, SeatFlags, getSimBriefOfp } from '@flybywiresim/fbw-sdk';
-import { A380AocPrintEvents } from '@shared/AocPrintout';
+import { A380AocPrintEvents, AocPrintout } from '@shared/AocPrintout';
 import { AbstractOitFltOpsPageProps } from '../../../OIT';
 import { Button } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
 import { InputField } from '../../../../MsfsAvionicsCommon/UiWidgets/InputField';
@@ -508,11 +508,17 @@ export class OitFltOpsLoadsheet extends OitPerfPageBase<OitFltOpsLoadsheetProps,
     this.view.set('display');
   }
 
+  /** @returns the loadsheet as a printout, null while there is none */
+  private printout(): AocPrintout | null {
+    const report = this.state.report.get();
+    return report !== null ? loadsheetPrintout(report) : null;
+  }
+
   /** PRINT: the loadsheet goes to the cockpit printer through the AOC printout route */
   private print(): void {
-    const report = this.state.report.get();
-    if (report !== null) {
-      this.props.bus.getPublisher<A380AocPrintEvents>().pub('aocPrintMessage', loadsheetPrintout(report), true, false);
+    const printout = this.printout();
+    if (printout !== null) {
+      this.props.bus.getPublisher<A380AocPrintEvents>().pub('aocPrintMessage', printout, true, false);
     }
   }
 
@@ -646,8 +652,10 @@ export class OitFltOpsLoadsheet extends OitPerfPageBase<OitFltOpsLoadsheetProps,
     // Results of other entries than the computed ones are not shown (the computation is deleted)
     const deleteResults = () => this.state.computation.set(null);
     const s = this.state;
+    const hasReport = this.tracked(s.report.map((lines) => lines !== null));
     this.props.uiService.registerPageFunctions({
-      print: { run: () => this.print(), available: this.tracked(s.report.map((lines) => lines !== null)) },
+      print: { run: () => this.print(), available: hasReport },
+      store: this.storePageFunction('WBA', () => this.printout(), hasReport),
     });
     this.registerKeyboardShortcuts();
     const entries: Subscribable<unknown>[] = [
@@ -1314,6 +1322,7 @@ export class OitFltOpsLoadsheet extends OitPerfPageBase<OitFltOpsLoadsheetProps,
         {this.renderEditionView()}
         {this.renderDisplayView()}
         {this.renderAircraftStatusPanel()}
+        {this.renderStoredPopup()}
       </div>
     );
   }

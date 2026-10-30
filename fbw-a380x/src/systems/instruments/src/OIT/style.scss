@@ -28,6 +28,16 @@
   font-style: normal;
 }
 
+// The printouts of the FLT FOLDER: space aligned columns need equal character widths, and the generic monospace font of
+// the sim browser has no degree sign
+@font-face {
+  font-family: "OIT-Mono";
+  //noinspection CssUnknownTarget
+  src: url("/Fonts/fbw-a380x/EFB/JetBrainsMono-Regular.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+
 .oit-main {
   position: absolute;
   width: 1333px;
@@ -206,6 +216,29 @@
   flex-direction: row;
   margin-top: 40px;
   margin-bottom: 40px;
+}
+
+.oit-flt-ops-sts-charts {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 auto;
+  padding: 24px 0 0 0;
+  border-bottom: 3px solid $display-light-grey;
+}
+
+.oit-flt-ops-sts-charts.blank .oit-label {
+  visibility: hidden;
+}
+
+.oit-flt-ops-sts-charts-title {
+  // Design choice: centred above the values, which sit in the right part of the line (5 of the 7 shares of the width)
+  padding-left: 28.6%;
+  text-align: center;
+}
+
+.oit-flt-ops-sts-charts .oit-flt-ops-sts-line {
+  margin-top: 24px;
+  margin-bottom: 24px;
 }
 
 .oit-flt-ops-sts-lower {

@@ -11,9 +11,10 @@ import {
   ClockPublisher,
   ConsumerSubject,
   HEvent,
+  MappedSubject,
   SimVarValueType,
 } from '@microsoft/msfs-sdk';
-import { AdrBusPublisher, FwcBusPublisher, FailuresConsumer } from '@flybywiresim/fbw-sdk';
+import { AdrBusPublisher, FwcBusPublisher, FailuresConsumer, IrBusPublisher } from '@flybywiresim/fbw-sdk';
 import { OIT } from './OIT';
 import { InternalKbdKeyEvent, OitSimvarPublisher, OitSimvars } from './OitSimvarPublisher';
 import { EcamAbnormalSensedProcedures } from '../MsfsAvionicsCommon/EcamMessages';
@@ -23,6 +24,7 @@ import { AircraftNetworkServerUnit } from './System/AircraftNetworkServerUnit';
 import { AnsuOps } from './System/AnsuOps';
 import { ResetPanelSimvarPublisher } from '../MsfsAvionicsCommon/providers/ResetPanelPublisher';
 import { FqmsBusPublisher } from '@shared/publishers/FqmsBusPublisher';
+import { FlightReportTimes } from './System/FlightFolderReport';
 
 class OitInstrument implements FsInstrument {
   private readonly bus = new EventBus();
@@ -34,6 +36,9 @@ class OitInstrument implements FsInstrument {
   private readonly oitSimvarPublisher = new OitSimvarPublisher(this.bus);
 
   private readonly adrPublisher = new AdrBusPublisher(this.bus);
+
+  /** The IR position, for the automatic flight follow-up of the FLT FOLDER */
+  private readonly irPublisher = new IrBusPublisher(this.bus);
 
   private readonly fwcPublisher = new FwcBusPublisher(this.bus);
 
@@ -83,6 +88,7 @@ class OitInstrument implements FsInstrument {
     this.backplane.addPublisher('clock', this.clockPublisher);
     this.backplane.addPublisher('oitSimvar', this.oitSimvarPublisher);
     this.backplane.addPublisher('adr', this.adrPublisher);
+    this.backplane.addPublisher('ir', this.irPublisher);
     this.backplane.addPublisher('fwc', this.fwcPublisher);
     this.backplane.addPublisher('fqms', this.fqmsPublisher);
     this.backplane.addPublisher('resetPanel', this.resetPanelPublisher);
@@ -95,6 +101,32 @@ class OitInstrument implements FsInstrument {
     this.avncsAnsu.companyCom.onNewUplink((entry) => this.laptop.receiveAocNotification(entry.uid, entry.subject));
     this.avncsAnsu.companyCom.onUplinkHandled((uid) => this.laptop.messageToolbar.removeAocNotification(uid));
     this.laptop.connectAvionicsData(this.avncsAnsu.sci.canReceiveFromAvionics);
+    this.laptop.connectFlightTimes(
+      MappedSubject.create(
+        ([outMs, offMs, onMs, inMs, outFobKg, offFobKg, onFobKg, inFobKg, blockMs, flightMs]): FlightReportTimes => ({
+          outMs,
+          offMs,
+          onMs,
+          inMs,
+          outFobKg,
+          offFobKg,
+          onFobKg,
+          inFobKg,
+          blockMs,
+          flightMs,
+        }),
+        this.avncsAnsu.outBlockTime,
+        this.avncsAnsu.offBlockTime,
+        this.avncsAnsu.onBlockTime,
+        this.avncsAnsu.inBlockTime,
+        this.avncsAnsu.outBlockFob,
+        this.avncsAnsu.offBlockFob,
+        this.avncsAnsu.onBlockFob,
+        this.avncsAnsu.inBlockFob,
+        this.avncsAnsu.blockTime,
+        this.avncsAnsu.flightTime,
+      ),
+    );
 
     this.doInit();
   }

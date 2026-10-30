@@ -16,7 +16,7 @@ import { AbstractOitFltOpsPageProps } from '../../../OIT';
 import { Button, ButtonMenuItem } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
 import { FlightFolder } from '../../../System/FlightFolder';
 import { RECYCLE_BIN_ID } from '../../../System/FlightFolderDocuments';
-import { flightPlanPrintText } from '../../../System/FlightFolderFlightPlan';
+import { flightPlanPrintText, lastFlownLineIndex, navLogLines } from '../../../System/FlightFolderFlightPlan';
 import {
   EffTreeRow,
   FLIGHT_FOLDER_ROOT_ID,
@@ -31,6 +31,7 @@ import { FLT_FOLDER_URI } from '../FltOpsApplications';
 import { OisIdentificationDialog } from '../../Common/OisIdentificationDialog';
 import { PaneScope, PaneRule } from '../Shared/PaneLayout';
 import { DocumentNoteField } from '../Shared/DocumentNoteField';
+import { isPrintoutDocument, PRINTOUT_LINE_HEIGHT_EM, printoutLayout } from '../../../System/FlightFolderPrintout';
 import { DocumentNotes } from '../Shared/DocumentNotes';
 import { DocumentTextEntry } from '../Shared/DocumentTextEntry';
 import { DocumentTextField } from '../Shared/DocumentTextField';
@@ -38,6 +39,9 @@ import { DocumentTreeRow, unitIdOfNoteRow } from '../Shared/DocumentTree';
 import { DocumentTreeView } from '../Shared/DocumentTreeView';
 import { OitFlightPlanPanels } from './OitFlightPlanPanels';
 import { OitFlightFolderExport } from './OitFlightFolderExport';
+import { NavLogRowMenu } from './NavLogRowMenu';
+import { NavLogActions } from './OitNavLogPanel';
+import { NextWaypointRequest, OitNavLogNextWaypoint } from './OitNavLogNextWaypoint';
 import './flight-folder.scss';
 
 /**
@@ -102,9 +106,52 @@ export class OitFltOpsFlightFolder extends DisplayComponent<OitFltOpsFlightFolde
   private readonly searchEntry = new DocumentTextEntry((text) => this.searchTyped(text));
   private readonly currentOccurrence = Subject.create<number | null>(null);
   private readonly dialog = Subject.create<OisDialog | null>(null);
+  private readonly nextWaypointRequest = Subject.create<NextWaypointRequest | null>(null);
+  private readonly nextWaypointRef = FSComponent.createRef<OitNavLogNextWaypoint>();
+  private rowMenu: NavLogRowMenu | null = null;
+  /** Counts the clicks on FLOWN WPT, which the flight plan panels follow */
+  private readonly flownRequest = Subject.create(0);
+
+  private readonly navLogActions: NavLogActions = {
+    menu: (anchor, items) => this.rowMenu?.open(anchor, items),
+    nextWaypoint: (fromKey, fromIdent) => {
+      const folder = this.folder();
+      if (folder === null) {
+        return;
+      }
+      const lines = navLogLines(folder.flightPlan);
+      const from = lines.findIndex((line) => line.key === fromKey);
+      this.nextWaypointRequest.set({
+        folderId: folder.id,
+        fromKey,
+        fromIdent,
+        choices: lines.slice(from + 1).map((line) => line.ident),
+      });
+    },
+    confirmDelete: (key, ident) => {
+      const folderId = this.folder()?.id;
+      this.dialog.set({
+        kind: 'Information',
+        lines: [`Delete waypoint ${ident} ?`],
+        buttons: [
+          {
+            label: 'OK',
+            action: () => {
+              if (folderId !== undefined && this.session.canEditFollowUp(folderId)) {
+                this.session.deleteWaypoint(key);
+              }
+            },
+          },
+          { label: 'CANCEL' },
+        ],
+      });
+    },
+  };
 
   // Skeleton references
   private readonly contentRef = FSComponent.createRef<HTMLDivElement>();
+  private readonly tabsHostRef = FSComponent.createRef<HTMLDivElement>();
+  private readonly headerHostRef = FSComponent.createRef<HTMLDivElement>();
   private readonly exportRef = FSComponent.createRef<HTMLDivElement>();
   private readonly progressRef = FSComponent.createRef<HTMLDivElement>();
 
@@ -131,6 +178,9 @@ export class OitFltOpsFlightFolder extends DisplayComponent<OitFltOpsFlightFolde
   private readonly selectDisabled = Subject.create(true);
   private readonly selectIsOn = Subject.create(false);
   private readonly signLabel = Subject.create('SIGN');
+  private readonly planButtonsHidden = Subject.create(true);
+  private readonly refreshDisabled = Subject.create(true);
+  private readonly flownDisabled = Subject.create(true);
   private readonly signHidden = Subject.create(true);
   private readonly signIsOn = Subject.create(false);
   private readonly docTitle = Subject.create('');
@@ -505,6 +555,15 @@ export class OitFltOpsFlightFolder extends DisplayComponent<OitFltOpsFlightFolde
     this.searchDisabled.set(docNode?.kind !== 'text');
     this.searchLabel.set(this.searchOpen.get() ? 'HIDE SEARCH' : 'SEARCH');
     const isPlan = docNode?.kind === 'flight-plan';
+    this.planButtonsHidden.set(!isPlan);
+    this.refreshDisabled.set(
+      !isPlan ||
+        folder === null ||
+        folder.closed ||
+        folder.id !== this.session.currentId.get() ||
+        this.laptop.standalone.get(),
+    );
+    this.flownDisabled.set(!isPlan || folder === null || lastFlownLineIndex(navLogLines(folder.flightPlan)) < 0);
     this.selectDisabled.set(!editable || !isPlan);
     this.selectIsOn.set(isPlan && state?.selected === true);
     this.selectLabel.set(isPlan && state?.selected ? 'SELECTED' : 'SELECT');
@@ -597,6 +656,12 @@ export class OitFltOpsFlightFolder extends DisplayComponent<OitFltOpsFlightFolde
       const panels = (
         <OitFlightPlanPanels
           folder={folder}
+          session={this.session}
+          tabsHost={this.tabsHostRef.instance}
+          headerHost={this.headerHostRef.instance}
+          actions={this.navLogActions}
+          report={this.laptop.flightReport}
+          flownRequest={this.flownRequest}
           tab={this.planTab}
           keyboard={this.props.container}
           oisVersion={this.laptop.oisVersion}
@@ -608,19 +673,26 @@ export class OitFltOpsFlightFolder extends DisplayComponent<OitFltOpsFlightFolde
       return;
     }
     if (docNode !== null) {
-      this.renderText(container, docNode.text);
+      this.renderText(container, docNode.text, doc);
       return;
     }
     this.occurrenceLine.set('');
     this.renderListing(container, folder);
   }
 
-  private renderText(container: HTMLElement, text: string): void {
+  private renderText(container: HTMLElement, text: string, docId: string | null): void {
     const search = this.searchOpen.get() ? this.searchLive : '';
     const occurrences = findOccurrences(text, search);
     this.occurrenceLine.set(search.trim() === '' ? '' : occurrencesText(occurrences.length));
     const pre = document.createElement('pre');
     pre.className = 'oit-eff-text';
+    if (isPrintoutDocument(docId)) {
+      // The columns of a printout need a font with equal widths; it shrinks until the longest line fits the pane
+      const layout = printoutLayout(text);
+      pre.className += layout.wrap ? ' printout wrap' : ' printout';
+      pre.style.fontSize = `${layout.fontSizePx}px`;
+      pre.style.lineHeight = `${Math.ceil(layout.fontSizePx * PRINTOUT_LINE_HEIGHT_EM)}px`;
+    }
     let from = 0;
     let currentElement: HTMLElement | null = null;
     occurrences.forEach(([start, end], index) => {
@@ -711,6 +783,7 @@ export class OitFltOpsFlightFolder extends DisplayComponent<OitFltOpsFlightFolde
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
     this.paneScope = new PaneScope(this.appRef.instance, FOLDER_PANE_RULES, FOLDER_SCROLLERS);
+    this.rowMenu = new NavLogRowMenu(this.appRef.instance);
     this.searchEntry.set(this.searchText.get());
 
     this.props.uiService.registerPageFunctions({
@@ -741,6 +814,9 @@ export class OitFltOpsFlightFolder extends DisplayComponent<OitFltOpsFlightFolde
         }
       }),
       this.treeHidden.sub(() => this.refresh()),
+      this.laptop.standalone.sub(() => this.refresh()),
+      // The window was opened for the folder that was current then
+      this.session.currentId.sub(() => this.nextWaypointRequest.set(null)),
     );
 
     this.refresh();
@@ -749,6 +825,10 @@ export class OitFltOpsFlightFolder extends DisplayComponent<OitFltOpsFlightFolde
 
   public destroy(): void {
     this.paneScope?.destroy();
+    this.rowMenu?.destroy();
+    this.rowMenu = null;
+    this.nextWaypointRequest.set(null);
+    this.nextWaypointRef.getOrDefault()?.destroy();
     // Destroy all subscriptions to remove all references to this instance.
     for (const s of this.subs) {
       s.destroy();
@@ -840,6 +920,22 @@ export class OitFltOpsFlightFolder extends DisplayComponent<OitFltOpsFlightFolde
               buttonStyle="min-width: 150px;"
             />
             <div class="oit-eff-spacer" />
+            <div class={{ 'oit-eff-line-group': true, hidden: this.planButtonsHidden }}>
+              <Button
+                label="REFRESH"
+                disabled={this.refreshDisabled}
+                onClick={() => this.session.refreshFromOffside()}
+                buttonStyle="min-width: 100px;"
+                containerStyle="margin-right: 4px;"
+              />
+              <Button
+                label="FLOWN WPT"
+                disabled={this.flownDisabled}
+                onClick={() => this.flownRequest.set(this.flownRequest.get() + 1)}
+                buttonStyle="min-width: 140px; padding-left: 8px; padding-right: 8px;"
+                containerStyle="margin-right: 4px;"
+              />
+            </div>
             <Button
               label={this.selectLabel}
               disabled={this.selectDisabled}
@@ -888,10 +984,21 @@ export class OitFltOpsFlightFolder extends DisplayComponent<OitFltOpsFlightFolde
                 <Button label=">" onClick={() => this.stepSearch(1)} />
               </div>
               <div class={{ 'oit-eff-search-count': true, hidden: this.searchHidden }}>{this.occurrenceLine}</div>
+              <div ref={this.tabsHostRef} class="oit-eff-tabs-host" />
+              <div ref={this.headerHostRef} class="oit-eff-header-host" />
               <div ref={this.contentRef} class="oit-eff-content" />
             </div>
           </div>
           <div ref={this.exportRef} class={{ 'oit-eff-export-host': true, hidden: this.exportHidden }} />
+          <OitNavLogNextWaypoint
+            ref={this.nextWaypointRef}
+            request={this.nextWaypointRequest}
+            keyboard={this.props.container}
+            confirm={(request, entry) =>
+              !this.session.canEditFollowUp(request.folderId) ||
+              this.session.nextWaypoint(request.fromKey, entry) !== 'rejected'
+            }
+          />
           <OisIdentificationDialog
             dialog={this.dialog}
             drafts={this.drafts}

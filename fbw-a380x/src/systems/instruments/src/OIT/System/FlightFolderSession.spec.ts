@@ -28,6 +28,8 @@ function laptop(index: FltOpsLaptopIndex, exportBox = new OisExportBox()) {
       sendCurrent: (m) => sent.current.push(m),
       sendMaster: (m) => sent.master.push(m),
       sendSynchronize: (m) => sent.sync.push(m),
+      sendRefreshRequest: () => {},
+      sendRefreshReply: () => {},
     },
     () => true,
     (identifier, source, nowMs) => exportBox.add(identifier, source, nowMs),
@@ -178,6 +180,18 @@ describe('store and synchronise', () => {
     l.session.importPending(['AIB406 23-SEP-08 NRT-TLS'], true);
     expect(l.session.canStore()).toBe(true);
     expect(l.session.store('TOPA', 'x')).toBe('TOPA_1');
+  });
+
+  it('follows whether STORE can be used: a current folder that is open', async () => {
+    const l = await loadedLaptop();
+    const changes: boolean[] = [];
+    l.session.storeAvailable.sub((available) => changes.push(available), true);
+    expect(changes).toEqual([false]);
+    l.session.importPending(['AIB406 23-SEP-08 NRT-TLS'], true);
+    expect(l.session.storeAvailable.get()).toBe(true);
+    l.session.closeFlight();
+    expect(l.session.storeAvailable.get()).toBe(false);
+    expect(changes).toEqual([false, true, false]);
   });
 
   it('sends the state of the current folder to the offside laptop, which takes it', async () => {

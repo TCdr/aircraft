@@ -154,18 +154,25 @@ $eff-panel-border: #868a9c;
 .oit-eff-document {
   position: relative;
   display: flex;
-  flex: 1 1 auto;
+  // The width is what the tree leaves, never what the content wants: the page sets flex-shrink 0 on it
+  flex: 1 1 0;
   flex-direction: column;
   min-width: 0;
   background: $display-background;
   border: 2px solid $display-light-grey;
 }
 
+// Every row above the content has a height of its own and never shrinks: a row that a flex layout shrinks to nothing
+// would be drawn over the text below it, and the content height is measured from the rows
+.oit-eff-document > * {
+  flex-shrink: 0;
+}
+
 .oit-eff-doc-head {
   display: flex;
   flex-direction: row;
   align-items: center;
-  min-height: 30px;
+  height: 30px;
   padding: 0 6px;
 }
 
@@ -183,6 +190,15 @@ $eff-panel-border: #868a9c;
   padding: 4px 6px;
 }
 
+// The note block (52 px field row) and the search row (field and buttons)
+.oit-eff-note {
+  height: 60px;
+}
+
+.oit-eff-search {
+  height: 48px;
+}
+
 .oit-eff-search-label {
   width: 90px;
   font-size: 18px;
@@ -190,6 +206,7 @@ $eff-panel-border: #868a9c;
 }
 
 .oit-eff-search-count {
+  height: 26px;
   padding: 0 6px 4px 96px;
   font-size: 16px;
   color: $display-light-grey;
@@ -211,6 +228,17 @@ $eff-panel-border: #868a9c;
   line-height: 24px;
   white-space: pre;
   color: $display-white;
+}
+
+.oit-eff-text.printout {
+  font-family: "OIT-Mono", monospace;
+}
+
+.oit-eff-text.printout.wrap {
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  // The legacy name of overflow-wrap, for engines that only know that one
+  word-wrap: break-word;
 }
 
 .oit-eff-text .hit {
@@ -243,9 +271,16 @@ $eff-panel-border: #868a9c;
 
 // Flight plan panels
 
+.oit-eff-tabs-host {
+  flex: 0 0 auto;
+}
+
 .oit-eff-tabs {
   display: flex;
   flex-direction: row;
+  // A long flight plan has many NAV LOG pages: the tabs go on a second line
+  flex-wrap: wrap;
+  row-gap: 4px;
   padding: 2px 6px 0 6px;
 }
 
@@ -395,27 +430,314 @@ $eff-panel-border: #868a9c;
   text-align: left;
 }
 
-.oit-eff-navlog {
-  display: grid;
-  grid-template-columns: 150px 90px 110px 110px 110px 110px;
-  row-gap: 2px;
-  text-align: right;
+// NAV LOG: two lines for each waypoint, nine columns
+
+.oit-eff-line-group {
+  display: flex;
+  flex-direction: row;
 }
 
-.oit-eff-navlog .head {
+.oit-eff-line-group .mfd-button {
+  white-space: nowrap;
+}
+
+.oit-eff-nl {
+  font-size: 18px;
   color: $display-white;
 }
 
-.oit-eff-navlog .band {
-  border-top: 1px solid $eff-panel-border;
+// The column titles sit above the scrolled content, not in it. The page shows the host while a NAV LOG is shown; its
+// height is the two title lines (28 px each), the line below them and the gap, and the padding of the panel
+.oit-eff-header-host {
+  display: none;
+  flex: 0 0 auto;
+  height: 68px;
+  overflow: hidden;
+  padding: 6px 12px 0 12px;
+  font-size: 18px;
+  color: $display-white;
 }
 
-.oit-eff-navlog .green {
+.oit-eff-nl-header {
+  height: 57px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid $eff-panel-border;
+}
+
+.oit-eff-nl-line {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  height: 28px;
+}
+
+.oit-eff-nl-line .cell {
+  flex: 0 0 auto;
+  padding-right: 8px;
+  overflow: hidden;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.oit-eff-nl-line .cell:nth-child(1) {
+  width: 112px;
+  text-align: left;
+}
+
+.oit-eff-nl-line .cell:nth-child(2) {
+  width: 96px;
+}
+
+.oit-eff-nl-line .cell:nth-child(3) {
+  width: 68px;
+}
+
+.oit-eff-nl-line .cell:nth-child(4) {
+  width: 108px;
+}
+
+.oit-eff-nl-line .cell:nth-child(5) {
+  width: 88px;
+}
+
+.oit-eff-nl-line .cell:nth-child(6) {
+  width: 108px;
+}
+
+.oit-eff-nl-line .cell:nth-child(7) {
+  width: 72px;
+}
+
+.oit-eff-nl-line .cell:nth-child(8) {
+  width: 108px;
+}
+
+.oit-eff-nl-line .cell:nth-child(9) {
+  width: 148px;
+  padding-left: 12px;
+  text-align: left;
+}
+
+.oit-eff-nl-line .cell.green {
   color: $display-green;
 }
 
-.oit-eff-navlog .left {
+.oit-eff-nl-row {
+  margin-bottom: 4px;
+  padding: 1px 0;
+  border: 2px solid transparent;
+  background-color: #14161c;
+}
+
+// A flown waypoint waiting for FUEL CHK
+.oit-eff-nl-row.pending {
+  border-color: $display-yellow;
+}
+
+.oit-eff-nl-row.skipped .cell,
+.oit-eff-nl-row.skipped .oit-eff-nl-name {
+  color: $display-dark-grey;
+}
+
+.oit-eff-nl-menu-target {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  cursor: pointer;
+}
+
+.oit-eff-nl-name.inserted {
+  color: $display-cyan;
+}
+
+// The arrow after the name of the waypoint
+.oit-eff-nl-arrow {
+  width: 0;
+  height: 0;
+  margin-left: 10px;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 8px solid $display-white;
+}
+
+// The box of a value of the avionics holds the longest value, 23:59 or 999.9, with room to spare; it sits at the right
+// of its column like the green values. The DIRTO box is narrower
+.oit-eff-nl-box {
+  width: 96px;
+  height: 24px;
+  margin-left: auto;
+  overflow: hidden;
+  border: 2px solid $display-light-grey;
+  padding: 0 6px;
+  line-height: 20px;
+  text-align: right;
+}
+
+.oit-eff-nl-box:not(.avionics) {
+  width: 84px;
+  margin-left: 0;
+}
+
+.oit-eff-nl-box.avionics {
+  color: $display-magenta;
+}
+
+.oit-eff-nl-box .mfd-input-field-root,
+.oit-eff-nl-box .mfd-input-field-container {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+}
+
+// The entry field draws no frame of its own inside the frame of the box: an empty box and a filled one look the same
+.oit-eff-nl-box .mfd-input-field-container,
+.oit-eff-nl-box .mfd-input-field-container:hover {
+  border: none;
+  background-color: transparent;
+}
+
+// The width the entry field takes from its digit count must not make it wider than the box
+.oit-eff-nl-box .mfd-input-field-text-input-container {
+  width: 100%;
+  min-width: 0 !important;
+  padding: 0;
+  justify-content: flex-end;
+}
+
+.oit-eff-nl-box .mfd-input-field-text-input-container,
+.oit-eff-nl-box .mfd-input-field-text-input {
+  height: 100%;
+  min-height: 18px;
+  font-family: "OIT";
+  font-size: 18px;
+  line-height: 18px;
+  text-align: right;
+  color: $display-magenta;
+}
+
+.oit-eff-nl-box .mfd-input-field-text-input.editing {
+  font-size: 18px !important;
+}
+
+.oit-eff-nl-box .mfd-input-field-caret {
+  width: 11px;
+  height: 18px;
+  font-size: 18px;
+}
+
+.oit-eff-nl-check {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  cursor: pointer;
+}
+
+.oit-eff-nl-check.locked {
+  cursor: default;
+}
+
+.oit-eff-nl-tick {
+  position: relative;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  margin-right: 6px;
+  border: 2px solid $display-white;
+}
+
+// The tick of a checked waypoint
+.oit-eff-nl-check.checked .oit-eff-nl-tick::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: -1px;
+  width: 5px;
+  height: 11px;
+  border: solid $display-white;
+  border-width: 0 3px 3px 0;
+  transform: rotate(45deg);
+}
+
+// The menu of a waypoint, on the page
+
+.oit-eff-row-menu {
+  position: absolute;
+  z-index: 40;
+  min-width: 150px;
+  background-color: $display-background;
+  border: 2px outset $display-light-grey;
+}
+
+// The NEXT WPT window
+
+.oit-eff-nw-from {
+  font-size: 24px;
+  text-align: center;
+}
+
+.oit-eff-nw-entry {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.oit-eff-nw-label {
+  width: 130px;
+  font-size: 22px;
+}
+
+.oit-eff-nw-error {
+  min-height: 24px;
+  margin-top: 6px;
+  font-size: 18px;
+  text-align: center;
+  color: $display-amber;
+}
+
+.oit-eff-nw-list-frame {
+  position: relative;
+  margin: 0 auto;
+  width: 360px;
+  border: 2px solid $display-light-grey;
+}
+
+// Eight lines high: the list scrolls with the shared scroll bar
+.oit-eff-nw-list {
+  height: 208px;
+  overflow: hidden;
+  font-size: 20px;
+}
+
+.oit-eff-nw-choice {
+  height: 26px;
+  line-height: 26px;
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+.oit-eff-nw-choice:hover {
+  background-color: $display-dark-grey;
+}
+
+// FLT REPORT
+
+.oit-eff-report-grid {
+  display: grid;
+  grid-template-columns: 120px 140px 160px;
+  row-gap: 6px;
+  text-align: right;
+}
+
+.oit-eff-report-grid .left {
   text-align: left;
+}
+
+.oit-eff-report-remarks {
+  min-height: 28px;
+  word-break: break-word;
 }
 
 // Start-up window

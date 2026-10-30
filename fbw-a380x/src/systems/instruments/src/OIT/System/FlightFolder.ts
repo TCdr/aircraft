@@ -3,7 +3,22 @@
 
 import { Subject, Subscribable } from '@microsoft/msfs-sdk';
 import { EffConstraint, EffDocument, EffNode, PERFORMANCE_FOLDER_ID, RECYCLE_BIN_ID } from './FlightFolderDocuments';
-import { EffFlightPlan, EffFuelKey, EffLoadKey } from './FlightFolderFlightPlan';
+import {
+  checkNavLogRow,
+  copyFollowUp,
+  deleteInsertedWaypoint,
+  EffFlightPlan,
+  EffFuelKey,
+  EffLoadKey,
+  EffNavLogActual,
+  EffNavLogFollowUp,
+  NAV_LOG_ORIGIN_KEY,
+  NextWaypointOutcome,
+  replaceFollowUp,
+  setNavLogActual,
+  setNextWaypoint,
+} from './FlightFolderFlightPlan';
+import { FollowUpAvionics, FollowUpSample, FollowUpSampler, recordTakeoff } from './FlightFolderFollowUp';
 
 /** Who signed or checked a document, and when */
 export interface EffDone {
@@ -31,6 +46,7 @@ export interface EffSyncState {
   readonly identifier: string;
   readonly docs: Readonly<Record<string, EffDocState>>;
   readonly updates: EffFlightPlan['updates'];
+  readonly followUp: EffNavLogFollowUp;
   /** The pages stored in the folder: the other laptop may not have them */
   readonly stored: readonly { readonly name: string; readonly text: string }[];
 }
@@ -439,6 +455,115 @@ export class FlightFolder {
     return true;
   }
 
+  // --- flight follow-up of the navigation log ---------------------------------------------------------------------
+
+  /**
+   * NEXT WPT of the navigation log
+   * @param fromKey the initial waypoint
+   * @param entry the name of the next waypoint
+   * @returns what happened
+   */
+  public nextWaypoint(fromKey: string, entry: string): NextWaypointOutcome {
+    const outcome = this._closed ? 'rejected' : setNextWaypoint(this.flightPlan, fromKey, entry);
+    this.followUpChanged(outcome !== 'rejected');
+    return outcome;
+  }
+
+  /**
+   * DELETE of a waypoint the crew inserted
+   * @param key the row
+   * @returns whether it was removed
+   */
+  public deleteWaypoint(key: string): boolean {
+    return this.followUpChanged(!this._closed && deleteInsertedWaypoint(this.flightPlan, key));
+  }
+
+  /**
+   * @param key a row of the navigation log
+   * @param patch the actual values to set, null to clear one
+   * @returns whether they were kept
+   */
+  public setNavLogActual(key: string, patch: Partial<EffNavLogActual>): boolean {
+    return this.followUpChanged(!this._closed && setNavLogActual(this.flightPlan, key, patch));
+  }
+
+  /**
+   * FUEL CHK of a flown waypoint
+   * @param key the row
+   * @returns whether it was checked
+   */
+  public checkFuel(key: string): boolean {
+    return this.followUpChanged(!this._closed && checkNavLogRow(this.flightPlan, key));
+  }
+
+  /**
+   * @param text the remarks of the flight report
+   * @returns whether they were kept
+   */
+  public setRemarks(text: string): boolean {
+    if (this._closed) {
+      return false;
+    }
+    this.flightPlan.followUp.remarks = text;
+    this.changedNow();
+    return true;
+  }
+
+  /**
+   * The automatic flight follow-up
+   * @param sampler the timing of the collections
+   * @param nowMs the simulation time, unix ms
+   * @param avionics what the avionics give the laptop, null when their data do not reach it
+   * @returns the collection that was made, null when none was due
+   */
+  public sampleFollowUp(
+    sampler: FollowUpSampler,
+    nowMs: number,
+    avionics: FollowUpAvionics | null,
+  ): FollowUpSample | null {
+    const sample = this._closed ? null : sampler.update(nowMs, avionics, this.flightPlan);
+    this.followUpChanged(sample !== null && sample.flownKey !== null);
+    return sample;
+  }
+
+  /**
+   * @param timeMs the take-off time, unix ms
+   * @param fobKg the fuel on board at take-off, kg
+   */
+  public recordTakeoff(timeMs: number, fobKg: number | null): void {
+    if (!this._closed) {
+      const before = this.flightPlan.followUp.actuals[NAV_LOG_ORIGIN_KEY];
+      recordTakeoff(this.flightPlan, timeMs, fobKg);
+      this.followUpChanged(this.flightPlan.followUp.actuals[NAV_LOG_ORIGIN_KEY] !== before);
+    }
+  }
+
+  private followUpChanged(changed: boolean): boolean {
+    if (changed) {
+      this.changedNow();
+    }
+    return changed;
+  }
+
+  /** @returns the flight follow-up of the navigation log, a copy: what REFRESH sends to the other laptop */
+  public followUpState(): EffNavLogFollowUp {
+    return copyFollowUp(this.flightPlan.followUp);
+  }
+
+  /**
+   * REFRESH
+   * @param followUp what the other laptop recorded
+   * @returns whether it was taken: not by a closed folder
+   */
+  public applyFollowUp(followUp: EffNavLogFollowUp): boolean {
+    if (this._closed) {
+      return false;
+    }
+    replaceFollowUp(this.flightPlan.followUp, followUp);
+    this.changedNow();
+    return true;
+  }
+
   /** @returns what SYNCHRONIZE WITH OFFSIDE sends to the other laptop */
   public syncState(): EffSyncState {
     const docs: Record<string, EffDocState> = {};
@@ -455,6 +580,7 @@ export class FlightFolder {
       stored,
       docs,
       updates: { fuel: { ...updates.fuel }, load: { ...updates.load }, altnFuel: updates.altnFuel.slice() },
+      followUp: copyFollowUp(this.flightPlan.followUp),
     };
   }
 
@@ -484,6 +610,7 @@ export class FlightFolder {
     this.flightPlan.updates.fuel = { ...sync.updates.fuel };
     this.flightPlan.updates.load = { ...sync.updates.load };
     this.flightPlan.updates.altnFuel = sync.updates.altnFuel.slice();
+    replaceFollowUp(this.flightPlan.followUp, sync.followUp);
     this.changedNow();
     return true;
   }

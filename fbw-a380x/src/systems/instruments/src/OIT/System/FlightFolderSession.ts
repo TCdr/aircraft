@@ -1,11 +1,12 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { MappedSubject, Subject, Subscribable } from '@microsoft/msfs-sdk';
+import { MappedSubject, Subject, Subscribable, Subscription } from '@microsoft/msfs-sdk';
 import type { ISimbriefData } from '@flybywiresim/fbw-sdk';
 import { FlightFolder, EffSyncState } from './FlightFolder';
 import { buildFlightFolderTree } from './FlightFolderDocuments';
-import { buildFlightPlan } from './FlightFolderFlightPlan';
+import { buildFlightPlan, EffNavLogActual, EffNavLogFollowUp, NextWaypointOutcome } from './FlightFolderFlightPlan';
+import { FollowUpAvionics, FollowUpSample, FollowUpSampler } from './FlightFolderFollowUp';
 import { FltOpsLaptopIndex } from './FltOpsStatusSync';
 import { effExportIdentifier, effFolderLabel, effFromOfp, effIdentifier, LoadBoxItem } from './OisLoadBox';
 
@@ -41,6 +42,14 @@ export interface FlightFolderNetworkEvents {
   oisEffMaster: { readonly sender: FltOpsLaptopIndex };
   /** SYNCHRONIZE WITH OFFSIDE */
   oisEffSynchronize: { readonly sender: FltOpsLaptopIndex; readonly sync: EffSyncState };
+  /** REFRESH: a laptop asks the other one for the flight follow-up of the current folder */
+  oisEffRefreshRequest: { readonly sender: FltOpsLaptopIndex; readonly identifier: string };
+  /** The answer to a REFRESH */
+  oisEffRefreshReply: {
+    readonly sender: FltOpsLaptopIndex;
+    readonly identifier: string;
+    readonly followUp: EffNavLogFollowUp;
+  };
 }
 
 /** How a laptop reaches the other laptop */
@@ -48,6 +57,8 @@ export interface FlightFolderNetwork {
   sendCurrent(message: FlightFolderNetworkEvents['oisEffCurrent']): void;
   sendMaster(message: FlightFolderNetworkEvents['oisEffMaster']): void;
   sendSynchronize(message: FlightFolderNetworkEvents['oisEffSynchronize']): void;
+  sendRefreshRequest(message: FlightFolderNetworkEvents['oisEffRefreshRequest']): void;
+  sendRefreshReply(message: FlightFolderNetworkEvents['oisEffRefreshReply']): void;
 }
 
 /**
@@ -82,6 +93,10 @@ export class FlightFolderSession {
     this._currentId,
   );
 
+  private readonly _storeAvailable = Subject.create(false);
+  /** Whether STORE can be used: there is a current folder and it is not closed */
+  public readonly storeAvailable = this._storeAvailable as Subscribable<boolean>;
+
   private readonly _pending = Subject.create<readonly PendingImport[]>([]);
   /** The EFFs loaded and not imported: the import pop-up lists them */
   public readonly pending = this._pending as Subscribable<readonly PendingImport[]>;
@@ -91,6 +106,12 @@ export class FlightFolderSession {
   public readonly isMaster = this._isMaster as Subscribable<boolean>;
 
   private launchStartedMs: number | null = null;
+
+  private readonly followUpSampler = new FollowUpSampler();
+  /** The folder the sampler works for: another current folder starts the sampling again */
+  private sampledFolderId: string | null = null;
+  /** This laptop asked for a REFRESH and waits for the answer */
+  private refreshPending = false;
 
   /**
    * The start-up window of the application: the first display after the laptop is powered takes the time of a
@@ -124,7 +145,15 @@ export class FlightFolderSession {
     private readonly network: FlightFolderNetwork,
     private readonly metric: () => boolean,
     private readonly addToExportBox: (identifier: string, source: string, nowMs: number) => void,
-  ) {}
+  ) {
+    let folderChanges: Subscription | null = null;
+    this.current.sub((folder) => {
+      folderChanges?.destroy();
+      const update = () => this._storeAvailable.set(folder !== null && !folder.closed);
+      folderChanges = folder?.changed.sub(update) ?? null;
+      update();
+    }, true);
+  }
 
   /**
    * The LOAD BOX loaded items into this laptop: the new ones, or newer OFPs of a known flight, wait to be imported
@@ -293,9 +322,124 @@ export class FlightFolderSession {
     return closed.length;
   }
 
+  /** @returns the current folder when this laptop may change its flight follow-up: it is the master and the folder open */
+  private editableFolder(): FlightFolder | null {
+    const folder = this.current.get();
+    return folder !== null && !folder.closed && this._isMaster.get() ? folder : null;
+  }
+
+  /**
+   * @param folderId a folder
+   * @returns whether this laptop may change the flight follow-up of the folder now: it is the open current folder and
+   * this laptop is the master. A window that was opened for a folder asks again before it applies its entry.
+   */
+  public canEditFollowUp(folderId: string): boolean {
+    return this.editableFolder()?.id === folderId;
+  }
+
+  /**
+   * NEXT WPT of the navigation log of the current folder
+   * @param fromKey the initial waypoint
+   * @param entry the name of the next waypoint
+   * @returns what happened; rejected without the master status
+   */
+  public nextWaypoint(fromKey: string, entry: string): NextWaypointOutcome {
+    return this.editableFolder()?.nextWaypoint(fromKey, entry) ?? 'rejected';
+  }
+
+  /**
+   * DELETE of a waypoint the crew inserted
+   * @param key the row
+   * @returns whether it was removed
+   */
+  public deleteWaypoint(key: string): boolean {
+    return this.editableFolder()?.deleteWaypoint(key) ?? false;
+  }
+
+  /**
+   * @param key a row of the navigation log
+   * @param patch the actual values the crew typed
+   * @returns whether they were kept
+   */
+  public setNavLogActual(key: string, patch: Partial<EffNavLogActual>): boolean {
+    return this.editableFolder()?.setNavLogActual(key, patch) ?? false;
+  }
+
+  /**
+   * FUEL CHK
+   * @param key the row
+   * @returns whether it was checked
+   */
+  public checkFuel(key: string): boolean {
+    return this.editableFolder()?.checkFuel(key) ?? false;
+  }
+
+  /**
+   * @param text the remarks of the flight report
+   * @returns whether they were kept
+   */
+  public setRemarks(text: string): boolean {
+    return this.editableFolder()?.setRemarks(text) ?? false;
+  }
+
+  /**
+   * The automatic flight follow-up of the current folder: both laptops collect, the master status only decides who may
+   * type.
+   * @param nowMs the simulation time, unix ms
+   * @param avionics what the avionics give the laptop, null when their data do not reach it
+   * @returns the collection that was made, null when none was due
+   */
+  public sampleFollowUp(nowMs: number, avionics: FollowUpAvionics | null): FollowUpSample | null {
+    const folder = this.current.get();
+    if (folder === null) {
+      return null;
+    }
+    if (folder.id !== this.sampledFolderId) {
+      this.followUpSampler.reset();
+      this.sampledFolderId = folder.id;
+    }
+    return folder.sampleFollowUp(this.followUpSampler, nowMs, avionics);
+  }
+
+  /**
+   * @param timeMs the take-off time, unix ms
+   * @param fobKg the fuel on board at take-off, kg
+   */
+  public recordTakeoff(timeMs: number, fobKg: number | null): void {
+    this.current.get()?.recordTakeoff(timeMs, fobKg);
+  }
+
+  /** REFRESH: the flight follow-up of the current folder comes from the other laptop */
+  public refreshFromOffside(): void {
+    const folder = this.current.get();
+    if (folder !== null && !folder.closed) {
+      this.refreshPending = true;
+      this.network.sendRefreshRequest({ sender: this.index, identifier: folder.id });
+    }
+  }
+
+  /** @param message the other laptop asks for a REFRESH: it gets the follow-up if the folder is current here too */
+  public receiveRefreshRequest(message: FlightFolderNetworkEvents['oisEffRefreshRequest']): void {
+    const folder = this.current.get();
+    if (message.sender !== this.index && folder !== null && folder.id === message.identifier) {
+      this.network.sendRefreshReply({ sender: this.index, identifier: folder.id, followUp: folder.followUpState() });
+    }
+  }
+
+  /** @param message the answer of the other laptop: taken only when this laptop asked for it */
+  public receiveRefreshReply(message: FlightFolderNetworkEvents['oisEffRefreshReply']): void {
+    const folder = this.current.get();
+    if (message.sender === this.index || !this.refreshPending) {
+      return;
+    }
+    this.refreshPending = false;
+    if (folder !== null && folder.id === message.identifier) {
+      folder.applyFollowUp(message.followUp);
+    }
+  }
+
   /** @returns whether the current folder takes a STORE */
   public canStore(): boolean {
-    const folder = this.current.get();
-    return folder !== null && !folder.closed;
+    return this._storeAvailable.get();
   }
 }
