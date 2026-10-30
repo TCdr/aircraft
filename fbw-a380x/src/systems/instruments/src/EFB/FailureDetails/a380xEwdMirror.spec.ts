@@ -131,6 +131,23 @@ describe('A380X EWD mirror', () => {
     expect(procedure.lines.every((line) => line.state === 'reference')).toBe(true);
   });
 
+  it('shows the FMS PRED UNRELIABLE line when the spread of its constant was lost', () => {
+    // the bundle defines the constant after the tables, so the tables spread undefined and keep an item without a name
+    EcamAbnormalProcedures['999999999'] = {
+      title: 'TEST PROCEDURE',
+      sensed: true,
+      items: [{ name: 'PACK 1', sensed: true }, { sensed: false } as never, { level: 1 } as never],
+    } as never;
+
+    const [procedure] = alertProcedures(['999999999'], []);
+    const texts = procedure.lines.map((line) => plain(line.segments));
+    expect(texts[0]).toBe('PACK 1');
+    expect(texts[1]).toContain('FMS PRED UNRELIABLE');
+    expect(texts[2]).toContain('FMS PRED UNRELIABLE');
+    expect(procedure.lines[2].level).toBe(1);
+    delete EcamAbnormalProcedures['999999999'];
+  });
+
   it('writes conditions with their IF and checked actions with a colon', () => {
     expect(itemText({ name: 'HOT AIR 1', sensed: true, condition: true } as never, false)).toBe('.IF HOT AIR 1 :');
     expect(itemText({ name: 'HOT AIR 1', sensed: true, labelNotCompleted: 'ON' } as ChecklistAction, true)).toBe(
