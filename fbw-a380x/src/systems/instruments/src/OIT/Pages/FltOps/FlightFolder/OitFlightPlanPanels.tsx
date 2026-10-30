@@ -5,39 +5,33 @@ import { ComponentProps, DisplayComponent, FSComponent, Subject, Subscribable, V
 import { DestroyableComponent } from '@flybywiresim/msfs-avionics-common';
 import { InputField } from '../../../../MsfsAvionicsCommon/UiWidgets/InputField';
 import { FlightFolder } from '../../../System/FlightFolder';
+import { FlightFolderSession } from '../../../System/FlightFolderSession';
 import {
   altnUpdateCell,
   durationText,
   EffFuelKey,
   EffLoadKey,
   EffUpdateCell,
+  FLIGHT_REPORT_TAB,
+  flightPlanTabs,
   fuelLineVisible,
   fuelUpdateCell,
+  lastFlownLineIndex,
   loadUpdateCell,
+  NAV_LOG_ROWS_PER_PAGE,
+  navLogLines,
   parseWeight,
   signedText,
   weightText,
 } from '../../../System/FlightFolderFlightPlan';
+import { FlightReportTimes } from '../../../System/FlightFolderReport';
 import { oisDateMixedCase, oisTime } from '../../../System/OisDateTime';
 import { LogbookFieldKeyboard } from '../../NssAvncs/Logbook/LogbookWidgets';
 import { OitPerfEntryFormat } from '../Performance/OitPerfEntryFormat';
+import { scrollTopToShow } from '../Shared/ScrollBar';
+import { OitFlightReportPanel } from './OitFlightReportPanel';
+import { NavLogActions, OitNavLogPanel } from './OitNavLogPanel';
 import './flight-folder.scss';
-
-/** The waypoints of one NAV LOG page. Design choice: fourteen two-line rows fit the document window. */
-export const NAV_LOG_ROWS_PER_PAGE = 14;
-
-/**
- * @param waypointCount the waypoints of the navigation log
- * @returns the tabs of the flight plan, one NAV LOG page for each group of waypoints
- */
-export function flightPlanTabs(waypointCount: number): string[] {
-  const pages = Math.max(1, Math.ceil(waypointCount / NAV_LOG_ROWS_PER_PAGE));
-  const tabs = ['FMS INIT', 'FLT INFO', 'ALTN'];
-  for (let page = 1; page <= pages; page++) {
-    tabs.push(`NAV LOG ${page}`);
-  }
-  return tabs;
-}
 
 interface EffUpdateFieldProps extends ComponentProps {
   readonly folder: FlightFolder;
@@ -101,38 +95,64 @@ class EffUpdateField extends DestroyableComponent<EffUpdateFieldProps> {
 
 interface OitFlightPlanPanelsProps extends ComponentProps {
   readonly folder: FlightFolder;
+  readonly session: FlightFolderSession;
+  /** The element above the document window that holds the tabs */
+  readonly tabsHost: HTMLElement;
+  /** The element between the tabs and the document window that holds the column titles of the NAV LOG */
+  readonly headerHost: HTMLElement;
   readonly tab: Subject<string>;
+  readonly actions: NavLogActions;
+  /** The times and fuel of the flight report, from the avionics */
+  readonly report: Subscribable<FlightReportTimes>;
+  /** Counts the clicks on FLOWN WPT: the NAV LOG shows the last waypoint flown */
+  readonly flownRequest: Subscribable<number>;
   readonly keyboard: LogbookFieldKeyboard;
   readonly oisVersion: Subscribable<string>;
   /** Whether the aircraft shows tonnes (else thousands of pounds) */
   readonly metric: boolean;
 }
 
-/** The flight plan document: the FMS INIT, FLT INFO, ALTN and NAV LOG panels of the electronic flight folder */
+/** The flight plan document: the FMS INIT, FLT INFO, ALTN, NAV LOG and FLT REPORT panels of the electronic flight folder */
 export class OitFlightPlanPanels extends DestroyableComponent<OitFlightPlanPanelsProps> {
   private readonly panelRef = FSComponent.createRef<HTMLDivElement>();
-  private readonly tabsRef = FSComponent.createRef<HTMLDivElement>();
+  /** The tabs sit above the document window, not in it: they stay in view while a long NAV LOG page scrolls */
+  private readonly tabsElement = document.createElement('div');
 
   private readonly plan = this.props.folder.flightPlan;
 
-  private readonly tabs = flightPlanTabs(this.plan.navLog.length);
+  private tabs = flightPlanTabs(navLogLines(this.plan).length);
 
   private panel: VNode | null = null;
   private panelSubscriptions: { destroy(): void }[] = [];
 
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
-    this.renderTabs();
-    this.subscriptions.push(this.props.tab.sub((tab) => this.showPanel(tab), true));
+    this.tabsElement.className = 'oit-eff-tabs';
+    this.props.tabsHost.appendChild(this.tabsElement);
+    this.drawTabs();
+    this.subscriptions.push(
+      this.props.tab.sub((tab) => {
+        this.markSelectedTab(tab);
+        this.showPanel(tab);
+      }, true),
+      this.props.folder.changed.sub(() => this.followTabs()),
+      this.props.flownRequest.sub(() => this.showFlownWaypoint()),
+    );
   }
 
   public destroy(): void {
     this.destroyPanel();
+    if (this.tabsElement.parentElement !== null) {
+      this.tabsElement.parentElement.removeChild(this.tabsElement);
+    }
     super.destroy();
   }
 
-  private renderTabs(): void {
-    const container = this.tabsRef.instance;
+  private drawTabs(): void {
+    const container = this.tabsElement;
+    while (container.firstChild) {
+      container.removeChild(container.firstChild);
+    }
     for (const tab of this.tabs) {
       const element = document.createElement('div');
       element.className = 'oit-eff-tab';
@@ -140,14 +160,44 @@ export class OitFlightPlanPanels extends DestroyableComponent<OitFlightPlanPanel
       element.addEventListener('click', () => this.props.tab.set(tab));
       container.appendChild(element);
     }
-    this.subscriptions.push(
-      this.props.tab.sub((selected) => {
-        const children = container.children;
-        for (let i = 0; i < children.length; i++) {
-          children[i].classList.toggle('selected', this.tabs[i] === selected);
-        }
-      }, true),
-    );
+    this.markSelectedTab(this.props.tab.get());
+  }
+
+  private markSelectedTab(selected: string): void {
+    const children = this.tabsElement.children;
+    for (let i = 0; i < children.length; i++) {
+      children[i].classList.toggle('selected', this.tabs[i] === selected);
+    }
+  }
+
+  /** The waypoints the crew inserts or deletes add NAV LOG pages or take them away */
+  private followTabs(): void {
+    const tabs = flightPlanTabs(navLogLines(this.plan).length);
+    if (tabs.length === this.tabs.length) {
+      return;
+    }
+    this.tabs = tabs;
+    this.drawTabs();
+    if (!tabs.includes(this.props.tab.get())) {
+      // The last NAV LOG page: the one before FLT REPORT
+      this.props.tab.set(tabs[tabs.length - 2]);
+    }
+  }
+
+  /** FLOWN WPT: the NAV LOG page of the last waypoint flown, scrolled to it */
+  private showFlownWaypoint(): void {
+    const lines = navLogLines(this.plan);
+    const index = Math.max(0, lastFlownLineIndex(lines));
+    this.props.tab.set(`NAV LOG ${Math.floor(index / NAV_LOG_ROWS_PER_PAGE) + 1}`);
+    const row = this.panelRef.instance.querySelector(`[data-key="${lines[index]?.key}"]`) as HTMLElement | null;
+    let scroller: HTMLElement | null = this.panelRef.instance;
+    while (scroller !== null && !scroller.classList.contains('oit-eff-content')) {
+      scroller = scroller.parentElement;
+    }
+    if (row !== null && scroller !== null) {
+      const top = row.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+      scroller.scrollTop = scrollTopToShow(top, scroller.clientHeight, scroller.scrollHeight);
+    }
   }
 
   private destroyPanel(): void {
@@ -174,6 +224,8 @@ export class OitFlightPlanPanels extends DestroyableComponent<OitFlightPlanPanel
       this.panel = this.fltInfo();
     } else if (known === 'ALTN') {
       this.panel = this.altn();
+    } else if (known === FLIGHT_REPORT_TAB) {
+      this.panel = this.flightReport();
     } else {
       this.panel = this.navLog(Number(known.substring('NAV LOG '.length)) - 1);
     }
@@ -414,42 +466,32 @@ export class OitFlightPlanPanels extends DestroyableComponent<OitFlightPlanPanel
   }
 
   private navLog(page: number): VNode {
-    const rows = this.plan.navLog.slice(page * NAV_LOG_ROWS_PER_PAGE, (page + 1) * NAV_LOG_ROWS_PER_PAGE);
-    const metric = this.props.metric;
     return (
-      <div class="oit-eff-navlog">
-        <div class="head left">WPT/AWY</div>
-        <div class="head">MORA</div>
-        <div class="head">ET/CT</div>
-        <div class="head">ETA</div>
-        <div class="head">EFOB</div>
-        <div class="head">EFU</div>
-        {rows.map((row) => (
-          <>
-            <div class="left band">{row.ident}</div>
-            <div class="band">{row.moraHundredFeet !== null ? String(row.moraHundredFeet) : ''}</div>
-            <div class="band green">{durationText(row.legS)}</div>
-            <div class="band green">{row.etaMs !== null ? oisTime(row.etaMs) : ''}</div>
-            <div class="band">{weightText(row.efobKg, metric)}</div>
-            <div class="band">{weightText(row.efuKg, metric)}</div>
-            <div class="left">{row.airway}</div>
-            <div />
-            <div class="green">{durationText(row.cumS)}</div>
-            <div />
-            <div />
-            <div />
-          </>
-        ))}
-      </div>
+      <OitNavLogPanel
+        folder={this.props.folder}
+        session={this.props.session}
+        keyboard={this.props.keyboard}
+        metric={this.props.metric}
+        page={page}
+        headerHost={this.props.headerHost}
+        actions={this.props.actions}
+      />
+    );
+  }
+
+  private flightReport(): VNode {
+    return (
+      <OitFlightReportPanel
+        folder={this.props.folder}
+        session={this.props.session}
+        keyboard={this.props.keyboard}
+        report={this.props.report}
+        metric={this.props.metric}
+      />
     );
   }
 
   render(): VNode {
-    return (
-      <>
-        <div ref={this.tabsRef} class="oit-eff-tabs" />
-        <div ref={this.panelRef} class="oit-eff-panel" />
-      </>
-    );
+    return <div ref={this.panelRef} class="oit-eff-panel" />;
   }
 }

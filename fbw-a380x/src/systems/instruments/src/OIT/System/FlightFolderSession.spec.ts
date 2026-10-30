@@ -28,6 +28,8 @@ function laptop(index: FltOpsLaptopIndex, exportBox = new OisExportBox()) {
       sendCurrent: (m) => sent.current.push(m),
       sendMaster: (m) => sent.master.push(m),
       sendSynchronize: (m) => sent.sync.push(m),
+      sendRefreshRequest: () => {},
+      sendRefreshReply: () => {},
     },
     () => true,
     (identifier, source, nowMs) => exportBox.add(identifier, source, nowMs),
