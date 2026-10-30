@@ -9,6 +9,7 @@
 !*/
 !/.github/**
 !/.vscode/**
+!/patches/**
 
 !.editorconfig
 !.eslintrc.js

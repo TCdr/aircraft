@@ -1,0 +1,82 @@
+diff --git a/msfssdk-iife.js b/msfssdk-iife.js
+index eca4a5c89561efd248fa79e65cbb5975854d4b50..628364d98c68a51700c76957a4b05733b2de4884
+--- a/msfssdk-iife.js
++++ b/msfssdk-iife.js
+@@ -1599,6 +1599,8 @@ var msfssdk = (function (exports) {
+             this.resolvedSimVars = new Map();
+             this.indexedSimVars = new Map();
+             this.subscribed = new Map();
++            // Created once so that onUpdate allocates nothing per frame.
++            this.publishSubscribedTopicFn = (entry, topic) => this.publishTopic(topic, entry);
+             for (const [topic, entry] of entries) {
+                 if (entry.indexed) {
+                     this.indexedSimVars.set(topic, {
+@@ -1716,9 +1718,7 @@ var msfssdk = (function (exports) {
+          * Publish all subscribed data points to the bus.
+          */
+         onUpdate() {
+-            for (const topicAndEntry of this.subscribed) {
+-                this.publishTopic(topicAndEntry[0], topicAndEntry[1]);
+-            }
++            this.subscribed.forEach(this.publishSubscribedTopicFn);
+         }
+         /**
+          * Publishes data to the event bus for a topic.
+@@ -2197,7 +2197,15 @@ var msfssdk = (function (exports) {
+          */
+         pub(topic, data, sync = false, isCached = true) {
+             if (isCached) {
+-                this._eventCache.set(topic, { data: data, synced: sync });
++                // Update the entry in place: a new object per cached publish is garbage in the heap all instruments share.
++                const cachedEvent = this._eventCache.get(topic);
++                if (cachedEvent !== undefined) {
++                    cachedEvent.data = data;
++                    cachedEvent.synced = sync;
++                }
++                else {
++                    this._eventCache.set(topic, { data: data, synced: sync });
++                }
+             }
+             const subs = this._topicSubsMap.get(topic);
+             if (subs !== undefined) {
+diff --git a/msfssdk.js b/msfssdk.js
+index 975ad56ce1227a93dda392cd6e033f5f9d4fbe62..b8e8e999901ab067033891bf16018451a88a6147
+--- a/msfssdk.js
++++ b/msfssdk.js
+@@ -1596,6 +1596,8 @@ class SimVarPublisher extends BasePublisher {
+         this.resolvedSimVars = new Map();
+         this.indexedSimVars = new Map();
+         this.subscribed = new Map();
++        // Created once so that onUpdate allocates nothing per frame.
++        this.publishSubscribedTopicFn = (entry, topic) => this.publishTopic(topic, entry);
+         for (const [topic, entry] of entries) {
+             if (entry.indexed) {
+                 this.indexedSimVars.set(topic, {
+@@ -1713,9 +1715,7 @@ class SimVarPublisher extends BasePublisher {
+      * Publish all subscribed data points to the bus.
+      */
+     onUpdate() {
+-        for (const topicAndEntry of this.subscribed) {
+-            this.publishTopic(topicAndEntry[0], topicAndEntry[1]);
+-        }
++        this.subscribed.forEach(this.publishSubscribedTopicFn);
+     }
+     /**
+      * Publishes data to the event bus for a topic.
+@@ -2194,7 +2194,15 @@ class EventBus {
+      */
+     pub(topic, data, sync = false, isCached = true) {
+         if (isCached) {
+-            this._eventCache.set(topic, { data: data, synced: sync });
++            // Update the entry in place: a new object per cached publish is garbage in the heap all instruments share.
++            const cachedEvent = this._eventCache.get(topic);
++            if (cachedEvent !== undefined) {
++                cachedEvent.data = data;
++                cachedEvent.synced = sync;
++            }
++            else {
++                this._eventCache.set(topic, { data: data, synced: sync });
++            }
+         }
+         const subs = this._topicSubsMap.get(topic);
+         if (subs !== undefined) {
