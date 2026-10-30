@@ -12,9 +12,11 @@ import { Ata24SourcesEntries, Ata24SourcesFamilies } from './details/ata24Source
 import { Ata26FireEntries, Ata26FireFamilies } from './details/ata26Fire';
 import { Ata26SmokeBaysEntries, Ata26SmokeBaysFamilies } from './details/ata26SmokeBays';
 import { Ata26SmokeCabinEntries, Ata26SmokeCabinFamilies } from './details/ata26SmokeCabin';
+import { Ata29HeatExchangersFamilies } from './details/ata29HeatExchangers';
+import { Ata29PumpsEntries, Ata29PumpsFamilies } from './details/ata29Pumps';
 
 /** Chapters whose failures all have a detail; the coverage spec only demands these. */
-export const A380_DETAIL_CHAPTERS_DONE: readonly AtaChapterNumber[] = [21, 24, 26];
+export const A380_DETAIL_CHAPTERS_DONE: readonly AtaChapterNumber[] = [21, 24, 26, 29];
 
 export const A380FailureDetails: FailureDetailTable = {
   entries: {
@@ -27,6 +29,7 @@ export const A380FailureDetails: FailureDetailTable = {
     ...Ata26FireEntries,
     ...Ata26SmokeBaysEntries,
     ...Ata26SmokeCabinEntries,
+    ...Ata29PumpsEntries,
   },
   families: [
     ...Ata21CabinFamilies,
@@ -39,5 +42,7 @@ export const A380FailureDetails: FailureDetailTable = {
     ...Ata26FireFamilies,
     ...Ata26SmokeBaysFamilies,
     ...Ata26SmokeCabinFamilies,
+    ...Ata29PumpsFamilies,
+    ...Ata29HeatExchangersFamilies,
   ],
 };

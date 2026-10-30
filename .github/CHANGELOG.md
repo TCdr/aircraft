@@ -970,6 +970,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X] Fewer of the short stutters that came back every few seconds with the aircraft powered: the systems host, the ISIS and the displays make much less temporary data each frame - @TCdr
 1. [EFB] Failure details for the A380X electrical power failures (ATA 24) - @TCdr
 1. [EFB] Failure details for the A380X fire and smoke protection failures (ATA 26) - @TCdr
+1. [EFB] Failure details for the A380X hydraulic power failures (ATA 29) - @TCdr
 
 ## 2024.1.0
 
