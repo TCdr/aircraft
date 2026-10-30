@@ -31,6 +31,8 @@ export type OitSimvars = {
   fltOpsPageCapt: number;
   /** The FLT OPS page the first officer's OIT shows */
   fltOpsPageFo: number;
+  /** The FMGC flight phase (FmgcFlightPhase): the automatic flight follow-up of the FLT FOLDER works in cruise */
+  fmgcFlightPhase: number;
 };
 
 export type InternalKbdKeyEvent = {
@@ -74,6 +76,7 @@ export class OitSimvarPublisher extends SimVarPublisher<OitSimvars> {
     ],
     ['fltOpsPageCapt', { name: 'L:A380X_OIT_CAPT_FLT_OPS_PAGE', type: SimVarValueType.Number }],
     ['fltOpsPageFo', { name: 'L:A380X_OIT_FO_FLT_OPS_PAGE', type: SimVarValueType.Number }],
+    ['fmgcFlightPhase', { name: 'L:A32NX_FMGC_FLIGHT_PHASE', type: SimVarValueType.Number }],
   ]);
 
   public constructor(bus: EventBus) {

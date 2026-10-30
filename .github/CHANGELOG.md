@@ -67,6 +67,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OIT] COMPANY COM Inbox, Outbox and Sent have a ZOOM button that shows the displayed message in larger characters - @TCdr
 1. [A380X/OIT] COMPANY COM In-flight Reports: new Flight Delay and Flight Parameters reports - @TCdr
 1. [A380X/OIT] Restart FLT OPS startup sequence after laptop power loss - @HendersonTyler (Tyler Henderson)
+1. [A380X/OIT] The FLT FOLDER NAV LOG collects the flight follow-up: in the FMS cruise phase the aircraft position is collected every minute (every 20 s near a waypoint) and a waypoint passed within 7 nm shows its actual time and fuel, to validate with FUEL CHK; NEXT WPT inserts or skips waypoints, DELETE removes the inserted ones, FLOWN WPT shows the last flown waypoint, REFRESH takes the data of the other laptop, and a FLT REPORT panel shows the OUT, OFF, ON and IN times and fuel - @TCdr
 1. [A380X/OIT] New FLT OPS application OPS LIBRARY: the feature and simvar manuals, the ECAM procedures, the ECAM alerts of the flight, the deferred MEL and CDL items of the eLogbook, search, bookmarks and notes - @TCdr
 1. [A380X/MFD] Fix LS field remaining blank on F-PLN arrival page when no landing system is available or selected - @matze-tech (matze2346)
 1. [A380X/PRIM] Move FE to PRIM and add SPD LIM flag - @lukecologne (luke)
