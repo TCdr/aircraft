@@ -41,7 +41,7 @@ const LABEL_WIDTH = 16;
  * @param value its value
  * @returns the line, the values in one column
  */
-function entry(label: string, value: string): string {
+export function entry(label: string, value: string): string {
   return `${label.padEnd(LABEL_WIDTH)}${value}`;
 }
 

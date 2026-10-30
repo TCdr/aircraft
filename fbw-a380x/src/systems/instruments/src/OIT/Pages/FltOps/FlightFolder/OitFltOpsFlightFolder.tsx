@@ -31,6 +31,7 @@ import { FLT_FOLDER_URI } from '../FltOpsApplications';
 import { OisIdentificationDialog } from '../../Common/OisIdentificationDialog';
 import { PaneScope, PaneRule } from '../Shared/PaneLayout';
 import { DocumentNoteField } from '../Shared/DocumentNoteField';
+import { isPrintoutDocument, PRINTOUT_LINE_HEIGHT_EM, printoutLayout } from '../../../System/FlightFolderPrintout';
 import { DocumentNotes } from '../Shared/DocumentNotes';
 import { DocumentTextEntry } from '../Shared/DocumentTextEntry';
 import { DocumentTextField } from '../Shared/DocumentTextField';
@@ -672,19 +673,26 @@ export class OitFltOpsFlightFolder extends DisplayComponent<OitFltOpsFlightFolde
       return;
     }
     if (docNode !== null) {
-      this.renderText(container, docNode.text);
+      this.renderText(container, docNode.text, doc);
       return;
     }
     this.occurrenceLine.set('');
     this.renderListing(container, folder);
   }
 
-  private renderText(container: HTMLElement, text: string): void {
+  private renderText(container: HTMLElement, text: string, docId: string | null): void {
     const search = this.searchOpen.get() ? this.searchLive : '';
     const occurrences = findOccurrences(text, search);
     this.occurrenceLine.set(search.trim() === '' ? '' : occurrencesText(occurrences.length));
     const pre = document.createElement('pre');
     pre.className = 'oit-eff-text';
+    if (isPrintoutDocument(docId)) {
+      // The columns of a printout need a font with equal widths; it shrinks until the longest line fits the pane
+      const layout = printoutLayout(text);
+      pre.className += layout.wrap ? ' printout wrap' : ' printout';
+      pre.style.fontSize = `${layout.fontSizePx}px`;
+      pre.style.lineHeight = `${Math.ceil(layout.fontSizePx * PRINTOUT_LINE_HEIGHT_EM)}px`;
+    }
     let from = 0;
     let currentElement: HTMLElement | null = null;
     occurrences.forEach(([start, end], index) => {

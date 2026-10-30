@@ -230,6 +230,17 @@ $eff-panel-border: #868a9c;
   color: $display-white;
 }
 
+.oit-eff-text.printout {
+  font-family: "OIT-Mono", monospace;
+}
+
+.oit-eff-text.printout.wrap {
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  // The legacy name of overflow-wrap, for engines that only know that one
+  word-wrap: break-word;
+}
+
 .oit-eff-text .hit {
   background-color: $display-dark-grey;
   color: $display-background;

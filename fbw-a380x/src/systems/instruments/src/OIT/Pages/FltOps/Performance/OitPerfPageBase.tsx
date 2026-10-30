@@ -13,6 +13,7 @@ import {
   Subscription,
   VNode,
 } from '@microsoft/msfs-sdk';
+import { AocPrintout } from '@shared/AocPrintout';
 import { AbstractOitFltOpsPageProps } from '../../../OIT';
 import { OitPageFunction, OitShortcuts } from '../../../OitPageFunctions';
 import { Button } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
@@ -23,6 +24,12 @@ import { WindEntry, missingParameterErrors } from '../../../System/Performance/P
 import { PerformanceRunway } from '../../../System/Performance/PerformanceRunways';
 import { RunwayComputationMode } from '../../../System/Performance/FltOpsPerformanceSession';
 import { RunwayResultItem } from '../../../System/Performance/MultipleRunwayResults';
+import {
+  StoredApplicationCode,
+  storeAndAnnounce,
+  storeAvailability,
+} from '../../../System/Performance/PerformanceStore';
+import { OitFltOpsStoredPopup } from '../OitFltOpsStoredPopup';
 import {
   AircraftStatusItem,
   EMPTY_AIRCRAFT_STATUS,
@@ -143,6 +150,33 @@ export abstract class OitPerfPageBase<P extends AbstractOitFltOpsPageProps, R> e
       F2: this.shortcut(() => entries.computationMode.set('single')),
       'CTRL+F2': this.shortcut(() => entries.computationMode.set('multiple')),
     };
+  }
+
+  /** The application name in the title bar of the pop-up after STORE, null while the pop-up is hidden */
+  private readonly storedPopupTitle = Subject.create<string | null>(null);
+
+  /**
+   * @param code the application, which names the stored document
+   * @param printout the page as a printout, null when it has nothing to store
+   * @param hasPrintout whether the page has something to store
+   * @returns the STORE function of the page: the printout becomes a document of the current EFF, then the pop-up
+   * tells it
+   */
+  protected storePageFunction(
+    code: StoredApplicationCode,
+    printout: () => AocPrintout | null,
+    hasPrintout: Subscribable<boolean>,
+  ): OitPageFunction {
+    const flightFolder = this.props.container.laptop.flightFolder;
+    return {
+      run: () => storeAndAnnounce(flightFolder, code, printout(), this.storedPopupTitle),
+      available: this.tracked(storeAvailability(flightFolder, hasPrintout, this.storedPopupTitle)),
+    };
+  }
+
+  /** @returns the pop-up after STORE, to draw over the page */
+  protected renderStoredPopup(): VNode {
+    return <OitFltOpsStoredPopup title={this.storedPopupTitle} />;
   }
 
   /**
