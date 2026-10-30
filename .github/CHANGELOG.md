@@ -990,6 +990,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [EFB] Failure details for the A380X flight control failures (ATA 27) - @TCdr
 1. [EFB] Failure details for the A380X landing gear, brakes, steering and tire failures (ATA 32) - @TCdr
 1. [EFB] Failure details for the A380X pneumatic failures: bleed valves, duct leaks and leak detection (ATA 36) - @TCdr
+1. [EFB] Failure details for the A380X ice and rain protection failures: anti-ice valves and control, ice detectors, probe and window heating (ATA 30) - @TCdr
 
 ## 2024.1.0
 
