@@ -6,11 +6,20 @@ import {
   AbstractChecklistItem,
   ChecklistAction,
   EcamAbnormalProcedures,
+  FMS_PRED_UNRELIABLE_CHECKLIST_ITEM,
   WD_LINE_CHARACTERS,
   isChecklistAction,
   isChecklistCondition,
 } from '../../MsfsAvionicsCommon/EcamMessages';
 import type { ChecklistState } from '../../MsfsAvionicsCommon/providers/FwsPublisher';
+
+/**
+ * The procedure tables spread FMS_PRED_UNRELIABLE_CHECKLIST_ITEM, which the bundle defines after the tables: the spread
+ * reads undefined and leaves an item without a name. That item is the FMS PRED UNRELIABLE line.
+ */
+function restoreSpreadItem(item: AbstractChecklistItem): AbstractChecklistItem {
+  return item.name === undefined ? { ...FMS_PRED_UNRELIABLE_CHECKLIST_ITEM, ...item } : item;
+}
 
 export function procedureExists(procedureId: string): boolean {
   return EcamAbnormalProcedures[Number(procedureId)] !== undefined;
@@ -78,6 +87,7 @@ export function alertProcedures(
     if (!procedure) {
       continue;
     }
+    const items = procedure.items.map(restoreSpreadItem);
 
     // the title can span two EWD lines, the flyPad shows it on one
     const title = parseEcamText(procedure.title.replace(/\s*\n\s*/g, ' '));
@@ -87,14 +97,14 @@ export function alertProcedures(
       procedures.push({
         alertId: procedureId,
         title,
-        lines: procedure.items.map((item) => buildLine(item, false, 'reference')),
+        lines: items.map((item) => buildLine(item, false, 'reference')),
       });
       continue;
     }
 
     const state = presented[presentedIndex];
     const lines: ProcedureLine[] = [];
-    procedure.items.forEach((item, index) => {
+    items.forEach((item, index) => {
       if (state.itemsToShow[index]) {
         const checked = !!state.itemsChecked[index];
         const inactive = !state.itemsActive[index] || !state.procedureActivated;
