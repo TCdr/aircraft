@@ -61,11 +61,29 @@ vi.mock('../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/se
   EcamAbnormalSecondaryFailures: {},
 }));
 
+const ALERT_TABLES: [string, string][] = [
+  ['ata21-22-23', 'EcamAbnormalSensedAta212223'],
+  ['ata24', 'EcamAbnormalSensedAta24'],
+  ['ata26', 'EcamAbnormalSensedAta26'],
+  ['ata27', 'EcamAbnormalSensedAta27'],
+  ['ata28', 'EcamAbnormalSensedAta28'],
+  ['ata29-30', 'EcamAbnormalSensedAta2930'],
+  ['ata31-32-33', 'EcamAbnormalSensedAta313233'],
+  ['ata34', 'EcamAbnormalSensedAta34'],
+  ['ata35-36-42', 'EcamAbnormalSensedAta353642'],
+  ['ata46-49-52-56', 'EcamAbnormalSensedAta46495256'],
+  ['ata70', 'EcamAbnormalSensedAta70'],
+  ['ata80-rest', 'EcamAbnormalSensedAta80Rest'],
+  ['secondary-failures', 'EcamAbnormalSecondaryFailures'],
+];
+
 beforeAll(async () => {
-  const actual = await vi.importActual<{ EcamAbnormalSensedAta212223: typeof EcamAbnormalProcedures }>(
-    '../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata21-22-23',
-  );
-  Object.assign(EcamAbnormalProcedures, actual.EcamAbnormalSensedAta212223);
+  for (const [file, exportName] of ALERT_TABLES) {
+    const actual = await vi.importActual<Record<string, typeof EcamAbnormalProcedures>>(
+      `../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/${file}`,
+    );
+    Object.assign(EcamAbnormalProcedures, actual[exportName]);
+  }
 });
 
 const DOCUMENT_REFERENCE = /FCOM|DSC-|QRH|\.ts\b|line \d/i;
