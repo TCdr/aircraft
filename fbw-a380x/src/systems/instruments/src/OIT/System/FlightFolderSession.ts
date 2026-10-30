@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { MappedSubject, Subject, Subscribable } from '@microsoft/msfs-sdk';
+import { MappedSubject, Subject, Subscribable, Subscription } from '@microsoft/msfs-sdk';
 import type { ISimbriefData } from '@flybywiresim/fbw-sdk';
 import { FlightFolder, EffSyncState } from './FlightFolder';
 import { buildFlightFolderTree } from './FlightFolderDocuments';
@@ -93,6 +93,10 @@ export class FlightFolderSession {
     this._currentId,
   );
 
+  private readonly _storeAvailable = Subject.create(false);
+  /** Whether STORE can be used: there is a current folder and it is not closed */
+  public readonly storeAvailable = this._storeAvailable as Subscribable<boolean>;
+
   private readonly _pending = Subject.create<readonly PendingImport[]>([]);
   /** The EFFs loaded and not imported: the import pop-up lists them */
   public readonly pending = this._pending as Subscribable<readonly PendingImport[]>;
@@ -141,7 +145,15 @@ export class FlightFolderSession {
     private readonly network: FlightFolderNetwork,
     private readonly metric: () => boolean,
     private readonly addToExportBox: (identifier: string, source: string, nowMs: number) => void,
-  ) {}
+  ) {
+    let folderChanges: Subscription | null = null;
+    this.current.sub((folder) => {
+      folderChanges?.destroy();
+      const update = () => this._storeAvailable.set(folder !== null && !folder.closed);
+      folderChanges = folder?.changed.sub(update) ?? null;
+      update();
+    }, true);
+  }
 
   /**
    * The LOAD BOX loaded items into this laptop: the new ones, or newer OFPs of a known flight, wait to be imported
@@ -428,7 +440,6 @@ export class FlightFolderSession {
 
   /** @returns whether the current folder takes a STORE */
   public canStore(): boolean {
-    const folder = this.current.get();
-    return folder !== null && !folder.closed;
+    return this._storeAvailable.get();
   }
 }

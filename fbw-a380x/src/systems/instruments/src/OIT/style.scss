@@ -28,6 +28,16 @@
   font-style: normal;
 }
 
+// The printouts of the FLT FOLDER: space aligned columns need equal character widths, and the generic monospace font of
+// the sim browser has no degree sign
+@font-face {
+  font-family: "OIT-Mono";
+  //noinspection CssUnknownTarget
+  src: url("/Fonts/fbw-a380x/EFB/JetBrainsMono-Regular.ttf") format("truetype");
+  font-weight: normal;
+  font-style: normal;
+}
+
 .oit-main {
   position: absolute;
   width: 1333px;

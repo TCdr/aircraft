@@ -3,7 +3,7 @@
 
 import { FSComponent, MappedSubject, Subject, Subscribable, VNode } from '@microsoft/msfs-sdk';
 import { LandingComputationType, LandingConf, NXUnits } from '@flybywiresim/fbw-sdk';
-import { A380AocPrintEvents } from '@shared/AocPrintout';
+import { A380AocPrintEvents, AocPrintout } from '@shared/AocPrintout';
 import { AbstractOitFltOpsPageProps } from '../../../OIT';
 import { Button } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
 import { OitPerfEntryFormat } from './OitPerfEntryFormat';
@@ -188,11 +188,11 @@ export class OitFltOpsLandingPerf extends OitPerfPageBase<OitFltOpsLandingPerfPr
     this.session.onLandingComputed(shown, runs);
   }
 
-  /** PRINT: the page as shown (the conditions, the aircraft status, the results of the runway shown) */
-  private print(): void {
+  /** @returns the page as shown (the conditions, the aircraft status, the results of the runway shown) */
+  private printout(): AocPrintout | null {
     const computation = this.state.computation.get();
     if (!computation || computation.results === null) {
-      return;
+      return null;
     }
     const s = this.state;
     const wind = s.wind.get();
@@ -211,22 +211,25 @@ export class OitFltOpsLandingPerf extends OitPerfPageBase<OitFltOpsLandingPerfPr
       ['BRK MODE', LANDING_BRAKING_OPTIONS[s.braking.get()].label],
     ];
     const status = this.aircraftStatus.get();
-    this.props.bus.getPublisher<A380AocPrintEvents>().pub(
-      'aocPrintMessage',
-      landingPerfPrintout({
-        flightNumber: this.sts.fltNumber.get() ?? '',
-        airport: s.airport.get() ?? '',
-        conditions,
-        aircraftStatus: reminderLines(status, this.application).map((line) => line.text),
-        notInComputation: itemsNotInComputation(status, this.application),
-        results: computation.results,
-        errors: computation.errors,
-        runwayList: this.runwayItems.get().map((item) => item.label),
-        metric: this.metric,
-      }),
-      true,
-      false,
-    );
+    return landingPerfPrintout({
+      flightNumber: this.sts.fltNumber.get() ?? '',
+      airport: s.airport.get() ?? '',
+      conditions,
+      aircraftStatus: reminderLines(status, this.application).map((line) => line.text),
+      notInComputation: itemsNotInComputation(status, this.application),
+      results: computation.results,
+      errors: computation.errors,
+      runwayList: this.runwayItems.get().map((item) => item.label),
+      metric: this.metric,
+    });
+  }
+
+  /** PRINT: the page goes to the cockpit printer through the AOC printout route */
+  private print(): void {
+    const printout = this.printout();
+    if (printout !== null) {
+      this.props.bus.getPublisher<A380AocPrintEvents>().pub('aocPrintMessage', printout, true, false);
+    }
   }
 
   private clear(): void {
@@ -257,8 +260,10 @@ export class OitFltOpsLandingPerf extends OitPerfPageBase<OitFltOpsLandingPerfPr
       return;
     }
 
+    const hasResults = this.tracked(this.results.map((r) => r !== null));
     this.props.uiService.registerPageFunctions({
-      print: { run: () => this.print(), available: this.tracked(this.results.map((r) => r !== null)) },
+      print: { run: () => this.print(), available: hasResults },
+      store: this.storePageFunction('LDPA', () => this.printout(), hasResults),
     });
     this.props.uiService.registerPageShortcuts({
       ...this.runwayComputationShortcuts(this.state),
@@ -680,6 +685,7 @@ export class OitFltOpsLandingPerf extends OitPerfPageBase<OitFltOpsLandingPerfPr
           <div style="flex: 1 1 auto;" />
         </div>
         {this.renderAircraftStatusPanel()}
+        {this.renderStoredPopup()}
       </div>
     );
   }

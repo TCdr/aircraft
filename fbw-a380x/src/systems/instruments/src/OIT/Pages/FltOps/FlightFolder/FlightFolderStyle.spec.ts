@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 const read = (path: string) => readFileSync(resolve(__dirname, path), 'utf-8').replace(/\r\n/g, '\n');
 const folderStyle = read('flight-folder.scss');
 const opsStyle = read('../OpsLibrary/ops-library.scss');
+const mainStyle = read('../../../style.scss');
 
 /** A height of its own, not the minimum height of a row that may still shrink */
 const HEIGHT = /\n\s+height: \d+px;/;
@@ -34,6 +35,12 @@ describe('FLT FOLDER document pane style', () => {
     for (const selector of ['.oit-eff-note', '.oit-eff-search', '.oit-eff-search-count', '.oit-eff-doc-head']) {
       expect(declarationsOf(folderStyle, selector), selector).toMatch(HEIGHT);
     }
+  });
+
+  it('shows the printouts in the shipped monospaced font, which has the degree sign', () => {
+    expect(declarationsOf(folderStyle, '.oit-eff-text.printout')).toContain('"OIT-Mono"');
+    expect(mainStyle).toContain('font-family: "OIT-Mono";');
+    expect(mainStyle).toContain('/Fonts/fbw-a380x/EFB/JetBrainsMono-Regular.ttf');
   });
 });
 
