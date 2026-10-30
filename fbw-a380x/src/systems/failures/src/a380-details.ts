@@ -33,9 +33,11 @@ import { Ata32TiresFamilies } from './details/ata32Tires';
 import { Ata36ValvesEntries, Ata36ValvesFamilies } from './details/ata36Valves';
 import { Ata36LeaksEntries, Ata36LeaksFamilies } from './details/ata36Leaks';
 import { Ata36LeakDetectionEntries, Ata36LeakDetectionFamilies } from './details/ata36LeakDetection';
+import { Ata30AntiIceEntries, Ata30AntiIceFamilies } from './details/ata30AntiIce';
+import { Ata30ProbesWindowsEntries, Ata30ProbesWindowsFamilies } from './details/ata30ProbesWindows';
 
 /** Chapters whose failures all have a detail; the coverage spec only demands these. */
-export const A380_DETAIL_CHAPTERS_DONE: readonly AtaChapterNumber[] = [21, 24, 26, 27, 28, 29, 32, 36];
+export const A380_DETAIL_CHAPTERS_DONE: readonly AtaChapterNumber[] = [21, 24, 26, 27, 28, 29, 30, 32, 36];
 
 export const A380FailureDetails: FailureDetailTable = {
   entries: {
@@ -64,6 +66,8 @@ export const A380FailureDetails: FailureDetailTable = {
     ...Ata36ValvesEntries,
     ...Ata36LeaksEntries,
     ...Ata36LeakDetectionEntries,
+    ...Ata30AntiIceEntries,
+    ...Ata30ProbesWindowsEntries,
   },
   families: [
     ...Ata21CabinFamilies,
@@ -95,5 +99,7 @@ export const A380FailureDetails: FailureDetailTable = {
     ...Ata36ValvesFamilies,
     ...Ata36LeaksFamilies,
     ...Ata36LeakDetectionFamilies,
+    ...Ata30AntiIceFamilies,
+    ...Ata30ProbesWindowsFamilies,
   ],
 };
