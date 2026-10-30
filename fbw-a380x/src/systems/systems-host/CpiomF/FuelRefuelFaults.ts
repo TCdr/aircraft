@@ -1,10 +1,10 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { Instrument, SimVarValueType } from '@microsoft/msfs-sdk';
-import { FailuresConsumer } from '@flybywiresim/fbw-sdk';
+import { Instrument } from '@microsoft/msfs-sdk';
+import { FailuresConsumer, RegisteredSimVar } from '@flybywiresim/fbw-sdk';
 import { A380Failure } from '@failures';
-import { isFuelOverflowDetected } from './FuelOverflow';
+import { FuelOverflowDetectionReader } from './FuelOverflow';
 
 /** The refuel (flyPad, refuel panel, OIS REFUEL, GSX): the systems a380 FQMS refuels while it is set */
 export const REFUEL_STARTED_VAR = 'L:A32NX_REFUEL_STARTED_BY_USR';
@@ -61,6 +61,16 @@ export class RefuelFaultLogic {
 export class FuelRefuelFaults implements Instrument {
   private readonly logic = new RefuelFaultLogic();
 
+  private readonly overflowDetection = new FuelOverflowDetectionReader();
+
+  private readonly refuelStarted = RegisteredSimVar.createBoolean(REFUEL_STARTED_VAR);
+
+  private readonly refuelFaultOutput = RegisteredSimVar.createBoolean(REFUEL_FAULT_VAR);
+
+  private readonly leftIsolationValveFaultOutput = RegisteredSimVar.createBoolean(REFUEL_L_ISOL_VALVE_FAULT_VAR);
+
+  private readonly rightIsolationValveFaultOutput = RegisteredSimVar.createBoolean(REFUEL_R_ISOL_VALVE_FAULT_VAR);
+
   constructor(private readonly failures: Pick<FailuresConsumer, 'isActive'>) {}
 
   public init(): void {
@@ -70,22 +80,14 @@ export class FuelRefuelFaults implements Instrument {
   public onUpdate(): void {
     const outputs = this.logic.update({
       refuelSystemFailed: this.failures.isActive(A380Failure.FuelRefuelSystem),
-      refuelRequested: SimVar.GetSimVarValue(REFUEL_STARTED_VAR, SimVarValueType.Bool) > 0,
-      overflowDetected: isFuelOverflowDetected((name) => SimVar.GetSimVarValue(name, SimVarValueType.Bool)),
+      refuelRequested: this.refuelStarted.get(),
+      overflowDetected: this.overflowDetection.isOverflowDetected(),
     });
     if (outputs.stopRefuel) {
-      SimVar.SetSimVarValue(REFUEL_STARTED_VAR, SimVarValueType.Bool, false);
+      this.refuelStarted.set(false);
     }
-    SimVar.SetSimVarValue(REFUEL_FAULT_VAR, SimVarValueType.Bool, outputs.refuelFault);
-    SimVar.SetSimVarValue(
-      REFUEL_L_ISOL_VALVE_FAULT_VAR,
-      SimVarValueType.Bool,
-      this.failures.isActive(A380Failure.FuelRefuelLeftIsolationValve),
-    );
-    SimVar.SetSimVarValue(
-      REFUEL_R_ISOL_VALVE_FAULT_VAR,
-      SimVarValueType.Bool,
-      this.failures.isActive(A380Failure.FuelRefuelRightIsolationValve),
-    );
+    this.refuelFaultOutput.set(outputs.refuelFault);
+    this.leftIsolationValveFaultOutput.set(this.failures.isActive(A380Failure.FuelRefuelLeftIsolationValve));
+    this.rightIsolationValveFaultOutput.set(this.failures.isActive(A380Failure.FuelRefuelRightIsolationValve));
   }
 }

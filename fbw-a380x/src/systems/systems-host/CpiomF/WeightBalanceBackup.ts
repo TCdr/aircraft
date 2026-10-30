@@ -2,7 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { Instrument, SimVarValueType } from '@microsoft/msfs-sdk';
-import { Arinc429Register, Arinc429SignStatusMatrix, Arinc429Word, FailuresConsumer } from '@flybywiresim/fbw-sdk';
+import {
+  Arinc429Register,
+  Arinc429SignStatusMatrix,
+  Arinc429WordData,
+  FailuresConsumer,
+  RegisteredSimVar,
+} from '@flybywiresim/fbw-sdk';
 import { A380Failure } from '@failures';
 
 /*
@@ -82,7 +88,7 @@ const WBBC_CG_VAR = 'L:A380X_WBBC_CENTER_OF_GRAVITY_MAC';
  * A32NX_SFCC_{number}_SLAT_FLAP_ACTUAL_POSITION_WORD: bit 11 slat data valid, 12 slats retracted, 18 flap data valid,
  * 19 flaps retracted); null when the word or its slat or flap data is not valid.
  */
-export function slatsAndFlapsRetractedFromSfcc(word: Arinc429Word): boolean | null {
+export function slatsAndFlapsRetractedFromSfcc(word: Arinc429WordData): boolean | null {
   if (!word.isNormalOperation() || !word.bitValueOr(11, false) || !word.bitValueOr(18, false)) {
     return null;
   }
@@ -113,6 +119,39 @@ export class WeightBalanceBackup implements Instrument {
 
   private readonly output = Arinc429Register.empty();
 
+  private readonly sfcc1Word = RegisteredSimVar.create(
+    'L:A32NX_SFCC_1_SLAT_FLAP_ACTUAL_POSITION_WORD',
+    SimVarValueType.Number,
+  );
+
+  private readonly sfcc2Word = RegisteredSimVar.create(
+    'L:A32NX_SFCC_2_SLAT_FLAP_ACTUAL_POSITION_WORD',
+    SimVarValueType.Number,
+  );
+
+  private readonly sfccWord = Arinc429Register.empty();
+
+  private readonly fuelUsedKg = [1, 2, 3, 4].map((engine) =>
+    RegisteredSimVar.create(`L:A32NX_FUEL_USED:${engine}`, SimVarValueType.Number),
+  );
+
+  private readonly onGround = RegisteredSimVar.createBoolean('SIM ON GROUND');
+
+  private readonly aerodynamicGrossWeightKg = RegisteredSimVar.create('TOTAL WEIGHT', SimVarValueType.Kilograms);
+
+  private readonly aerodynamicCgPercentMac = RegisteredSimVar.create(
+    'L:A32NX_AIRFRAME_GW_CG_PERCENT_MAC',
+    SimVarValueType.Number,
+  );
+
+  private lastGrossWeightWord: number | null = null;
+
+  private lastCgWord: number | null = null;
+
+  private readonly grossWeightOutput = RegisteredSimVar.create(WBBC_GROSS_WEIGHT_VAR, SimVarValueType.String);
+
+  private readonly cgOutput = RegisteredSimVar.create(WBBC_CG_VAR, SimVarValueType.String);
+
   constructor(private readonly failures: Pick<FailuresConsumer, 'isActive'>) {}
 
   public init(): void {
@@ -120,24 +159,29 @@ export class WeightBalanceBackup implements Instrument {
   }
 
   public onUpdate(): void {
-    const sfcc1 = Arinc429Word.fromSimVarValue('L:A32NX_SFCC_1_SLAT_FLAP_ACTUAL_POSITION_WORD');
-    const sfcc2 = Arinc429Word.fromSimVarValue('L:A32NX_SFCC_2_SLAT_FLAP_ACTUAL_POSITION_WORD');
+    const slatsAndFlapsRetracted =
+      slatsAndFlapsRetractedFromSfcc(this.sfccWord.set(this.sfcc1Word.get())) ??
+      slatsAndFlapsRetractedFromSfcc(this.sfccWord.set(this.sfcc2Word.get()));
     let fuelUsedKg = 0;
-    for (let engine = 1; engine <= 4; engine++) {
-      fuelUsedKg += SimVar.GetSimVarValue(`L:A32NX_FUEL_USED:${engine}`, SimVarValueType.Number);
+    for (const engineFuelUsedKg of this.fuelUsedKg) {
+      fuelUsedKg += engineFuelUsedKg.get();
     }
     const outputs = this.computer.update({
-      onGround: SimVar.GetSimVarValue('SIM ON GROUND', SimVarValueType.Bool) > 0,
-      slatsAndFlapsRetracted: slatsAndFlapsRetractedFromSfcc(sfcc1) ?? slatsAndFlapsRetractedFromSfcc(sfcc2),
-      aerodynamicGrossWeightKg: SimVar.GetSimVarValue('TOTAL WEIGHT', 'kilogram'),
-      aerodynamicCgPercentMac: SimVar.GetSimVarValue('L:A32NX_AIRFRAME_GW_CG_PERCENT_MAC', SimVarValueType.Number),
+      onGround: this.onGround.get(),
+      slatsAndFlapsRetracted,
+      aerodynamicGrossWeightKg: this.aerodynamicGrossWeightKg.get(),
+      aerodynamicCgPercentMac: this.aerodynamicCgPercentMac.get(),
       fuelUsedKg,
     });
-    this.write(WBBC_GROSS_WEIGHT_VAR, outputs.grossWeightKg);
-    this.write(WBBC_CG_VAR, outputs.cgPercentMac);
+    this.lastGrossWeightWord = this.write(this.grossWeightOutput, this.lastGrossWeightWord, outputs.grossWeightKg);
+    this.lastCgWord = this.write(this.cgOutput, this.lastCgWord, outputs.cgPercentMac);
   }
 
-  private write(name: string, value: number | null): void {
+  /**
+   * Writes the output as an ARINC 429 word in a string L:var (a number cannot hold the SSM bits), only when it changed
+   * @returns the raw word written, to compare with at the next update
+   */
+  private write(output: RegisteredSimVar<string>, lastRawWord: number | null, value: number | null): number {
     const ssm = wbbcOutputSsm(
       this.failures.isActive(A380Failure.Wbbc1),
       this.failures.isActive(A380Failure.Wbbc2),
@@ -145,6 +189,9 @@ export class WeightBalanceBackup implements Instrument {
     );
     this.output.setValue(ssm === Arinc429SignStatusMatrix.NormalOperation ? value ?? 0 : 0);
     this.output.setSsm(ssm);
-    this.output.writeToSimVar(name);
+    if (this.output.rawWord !== lastRawWord) {
+      output.set(this.output.rawWord.toString());
+    }
+    return this.output.rawWord;
   }
 }

@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { mockSimVars } from '../../../../../fbw-common/src/jest/MockedSimVars';
 import { A380Failure } from '@failures';
 import {
   DRAIN_BACK_RATE_LB_PER_H,
   FuelOverflow,
-  isFuelOverflowDetected,
+  FuelOverflowDetectionReader,
   L_WING_TK_OVERFLOW_VAR,
   OVERFLOW_RATE_LB_PER_H,
   OverflowInputs,
@@ -75,11 +76,7 @@ describe('A380 fuel overflow in the fuel system', () => {
   beforeEach(() => {
     simVars.clear();
     failures.clear();
-    vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) => simVars.get(name) ?? 0);
-    vi.spyOn(SimVar, 'SetSimVarValue').mockImplementation((name: string, _unit: string, value: number | boolean) => {
-      simVars.set(name, value);
-      return Promise.resolve();
-    });
+    mockSimVars(simVars);
     simVars.set('FUEL WEIGHT PER GALLON', 6.7);
     for (let tank = 1; tank <= 11; tank++) {
       simVars.set(`FUELSYSTEM TANK CAPACITY:${tank}`, 5000);
@@ -100,7 +97,7 @@ describe('A380 fuel overflow in the fuel system', () => {
       overflow.onUpdate();
     }
     expect(simVars.get(L_WING_TK_OVERFLOW_VAR)).toBe(true);
-    expect(isFuelOverflowDetected((name) => Number(simVars.get(name) ?? 0))).toBe(true);
+    expect(new FuelOverflowDetectionReader().isOverflowDetected()).toBe(true);
   });
 
   it('FUEL TRIM TK OVERFLOW: the transfer pumps of a mid tank spill its fuel through the full trim tank', () => {

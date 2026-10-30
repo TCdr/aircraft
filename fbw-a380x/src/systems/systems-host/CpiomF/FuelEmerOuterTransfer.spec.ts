@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { mockSimVars } from '../../../../../fbw-common/src/jest/MockedSimVars';
 import { FuelSwitchAccess } from '@flybywiresim/fbw-sdk';
 import { L_OUTR_TK_PUMP, OUTR_TK_XFR_PB_IS_AUTO_VAR, R_OUTR_TK_PUMP } from './FuelManualTransfer';
 import {
@@ -44,7 +45,7 @@ describe('FuelEmerOuterTransfer', () => {
   beforeEach(() => {
     simVars.clear();
     commands.length = 0;
-    vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) => simVars.get(name) ?? 0);
+    mockSimVars(simVars);
     // The normal panel: OUTR TK XFR in AUTO, both outer tank pumps ON
     simVars.set(OUTR_TK_XFR_PB_IS_AUTO_VAR, 1);
     simVars.set(`A:CIRCUIT CONNECTION ON:${L_OUTR_TK_PUMP.circuit}`, 1);

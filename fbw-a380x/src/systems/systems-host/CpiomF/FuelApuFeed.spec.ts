@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { mockSimVars } from '../../../../../fbw-common/src/jest/MockedSimVars';
 import { FuelSwitchAccess } from '@flybywiresim/fbw-sdk';
 import { A380Failure } from '@failures';
 import {
@@ -70,11 +71,7 @@ describe('A380 APU feed valves and their jams', () => {
   beforeEach(() => {
     simVars.clear();
     failures.clear();
-    vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) => simVars.get(name) ?? 0);
-    vi.spyOn(SimVar, 'SetSimVarValue').mockImplementation((name: string, _unit: string, value: number | boolean) => {
-      simVars.set(name, value);
-      return Promise.resolve();
-    });
+    mockSimVars(simVars);
     // The flight files leave both valves open
     for (const valve of [APU_ISOLATION_VALVE, APU_LP_VALVE]) {
       simVars.set(`A:FUELSYSTEM VALVE SWITCH:${valve}`, 1);

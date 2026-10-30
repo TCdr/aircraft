@@ -1,6 +1,9 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
+import { SimVarValueType } from '@microsoft/msfs-sdk';
+import { RegisteredSimVar } from '../SimVarUtils';
+
 /**
  * What a failure does to an MSFS fuel valve or pump switch:
  * - 'jam': the switch is held where the valve was when it jammed (a valve jammed in place);
@@ -43,27 +46,59 @@ export interface FuelSwitchAccess {
   command(index: number, on: boolean): void;
 }
 
-const isLVarOn = (selectionVar: string): boolean => SimVar.GetSimVarValue(selectionVar, 'Bool') > 0;
+/**
+ * Gives the registered simvar of a switch index, created at the first use: the access functions run every update, and
+ * reading by name would build the name string and look the simvar up again each time.
+ */
+function registeredPerIndex<T>(create: (index: number) => T): (index: number) => T {
+  const handles: T[] = [];
+  return (index) => {
+    let handle = handles[index];
+    if (handle === undefined) {
+      handle = create(index);
+      handles[index] = handle;
+    }
+    return handle;
+  };
+}
+
+const selectionHandles = new Map<string, RegisteredSimVar<boolean>>();
+const isLVarOn = (selectionVar: string): boolean => {
+  let handle = selectionHandles.get(selectionVar);
+  if (handle === undefined) {
+    handle = RegisteredSimVar.createBoolean(selectionVar);
+    selectionHandles.set(selectionVar, handle);
+  }
+  return handle.get();
+};
 const setLVar = (selectionVar: string, on: boolean): void => {
   SimVar.SetSimVarValue(selectionVar, 'Bool', on);
 };
+
+const valveSwitch = registeredPerIndex((valve) => RegisteredSimVar.createBoolean(`A:FUELSYSTEM VALVE SWITCH:${valve}`));
+const valveOpenRatio = registeredPerIndex((valve) =>
+  RegisteredSimVar.create(`A:FUELSYSTEM VALVE OPEN:${valve}`, SimVarValueType.PercentOver100),
+);
 
 /** The MSFS fuel valves (Valve.N) */
 export const msfsFuelValveAccess: FuelSwitchAccess = {
   isSelected: isLVarOn,
   setSelected: setLVar,
-  isSwitchOn: (valve) => SimVar.GetSimVarValue(`A:FUELSYSTEM VALVE SWITCH:${valve}`, 'Bool') > 0,
-  position: (valve) => SimVar.GetSimVarValue(`A:FUELSYSTEM VALVE OPEN:${valve}`, 'Percent over 100'),
+  isSwitchOn: (valve) => valveSwitch(valve).get(),
+  position: (valve) => valveOpenRatio(valve).get(),
   command: (valve, open) =>
     SimVar.SetSimVarValue(open ? 'K:FUELSYSTEM_VALVE_OPEN' : 'K:FUELSYSTEM_VALVE_CLOSE', 'number', valve),
 };
+
+const pumpSwitch = registeredPerIndex((pump) => RegisteredSimVar.createBoolean(`A:FUELSYSTEM PUMP SWITCH:${pump}`));
+const pumpActive = registeredPerIndex((pump) => RegisteredSimVar.createBoolean(`A:FUELSYSTEM PUMP ACTIVE:${pump}`));
 
 /** The MSFS fuel pumps (Pump.N) */
 export const msfsFuelPumpAccess: FuelSwitchAccess = {
   isSelected: isLVarOn,
   setSelected: setLVar,
-  isSwitchOn: (pump) => SimVar.GetSimVarValue(`A:FUELSYSTEM PUMP SWITCH:${pump}`, 'Bool') > 0,
-  position: (pump) => (SimVar.GetSimVarValue(`A:FUELSYSTEM PUMP ACTIVE:${pump}`, 'Bool') > 0 ? 1 : 0),
+  isSwitchOn: (pump) => pumpSwitch(pump).get(),
+  position: (pump) => (pumpActive(pump).get() ? 1 : 0),
   command: (pump, on) => SimVar.SetSimVarValue(on ? 'K:FUELSYSTEM_PUMP_ON' : 'K:FUELSYSTEM_PUMP_OFF', 'number', pump),
 };
 
@@ -149,7 +184,9 @@ export class FailableFuelSwitchesDriver {
    * @param deltaTime the time since the last update, in milliseconds
    */
   public update(deltaTime: number): void {
-    this.switches.forEach((fuelSwitch, index) => this.updateSwitch(fuelSwitch, this.states[index], deltaTime));
+    for (let index = 0; index < this.switches.length; index++) {
+      this.updateSwitch(this.switches[index], this.states[index], deltaTime);
+    }
   }
 
   private updateSwitch(

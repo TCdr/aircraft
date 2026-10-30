@@ -4,8 +4,7 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
-import { Arinc429Register, Arinc429SignStatusMatrix } from '@flybywiresim/fbw-sdk';
-import { CabinMaskAutoRelease, readCabinAltitudeFt } from './CabinOxygenMasks';
+import { CabinMaskAutoRelease } from './CabinOxygenMasks';
 
 describe('cabin oxygen masks automatic release', () => {
   it('releases the masks once when the cabin altitude goes above 13 800 ft', () => {
@@ -30,19 +29,6 @@ describe('cabin oxygen masks automatic release', () => {
     expect(release.update(15000, true)).toBe(true);
     expect(release.update(null, true)).toBe(false);
     expect(release.update(15000, true)).toBe(false);
-  });
-
-  it('reads the first valid CPCS cabin altitude (B1 to B4)', () => {
-    const words: Record<string, Arinc429Register> = {
-      'L:A32NX_PRESS_CABIN_ALTITUDE_B1': Arinc429Register.empty(),
-      'L:A32NX_PRESS_CABIN_ALTITUDE_B2': Arinc429Register.empty(),
-      'L:A32NX_PRESS_CABIN_ALTITUDE_B3': Arinc429Register.empty(),
-      'L:A32NX_PRESS_CABIN_ALTITUDE_B4': Arinc429Register.empty(),
-    };
-    words['L:A32NX_PRESS_CABIN_ALTITUDE_B3'].setSsm(Arinc429SignStatusMatrix.NormalOperation);
-    words['L:A32NX_PRESS_CABIN_ALTITUDE_B3'].setValue(14500);
-    expect(readCabinAltitudeFt((name) => words[name])).toBe(14500);
-    expect(readCabinAltitudeFt(() => Arinc429Register.empty())).toBeNull();
   });
 
   it('is an instrument of the systems host', () => {

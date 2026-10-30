@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { Instrument, SimVarValueType } from '@microsoft/msfs-sdk';
+import { RegisteredSimVar } from '@flybywiresim/fbw-sdk';
 import { A380FuelTankName, fuelTankTemperatureVar } from '@shared/FuelTankIndications';
 
 /*
@@ -96,18 +97,36 @@ export class FuelTankTemperatures {
       return this.temperaturesC;
     }
     const dtH = Math.max(deltaTimeS, 0) / 3600;
-    this.temperaturesC = this.temperaturesC.map((temperatureC, index) => {
+    const temperaturesC = this.temperaturesC;
+    for (let index = 0; index < temperaturesC.length; index++) {
       const fillRatio = Math.min(Math.max(inputs.fillRatios[index] ?? 0, MIN_FILL_RATIO), 1);
       const timeConstantH = TANK_TIME_CONSTANTS_H[A380_FUEL_TANKS[index].name] * fillRatio;
-      return temperatureC + (surroundingC - temperatureC) * (1 - Math.exp(-dtH / timeConstantH));
-    });
-    return this.temperaturesC;
+      temperaturesC[index] += (surroundingC - temperaturesC[index]) * (1 - Math.exp(-dtH / timeConstantH));
+    }
+    return temperaturesC;
   }
 }
 
 /** Writes the tank temperatures (A380X_FUEL_{tank}_TANK_TEMPERATURE) */
 export class FuelTemperatures implements Instrument {
   private readonly model = new FuelTankTemperatures();
+
+  private readonly onGround = RegisteredSimVar.createBoolean('SIM ON GROUND');
+
+  private readonly outsideAirTemperatureC = RegisteredSimVar.create('AMBIENT TEMPERATURE', SimVarValueType.Celsius);
+
+  private readonly totalAirTemperatureC = RegisteredSimVar.create('TOTAL AIR TEMPERATURE', SimVarValueType.Celsius);
+
+  private readonly tankQuantities = A380_FUEL_TANKS.map(({ msfsTank }) =>
+    RegisteredSimVar.create(`FUELSYSTEM TANK QUANTITY:${msfsTank}`, SimVarValueType.GAL),
+  );
+
+  private readonly temperatureOutputs = A380_FUEL_TANKS.map(({ name }) =>
+    RegisteredSimVar.create(fuelTankTemperatureVar(name), SimVarValueType.Number),
+  );
+
+  /** Refilled at each update, to avoid a new array */
+  private readonly fillRatios = A380_FUEL_TANKS.map(() => 0);
 
   constructor(private readonly sysHost: { deltaTime: number }) {}
 
@@ -116,20 +135,18 @@ export class FuelTemperatures implements Instrument {
   }
 
   public onUpdate(): void {
+    const onGround = this.onGround.get();
+    const outsideAirTemperatureC = this.outsideAirTemperatureC.get();
+    const totalAirTemperatureC = this.totalAirTemperatureC.get();
+    for (let index = 0; index < A380_FUEL_TANKS.length; index++) {
+      this.fillRatios[index] = this.tankQuantities[index].get() / A380_FUEL_TANKS[index].capacityGal;
+    }
     const temperatures = this.model.update(
-      {
-        onGround: SimVar.GetSimVarValue('SIM ON GROUND', SimVarValueType.Bool) > 0,
-        outsideAirTemperatureC: SimVar.GetSimVarValue('AMBIENT TEMPERATURE', 'celsius'),
-        totalAirTemperatureC: SimVar.GetSimVarValue('TOTAL AIR TEMPERATURE', 'celsius'),
-        fillRatios: A380_FUEL_TANKS.map(
-          ({ msfsTank, capacityGal }) =>
-            SimVar.GetSimVarValue(`FUELSYSTEM TANK QUANTITY:${msfsTank}`, SimVarValueType.GAL) / capacityGal,
-        ),
-      },
+      { onGround, outsideAirTemperatureC, totalAirTemperatureC, fillRatios: this.fillRatios },
       this.sysHost.deltaTime / 1000,
     );
-    A380_FUEL_TANKS.forEach(({ name }, index) =>
-      SimVar.SetSimVarValue(fuelTankTemperatureVar(name), SimVarValueType.Number, temperatures[index]),
-    );
+    for (let index = 0; index < temperatures.length; index++) {
+      this.temperatureOutputs[index].set(temperatures[index]);
+    }
   }
 }

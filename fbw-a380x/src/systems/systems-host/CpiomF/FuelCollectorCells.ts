@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { Instrument, SimVarValueType } from '@microsoft/msfs-sdk';
+import { RegisteredSimVar } from '@flybywiresim/fbw-sdk';
 import { COLLECTOR_CELL_CAPACITY_KG, collectorCellQuantityVar } from '@shared/FuelTankIndications';
 
 /*
@@ -79,6 +80,20 @@ const FEED_TANK_CELLS: readonly FeedTankCell[] = [
 export class FuelCollectorCells implements Instrument {
   private readonly cells = FEED_TANK_CELLS.map(() => new CollectorCell());
 
+  private readonly cellInputs: CollectorCellInputs[] = FEED_TANK_CELLS.map(() => ({
+    feedTankKg: 0,
+    pumpRunning: false,
+    engineRunning: false,
+  }));
+
+  private readonly handles = FEED_TANK_CELLS.map(({ cell, msfsTank, mainPump, stbyPump }) => ({
+    feedTankKg: RegisteredSimVar.create(`FUELSYSTEM TANK WEIGHT:${msfsTank}`, SimVarValueType.Kilograms),
+    mainPumpRunning: RegisteredSimVar.createBoolean(`FUELSYSTEM PUMP ACTIVE:${mainPump}`),
+    stbyPumpRunning: RegisteredSimVar.createBoolean(`FUELSYSTEM PUMP ACTIVE:${stbyPump}`),
+    engineState: RegisteredSimVar.create(`L:A32NX_ENGINE_STATE:${cell}`, SimVarValueType.Enum),
+    quantityKg: RegisteredSimVar.create(collectorCellQuantityVar(cell), SimVarValueType.Number),
+  }));
+
   constructor(private readonly sysHost: { deltaTime: number }) {}
 
   public init(): void {
@@ -87,18 +102,13 @@ export class FuelCollectorCells implements Instrument {
 
   public onUpdate(): void {
     const deltaTimeS = this.sysHost.deltaTime / 1000;
-    FEED_TANK_CELLS.forEach(({ cell, msfsTank, mainPump, stbyPump }, index) => {
-      const quantityKg = this.cells[index].update(
-        {
-          feedTankKg: SimVar.GetSimVarValue(`FUELSYSTEM TANK WEIGHT:${msfsTank}`, 'kilogram'),
-          pumpRunning:
-            SimVar.GetSimVarValue(`FUELSYSTEM PUMP ACTIVE:${mainPump}`, SimVarValueType.Bool) > 0 ||
-            SimVar.GetSimVarValue(`FUELSYSTEM PUMP ACTIVE:${stbyPump}`, SimVarValueType.Bool) > 0,
-          engineRunning: SimVar.GetSimVarValue(`L:A32NX_ENGINE_STATE:${cell}`, SimVarValueType.Enum) === 1,
-        },
-        deltaTimeS,
-      );
-      SimVar.SetSimVarValue(collectorCellQuantityVar(cell), SimVarValueType.Number, quantityKg);
-    });
+    for (let index = 0; index < this.handles.length; index++) {
+      const handles = this.handles[index];
+      const inputs = this.cellInputs[index];
+      inputs.feedTankKg = handles.feedTankKg.get();
+      inputs.pumpRunning = handles.mainPumpRunning.get() || handles.stbyPumpRunning.get();
+      inputs.engineRunning = handles.engineState.get() === 1;
+      handles.quantityKg.set(this.cells[index].update(inputs, deltaTimeS));
+    }
   }
 }

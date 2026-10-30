@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { Instrument, SimVarValueType } from '@microsoft/msfs-sdk';
-import { FailuresConsumer } from '@flybywiresim/fbw-sdk';
+import { FailuresConsumer, RegisteredSimVar } from '@flybywiresim/fbw-sdk';
 import { A380Failure } from '@failures';
 import { doorBits, DSMS_CHANNEL_COUNT, DSMS_VARS, PASSENGER_DOOR_COUNT } from '@shared/DoorsAndSlides';
 
@@ -165,6 +165,22 @@ export class DoorsAndSlidesManagementSystem implements Instrument {
 
   private timeSinceUpdateMs = DoorsAndSlidesManagementSystem.UPDATE_PERIOD_MS;
 
+  private readonly indicatedAirspeed = RegisteredSimVar.create('AIRSPEED INDICATED', SimVarValueType.Knots);
+
+  private readonly pressureAltitude = RegisteredSimVar.create('PRESSURE ALTITUDE', SimVarValueType.Feet);
+
+  /** Refilled at each update, to avoid new arrays: the logic does not keep them */
+  private readonly failures: DsmsFailures = {
+    actuator: new Array(PASSENGER_DOOR_COUNT).fill(false),
+    flightLock: new Array(PASSENGER_DOOR_COUNT).fill(false),
+    latchMonitoring: new Array(PASSENGER_DOOR_COUNT).fill(false),
+    ldc: new Array(PASSENGER_DOOR_COUNT).fill(false),
+    slide: new Array(PASSENGER_DOOR_COUNT).fill(false),
+    slideLengthening: SLIDE_LENGTHENING_FAILURES.map(() => false),
+    channelsFailed: 0,
+    aspsu: false,
+  };
+
   constructor(
     private readonly sysHost: { deltaTime: number },
     private readonly failuresConsumer: Pick<FailuresConsumer, 'register' | 'isActive'>,
@@ -187,28 +203,35 @@ export class DoorsAndSlidesManagementSystem implements Instrument {
     }
     this.timeSinceUpdateMs = 0;
 
-    const failed = (failures: number[]) => failures.map((failure) => this.failuresConsumer.isActive(failure));
+    const failures = this.failures;
+    this.readFailures(failures.actuator, DOOR_FAILURES.Actuator);
+    this.readFailures(failures.flightLock, DOOR_FAILURES.FlightLock);
+    this.readFailures(failures.latchMonitoring, DOOR_FAILURES.LatchMonitoring);
+    this.readFailures(failures.ldc, DOOR_FAILURES.Ldc);
+    this.readFailures(failures.slide, DOOR_FAILURES.Slide);
+    this.readFailures(failures.slideLengthening, SLIDE_LENGTHENING_FAILURES);
+    failures.channelsFailed = 0;
+    for (const channelFailure of DSMS_CHANNEL_FAILURES) {
+      if (this.failuresConsumer.isActive(channelFailure)) {
+        failures.channelsFailed++;
+      }
+    }
+    failures.aspsu = this.failuresConsumer.isActive(A380Failure.Aspsu);
     const outputs = this.logic.update(
-      {
-        actuator: failed(DOOR_FAILURES.Actuator),
-        flightLock: failed(DOOR_FAILURES.FlightLock),
-        latchMonitoring: failed(DOOR_FAILURES.LatchMonitoring),
-        ldc: failed(DOOR_FAILURES.Ldc),
-        slide: failed(DOOR_FAILURES.Slide),
-        slideLengthening: failed(SLIDE_LENGTHENING_FAILURES),
-        channelsFailed: failed(DSMS_CHANNEL_FAILURES).filter((channelFailed) => channelFailed).length,
-        aspsu: this.failuresConsumer.isActive(A380Failure.Aspsu),
-      },
-      isFlightLockCommanded(
-        SimVar.GetSimVarValue('AIRSPEED INDICATED', SimVarValueType.Knots),
-        SimVar.GetSimVarValue('PRESSURE ALTITUDE', SimVarValueType.Feet),
-      ),
+      failures,
+      isFlightLockCommanded(this.indicatedAirspeed.get(), this.pressureAltitude.get()),
     );
     for (const [name, value] of dsmsVarValues(outputs)) {
       if (this.written.get(name) !== value) {
         SimVar.SetSimVarValue(name, SimVarValueType.Number, value);
         this.written.set(name, value);
       }
+    }
+  }
+
+  private readFailures(target: boolean[], failures: readonly number[]): void {
+    for (let index = 0; index < failures.length; index++) {
+      target[index] = this.failuresConsumer.isActive(failures[index]);
     }
   }
 }

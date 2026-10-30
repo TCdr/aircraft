@@ -7,6 +7,7 @@ import {
   FailuresConsumer,
   FuelSwitchAccess,
   msfsFuelValveAccess,
+  RegisteredSimVar,
 } from '@flybywiresim/fbw-sdk';
 import { A380Failure } from '@failures';
 
@@ -85,6 +86,24 @@ export class FuelApuFeed implements Instrument {
 
   private readonly monitor = new ApuFeedMonitor();
 
+  private readonly apuMasterPbOn = RegisteredSimVar.createBoolean('L:A32NX_OVHD_APU_MASTER_SW_PB_IS_ON');
+
+  private readonly apuFirePbPushed = RegisteredSimVar.createBoolean('L:A32NX_FIRE_BUTTON_APU');
+
+  private readonly isolationValveOpenRatio = RegisteredSimVar.create(
+    `A:FUELSYSTEM VALVE OPEN:${APU_ISOLATION_VALVE}`,
+    SimVarValueType.PercentOver100,
+  );
+
+  private readonly lpValveOpenRatio = RegisteredSimVar.create(
+    `A:FUELSYSTEM VALVE OPEN:${APU_LP_VALVE}`,
+    SimVarValueType.PercentOver100,
+  );
+
+  private readonly abnormallyClosedOutput = RegisteredSimVar.createBoolean(APU_FEED_ABNORMALLY_CLOSED_VAR);
+
+  private readonly abnormallyOpenOutput = RegisteredSimVar.createBoolean(APU_FEED_ABNORMALLY_OPEN_VAR);
+
   constructor(
     private readonly sysHost: { deltaTime: number },
     failures: Pick<FailuresConsumer, 'isActive'>,
@@ -105,21 +124,18 @@ export class FuelApuFeed implements Instrument {
   }
 
   public onUpdate(): void {
-    const commandedOpen = areApuFeedValvesCommandedOpen(
-      SimVar.GetSimVarValue('L:A32NX_OVHD_APU_MASTER_SW_PB_IS_ON', SimVarValueType.Bool) > 0,
-      SimVar.GetSimVarValue('L:A32NX_FIRE_BUTTON_APU', SimVarValueType.Bool) > 0,
-    );
+    const commandedOpen = areApuFeedValvesCommandedOpen(this.apuMasterPbOn.get(), this.apuFirePbPushed.get());
     this.valves.setAutomaticSelection(0, commandedOpen);
     this.valves.setAutomaticSelection(1, commandedOpen);
     this.valves.update(this.sysHost.deltaTime);
 
     const state = this.monitor.update(
       commandedOpen,
-      SimVar.GetSimVarValue(`A:FUELSYSTEM VALVE OPEN:${APU_ISOLATION_VALVE}`, SimVarValueType.PercentOver100),
-      SimVar.GetSimVarValue(`A:FUELSYSTEM VALVE OPEN:${APU_LP_VALVE}`, SimVarValueType.PercentOver100),
+      this.isolationValveOpenRatio.get(),
+      this.lpValveOpenRatio.get(),
       this.sysHost.deltaTime / 1000,
     );
-    SimVar.SetSimVarValue(APU_FEED_ABNORMALLY_CLOSED_VAR, SimVarValueType.Bool, state.abnormallyClosed);
-    SimVar.SetSimVarValue(APU_FEED_ABNORMALLY_OPEN_VAR, SimVarValueType.Bool, state.abnormallyOpen);
+    this.abnormallyClosedOutput.set(state.abnormallyClosed);
+    this.abnormallyOpenOutput.set(state.abnormallyOpen);
   }
 }

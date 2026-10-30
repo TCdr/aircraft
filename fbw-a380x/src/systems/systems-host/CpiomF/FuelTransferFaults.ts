@@ -3,6 +3,7 @@
 
 import { A380Failure } from '@failures';
 import { Instrument, SimVarValueType } from '@microsoft/msfs-sdk';
+import { RegisteredSimVar } from '@flybywiresim/fbw-sdk';
 import {
   FEED_TANK_NAMES,
   FUEL_FQI_LOST_TANKS_VAR,
@@ -140,6 +141,38 @@ export class FuelTransferFaults implements Instrument, FuelTransferRestrictionSo
 
   public restrictions: Readonly<FuelTransferRestrictions> = NO_TRANSFER_RESTRICTION;
 
+  private readonly quantitySystemFaultsWord = RegisteredSimVar.create(
+    FUEL_QUANTITY_SYSTEM_FAULTS_VAR,
+    SimVarValueType.Number,
+  );
+
+  private readonly fqiLostTanksWord = RegisteredSimVar.create(FUEL_FQI_LOST_TANKS_VAR, SimVarValueType.Number);
+
+  private readonly onGround = RegisteredSimVar.createBoolean('SIM ON GROUND');
+
+  private readonly wingTankOverflows = [L_WING_TK_OVERFLOW_VAR, R_WING_TK_OVERFLOW_VAR].map((overflowVar) =>
+    RegisteredSimVar.createBoolean(overflowVar),
+  );
+
+  private readonly transferPbsAuto = FUEL_XFR_PB_IS_AUTO_VARS.map((pbVar) => RegisteredSimVar.createBoolean(pbVar));
+
+  private readonly emerOuterTransferPbOn = RegisteredSimVar.createBoolean(EMER_OUTR_TK_XFR_PB_IS_ON_VAR);
+
+  private readonly manualOnlyOutput = RegisteredSimVar.createBoolean(FUEL_XFR_MAN_ONLY_VAR);
+
+  /** Refilled at each update, to avoid a new object */
+  private readonly monitorInputs: FuelTransferFaultInputs = {
+    quantitySystemFaultsWord: 0,
+    fqiLostTanksWord: 0,
+    onGround: false,
+    fwdGalleryInletValveOpen: false,
+    aftGalleryInletValveOpen: false,
+    trimTankIsolationValveClosed: false,
+    trimAndApuLineDamaged: false,
+    wingTankOverflow: false,
+    manualTransferSelected: false,
+  };
+
   constructor(private readonly failures: FailureStates) {}
 
   public init(): void {
@@ -147,21 +180,30 @@ export class FuelTransferFaults implements Instrument, FuelTransferRestrictionSo
   }
 
   public onUpdate(): void {
-    this.restrictions = this.monitor.update({
-      quantitySystemFaultsWord: SimVar.GetSimVarValue(FUEL_QUANTITY_SYSTEM_FAULTS_VAR, SimVarValueType.Number),
-      fqiLostTanksWord: SimVar.GetSimVarValue(FUEL_FQI_LOST_TANKS_VAR, SimVarValueType.Number),
-      onGround: SimVar.GetSimVarValue('SIM ON GROUND', SimVarValueType.Bool) > 0,
-      fwdGalleryInletValveOpen: this.failures.isActive(A380Failure.FuelFeedTank1FwdInletValveOpen),
-      aftGalleryInletValveOpen: this.failures.isActive(A380Failure.FuelFeedTank1AftInletValveOpen),
-      trimTankIsolationValveClosed: this.failures.isActive(A380Failure.FuelTrimTankIsolationValveClosed),
-      trimAndApuLineDamaged: this.failures.isActive(A380Failure.FuelTrimAndApuLineDamaged),
-      wingTankOverflow: [L_WING_TK_OVERFLOW_VAR, R_WING_TK_OVERFLOW_VAR].some(
-        (overflowVar) => SimVar.GetSimVarValue(overflowVar, SimVarValueType.Bool) > 0,
-      ),
-      manualTransferSelected:
-        FUEL_XFR_PB_IS_AUTO_VARS.some((pbVar) => !(SimVar.GetSimVarValue(pbVar, SimVarValueType.Bool) > 0)) ||
-        SimVar.GetSimVarValue(EMER_OUTR_TK_XFR_PB_IS_ON_VAR, SimVarValueType.Bool) > 0,
-    });
-    SimVar.SetSimVarValue(FUEL_XFR_MAN_ONLY_VAR, SimVarValueType.Bool, this.restrictions.manualTransferRequired);
+    const inputs = this.monitorInputs;
+    inputs.quantitySystemFaultsWord = this.quantitySystemFaultsWord.get();
+    inputs.fqiLostTanksWord = this.fqiLostTanksWord.get();
+    inputs.onGround = this.onGround.get();
+    inputs.fwdGalleryInletValveOpen = this.failures.isActive(A380Failure.FuelFeedTank1FwdInletValveOpen);
+    inputs.aftGalleryInletValveOpen = this.failures.isActive(A380Failure.FuelFeedTank1AftInletValveOpen);
+    inputs.trimTankIsolationValveClosed = this.failures.isActive(A380Failure.FuelTrimTankIsolationValveClosed);
+    inputs.trimAndApuLineDamaged = this.failures.isActive(A380Failure.FuelTrimAndApuLineDamaged);
+    inputs.wingTankOverflow = false;
+    for (const overflow of this.wingTankOverflows) {
+      if (overflow.get()) {
+        inputs.wingTankOverflow = true;
+        break;
+      }
+    }
+    inputs.manualTransferSelected = false;
+    for (const pbAuto of this.transferPbsAuto) {
+      if (!pbAuto.get()) {
+        inputs.manualTransferSelected = true;
+        break;
+      }
+    }
+    inputs.manualTransferSelected = inputs.manualTransferSelected || this.emerOuterTransferPbOn.get();
+    this.restrictions = this.monitor.update(inputs);
+    this.manualOnlyOutput.set(this.restrictions.manualTransferRequired);
   }
 }

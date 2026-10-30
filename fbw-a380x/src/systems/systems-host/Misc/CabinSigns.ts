@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { Instrument, SimVarValueType } from '@microsoft/msfs-sdk';
-import { Arinc429Register, Arinc429WordData } from '@flybywiresim/fbw-sdk';
-import { readCabinAltitudeFt } from './CabinOxygenMasks';
+import { Arinc429Register, Arinc429WordData, RegisteredSimVar } from '@flybywiresim/fbw-sdk';
+import { CabinAltitudeReader } from './CabinOxygenMasks';
 
 /*
  * The cabin FASTEN SEAT BELT and NO SMOKING signs. The SEAT BELTS sw drives the FASTEN SEAT BELT and RETURN TO SEAT
@@ -97,8 +97,17 @@ const SEAT_BELTS_TOGGLE_SETTLE_TIME_MS = 1000;
  * @param sfccWords the slat/flap actual position words of SFCC 1 and 2
  */
 export function areSlatsExtended(sfccWords: readonly Arinc429WordData[]): boolean {
-  const validWords = sfccWords.filter((word) => word.isNormalOperation());
-  return validWords.length > 0 && validWords.every((word) => !word.bitValueOr(12, false));
+  let anyValidWord = false;
+  for (const word of sfccWords) {
+    if (!word.isNormalOperation()) {
+      continue;
+    }
+    if (word.bitValueOr(12, false)) {
+      return false;
+    }
+    anyValidWord = true;
+  }
+  return anyValidWord;
 }
 
 /**
@@ -106,13 +115,57 @@ export function areSlatsExtended(sfccWords: readonly Arinc429WordData[]): boolea
  * FASTEN SEAT BELT signs are on).
  */
 export class CabinSigns implements Instrument {
-  private readonly cabinAltitudeWord = Arinc429Register.empty();
+  private readonly cabinAltitude = new CabinAltitudeReader();
+
+  private readonly landingElevationVar = RegisteredSimVar.create(
+    'L:A32NX_FM1_LANDING_ELEVATION',
+    SimVarValueType.Number,
+  );
 
   private readonly landingElevationWord = Arinc429Register.empty();
+
+  private readonly sfcc1Var = RegisteredSimVar.create(
+    'L:A32NX_SFCC_1_SLAT_FLAP_ACTUAL_POSITION_WORD',
+    SimVarValueType.Number,
+  );
+
+  private readonly sfcc2Var = RegisteredSimVar.create(
+    'L:A32NX_SFCC_2_SLAT_FLAP_ACTUAL_POSITION_WORD',
+    SimVarValueType.Number,
+  );
 
   private readonly sfcc1Word = Arinc429Register.empty();
 
   private readonly sfcc2Word = Arinc429Register.empty();
+
+  private readonly sfccWords = [this.sfcc1Word, this.sfcc2Word];
+
+  private readonly mainGearDownlocked = [
+    'L:A32NX_LGCIU_1_LEFT_GEAR_DOWNLOCKED',
+    'L:A32NX_LGCIU_2_LEFT_GEAR_DOWNLOCKED',
+    'L:A32NX_LGCIU_1_RIGHT_GEAR_DOWNLOCKED',
+    'L:A32NX_LGCIU_2_RIGHT_GEAR_DOWNLOCKED',
+  ].map((name) => RegisteredSimVar.createBoolean(name));
+
+  private readonly noSmokingSwitchPosition = RegisteredSimVar.create(
+    'L:XMLVAR_SWITCH_OVHD_INTLT_NOSMOKING_Position',
+    SimVarValueType.Number,
+  );
+
+  private readonly seatBeltSwitchPosition = RegisteredSimVar.create(
+    'L:XMLVAR_SWITCH_OVHD_INTLT_SEATBELT_Position',
+    SimVarValueType.Number,
+  );
+
+  private readonly seatBeltsAlertSwitch = RegisteredSimVar.createBoolean('A:CABIN SEATBELTS ALERT SWITCH');
+
+  /** Refilled for each sign, to avoid a new object */
+  private readonly signsInputs: CabinSignsInputs = {
+    switchPosition: CabinSignsSwitchPosition.Auto,
+    slatsExtended: false,
+    mainGearExtended: false,
+    cabinAltitudeExcessive: false,
+  };
 
   private signsOn: boolean | null = null;
 
@@ -124,42 +177,39 @@ export class CabinSigns implements Instrument {
 
   /** @inheritdoc */
   onUpdate(): void {
-    const cabinAltitudeFt = readCabinAltitudeFt((name) => this.cabinAltitudeWord.setFromSimVar(name));
-    this.landingElevationWord.setFromSimVar('L:A32NX_FM1_LANDING_ELEVATION');
+    const cabinAltitudeFt = this.cabinAltitude.read();
+    this.landingElevationWord.set(this.landingElevationVar.get());
     const landingElevationFt = this.landingElevationWord.isNormalOperation() ? this.landingElevationWord.value : null;
-    this.sfcc1Word.setFromSimVar('L:A32NX_SFCC_1_SLAT_FLAP_ACTUAL_POSITION_WORD');
-    this.sfcc2Word.setFromSimVar('L:A32NX_SFCC_2_SLAT_FLAP_ACTUAL_POSITION_WORD');
-    const mainGearExtended = [
-      'L:A32NX_LGCIU_1_LEFT_GEAR_DOWNLOCKED',
-      'L:A32NX_LGCIU_2_LEFT_GEAR_DOWNLOCKED',
-      'L:A32NX_LGCIU_1_RIGHT_GEAR_DOWNLOCKED',
-      'L:A32NX_LGCIU_2_RIGHT_GEAR_DOWNLOCKED',
-    ].some((name) => SimVar.GetSimVarValue(name, SimVarValueType.Bool) > 0);
+    this.sfcc1Word.set(this.sfcc1Var.get());
+    this.sfcc2Word.set(this.sfcc2Var.get());
+    let mainGearExtended = false;
+    for (const gearDownlocked of this.mainGearDownlocked) {
+      if (gearDownlocked.get()) {
+        mainGearExtended = true;
+        break;
+      }
+    }
 
-    const slatsExtended = areSlatsExtended([this.sfcc1Word, this.sfcc2Word]);
+    const slatsExtended = areSlatsExtended(this.sfccWords);
     const cabinAltitudeExcessive = isCabinAltitudeExcessive(cabinAltitudeFt, landingElevationFt);
 
-    const signsOn = areNoSmokingSignsOn({
-      switchPosition: SimVar.GetSimVarValue('L:XMLVAR_SWITCH_OVHD_INTLT_NOSMOKING_Position', SimVarValueType.Number),
-      slatsExtended,
-      mainGearExtended,
-      cabinAltitudeExcessive,
-    });
+    const inputs = this.signsInputs;
+    inputs.slatsExtended = slatsExtended;
+    inputs.mainGearExtended = mainGearExtended;
+    inputs.cabinAltitudeExcessive = cabinAltitudeExcessive;
+    inputs.switchPosition = this.noSmokingSwitchPosition.get();
+    const signsOn = areNoSmokingSignsOn(inputs);
     // written on a change only: sound.xml chimes in the cabin on every change of the variable
     if (signsOn !== this.signsOn) {
       this.signsOn = signsOn;
       SimVar.SetSimVarValue('L:A32NX_NO_SMOKING_MEMO', SimVarValueType.Bool, signsOn);
     }
 
-    const seatBeltsOn = areSeatBeltsSignsOn({
-      switchPosition: SimVar.GetSimVarValue('L:XMLVAR_SWITCH_OVHD_INTLT_SEATBELT_Position', SimVarValueType.Number),
-      slatsExtended,
-      mainGearExtended,
-      cabinAltitudeExcessive,
-    });
+    inputs.switchPosition = this.seatBeltSwitchPosition.get();
+    const seatBeltsOn = areSeatBeltsSignsOn(inputs);
     const now = Date.now();
     if (
-      seatBeltsOn !== SimVar.GetSimVarValue('A:CABIN SEATBELTS ALERT SWITCH', SimVarValueType.Bool) > 0 &&
+      seatBeltsOn !== this.seatBeltsAlertSwitch.get() &&
       now - this.lastSeatBeltsToggleTime >= SEAT_BELTS_TOGGLE_SETTLE_TIME_MS
     ) {
       this.lastSeatBeltsToggleTime = now;

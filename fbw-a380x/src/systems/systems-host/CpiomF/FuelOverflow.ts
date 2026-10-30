@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { Instrument, SimVarValueType } from '@microsoft/msfs-sdk';
-import { FailuresConsumer } from '@flybywiresim/fbw-sdk';
+import { FailuresConsumer, RegisteredSimVar } from '@flybywiresim/fbw-sdk';
 import { A380Failure } from '@failures';
 import { GROUND_TRANSFER_RATE_LB_PER_H } from './FuelGroundTransfer';
 import {
@@ -69,12 +69,26 @@ const OVERFLOW_TANKS: readonly OverflowTank[] = [
   },
 ];
 
-/**
- * Whether the FQMS has detected an overflow: the automatic ground transfer and the refuel stop
- * @param read reads a Bool simvar
- */
-export function isFuelOverflowDetected(read: (name: string) => number): boolean {
-  return OVERFLOW_TANKS.some(({ overflowVar }) => read(overflowVar) > 0);
+/** Whether the FQMS has detected an overflow (the automatic ground transfer and the refuel stop), read every update */
+export class FuelOverflowDetectionReader {
+  private readonly overflowDetected = OVERFLOW_TANKS.map(({ overflowVar }) =>
+    RegisteredSimVar.createBoolean(overflowVar),
+  );
+
+  public isOverflowDetected(): boolean {
+    for (const overflowDetected of this.overflowDetected) {
+      if (overflowDetected.get()) {
+        return true;
+      }
+    }
+    return false;
+  }
+}
+
+interface TransferPumpHandle {
+  pump: number;
+  tank: number;
+  active: RegisteredSimVar<boolean>;
 }
 
 /** The MSFS transfer pumps (Pump.9-20) and their tanks (Tank.N), flight_model.cfg */
@@ -195,10 +209,40 @@ export class FuelOverflow implements Instrument {
 
   private timeSinceWriteMs = 0;
 
+  private readonly fuelWeightPerGallon = RegisteredSimVar.create('FUEL WEIGHT PER GALLON', SimVarValueType.Pounds);
+
+  private readonly refuelStartedByUser = RegisteredSimVar.createBoolean('L:A32NX_REFUEL_STARTED_BY_USR');
+
+  private readonly pumps: TransferPumpHandle[] = [];
+
+  private readonly tankHandles = OVERFLOW_TANKS.map(({ tank, overflowVar, surgeFuelVar }) => ({
+    quantityGal: RegisteredSimVar.create(`FUELSYSTEM TANK QUANTITY:${tank}`, SimVarValueType.GAL),
+    capacityGal: RegisteredSimVar.create(`FUELSYSTEM TANK CAPACITY:${tank}`, SimVarValueType.GAL),
+    overflowDetected: RegisteredSimVar.createBoolean(overflowVar),
+    surgeFuelLb: RegisteredSimVar.create(surgeFuelVar, SimVarValueType.Number),
+  }));
+
+  /** Rebuilt in place at each update, from the entries of the pumps */
+  private readonly runningPumps: TransferPumpHandle[] = [];
+
+  private readonly pumpedTanks: number[] = [];
+
+  private readonly surgeTankInputs: OverflowInputs = {
+    inletValveStuckOpen: false,
+    tankFull: false,
+    tankRoomLb: 0,
+    refuelInProgress: false,
+    otherTransferPumpsRunning: false,
+  };
+
   constructor(
     private readonly sysHost: { deltaTime: number },
     private readonly failures: Pick<FailuresConsumer, 'isActive'>,
-  ) {}
+  ) {
+    TRANSFER_PUMP_TANKS.forEach((tank, pump) =>
+      this.pumps.push({ pump, tank, active: RegisteredSimVar.createBoolean(`A:FUELSYSTEM PUMP ACTIVE:${pump}`) }),
+    );
+  }
 
   public init(): void {
     // nothing to initialise: the surge tanks start empty
@@ -206,43 +250,46 @@ export class FuelOverflow implements Instrument {
 
   public onUpdate(): void {
     const deltaTimeS = this.sysHost.deltaTime / 1000;
-    const poundsPerGallon = SimVar.GetSimVarValue('FUEL WEIGHT PER GALLON', SimVarValueType.Pounds);
+    const poundsPerGallon = this.fuelWeightPerGallon.get();
     // No fuel density while a flight loads: no fuel moves (as CpiomF/FuelLeak)
     if (!(poundsPerGallon > 0)) {
       return;
     }
-    const refuelInProgress = SimVar.GetSimVarValue('L:A32NX_REFUEL_STARTED_BY_USR', SimVarValueType.Bool) > 0;
-    const runningPumps: [number, number][] = [];
-    TRANSFER_PUMP_TANKS.forEach((tank, pump) => {
-      if (SimVar.GetSimVarValue(`A:FUELSYSTEM PUMP ACTIVE:${pump}`, SimVarValueType.Bool) > 0) {
-        runningPumps.push([pump, tank]);
+    const refuelInProgress = this.refuelStartedByUser.get();
+    this.runningPumps.length = 0;
+    for (const transferPump of this.pumps) {
+      if (transferPump.active.get()) {
+        this.runningPumps.push(transferPump);
       }
-    });
+    }
 
-    OVERFLOW_TANKS.forEach((overflowTank, index) => {
-      const quantityGal = SimVar.GetSimVarValue(`FUELSYSTEM TANK QUANTITY:${overflowTank.tank}`, SimVarValueType.GAL);
-      const capacityGal = SimVar.GetSimVarValue(`FUELSYSTEM TANK CAPACITY:${overflowTank.tank}`, SimVarValueType.GAL);
-      const pumpedTanks = Array.from(
-        new Set(runningPumps.filter(([pump]) => !overflowTank.ownPumps.includes(pump)).map(([, tank]) => tank)),
-      );
-      const result = this.surgeTanks[index].update(
-        {
-          inletValveStuckOpen: this.failures.isActive(overflowTank.failure),
-          tankFull: quantityGal >= capacityGal - TANK_FULL_MARGIN_GAL,
-          tankRoomLb: Math.max(0, capacityGal - quantityGal) * poundsPerGallon,
-          refuelInProgress,
-          otherTransferPumpsRunning: pumpedTanks.length > 0,
-        },
-        deltaTimeS,
-      );
+    const pumpedTanks = this.pumpedTanks;
+    for (let index = 0; index < OVERFLOW_TANKS.length; index++) {
+      const overflowTank = OVERFLOW_TANKS[index];
+      const handles = this.tankHandles[index];
+      const quantityGal = handles.quantityGal.get();
+      const capacityGal = handles.capacityGal.get();
+      pumpedTanks.length = 0;
+      for (const { pump, tank } of this.runningPumps) {
+        if (!overflowTank.ownPumps.includes(pump) && pumpedTanks.indexOf(tank) < 0) {
+          pumpedTanks.push(tank);
+        }
+      }
+      const inputs = this.surgeTankInputs;
+      inputs.inletValveStuckOpen = this.failures.isActive(overflowTank.failure);
+      inputs.tankFull = quantityGal >= capacityGal - TANK_FULL_MARGIN_GAL;
+      inputs.tankRoomLb = Math.max(0, capacityGal - quantityGal) * poundsPerGallon;
+      inputs.refuelInProgress = refuelInProgress;
+      inputs.otherTransferPumpsRunning = pumpedTanks.length > 0;
+      const result = this.surgeTanks[index].update(inputs, deltaTimeS);
 
       this.addPending(overflowTank.tank, result.drainedBackLb / poundsPerGallon);
       for (const tank of pumpedTanks) {
         this.addPending(tank, -result.spilledFromPumpedTanksLb / poundsPerGallon / pumpedTanks.length);
       }
-      SimVar.SetSimVarValue(overflowTank.overflowVar, SimVarValueType.Bool, result.overflowDetected);
-      SimVar.SetSimVarValue(overflowTank.surgeFuelVar, SimVarValueType.Number, this.surgeTanks[index].surgeFuelLb);
-    });
+      handles.overflowDetected.set(result.overflowDetected);
+      handles.surgeFuelLb.set(this.surgeTanks[index].surgeFuelLb);
+    }
 
     this.timeSinceWriteMs += this.sysHost.deltaTime;
     if (this.timeSinceWriteMs >= FuelOverflow.WRITE_PERIOD_MS) {
