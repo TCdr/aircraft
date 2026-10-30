@@ -2,4 +2,5 @@ allowBuilds:
     esbuild: true
 nodeLinker: hoisted
 fetchWarnTimeoutMs: 30000
-
+patchedDependencies:
+  '@microsoft/msfs-sdk@2.3.3': patches/@microsoft__msfs-sdk@2.3.3.patch
