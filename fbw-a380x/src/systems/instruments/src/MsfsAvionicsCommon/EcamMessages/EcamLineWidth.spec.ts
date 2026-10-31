@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   AbnormalProcedure,
   AbstractChecklistItem,
+  ChecklistCondition,
   ChecklistLineStyle,
   DeferredProcedure,
   isChecklistAction,
@@ -150,7 +151,12 @@ describe('A380X ECAM lines fit the E/WD width', async () => {
   });
 
   it('the CONFIRM line of a condition keeps no space of its removed WHEN and colon', () => {
-    const condition = { name: 'WHEN ANY FEED TK<13000 KG (AUTO RCL) :', sensed: false, condition: true, level: 1 };
+    const condition: ChecklistCondition = {
+      name: 'WHEN ANY FEED TK<13000 KG (AUTO RCL) :',
+      sensed: false,
+      condition: true,
+      level: 1,
+    };
     expect(ProcedureLinesGenerator.getChecklistConfirmText(condition)).toBe(
       '\xa0CONFIRM ANY FEED TK<13000 KG (AUTO RCL)',
     );
