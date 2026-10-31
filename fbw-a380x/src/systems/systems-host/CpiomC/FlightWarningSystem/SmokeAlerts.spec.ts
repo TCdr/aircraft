@@ -22,27 +22,25 @@ import {
   smokeWarnings,
   smokeWarningsWithTest,
 } from './SmokeAlerts';
+import { EcamAbnormalProcedures, EcamInopSys } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { createFws, runFwsCycle, withoutEcamCodes, procedureItemNames } from './FwsSpecFixture';
 
-/* The wiring is read from the source text, as FwsAbnormalSensedItems.spec.ts does (EcamMessages import cycle). */
-const messagesDir = '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
-const ata26 = readFileSync(resolve(__dirname, messagesDir, 'AbnormalSensed/ata26.ts'), 'utf-8');
-const messageIndex = readFileSync(resolve(__dirname, messagesDir, 'index.ts'), 'utf-8');
-const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-const fwsCore = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
+const { core, simVars } = createFws(new Set());
+const alert = (id: string | number) => core.abnormalSensed.ewdAbnormalSensed[String(id)];
 
-/** The number of items of an ata26.ts procedure */
+/** The number of items of an ECAM procedure */
 function itemCount(id: string): number {
-  const start = ata26.indexOf(`  ${id}: {`);
-  expect(start, id).toBeGreaterThan(0);
-  const end = ata26.indexOf('\n  },', start);
-  return (ata26.slice(start, end).match(/ name: '/g) ?? []).length;
+  return EcamAbnormalProcedures[id].items.length;
 }
 
-/** The title of an ata26.ts procedure, without its formatting */
+/** The title of an ECAM procedure, without its formatting */
 function title(id: string): string {
-  const start = ata26.indexOf(`  ${id}: {`);
-  const match = ata26.slice(start).match(/title: '([^']*)'/);
-  return (match ? match[1] : '').replace(/\\x1b<\dm|\\x1b4m|\\x1bm/g, '');
+  return withoutEcamCodes(EcamAbnormalProcedures[id].title);
+}
+
+/** The text of an INOP SYS line, without its colour code */
+function inopSys(id: string): string | undefined {
+  return EcamInopSys[id] === undefined ? undefined : withoutEcamCodes(EcamInopSys[id]);
 }
 
 const state: SmokeProcedureState = {
@@ -78,7 +76,6 @@ describe('A380X SMOKE alerts of the SDF', () => {
   });
 
   it('the DET FAULT INOP SYS lines are the SMK DET of the compartment', () => {
-    const inopSys = (id: string) => messageIndex.match(new RegExp(`  ${id}: '\\\\x1b<4m([^']*)'`))?.[1];
     expect(SMOKE_ZONES.map((zone) => inopSys(zone.detFaultInopSys))).toEqual([
       'FWD CARGO SMK DET',
       'AFT CARGO SMK DET',
@@ -133,7 +130,7 @@ describe('A380X SMOKE alerts of the SDF', () => {
     ).toEqual([true, false, true, true, true, true, false, false]);
   });
 
-  it('every item list matches its ata26.ts procedure', () => {
+  it('every item list matches its ECAM procedure', () => {
     for (const id of ['260800045', '260800046', '260800047']) {
       expect(cargoSmokeItemsToShow(state)).toHaveLength(itemCount(id));
       expect(cargoSmokeItemsChecked(state)).toHaveLength(itemCount(id));
@@ -157,7 +154,8 @@ describe('A380X SMOKE alerts of the SDF', () => {
     expect(avionicsSmokeItemsChecked(done, true, false)).toEqual([false, true, true, false, true, false, false, false]);
   });
 
-  it('reads the SDF variables of systems.wasm and wires the alerts', () => {
+  it('reads the SDF variables of systems.wasm', () => {
+    // The variable names exist only in the Rust source of the SDF, so that source text is read
     const smokeDetection = readFileSync(
       resolve(
         __dirname,
@@ -167,13 +165,32 @@ describe('A380X SMOKE alerts of the SDF', () => {
     );
     expect(smokeDetection).toContain('format!("SMOKE_{}_DETECTED", zone)');
     expect(smokeDetection).toContain('format!("SMOKE_{}_DET_FAULT", zone)');
-    expect(fwsCore).toContain('`L:A32NX_SMOKE_${smokeZone.zone}_DETECTED`');
-    expect(fwsCore).toContain('`L:A32NX_SMOKE_${smokeZone.zone}_DET_FAULT`');
-    expect(fwsCore).toContain('`L:A32NX_CARGOSMOKE_BOTTLE_${index + 1}_LOW_PRESSURE`');
-    expect(abnormalSensed).toContain('...this.smokeAlerts(),');
-    expect(abnormalSensed).toContain('simVarIsActive: this.fws.smokeZoneWarning[index],');
-    expect(abnormalSensed).toContain('simVarIsActive: this.fws.smokeZoneDetFault[index],');
-    expect(abnormalSensed).toContain('alerts[260800052 + index] = {');
+  });
+
+  it('wires the SMOKE and DET FAULT alerts of each compartment to the signals of the SDF variables', () => {
+    SMOKE_ZONES.forEach((smokeZone, index) => {
+      expect(alert(smokeZone.smokeAlert).simVarIsActive).toBe(core.smokeZoneWarning[index]);
+      expect(alert(smokeZone.detFaultAlert).simVarIsActive).toBe(core.smokeZoneDetFault[index]);
+    });
+    expect(alert(260800052).simVarIsActive).toBe(core.cargoBottleLowPressure[0]);
+    expect(alert(260800053).simVarIsActive).toBe(core.cargoBottleLowPressure[1]);
+  });
+
+  it('raises each signal from its SDF variable', () => {
+    SMOKE_ZONES.forEach((smokeZone, index) => {
+      simVars.set(`L:A32NX_SMOKE_${smokeZone.zone}_DETECTED`, true);
+      simVars.set(`L:A32NX_SMOKE_${smokeZone.zone}_DET_FAULT`, true);
+      runFwsCycle(core);
+      expect(core.smokeZoneDetFault[index].get(), smokeZone.zone).toBe(true);
+      expect(core.smokeZoneDetected[index].get(), smokeZone.zone).toBe(true);
+      simVars.set(`L:A32NX_SMOKE_${smokeZone.zone}_DETECTED`, false);
+      simVars.set(`L:A32NX_SMOKE_${smokeZone.zone}_DET_FAULT`, false);
+    });
+    simVars.set('L:A32NX_CARGOSMOKE_BOTTLE_2_LOW_PRESSURE', true);
+    runFwsCycle(core);
+    expect(core.cargoBottleLowPressure.map((lowPressure) => lowPressure.get())).toEqual([false, true]);
+    simVars.set('L:A32NX_CARGOSMOKE_BOTTLE_2_LOW_PRESSURE', false);
+    runFwsCycle(core);
   });
 });
 
@@ -197,12 +214,12 @@ describe('SMOKE DET FAULT, the SDF failed', () => {
       false,
     ]);
     expect(title(SDF_FAULT_ALERT)).toBe('SMOKE DET FAULT');
-    expect(ata26).toContain("name: 'NO LIVESTOCK',");
-    expect(ata26).not.toContain('LIFESTOCK');
+    const itemNames = procedureItemNames(SDF_FAULT_ALERT);
+    expect(itemNames).toContain('NO LIVESTOCK');
+    expect(itemNames).not.toContain('NO LIFESTOCK');
   });
 
   it('INOP SYS: ALL SMOKE DET, FWD CRG VENT, FWD CGR TEMP REGUL, BULK CRG VENT, BULK CRG HEATER', () => {
-    const inopSys = (id: string) => messageIndex.match(new RegExp(`  ${id}: '\\\\x1b<4m([^']*)'`))?.[1];
     expect(SDF_FAULT_INOP_SYS.map(inopSys)).toEqual([
       'ALL SMOKE DET',
       'FWD CRG VENT',
@@ -212,17 +229,25 @@ describe('SMOKE DET FAULT, the SDF failed', () => {
     ]);
   });
 
-  it('reads the SDF failure of systems.wasm and wires the alert with SC and MASTER CAUT', () => {
+  it('reads the SDF failure of systems.wasm', () => {
+    // The variable name exists only in the Rust source of the SDF, so that source text is read
     const a380Smoke = readFileSync(
       resolve(__dirname, '../../../../wasm/systems/a380_systems/src/fire_and_smoke_protection.rs'),
       'utf8',
     );
     expect(a380Smoke).toContain('"SMOKE_DETECTION_FUNCTION_FAULT"');
-    expect(fwsCore).toContain("'L:A32NX_SMOKE_DETECTION_FUNCTION_FAULT'");
-    const entry = abnormalSensed.slice(abnormalSensed.indexOf('    alerts[SDF_FAULT_ALERT] = {'));
-    expect(abnormalSensed.indexOf('    alerts[SDF_FAULT_ALERT] = {')).toBeGreaterThan(0);
-    expect(entry).toMatch(/simVarIsActive: this\.fws\.smokeDetectionFunctionFault,[\s\S]*?failure: 2,/);
-    expect(entry).toContain('inopSysAllPhases: () => SDF_FAULT_INOP_SYS,');
+  });
+
+  it('wires the alert with SC and MASTER CAUT to the SDF failure', () => {
+    const entry = alert(SDF_FAULT_ALERT);
+    expect(entry.simVarIsActive).toBe(core.smokeDetectionFunctionFault);
+    expect(entry.failure).toBe(2);
+    expect(entry.inopSysAllPhases!([])).toEqual(SDF_FAULT_INOP_SYS);
+    simVars.set('L:A32NX_SMOKE_DETECTION_FUNCTION_FAULT', true);
+    runFwsCycle(core);
+    expect(core.smokeDetectionFunctionFault.get()).toBe(true);
+    simVars.set('L:A32NX_SMOKE_DETECTION_FUNCTION_FAULT', false);
+    runFwsCycle(core);
   });
 });
 
@@ -262,12 +287,18 @@ describe('Cargo smoke TEST pb', () => {
     expect(warningsOf(smokeWarningsWithTest(noSmoke, true, true))).toEqual([]);
   });
 
-  it('FwsCore feeds the 3 s test into the SMOKE warnings', () => {
-    expect(fwsCore).toContain('this.cargoSmokeTest.update(');
-    expect(fwsCore).toContain("SimVar.GetSimVarValue('L:A32NX_FIRE_TEST_CARGO', SimVarValueType.Bool) > 0,");
-    expect(fwsCore).toMatch(
-      /smokeWarningsWithTest\(\s*this\.smokeZoneDetected\.map\(\(detected\) => detected\.get\(\)\),\s*cargoSmokeTestActive,/,
-    );
+  it('the FWS runs the SMOKE warnings with the TEST pb held 3 s', () => {
+    const cargoIndex = SMOKE_ZONES.findIndex((smokeZone) => smokeZone.zone === 'FWD_CARGO');
+    simVars.set('L:A32NX_FIRE_TEST_CARGO', true);
+    runFwsCycle(core);
+    expect(core.smokeZoneWarning[cargoIndex].get()).toBe(false);
+    for (let second = 0; second < 4; second++) {
+      runFwsCycle(core);
+    }
+    expect(core.smokeZoneWarning[cargoIndex].get()).toBe(true);
+    simVars.set('L:A32NX_FIRE_TEST_CARGO', false);
+    runFwsCycle(core);
+    expect(core.smokeZoneWarning[cargoIndex].get()).toBe(false);
   });
 
   it('the VENT AVNCS SMOKE light comes on with the TEST pb', () => {

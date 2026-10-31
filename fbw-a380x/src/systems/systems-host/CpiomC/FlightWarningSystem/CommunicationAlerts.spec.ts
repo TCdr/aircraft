@@ -1,8 +1,6 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import {
   CIDS_123_FAULT_INOP_SYS,
@@ -30,21 +28,18 @@ import {
   NSS_DATA_TO_AVNCS_XFR_FAULT_INOP_SYS,
 } from './CommunicationAlerts';
 
-/* The wiring is read from the source text, as FwsAbnormalSensedItems.spec.ts does (EcamMessages import cycle). */
-const messagesDir = '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
-const ata23 = readFileSync(resolve(__dirname, messagesDir, 'AbnormalSensed/ata21-22-23.ts'), 'utf-8');
-const messageIndex = readFileSync(resolve(__dirname, messagesDir, 'index.ts'), 'utf-8');
-const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-const fwsCore = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
-const memos = readFileSync(resolve(__dirname, 'FwsMemos.ts'), 'utf-8');
-const failures = readFileSync(resolve(__dirname, '../../../failures/src/a380.ts'), 'utf-8');
+import {
+  EcamAbnormalProcedures,
+  EcamInopSys,
+  EcamLimitations,
+  EcamMemos,
+} from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { A380Failure, A380FailureDefinitions } from '../../../failures/src/a380';
+import { createFws, runFwsCycle, procedureItemNames } from './FwsSpecFixture';
 
-/** The item names of an ata21-22-23.ts procedure */
-function itemNames(id: string): string[] {
-  const start = ata23.indexOf(`  ${id}: {`);
-  expect(start, id).toBeGreaterThan(0);
-  const block = ata23.slice(start, ata23.indexOf('\n  },', start));
-  return [...block.matchAll(/name: '([^']*)'/g)].map((match) => match[1]);
+/** The flyPad failure is listed under its ATA chapter */
+function isListedInAta(ata: number, failure: number): boolean {
+  return A380FailureDefinitions.some((definition) => definition[0] === ata && definition[1] === failure);
 }
 
 const noCidsFailure: CidsInputs = {
@@ -162,7 +157,7 @@ describe('COM DATALINK FAULT and VHF 3 DATALINK FAULT', () => {
   });
 
   it('COM DATALINK FAULT has the lines, only VHF & HF & SATCOM DATA NOT AVAIL is shown', () => {
-    expect(itemNames(COM_ALERT_IDS.datalinkFault)).toEqual([
+    expect(procedureItemNames(COM_ALERT_IDS.datalinkFault)).toEqual([
       'DATALINK INIT FAULT',
       'ATC COM VOICE ONLY',
       'VHF & HF & SATCOM DATA NOT AVAIL',
@@ -178,35 +173,34 @@ describe('PA IN USE memo', () => {
   });
 
   it('is wired in FwsMemos', () => {
-    const entry = memos.slice(memos.indexOf("    '230000008': {"));
-    expect(memos.indexOf("    '230000008': {")).toBeGreaterThan(0);
-    expect(entry).toContain('simVarIsActive: this.fws.paInUse,');
-    expect(messageIndex).toContain("'230000008': '\\x1b<3mPA IN USE',");
+    const { core } = createFws(new Set());
+    const memo = core.memos.ewdMemos['230000008'];
+    expect(memo.simVarIsActive).toBe(core.paInUse);
+    expect(EcamMemos['230000008']).toBe('\x1b<3mPA IN USE');
   });
 });
 
 describe('COM alerts wiring', () => {
-  const comAlerts = abnormalSensed.slice(abnormalSensed.indexOf('  private comAlerts(): EwdAbnormalDict {'));
-
-  it('comAlerts() is spread into the alerts and feeds every alert', () => {
-    expect(abnormalSensed).toContain('    ...this.comAlerts(),');
-    for (const subject of [
-      'cids123Fault',
-      'cidsCabinComFault',
-      'cabComDegraded',
-      'comDatalinkFault',
-      'vhf3DatalinkFault',
-      'pttStuck[station]',
-      'vhfEmitting[vhf]',
-    ]) {
-      expect(comAlerts, subject).toContain(`simVarIsActive: this.fws.${subject},`);
-    }
-    expect(comAlerts).toContain('inopSysAllPhases: () => CIDS_123_FAULT_INOP_SYS,');
-    expect(comAlerts).toContain('inopSysAllPhases: () => VHF3_DATALINK_FAULT_INOP_SYS,');
+  it('feeds every alert from its FWS signal, with the INOP SYS where the alert has one', () => {
+    const { core } = createFws(new Set());
+    const alerts = core.abnormalSensed.ewdAbnormalSensed;
+    expect(alerts[COM_ALERT_IDS.cids123Fault].simVarIsActive).toBe(core.cids123Fault);
+    expect(alerts[COM_ALERT_IDS.cidsCabinComFault].simVarIsActive).toBe(core.cidsCabinComFault);
+    expect(alerts[COM_ALERT_IDS.comDegraded].simVarIsActive).toBe(core.cabComDegraded);
+    expect(alerts[COM_ALERT_IDS.datalinkFault].simVarIsActive).toBe(core.comDatalinkFault);
+    expect(alerts[COM_ALERT_IDS.vhf3DatalinkFault].simVarIsActive).toBe(core.vhf3DatalinkFault);
+    COM_ALERT_IDS.pttStuck.forEach((id, station) => {
+      expect(alerts[id].simVarIsActive).toBe(core.pttStuck[station]);
+    });
+    COM_ALERT_IDS.vhfEmitting.forEach((id, vhf) => {
+      expect(alerts[id].simVarIsActive).toBe(core.vhfEmitting[vhf]);
+    });
+    expect(alerts[COM_ALERT_IDS.cids123Fault].inopSysAllPhases?.([])).toEqual(CIDS_123_FAULT_INOP_SYS);
+    expect(alerts[COM_ALERT_IDS.vhf3DatalinkFault].inopSysAllPhases?.([])).toEqual(VHF3_DATALINK_FAULT_INOP_SYS);
   });
 
   it('every alert has its message, the INOP SYS exist', () => {
-    const ids = [
+    const ids: string[] = [
       COM_ALERT_IDS.cids123Fault,
       COM_ALERT_IDS.cidsCabinComFault,
       COM_ALERT_IDS.comDegraded,
@@ -216,30 +210,42 @@ describe('COM alerts wiring', () => {
       ...COM_ALERT_IDS.vhfEmitting,
     ];
     for (const id of ids) {
-      expect(ata23.indexOf(`  ${id}: {`), id).toBeGreaterThan(0);
+      expect(EcamAbnormalProcedures[id], id).toBeDefined();
     }
-    expect(itemNames(COM_ALERT_IDS.vhfEmitting[0])).toEqual(['RMP TX KEY']);
-    expect(messageIndex).toContain(`${CIDS_123_FAULT_INOP_SYS[0]}: '\\x1b<4mCIDS 1+2+3',`);
-    expect(messageIndex).toContain(`${VHF3_DATALINK_FAULT_INOP_SYS[0]}: '\\x1b<4mVHF 3 DATALINK',`);
+    expect(procedureItemNames(COM_ALERT_IDS.vhfEmitting[0])).toEqual(['RMP TX KEY']);
+    expect(EcamInopSys[CIDS_123_FAULT_INOP_SYS[0]]).toBe('\x1b<4mCIDS 1+2+3');
+    expect(EcamInopSys[VHF3_DATALINK_FAULT_INOP_SYS[0]]).toBe('\x1b<4mVHF 3 DATALINK');
   });
 
-  it('FwsCore reads the CIDS / PTT failures and the RMP keys', () => {
-    for (const failure of [
-      'CidsDirector1',
-      'UpperDeckPa',
-      'LowerDeckPa',
-      'CabinInterphoneDegraded',
-      'CaptPttStuck',
-      'ThirdOccupantPttStuck',
-      'Vhf3',
-    ]) {
-      expect(fwsCore, failure).toContain(`A380Failure.${failure}`);
+  it('FwsCore raises the CIDS and VHF 3 alerts from the flyPad failures', () => {
+    const allCidsFailed = createFws(
+      new Set([A380Failure.CidsDirector1, A380Failure.CidsDirector2, A380Failure.CidsDirector3]),
+    );
+    runFwsCycle(allCidsFailed.core);
+    expect(allCidsFailed.core.cids123Fault.get()).toBe(true);
+
+    const upperDeckPaFailed = createFws(new Set([A380Failure.UpperDeckPa]));
+    runFwsCycle(upperDeckPaFailed.core);
+    expect(upperDeckPaFailed.core.cids123Fault.get()).toBe(false);
+    expect(upperDeckPaFailed.core.cidsCabinComFault.get()).toBe(true);
+
+    const vhf3Failed = createFws(new Set([A380Failure.Vhf3]));
+    runFwsCycle(vhf3Failed.core);
+    expect(vhf3Failed.core.vhf3DatalinkFault.get()).toBe(true);
+  });
+
+  it('FwsCore raises PTT STUCK after 40 s from the flyPad failure, and PA IN USE from the RMP key', () => {
+    const { core, simVars } = createFws(new Set([A380Failure.CaptPttStuck]));
+    simVars.set('L:A380X_RMP_3_PA_TX', 1);
+    for (let second = 0; second < 45; second++) {
+      runFwsCycle(core);
     }
-    expect(fwsCore).toContain('this.comTransmissionMonitor.update(');
-    expect(fwsCore).toContain('this.paInUse.set(isPaInUse(this.rmpTransmissionKeys));');
+    expect(core.pttStuck[0].get()).toBe(true);
+    expect(core.paInUse.get()).toBe(true);
   });
 
   it('the flyPad failures are listed in ATA 23', () => {
+    const failureIds = A380Failure as unknown as { [name: string]: number };
     for (const [name, id] of [
       ['CidsDirector1', 23008],
       ['CidsDirector2', 23009],
@@ -253,9 +259,9 @@ describe('COM alerts wiring', () => {
       ['CaptPttStuck', 23017],
       ['FoPttStuck', 23018],
       ['ThirdOccupantPttStuck', 23019],
-    ]) {
-      expect(failures, `${name}`).toContain(`  ${name}: ${id},`);
-      expect(failures, `${name}`).toContain(`  [23, A380Failure.${name}, '`);
+    ] as [string, number][]) {
+      expect(failureIds[name], name).toBe(id);
+      expect(isListedInAta(23, id), name).toBe(true);
     }
   });
 });
@@ -268,7 +274,6 @@ describe('ATA 46 information system COM alerts', () => {
     nssDataToAvncsPbOff: false,
     sciFailed: [false, false],
   };
-  const ata46 = readFileSync(resolve(__dirname, messagesDir, 'AbnormalSensed/ata46-49-52-56.ts'), 'utf-8');
 
   it('no alert in the normal state', () => {
     expect(informationSystemAlerts(normal)).toEqual({
@@ -313,39 +318,54 @@ describe('ATA 46 information system COM alerts', () => {
 
   it('defines the alerts, INOP SYS and the ATC COM VOICE ONLY limitation', () => {
     for (const id of Object.values(INFO_SYS_ALERT_IDS)) {
-      expect(ata46.indexOf(`  ${id}: {`), id).toBeGreaterThan(0);
+      expect(EcamAbnormalProcedures[id], id).toBeDefined();
     }
-    expect(ata46).toContain("title: '\\x1b<4m\\x1b4mCOM\\x1bm ATC DATALINK FAULT',");
-    expect(messageIndex).toContain(`${ADS_DATALINK_FAULT_INOP_SYS[0]}: '\\x1b<4mADS DATALINK',`);
-    expect(messageIndex).toContain(`${ATC_DATALINK_FAULT_INOP_SYS[0]}: '\\x1b<4mATC DATALINK',`);
-    expect(messageIndex).toContain(`${NSS_DATA_TO_AVNCS_XFR_FAULT_INOP_SYS[0]}: '\\x1b<4mNSS DATA TO AVNCS',`);
-    expect(messageIndex).toContain(`${NSS_AVNCS_DATA_XFR_FAULT_INOP_SYS[0]}: '\\x1b<4mNSS/AVNCS DATA XFR',`);
-    expect(messageIndex).toContain(`${ATC_DATALINK_FAULT_LIMITATIONS[0]}: '\\x1b<5mATC COM VOICE ONLY',`);
+    expect(EcamAbnormalProcedures['460800002'].title).toBe('\x1b<4m\x1b4mCOM\x1bm ATC DATALINK FAULT');
+    expect(EcamInopSys[ADS_DATALINK_FAULT_INOP_SYS[0]]).toBe('\x1b<4mADS DATALINK');
+    expect(EcamInopSys[ATC_DATALINK_FAULT_INOP_SYS[0]]).toBe('\x1b<4mATC DATALINK');
+    expect(EcamInopSys[NSS_DATA_TO_AVNCS_XFR_FAULT_INOP_SYS[0]]).toBe('\x1b<4mNSS DATA TO AVNCS');
+    expect(EcamInopSys[NSS_AVNCS_DATA_XFR_FAULT_INOP_SYS[0]]).toBe('\x1b<4mNSS/AVNCS DATA XFR');
+    expect(EcamLimitations[ATC_DATALINK_FAULT_LIMITATIONS[0]]).toBe('\x1b<5mATC COM VOICE ONLY');
   });
 
   it('is wired in FwsCore and FwsAbnormalSensed, the ADS and NSS alerts give way to the wider ones', () => {
-    const infoSysAlerts = abnormalSensed.slice(
-      abnormalSensed.indexOf('  private informationSystemAlerts(): EwdAbnormalDict {'),
-    );
-    expect(abnormalSensed).toContain('    ...this.informationSystemAlerts(),');
-    expect(infoSysAlerts).toContain('notActiveWhenItemActive: [ids.atcDatalinkFault],');
-    expect(infoSysAlerts).toContain('notActiveWhenItemActive: [ids.nssAvncsDataXfrFault],');
-    expect(infoSysAlerts).toContain('limitationsAllPhases: () => ATC_DATALINK_FAULT_LIMITATIONS,');
-    expect(fwsCore).toContain("cpiomD1Available: readBoolLvar('L:A32NX_CPIOM_D1_AVAIL'),");
-    expect(fwsCore).toContain("nssDataToAvncsPbOff: !readBoolLvar('L:A32NX_OVHD_NSS_DATA_TO_AVNCS_TOGGLE'),");
-    for (const failure of ['AdsFunction', 'Sci1', 'Sci2']) {
-      expect(fwsCore, failure).toContain(`A380Failure.${failure}`);
-    }
+    const { core, simVars } = createFws(new Set());
+    const alerts = core.abnormalSensed.ewdAbnormalSensed;
+    expect(alerts['460800001'].simVarIsActive).toBe(core.comAdsDatalinkFault);
+    expect(alerts['460800001'].notActiveWhenItemActive).toEqual(['460800002']);
+    expect(alerts['460800003'].notActiveWhenItemActive).toEqual(['460800004']);
+    expect(alerts['460800002'].limitationsAllPhases?.([])).toEqual(ATC_DATALINK_FAULT_LIMITATIONS);
+
+    simVars.set('L:A32NX_CPIOM_D1_AVAIL', 1);
+    simVars.set('L:A32NX_OVHD_NSS_DATA_TO_AVNCS_TOGGLE', 1);
+    runFwsCycle(core);
+    expect(core.comAtcDatalinkFault.get()).toBe(false);
+    expect(core.comNssDataToAvncsXfrFault.get()).toBe(false);
+    simVars.set('L:A32NX_CPIOM_D1_AVAIL', 0);
+    simVars.set('L:A32NX_OVHD_NSS_DATA_TO_AVNCS_TOGGLE', 0);
+    runFwsCycle(core);
+    expect(core.comAtcDatalinkFault.get()).toBe(true);
+    expect(core.comNssDataToAvncsXfrFault.get()).toBe(true);
+  });
+
+  it('raises the information system alerts from the SCI and ADS flyPad failures', () => {
+    const { core, simVars } = createFws(new Set([A380Failure.Sci1, A380Failure.Sci2, A380Failure.AdsFunction]));
+    simVars.set('L:A32NX_CPIOM_D1_AVAIL', 1);
+    simVars.set('L:A32NX_OVHD_NSS_DATA_TO_AVNCS_TOGGLE', 1);
+    runFwsCycle(core);
+    expect(core.comNssAvncsDataXfrFault.get()).toBe(true);
+    expect(core.comAdsDatalinkFault.get()).toBe(true);
   });
 
   it('lists the SCI and ADS flyPad failures in ATA 46', () => {
+    const failureIds = A380Failure as unknown as { [name: string]: number };
     for (const [name, id] of [
       ['Sci1', 46008],
       ['Sci2', 46009],
       ['AdsFunction', 46010],
-    ]) {
-      expect(failures, `${name}`).toContain(`  ${name}: ${id},`);
-      expect(failures, `${name}`).toContain(`  [46, A380Failure.${name}, '`);
+    ] as [string, number][]) {
+      expect(failureIds[name], name).toBe(id);
+      expect(isListedInAta(46, id), name).toBe(true);
     }
   });
 });

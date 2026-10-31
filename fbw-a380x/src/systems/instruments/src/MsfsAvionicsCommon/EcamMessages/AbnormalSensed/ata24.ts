@@ -7,7 +7,7 @@ import {
   DeferredProcedure,
   DeferredProcedureType,
   FMS_PRED_UNRELIABLE_CHECKLIST_ITEM,
-} from '..';
+} from '../EcamProcedureTypes';
 
 // Convention for IDs:
 // First two digits: ATA chapter

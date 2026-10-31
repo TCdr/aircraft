@@ -1,8 +1,6 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import {
   companyMessageMemoIndex,
@@ -10,6 +8,9 @@ import {
   isCompanyMessageAuralInhibited,
 } from './FwsCompanyMessageAural';
 import { FwcFlightPhase } from './FwsFlightPhases';
+import { EcamMemos } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { A380Failure } from '@failures';
+import { createFws, runFwsCycle } from './FwsSpecFixture';
 
 describe('A380 COMPANY MESSAGE voice', () => {
   it('is said once for each new unread company message', () => {
@@ -69,17 +70,37 @@ describe('COMPANY MSG memo and voice through the SCIs', () => {
 });
 
 describe('COMPANY MSG memo wiring', () => {
-  const memos = readFileSync(resolve(__dirname, 'FwsMemos.ts'), 'utf-8');
-  const core = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
-
   it('shows COMPANY MSG:PRNTR from the waiting printouts', () => {
-    expect(memos).toContain("codesToReturn: ['460000001', '460000002']");
-    expect(memos).toContain('companyMessageMemoIndex(this.fws.compMesgWaitingPrintoutCount.get())');
-    expect(core).toContain("'L:A32NX_COMPANY_MSG_PRNTR_COUNT'");
+    const { core, simVars } = createFws();
+    const memo = core.memos.ewdMemos['460000001'];
+    expect(memo.codesToReturn).toEqual(['460000001', '460000002']);
+    expect(EcamMemos['460000001']).toContain('COMPANY MSG');
+    expect(EcamMemos['460000002']).toContain('COMPANY MSG');
+
+    expect(memo.whichCodeToReturn()).toEqual([0]);
+    simVars.set('L:A32NX_COMPANY_MSG_PRNTR_COUNT', 2);
+    runFwsCycle(core);
+    expect(memo.whichCodeToReturn()).toEqual([1]);
   });
 
-  it('gates the memo and the voice on the SCI link', () => {
-    expect(core).toContain('this.aocAlertsReachFws = !infoSys.nssDataToAvncsXfrFault && !infoSys.nssAvncsDataXfrFault');
-    expect(core).toContain('this.compMesgCount.set(this.aocAlertsReachFws ? this.aocUnreadMessageCount : 0)');
+  it('gates the memo on the SCI link', () => {
+    const { core, simVars } = createFws(new Set());
+    const memo = core.memos.ewdMemos['460000001'];
+    simVars.set('L:A32NX_COMPANY_MSG_COUNT', 3);
+    simVars.set('L:A32NX_OVHD_NSS_DATA_TO_AVNCS_TOGGLE', 1);
+    runFwsCycle(core);
+    expect(memo.simVarIsActive.get()).toBe(true);
+
+    // NSS DATA TO AVNCS pb-sw OFF cuts the AOC link to the FWS
+    simVars.set('L:A32NX_OVHD_NSS_DATA_TO_AVNCS_TOGGLE', 0);
+    runFwsCycle(core);
+    expect(memo.simVarIsActive.get()).toBe(false);
+
+    // Both SCIs failed cut it as well
+    const bothSciFailed = createFws(new Set([A380Failure.Sci1, A380Failure.Sci2]));
+    bothSciFailed.simVars.set('L:A32NX_COMPANY_MSG_COUNT', 3);
+    bothSciFailed.simVars.set('L:A32NX_OVHD_NSS_DATA_TO_AVNCS_TOGGLE', 1);
+    runFwsCycle(bothSciFailed.core);
+    expect(bothSciFailed.core.memos.ewdMemos['460000001'].simVarIsActive.get()).toBe(false);
   });
 });

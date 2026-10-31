@@ -1,22 +1,14 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
-
-/* EcamInfos is read from the source text (EcamMessages/index.ts import cycle, see FwsElecAlertsStatus.spec.ts) */
-const ecamMessages = readFileSync(
-  resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/index.ts'),
-  'utf-8',
-);
+import { EcamInfos } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { withoutEcamCodes } from './FwsSpecFixture';
 
 /** Text of an EcamInfos line, without its ECAM colour code (non-breaking spaces as plain spaces) */
 function infoText(key: string): string | undefined {
-  const start = ecamMessages.indexOf('export const EcamInfos');
-  const body = ecamMessages.slice(start, ecamMessages.indexOf('\n};', start));
-  const line = body.match(new RegExp(`^\\s*'?${key}'?: '\\\\x1b<\\d+m([^']*)',`, 'm'));
-  return line ? line[1].replace(/\\xa0/g, ' ') : undefined;
+  const line = EcamInfos[key];
+  return line === undefined ? undefined : withoutEcamCodes(line).replace(/\xa0/g, ' ');
 }
 
 /* NAV ALL AIR DATA DISAGREE, with all the air data rejected by the PRIMs */

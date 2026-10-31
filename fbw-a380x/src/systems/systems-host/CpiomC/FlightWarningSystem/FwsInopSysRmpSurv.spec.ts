@@ -1,34 +1,17 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { Subject } from '@microsoft/msfs-sdk';
 import type { FwsCore } from './FwsCore';
 import { FwsInopSys, FwsInopSysPhases } from './FwsInopSys';
-
-/* The EcamInopSys table is read as text (EcamMessages/index.ts import cycle, see FwsElecAlertsStatus.spec.ts) */
-const ecamMessages = readFileSync(
-  resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/index.ts'),
-  'utf-8',
-);
-/* The SURV procedures of FwsAbnormalSensed.ts (its imports need the whole FWS: read as text) */
-const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-
-/** The source block of an FwsAbnormalSensed procedure */
-function procedureBlock(id: string): string {
-  const start = abnormalSensed.indexOf(`    ${id}: {`);
-  expect(start, id).toBeGreaterThan(0);
-  return abnormalSensed.slice(start, abnormalSensed.indexOf('\n    },', start));
-}
+import { EcamInopSys } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { createFws } from './FwsSpecFixture';
 
 /** Text of an EcamInopSys line, without its ECAM colour code */
 function inopSysText(key: string): string | undefined {
-  const start = ecamMessages.indexOf('export const EcamInopSys');
-  const body = ecamMessages.slice(start, ecamMessages.indexOf('\n};', start));
-  const line = body.match(new RegExp(`^\\s*'?${key}'?: '\\\\x1b<\\d+m([^']*)',`, 'm'));
-  return line ? line[1] : undefined;
+  // eslint-disable-next-line no-control-regex
+  return EcamInopSys[key]?.replace(/^\x1b<\d+m/, '');
 }
 
 /** An FwsCore stand-in for FwsInopSys: every property is a boolean Subject, created false on first access */
@@ -136,9 +119,10 @@ describe('A380X SURV GPWS, TERR SYS and TAWS INOP SYS lines', () => {
     ['341800024', '340300047', 'SURV TAWS 2 FAULT'],
     ['341800025', '340300048', 'SURV TAWS 1+2 FAULT'],
   ])('procedure %s lists %s under APPR & LDG, not ALL PHASES (%s STATUS)', (procedure, key) => {
-    const block = procedureBlock(procedure);
-    expect(block).toContain(`inopSysApprLdg: () => ['${key}'],`);
-    expect(block).not.toContain('inopSysAllPhases');
+    const { core } = createFws();
+    const entry = core.abnormalSensed.ewdAbnormalSensed[procedure];
+    expect(entry.inopSysApprLdg?.([])).toEqual([key]);
+    expect(entry.inopSysAllPhases).toBeUndefined();
   });
 
   it('keeps the TAWS SYS 1(2)(1+2) replacement of the GPWS and TERR SYS lines (FwsSurvAlerts tawsFunctionFaults)', () => {

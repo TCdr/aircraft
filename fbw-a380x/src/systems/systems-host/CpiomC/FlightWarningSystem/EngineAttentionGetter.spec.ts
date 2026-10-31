@@ -1,14 +1,14 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import {
   EngineAttentionGetterInputs,
   hasOtherAmberOrRedEngineIndication,
   isReverserIndicationAmber,
 } from './EngineAttentionGetter';
+import { FadecEngineState } from './EngineFailAlerts';
+import { createFws, runFwsCycle } from './FwsSpecFixture';
 
 /** A running engine with normal oil indications, no CLOGGED, no amber REV */
 const normal: EngineAttentionGetterInputs = {
@@ -67,10 +67,21 @@ describe('amber REV 2(3) indication', () => {
 });
 
 describe('FwsCore wiring of the attention getting box', () => {
-  const core = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
-
   it('adds the other indications to the primary abnormal parameters of each engine', () => {
-    expect(core).toContain('const otherIndicationAbnormal = hasOtherAmberOrRedEngineIndication({');
-    expect(core).toContain('primaryAbnormal.set(primaryAbnormal.get() || otherIndicationAbnormal);');
+    const { core, simVars } = createFws(new Set());
+    simVars.set('L:A32NX_ENGINE_STATE:1', FadecEngineState.On);
+    simVars.set('L:A32NX_ENGINE_STATE:2', FadecEngineState.On);
+    simVars.set('GENERAL ENG OIL PRESSURE:1', 120);
+    simVars.set('GENERAL ENG OIL PRESSURE:2', 120);
+    simVars.set('GENERAL ENG OIL TEMPERATURE:1', 120);
+    simVars.set('GENERAL ENG OIL TEMPERATURE:2', 120);
+    runFwsCycle(core);
+    expect(core.eng1PrimaryAbnormalParams.get()).toBe(false);
+    expect(core.eng2PrimaryAbnormalParams.get()).toBe(false);
+
+    simVars.set('GENERAL ENG OIL PRESSURE:2', 20);
+    runFwsCycle(core);
+    expect(core.eng1PrimaryAbnormalParams.get()).toBe(false);
+    expect(core.eng2PrimaryAbnormalParams.get()).toBe(true);
   });
 });

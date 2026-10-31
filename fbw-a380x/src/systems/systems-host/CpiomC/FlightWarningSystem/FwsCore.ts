@@ -155,11 +155,7 @@ import {
 } from './EngineParameterAlerts';
 import { EgtRedLineTimer } from '../../../instruments/src/EWD/elements/EgtLimits';
 import { isReverserInoperative, isReverserSelectedInFlight, thrLeverFaultInfo } from './FadecReverserAlerts';
-import {
-  DualRetardCallout,
-  THR_LEVER_ABOVE_IDLE_PHASE_INHIBITION,
-  ThrustLeverAboveIdleMonitor,
-} from './EngineThrustLeverAlerts';
+import { DualRetardCallout, isThrLeverAboveIdleShown, ThrustLeverAboveIdleMonitor } from './EngineThrustLeverAlerts';
 import { selectSfccPositionWord } from './SfccWordSelection';
 import { SlatFlapAlertMonitor } from './FwsSlatFlapAlerts';
 import { isAnyBrakeHot, readReportedBrakeTemperaturesC } from './BrakesHot';
@@ -4294,6 +4290,15 @@ export class FwsCore {
     return rowChoice;
   }
 
+  /** Every passenger door, both cargo doors and the cockpit sliding windows are in the takeoff configuration (closed) */
+  public doorsInTakeoffConfig(): boolean {
+    return areDoorsInTakeoffConfig(
+      this.cabinDoorNotClosed.map((door) => door.get()),
+      this.cargoDoorNotClosed.map((door) => door.get()),
+      this.cockpitWindowOpen.get(),
+    );
+  }
+
   /**
    * Periodic update
    */
@@ -4725,9 +4730,10 @@ export class FwsCore {
     this.thrLeverAboveIdle.forEach((active, engineIndex) =>
       active.set(this.thrustLeverAboveIdleMonitor.isActive(engineIndex)),
     );
-    const thrLeverAboveIdleShown =
-      this.thrustLeverAboveIdleMonitor.isAnyActive() &&
-      !THR_LEVER_ABOVE_IDLE_PHASE_INHIBITION.includes(this.flightPhase.get());
+    const thrLeverAboveIdleShown = isThrLeverAboveIdleShown(
+      this.thrustLeverAboveIdleMonitor.isAnyActive(),
+      this.flightPhase.get(),
+    );
     if (this.dualRetardCallout.update(thrLeverAboveIdleShown, deltaTime / 1000)) {
       this.soundManager.enqueueSound('retard');
     }
@@ -8385,11 +8391,7 @@ export class FwsCore {
 
       const speeds = !toSpeedsTooLow && !toV2VRV2Disagree && !fmToSpeedsNotInserted;
       // Every main and upper deck passenger door, both cargo doors and the cockpit sliding windows (set in DOOR above)
-      const doors = areDoorsInTakeoffConfig(
-        this.cabinDoorNotClosed.map((door) => door.get()),
-        this.cargoDoorNotClosed.map((door) => door.get()),
-        this.cockpitWindowOpen.get(),
-      );
+      const doors = this.doorsInTakeoffConfig();
       const surfacesNotTo =
         flapsNotInToPos ||
         slatsNotInToPos ||

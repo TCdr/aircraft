@@ -1,9 +1,9 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
+import { EcamAbnormalProcedures } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { createFws, runFwsCycle } from './FwsSpecFixture';
 import { cabinOxygenMinimumPressurePsi, OXYGEN_ALERT_IDS, OxygenAlertInputs, oxygenAlerts } from './OxygenAlerts';
 
 const normal: OxygenAlertInputs = {
@@ -72,18 +72,35 @@ describe('OXY CABIN VLV CLOSED', () => {
 });
 
 describe('OXY alert definitions', () => {
-  const procedures = readFileSync(
-    resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata35-36-42.ts'),
-    'utf-8',
-  );
-  const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
+  const { core, simVars } = createFws(new Set());
+  const alert = (id: string) => core.abnormalSensed.ewdAbnormalSensed[id];
 
   it('defines the three procedures and their FWS entries', () => {
     for (const id of Object.values(OXYGEN_ALERT_IDS)) {
-      expect(procedures).toContain(`  ${id}: {`);
+      expect(EcamAbnormalProcedures[id]).toBeDefined();
+      expect(alert(id)).toBeDefined();
     }
-    for (const key of Object.keys(OXYGEN_ALERT_IDS)) {
-      expect(abnormalSensed).toContain(`[OXYGEN_ALERT_IDS.${key}]: {`);
-    }
+  });
+
+  it('drives each FWS entry with its own signal', () => {
+    expect(alert(OXYGEN_ALERT_IDS.cabinBottlePressLo).simVarIsActive).toBe(core.oxyCabinBottlePressLo);
+    expect(alert(OXYGEN_ALERT_IDS.cabinValveClosed).simVarIsActive).toBe(core.oxyCabinValveClosed);
+    expect(alert(OXYGEN_ALERT_IDS.ckptBottlePressLo).simVarIsActive).toBe(core.oxyCkptBottlePressLo);
+  });
+
+  it('raises the signals from the oxygen model variables', () => {
+    simVars.set('L:A32NX_OXYGEN_CREW_BOTTLE_PRESSURE', 1850);
+    simVars.set('L:A32NX_OXYGEN_CABIN_BOTTLE_PRESSURE', 1850);
+    runFwsCycle(core);
+    expect([core.oxyCkptBottlePressLo.get(), core.oxyCabinBottlePressLo.get(), core.oxyCabinValveClosed.get()]).toEqual(
+      [false, false, false],
+    );
+
+    simVars.set('L:A32NX_OXYGEN_CREW_BOTTLE_PRESSURE', 300);
+    simVars.set('L:A32NX_OXYGEN_CABIN_VALVE_CLOSED', true);
+    runFwsCycle(core);
+    expect(core.oxyCkptBottlePressLo.get()).toBe(true);
+    expect(core.oxyCabinValveClosed.get()).toBe(true);
+    expect(core.oxyCabinBottlePressLo.get()).toBe(false);
   });
 });

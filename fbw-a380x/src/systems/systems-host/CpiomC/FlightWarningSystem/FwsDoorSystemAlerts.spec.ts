@@ -1,14 +1,12 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { Subject } from '@microsoft/msfs-sdk';
 import { SdPages } from '@shared/EcamSystemPages';
 import { COCKPIT_DOOR_VARS, DSMS_VARS } from '@shared/DoorsAndSlides';
-import { EcamAbnormalSensedAta46495256 } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata46-49-52-56';
-import { CABIN_DOORS } from './DoorAlerts';
+import { EcamAbnormalProcedures, EcamInopSys } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { CABIN_DOORS, cargoDoorLockedVariable } from './DoorAlerts';
 import {
   DOOR_SYSTEM_ALERT_KEYS,
   doorSystemAbnormalItems,
@@ -17,31 +15,17 @@ import {
   DoorSystemInputs,
   readDoorSystemInputs,
 } from './FwsDoorSystemAlerts';
+import { createFws, runFwsCycle, procedureItemNames } from './FwsSpecFixture';
 
-// The procedure table imports its line styles from the EcamMessages index, which imports every table back: in a test
-// that circular import leaves the styles undefined, so the index is replaced by the styles alone
-vi.mock('../../../instruments/src/MsfsAvionicsCommon/EcamMessages/index', () => ({
-  ChecklistLineStyle: new Proxy({}, { get: (_, style) => style }),
-}));
-
-const ecamMessages = readFileSync(
-  resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/index.ts'),
-  'utf-8',
-);
+const ESCAPE = String.fromCharCode(27);
 
 /** Text of an EcamInopSys line, without its ECAM colour code */
 function inopSysText(key: string): string | undefined {
-  const start = ecamMessages.indexOf('export const EcamInopSys');
-  const body = ecamMessages.slice(start, ecamMessages.indexOf('\n};', start));
-  const line = body.match(new RegExp(`^\\s*'?${key}'?: '\\\\x1b<\\d+m([^']*)',`, 'm'));
-  return line ? line[1].trim() : undefined;
+  return EcamInopSys[key]?.replace(new RegExp(`^${ESCAPE}<\\d+m`), '').trim();
 }
 
 const titleOf = (key: number) =>
-  ['\x1b<4m', '\x1b4m', '\x1bm'].reduce(
-    (title, code) => title.split(code).join(''),
-    EcamAbnormalSensedAta46495256[key].title,
-  );
+  ['\x1b<4m', '\x1b4m', '\x1bm'].reduce((title, code) => title.split(code).join(''), EcamAbnormalProcedures[key].title);
 
 function noFault(): DoorSystemInputs {
   const doors = () => new Array(16).fill(false);
@@ -185,7 +169,7 @@ describe('DOOR alerts of the DSMS: ECAM procedures', () => {
 
   it('gives each procedure line a display and a check flag', () => {
     for (const key of keys) {
-      const lines = EcamAbnormalSensedAta46495256[key].items.length;
+      const lines = EcamAbnormalProcedures[key].items.length;
       expect(items[key].whichItemsToShow(), `${key}`).toHaveLength(lines);
       expect(items[key].whichItemsChecked(), `${key}`).toHaveLength(lines);
     }
@@ -223,13 +207,13 @@ describe('DOOR alerts of the DSMS: lines and STATUS', () => {
   const k = DOOR_SYSTEM_ALERT_KEYS;
   const inop = (lines: (string | null)[] | undefined) => (lines ?? []).map((key) => inopSysText(key as string));
 
-  it('ACTUATOR FAULT: CABIN CREW ADVISE, INOP SYS APPR & LDG DOOR <door>', () => {
+  it('ACTUATOR FAULT: CABIN CREW ADVISE, INOP SYS APPR & LDG DOOR <\\door>', () => {
     const { items } = setup(noFault());
     expect(items[k.actuatorFault + 10].whichItemsToShow()).toEqual([true]);
     expect(inop(items[k.actuatorFault + 10].inopSysApprLdg?.([]))).toEqual(['DOOR UPPER 1L']);
   });
 
-  it('FLIGHT LOCK FAULT failed locked: FLIGHT LOCK ENGAGED, CABIN CREW ADVISE, INOP SYS APPR & LDG DOOR <door>', () => {
+  it('FLIGHT LOCK FAULT failed locked: FLIGHT LOCK ENGAGED, CABIN CREW ADVISE, INOP SYS APPR & LDG DOOR <\\door>', () => {
     const inputs = noFault();
     inputs.flightLockFault[MAIN_2L] = true;
     inputs.flightLockEngaged[MAIN_2L] = true;
@@ -239,7 +223,7 @@ describe('DOOR alerts of the DSMS: lines and STATUS', () => {
     expect(item.inopSysAllPhases?.([])).toEqual([]);
   });
 
-  it('FLIGHT LOCK FAULT failed unlocked: FLIGHT LOCK NOT AVAIL on ground, INOP SYS <door> FLT LOCK', () => {
+  it('FLIGHT LOCK FAULT failed unlocked: FLIGHT LOCK NOT AVAIL on ground, INOP SYS <\\door> FLT LOCK', () => {
     const inputs = noFault();
     inputs.flightLockFault[MAIN_2L] = true;
     const onGround = setup(inputs, true, 1).items[k.flightLockFault + MAIN_2L];
@@ -267,7 +251,7 @@ describe('DOOR alerts of the DSMS: lines and STATUS', () => {
     expect(cruise.limitationsPfd?.([false, false])).toEqual([]);
   });
 
-  it('SLIDE FAULT: CABIN CREW ADVISE, INOP SYS APPR & LDG <door> SLIDE; SLIDE LENGTHENING: <door> SLIDE LENGTH', () => {
+  it('SLIDE FAULT: CABIN CREW ADVISE, INOP SYS APPR & LDG <\\door> SLIDE; SLIDE LENGTHENING: <\\door> SLIDE LENGTH', () => {
     const { items } = setup(noFault());
     expect(items[k.slideFault + 9].whichItemsToShow()).toEqual([false, true]);
     expect(inop(items[k.slideFault + 9].inopSysApprLdg?.([]))).toEqual(['MAIN 5R SLIDE']);
@@ -302,13 +286,13 @@ describe('DOOR alerts of the DSMS: lines and STATUS', () => {
 
   it('RESIDUAL DIFF PRESS DET FAULT: BEFORE OPENING ANY CABIN DOOR, RESIDUAL DIFF PRESS CHECK, CABIN CREW ADVISE', () => {
     const { items } = setup(noFault());
-    const lines = EcamAbnormalSensedAta46495256[k.residualDiffPressDetFault].items.map((item) => item.name);
+    const lines = procedureItemNames(k.residualDiffPressDetFault);
     expect(lines).toEqual(['BEFORE OPENING ANY CABIN DOOR:', 'RESIDUAL DIFF PRESS', 'CABIN CREW']);
     expect(items[k.residualDiffPressDetFault].whichItemsToShow()).toEqual([true, true, true]);
   });
 
   it('CKPT DOOR EMER OPENING IN PROGRESS: CKPT DOOR LOCK AS RQRD', () => {
-    const line = EcamAbnormalSensedAta46495256[k.ckptDoorEmerOpening].items[0];
+    const line = EcamAbnormalProcedures[k.ckptDoorEmerOpening].items[0];
     expect([line.name, 'labelNotCompleted' in line ? line.labelNotCompleted : undefined]).toEqual([
       'CKPT DOOR',
       'LOCK AS RQRD',
@@ -330,17 +314,36 @@ describe('DOOR alerts of the DSMS: state for the NOT CLOSED alerts', () => {
 });
 
 describe('DOOR alerts of the DSMS: wiring', () => {
-  const fromHere = (path: string) => readFileSync(resolve(__dirname, path), 'utf-8');
+  it('lists the alerts in the FWS table, driven by the alert state of the core', () => {
+    const { core } = createFws();
+    const listed = doorSystemAbnormalItems(core.doorSystemAlerts, core);
+    for (const key of Object.keys(listed).map(Number)) {
+      expect(core.abnormalSensed.ewdAbnormalSensed[key], `${key}`).toBeDefined();
+    }
+    expect(core.abnormalSensed.ewdAbnormalSensed[DOOR_SYSTEM_ALERT_KEYS.doorPosDetFault].simVarIsActive).toBe(
+      core.doorSystemAlerts.doorPosDetFault,
+    );
+  });
 
-  it('lists the alerts in the FWS and removes NOT CLOSED of a door with an unknown position', () => {
-    expect(fromHere('FwsAbnormalSensed.ts')).toContain(
-      '...doorSystemAbnormalItems(this.fws.doorSystemAlerts, this.fws),',
-    );
-    expect(fromHere('FwsCore.ts')).toContain(
-      'isCabinDoorNotClosed(openRatio.get(), this.doorSystemAlerts.positionInvalid[point])',
-    );
-    expect(fromHere('FwsCore.ts')).toContain(
-      'isCargoDoorNotClosed(locked.get(), this.doorSystemAlerts.allChannelsLost)',
-    );
+  it('removes NOT CLOSED of a door with an unknown position', () => {
+    const { core, simVars } = createFws();
+    simVars.set(`INTERACTIVE POINT OPEN:${MAIN_2L}`, 1);
+    runFwsCycle(core);
+    expect(core.cabinDoorNotClosed[MAIN_2L].get()).toBe(true);
+
+    simVars.set(DSMS_VARS.positionInvalid, 1 << MAIN_2L);
+    runFwsCycle(core);
+    expect(core.cabinDoorNotClosed[MAIN_2L].get()).toBe(false);
+  });
+
+  it('removes NOT CLOSED of the cargo doors when the three DSMS channels are lost', () => {
+    const { core, simVars } = createFws();
+    simVars.set(cargoDoorLockedVariable('FWD'), 0);
+    runFwsCycle(core);
+    expect(core.cargoDoorNotClosed[0].get()).toBe(true);
+
+    simVars.set(DSMS_VARS.channelsFailed, 3);
+    runFwsCycle(core);
+    expect(core.cargoDoorNotClosed[0].get()).toBe(false);
   });
 });

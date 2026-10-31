@@ -1,8 +1,6 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import {
   AFDX_SWITCHES_NETWORK_A,
@@ -22,13 +20,9 @@ import {
   MULTIPLE_FAULT_PHASE_INHIBITION,
 } from './AvionicsNetworkAlerts';
 
-/* The wiring is read from the source text, as CommunicationAlerts.spec.ts does (EcamMessages import cycle). */
-const messagesDir = '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
-const ata42 = readFileSync(resolve(__dirname, messagesDir, 'AbnormalSensed/ata35-36-42.ts'), 'utf-8');
-const messageIndex = readFileSync(resolve(__dirname, messagesDir, 'index.ts'), 'utf-8');
-const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-const fwsCore = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
-const failures = readFileSync(resolve(__dirname, '../../../failures/src/a380.ts'), 'utf-8');
+import { EcamAbnormalProcedures, EcamLimitations } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { A380Failure } from '../../../failures/src/a380';
+import { createFws, runFwsCycle } from './FwsSpecFixture';
 
 const NO_ALERT: AvionicsNetworkAlerts = {
   allSwitchesFault: false,
@@ -78,16 +72,18 @@ describe('AVIONICS NETWORK MULTIPLE CABLE FAULT', () => {
   it('maps the cables to the flyPad failures 42301 to 42330', () => {
     expect(afdxCableFlyPadFailure(1)).toBe(42301);
     expect(afdxCableFlyPadFailure(30)).toBe(42330);
-    expect(failures).toContain('AfdxCable1: 42301,');
-    expect(failures).toContain('AfdxCable30: 42330,');
+    expect(A380Failure.AfdxCable1).toBe(42301);
+    expect(A380Failure.AfdxCable30).toBe(42330);
   });
 
-  it('is wired to the alert 420800008 as crew awareness', () => {
+  it('is wired to the alert 420800008 as crew awareness, from the cable flyPad failures', () => {
+    const { core } = createFws(new Set([A380Failure.AfdxCable1, A380Failure.AfdxCable2]));
     expect(AVIONICS_NETWORK_ALERT_IDS.multipleCableFault).toBe('420800008');
-    expect(ata42).toContain('420800008: {');
-    expect(ata42).toContain('MULTIPLE CABLE FAULT');
-    expect(fwsCore).toContain('cableFailed: (cable) => comFailureActive(afdxCableFlyPadFailure(cable)),');
-    expect(abnormalSensed).toContain('simVarIsActive: this.fws.avncsNetworkMultipleCableFault,');
+    expect(EcamAbnormalProcedures['420800008'].title).toContain('MULTIPLE CABLE FAULT');
+    const entry = core.abnormalSensed.ewdAbnormalSensed['420800008'];
+    expect(entry.simVarIsActive).toBe(core.avncsNetworkMultipleCableFault);
+    runFwsCycle(core);
+    expect(core.avncsNetworkMultipleCableFault.get()).toBe(true);
   });
 });
 
@@ -161,11 +157,12 @@ describe('AVIONICS NETWORK failure inputs', () => {
   });
 
   it('maps the switches and IOMs on the flyPad failure ids of a380.ts', () => {
+    const failureIds = A380Failure as unknown as { [name: string]: number };
     for (const id of [...AFDX_SWITCHES_NETWORK_A, ...AFDX_SWITCHES_NETWORK_B]) {
-      expect(failures).toContain(`  AfdxSwitch${id}: ${afdxSwitchFlyPadFailure(id)},`);
+      expect(failureIds[`AfdxSwitch${id}`]).toBe(afdxSwitchFlyPadFailure(id));
     }
     for (const n of [1, 2, 3, 4, 5, 6, 7, 8]) {
-      expect(failures).toContain(`  IomA${n}: ${iomFlyPadFailure(`A${n}`)},`);
+      expect(failureIds[`IomA${n}`]).toBe(iomFlyPadFailure(`A${n}`));
     }
   });
 });
@@ -177,22 +174,30 @@ describe('AVIONICS NETWORK alert wiring and flight phase inhibitions', () => {
     expect(MULTIPLE_FAULT_PHASE_INHIBITION).toEqual([3, 4, 5, 6, 7, 9, 10]);
   });
 
-  it('defines every alert in ata35-36-42.ts and wires it in FwsAbnormalSensed', () => {
+  it('defines every alert and wires it in FwsAbnormalSensed', () => {
+    const { core } = createFws(new Set());
     for (const id of Object.values(AVIONICS_NETWORK_ALERT_IDS)) {
-      expect(ata42.indexOf(`  ${id}: {`), id).toBeGreaterThan(0);
+      expect(EcamAbnormalProcedures[id], id).toBeDefined();
+      expect(core.abnormalSensed.ewdAbnormalSensed[id], id).toBeDefined();
     }
-    expect(ata42).toContain("title: '\\x1b<4m\\x1b4mAVIONICS NETWORK\\x1bm ALL SWITCHES FAULT',");
-    expect(abnormalSensed).toContain('...this.avionicsNetworkAlerts(),');
-    expect(abnormalSensed).toContain('simVarIsActive: this.fws.avncsNetworkAllSwitchesFault,');
-    expect(abnormalSensed).toContain('simVarIsActive: this.fws.avncsNetworkMultipleIomFaultRedundancyDegraded,');
-    expect(fwsCore).toContain('avionicsNetworkAlerts({');
+    expect(EcamAbnormalProcedures['420800001'].title).toBe('\x1b<4m\x1b4mAVIONICS NETWORK\x1bm ALL SWITCHES FAULT');
+    const abnormal = core.abnormalSensed.ewdAbnormalSensed;
+    expect(abnormal['420800001'].simVarIsActive).toBe(core.avncsNetworkAllSwitchesFault);
+    expect(abnormal['420800005'].simVarIsActive).toBe(core.avncsNetworkMultipleIomFaultRedundancyDegraded);
   });
 
-  it('lists the limitations of ALL SWITCHES FAULT in index.ts', () => {
+  it('drives the alerts from the flyPad failures of the switches', () => {
+    const { core } = createFws(new Set([A380Failure.AfdxSwitch1, A380Failure.AfdxSwitch2]));
+    runFwsCycle(core);
+    expect(core.avncsNetworkDoubleSwitchFault.get()).toBe(true);
+    expect(core.avncsNetworkAllSwitchesFault.get()).toBe(false);
+  });
+
+  it('lists the limitations of ALL SWITCHES FAULT', () => {
     for (const id of [...ALL_SWITCHES_FAULT_LIMITATIONS_ALL_PHASES, ...ALL_SWITCHES_FAULT_LIMITATIONS_APPR_LDG]) {
-      expect(messageIndex.indexOf(`  ${id}: '\\x1b<`), id).toBeGreaterThan(0);
+      expect(EcamLimitations[id].startsWith('\x1b<'), id).toBe(true);
     }
-    expect(messageIndex).toContain("420400005: '\\x1b<5mA-SKID NOT USABLE ON ALL L/Gs',");
-    expect(messageIndex).toContain("460400001: '\\x1b<5mATC COM VOICE ONLY',");
+    expect(EcamLimitations['420400005']).toBe('\x1b<5mA-SKID NOT USABLE ON ALL L/Gs');
+    expect(EcamLimitations['460400001']).toBe('\x1b<5mATC COM VOICE ONLY');
   });
 });

@@ -1,9 +1,8 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
+import { SdPages } from '@shared/EcamSystemPages';
 import { FeedTankPumpFlags } from './FuelPumpValveFlags';
 import { FwcFlightPhase } from './FwsFlightPhases';
 import {
@@ -22,32 +21,17 @@ import {
   wingsNotBalancedLines,
 } from './FwsFuelFeedBalanceAlerts';
 
-/* The source texts (importing the EcamMessages tables in a test fails on a circular import, see FwsCdsDuFault.spec.ts) */
-const messagesDir = resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages');
-const ata28 = readFileSync(resolve(messagesDir, 'AbnormalSensed/ata28.ts'), 'utf-8');
-const ecamIndex = readFileSync(resolve(messagesDir, 'index.ts'), 'utf-8');
-const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
+import {
+  EcamAbnormalProcedures,
+  EcamInfos,
+  EcamLimitations,
+} from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { createFws } from './FwsSpecFixture';
 
-function itemCount(id: string): number {
-  const start = ata28.indexOf(`  ${id}: {`);
-  expect(start).toBeGreaterThan(0);
-  return (ata28.slice(start, ata28.indexOf('\n  },', start)).match(/^ {6}\{/gm) ?? []).length;
-}
+const itemCount = (id: string): number => EcamAbnormalProcedures[id].items.length;
 
 function shownNames(id: string, show: boolean[]): string[] {
-  const start = ata28.indexOf(`  ${id}: {`);
-  const block = ata28.slice(start, ata28.indexOf('\n  },', start));
-  const names = block
-    .split(/^ {6}\{/m)
-    .slice(1)
-    .map((item) => (item.match(/name: '(.*?)'/) ?? [])[1]);
-  return names.filter((_, n) => show[n]);
-}
-
-function alertBlock(id: string): string {
-  const start = abnormalSensed.indexOf(`    ${id}: {`);
-  expect(start).toBeGreaterThan(0);
-  return abnormalSensed.slice(start, abnormalSensed.indexOf('\n    },', start));
+  return EcamAbnormalProcedures[id].items.map((item) => item.name).filter((_, n) => show[n]);
 }
 
 const pumpsOn = (): FeedTankPumpFlags => ({
@@ -132,10 +116,12 @@ describe('FUEL L(R) WING FEED PMPs FAULT', () => {
       ['281800070', 0],
       ['281800071', 1],
     ] as const) {
-      const block = alertBlock(id);
-      expect(block).toContain(`simVarIsActive: this.fws.fuelWingFeedPumpsFault[${side}]`);
-      expect(block).toContain('failure: 2');
-      expect(block).toContain('sysPage: SdPages.Fuel');
+      const { core } = createFws();
+      const alert = core.abnormalSensed.ewdAbnormalSensed[id];
+      expect(alert.simVarIsActive).toBe(core.fuelWingFeedPumpsFault[side]);
+      expect(alert.flightPhaseInhib).toEqual(FUEL_FEED_BALANCE_PHASE_INHIBITION.wingFeedPumpsFault);
+      expect(alert.failure).toBe(2);
+      expect(alert.sysPage).toBe(SdPages.Fuel);
     }
   });
 });
@@ -154,7 +140,7 @@ function inputs(overrides: Partial<FuelProcedureInputs> = {}): FuelProcedureInpu
 }
 
 describe('FUEL L(R) WING FEED PMPs FAULT procedure', () => {
-  it.each([0, 1] as const)('side %i: one shown and one checked flag per item of ata28.ts', (side) => {
+  it.each([0, 1] as const)('side %i: one shown and one checked flag per item of the ECAM procedure', (side) => {
     const lines = wingFeedPumpsFaultLines(inputs(), side, false);
     const id = side === 0 ? '281800070' : '281800071';
     expect(lines.show).toHaveLength(itemCount(id));
@@ -220,8 +206,8 @@ describe('FUEL L(R) WING FEED PMPs FAULT procedure', () => {
       ['280300011', '280300012'],
       ['280300013', '280300014'],
     ]);
-    expect(ecamIndex).toContain("280200013: '\\x1b<3mL WING FEED TKs BY GRVTY ONLY'");
-    expect(ecamIndex).toContain("280200014: '\\x1b<3mR WING FEED TKs BY GRVTY ONLY'");
+    expect(EcamInfos['280200013']).toBe('\x1b<3mL WING FEED TKs BY GRVTY ONLY');
+    expect(EcamInfos['280200014']).toBe('\x1b<3mR WING FEED TKs BY GRVTY ONLY');
   });
 });
 
@@ -359,9 +345,19 @@ describe('FUEL WINGS NOT BALANCED / WINGS BALANCED', () => {
   it('both alerts are master cautions on the FUEL page, inhibited in phases 3-7, 9, 10', () => {
     expect(FUEL_FEED_BALANCE_PHASE_INHIBITION.wingsNotBalanced).toEqual([3, 4, 5, 6, 7, 9, 10]);
     expect(FUEL_FEED_BALANCE_PHASE_INHIBITION.wingsBalanced).toEqual([3, 4, 5, 6, 7, 9, 10]);
-    expect(alertBlock('281800100')).toContain('simVarIsActive: this.fws.fuelWingsNotBalanced');
-    expect(alertBlock('281800098')).toContain('simVarIsActive: this.fws.fuelWingsBalanced');
-    expect(alertBlock('281800100')).toContain("['280400002']"); // DELAY T.O on the ground
+    const { core } = createFws();
+    const notBalanced = core.abnormalSensed.ewdAbnormalSensed['281800100'];
+    const balanced = core.abnormalSensed.ewdAbnormalSensed['281800098'];
+    expect(notBalanced.simVarIsActive).toBe(core.fuelWingsNotBalanced);
+    expect(balanced.simVarIsActive).toBe(core.fuelWingsBalanced);
+    expect(notBalanced.failure).toBe(2);
+    expect(balanced.failure).toBe(2);
+    expect(notBalanced.flightPhaseInhib).toEqual(FUEL_FEED_BALANCE_PHASE_INHIBITION.wingsNotBalanced);
+    expect(balanced.flightPhaseInhib).toEqual(FUEL_FEED_BALANCE_PHASE_INHIBITION.wingsBalanced);
+    // DELAY T.O on the ground
+    core.aircraftOnGround.set(true);
+    expect(notBalanced.limitationsAllPhases?.([])).toEqual(['280400002']);
+    expect(EcamLimitations['280400002']).toBeDefined();
   });
 });
 
@@ -395,7 +391,8 @@ describe('FUEL INR TKs QTY LO', () => {
   it('procedure IF REFUEL NOT PLANNED : AUTO GND XFR ON, INFO EACH INR TK : 5100 KG MIN FOR T.O, phases 3-11', () => {
     expect(innerTanksQtyLoLines().show).toHaveLength(itemCount('281800051'));
     expect(FUEL_FEED_BALANCE_PHASE_INHIBITION.innerTanksQtyLo).toEqual([3, 4, 5, 6, 7, 8, 9, 10, 11]);
-    expect(alertBlock('281800051')).toContain("info: () => ['280200012']");
-    expect(ecamIndex).toContain("280200012: '\\x1b<3mEACH INR TK : 5100 KG MIN FOR T.O'");
+    const { core } = createFws();
+    expect(core.abnormalSensed.ewdAbnormalSensed['281800051'].info?.([])).toEqual(['280200012']);
+    expect(EcamInfos['280200012']).toBe('\x1b<3mEACH INR TK : 5100 KG MIN FOR T.O');
   });
 });

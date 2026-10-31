@@ -1,15 +1,16 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { SdPages } from '@shared/EcamSystemPages';
 import { describe, expect, it } from 'vitest';
 import {
   EngineStartFault,
   EngineStartPhase,
   IGN_A_AND_B_FAULT_LEVEL,
+  IGN_FAULT_FLIGHT_PHASE_INHIBITION,
   IGN_A_OR_B_FAULT_LEVEL,
   isIgnitionMemoShown,
+  START_ALERTS_FLIGHT_PHASE_INHIBITION,
   START_FAULT_ITEM_COUNT,
   START_FAULT_LEVEL,
   START_VALVE_NOT_CLOSED_ITEM_COUNT,
@@ -21,21 +22,16 @@ import {
   startValveNotClosedStatus,
   startValveNotOpenItems,
 } from './EngineStartAlerts';
+import {
+  DeferredProcedureType,
+  EcamAbnormalProcedures,
+  EcamDeferredProcedures,
+} from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { createFws, runFwsCycle, procedureItemNames } from './FwsSpecFixture';
 
-/*
- * The ECAM items of the procedures, read from the source text of ata70.ts (importing the EcamMessages tables in a test fails on
- * a circular import, see FwsAbnormalSensedItems.spec.ts).
- */
-const ata70 = readFileSync(
-  resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata70.ts'),
-  'utf-8',
-);
-function itemCount(key: number): number {
-  const start = ata70.indexOf(`  ${key}: {`);
-  expect(start).toBeGreaterThan(0);
-  const block = ata70.slice(start, ata70.indexOf('\n  },', start));
-  return block.split('{ name:').length - 1;
-}
+const itemCount = (key: number) => EcamAbnormalProcedures[key].items.length;
+const { core, simVars } = createFws();
+const sensed = (key: number) => core.abnormalSensed.ewdAbnormalSensed[key];
 
 const shown = (show: boolean[]) => show.flatMap((value, index) => (value ? [index] : []));
 
@@ -115,15 +111,8 @@ describe('A380X ENG START FAULT', () => {
       false,
       false,
     ]);
-    const ata70 = readFileSync(
-      resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata70.ts'),
-      'utf-8',
-    );
     for (let engine = 1; engine <= 4; engine++) {
-      const start = ata70.indexOf(`  ${701800116 + engine}: {`);
-      const names = [...ata70.slice(start, ata70.indexOf('\n  },', start)).matchAll(/name: '([^']*)'/g)].map(
-        (match) => match[1],
-      );
+      const names = procedureItemNames(701800116 + engine);
       expect(names.slice(26)).toEqual(['IF NOT SUCCESSFUL', `ENG ${engine} MAN START`, `ENG ${engine} MASTER`]);
     }
   });
@@ -134,24 +123,27 @@ describe('A380X ENG START FAULT', () => {
     expect(START_FAULT_LEVEL).toBe(1);
     expect(IGN_A_OR_B_FAULT_LEVEL).toBe(1);
     expect(IGN_A_AND_B_FAULT_LEVEL).toBe(2);
-    const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-    const startAlerts = abnormalSensed.slice(
-      abnormalSensed.indexOf('private engineStartAlerts()'),
-      abnormalSensed.indexOf('public ewdAbnormalSensed'),
-    );
-    const startFault = startAlerts.slice(startAlerts.indexOf('alerts[701800117 + index]'));
-    expect(startFault.slice(0, startFault.indexOf('};'))).toContain('failure: START_FAULT_LEVEL,');
-    expect(startFault.slice(0, startFault.indexOf('};'))).toContain('sysPage: SdPages.None,');
-    expect(startAlerts).toMatch(
-      /engineIgnAFault\[index\],\s+IGN_FAULT_FLIGHT_PHASE_INHIBITION,\s+IGN_A_OR_B_FAULT_LEVEL/,
-    );
-    expect(startAlerts).toMatch(
-      /engineIgnBFault\[index\],\s+IGN_FAULT_FLIGHT_PHASE_INHIBITION,\s+IGN_A_OR_B_FAULT_LEVEL/,
-    );
-    expect(startAlerts).toMatch(
-      /engineIgnAPlusBFault\[index\],\s+START_ALERTS_FLIGHT_PHASE_INHIBITION,\s+IGN_A_AND_B_FAULT_LEVEL/,
-    );
-    expect(startAlerts).toContain('failure: level,');
+    for (let index = 0; index < 4; index++) {
+      const startFault = sensed(701800117 + index);
+      expect(startFault.simVarIsActive).toBe(core.engineStartFaultActive[index]);
+      expect(startFault.failure).toBe(START_FAULT_LEVEL);
+      expect(startFault.sysPage).toBe(SdPages.None);
+      const ignA = sensed(701800057 + index);
+      expect(ignA.simVarIsActive).toBe(core.engineIgnAFault[index]);
+      expect(ignA.flightPhaseInhib).toEqual(IGN_FAULT_FLIGHT_PHASE_INHIBITION);
+      expect(ignA.failure).toBe(IGN_A_OR_B_FAULT_LEVEL);
+      const ignB = sensed(701800061 + index);
+      expect(ignB.simVarIsActive).toBe(core.engineIgnBFault[index]);
+      expect(ignB.flightPhaseInhib).toEqual(IGN_FAULT_FLIGHT_PHASE_INHIBITION);
+      expect(ignB.failure).toBe(IGN_A_OR_B_FAULT_LEVEL);
+      const ignAPlusB = sensed(701800065 + index);
+      expect(ignAPlusB.simVarIsActive).toBe(core.engineIgnAPlusBFault[index]);
+      expect(ignAPlusB.flightPhaseInhib).toEqual(START_ALERTS_FLIGHT_PHASE_INHIBITION);
+      expect(ignAPlusB.failure).toBe(IGN_A_AND_B_FAULT_LEVEL);
+      for (const entry of [ignA, ignB, ignAPlusB]) {
+        expect(entry.sysPage).toBe(SdPages.None);
+      }
+    }
   });
 
   /* LOW N1 (the N1 rotor jam): on the ground THR LEVER n IDLE, CRANK IN PROGRESS, ENG MASTER OFF; a manual start adds the dry
@@ -173,10 +165,7 @@ describe('A380X ENG START FAULT', () => {
 
   it('has the LOW N1 lines in the ECAM procedure of each engine, in the order of the procedure', () => {
     for (let engine = 1; engine <= 4; engine++) {
-      const start = ata70.indexOf(`  ${701800116 + engine}: {`);
-      const names = [...ata70.slice(start, ata70.indexOf('\n  },', start)).matchAll(/name: '([^']*)'/g)].map(
-        (match) => match[1],
-      );
+      const names = procedureItemNames(701800116 + engine);
       expect(names[2]).toBe('LOW N1');
       expect(names.slice(12, 16)).toEqual([
         'NEW START IN PROGRESS',
@@ -233,20 +222,22 @@ describe('A380X ENG START VLV FAULT', () => {
     expect(startValveNotClosedStatus(2)).toEqual({ limitations: [], inopSys: ['260300003'] });
     expect(startValveNotClosedStatus(3)).toEqual({ limitations: [], inopSys: ['260300004'] });
     expect(startValveNotClosedStatus(4)).toEqual({ limitations: ['300400001'], inopSys: ['260300005', '300300001'] });
-    const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-    const notClosed = abnormalSensed.slice(abnormalSensed.indexOf('alerts[701800121 + index]'));
-    const entry = notClosed.slice(0, notClosed.indexOf('};'));
-    expect(entry).toContain('limitationsAllPhases: () => valveNotClosedStatus.limitations,');
-    expect(entry).toContain('limitationsPfd: () => valveNotClosedStatus.limitations,');
-    expect(entry).toContain('inopSysAllPhases: () => valveNotClosedStatus.inopSys,');
+    for (const engineNumber of [1, 2, 3, 4] as const) {
+      const entry = sensed(701800120 + engineNumber);
+      const status = startValveNotClosedStatus(engineNumber);
+      expect(entry.simVarIsActive).toBe(core.engineStartValveNotClosed[engineNumber - 1]);
+      expect(entry.limitationsAllPhases?.([])).toEqual(status.limitations);
+      expect(entry.limitationsPfd?.([])).toEqual(status.limitations);
+      expect(entry.inopSysAllPhases?.([])).toEqual(status.inopSys);
+    }
   });
 
   it('has the deferred procedure FOR APPROACH of an outer start valve not closed', () => {
-    const deferred = ata70.slice(ata70.indexOf('  700700001: {'), ata70.indexOf('  700700002: {'));
-    expect(deferred).toContain("fromAbnormalProcs: ['701800121', '701800124'],");
-    expect(deferred).toContain('type: DeferredProcedureType.FOR_APPROACH,');
-    expect(deferred).toContain("{ name: 'IF SEVERE ICE ACCRETION', sensed: false, condition: true },");
-    expect(deferred).toContain("{ name: 'FOR LDG : FLAP LVR 3', sensed: false, level: 1 },");
+    const deferred = EcamDeferredProcedures[700700001];
+    expect(deferred.fromAbnormalProcs).toEqual(['701800121', '701800124']);
+    expect(deferred.type).toBe(DeferredProcedureType.FOR_APPROACH);
+    expect(deferred.items).toContainEqual({ name: 'IF SEVERE ICE ACCRETION', sensed: false, condition: true });
+    expect(deferred.items).toContainEqual({ name: 'FOR LDG : FLAP LVR 3', sensed: false, level: 1 });
   });
 });
 
@@ -263,12 +254,20 @@ describe('A380X IGNITION memo', () => {
   });
 
   it('FwsMemos shows the memo from the FwsCore ignition state, not from the selector alone', () => {
-    const memos = readFileSync(resolve(__dirname, 'FwsMemos.ts'), 'utf-8');
-    const ignition = memos.slice(memos.indexOf("'709000001': {"));
-    expect(ignition.slice(0, ignition.indexOf('},'))).toContain('simVarIsActive: this.fws.ignitionMemo,');
-    const core = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
-    expect(core).toContain(
-      'this.ignitionMemo.set(isIgnitionMemoShown(this.engSelectorPosition.get(), bothIgnitersActive));',
-    );
+    const memo = core.memos.ewdMemos['709000001'];
+    expect(memo.simVarIsActive).toBe(core.ignitionMemo);
+    // the selector alone does not decide: the FWS evaluates it with the FADEC igniters of the four engines
+    simVars.set('L:XMLVAR_ENG_MODE_SEL', 1);
+    simVars.set('L:A32NX_FADEC_IGNITER_A_ACTIVE_ENG3', 1);
+    runFwsCycle(core);
+    expect(core.ignitionMemo.get()).toBe(false);
+    simVars.set('L:A32NX_FADEC_IGNITER_B_ACTIVE_ENG3', 1);
+    runFwsCycle(core);
+    expect(core.ignitionMemo.get()).toBe(true);
+    simVars.set('L:A32NX_FADEC_IGNITER_A_ACTIVE_ENG3', 0);
+    simVars.set('L:A32NX_FADEC_IGNITER_B_ACTIVE_ENG3', 0);
+    simVars.set('L:XMLVAR_ENG_MODE_SEL', 2);
+    runFwsCycle(core);
+    expect(core.ignitionMemo.get()).toBe(true);
   });
 });

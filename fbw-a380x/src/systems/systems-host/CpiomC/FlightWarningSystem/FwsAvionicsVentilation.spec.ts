@@ -3,18 +3,24 @@
 
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { Arinc429Register, Arinc429SignStatusMatrix } from '@flybywiresim/fbw-sdk';
+import { SdPages } from '@shared/EcamSystemPages';
 import { describe, expect, it } from 'vitest';
+import {
+  EcamAbnormalProcedures,
+  EcamInopSys,
+  EcamLimitations,
+} from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { createFws, runFwsCycle } from './FwsSpecFixture';
 import { AVIONICS_VENTILATION_PHASE_INHIBITION, AVS_BITS } from './FwsAirCondAlerts';
 
-// The EcamMessages modules cannot be imported in a test (circular imports with their enums): read the sources instead
-const sourceOf = (path: string) => readFileSync(resolve(__dirname, path), 'utf-8');
-const cpiomB = sourceOf('../../../../wasm/systems/a380_systems/src/air_conditioning/cpiom_b.rs');
-const abnormalSensed = sourceOf('./FwsAbnormalSensed.ts');
-const ecamMessageIndex = sourceOf('../../../instruments/src/MsfsAvionicsCommon/EcamMessages/index.ts');
-const fwsCore = sourceOf('./FwsCore.ts');
-const ata21Messages = sourceOf(
-  '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata21-22-23.ts',
+// The Rust CPIOM B model is not importable in vitest: this one test still reads its source
+const cpiomB = readFileSync(
+  resolve(__dirname, '../../../../wasm/systems/a380_systems/src/air_conditioning/cpiom_b.rs'),
+  'utf-8',
 );
+const { core, simVars } = createFws();
+const alert = (id: string) => core.abnormalSensed.ewdAbnormalSensed[Number(id)];
 
 /** The alerts of the avionics ventilation, the supplemental cooling and the THS bay ventilation */
 const AVIONICS_VENTILATION_ALERTS = [
@@ -30,14 +36,6 @@ const AVIONICS_VENTILATION_ALERTS = [
   '212800028', // VENT THS BAY VENT FAULT
   '212800029', // VENT AVNCS BLOWING DEGRADED
 ];
-
-/** The source text of the FwsAbnormalSensed entry of an alert */
-function entryOf(id: string): string {
-  const start = abnormalSensed.indexOf(`    ${id}: {`);
-  expect(start).toBeGreaterThanOrEqual(0);
-  const rest = abnormalSensed.slice(start);
-  return rest.slice(0, /\r?\n {4}\},/.exec(rest)?.index ?? rest.length);
-}
 
 describe('A380X FWS avionics ventilation word', () => {
   it('reads the bits the CPIOM B interface sets in the AVS word', () => {
@@ -66,12 +64,19 @@ describe('A380X FWS avionics ventilation word', () => {
   it('reads the two circuit on backup bits into the subjects the BLOWING DEGRADED alert uses', () => {
     expect(AVS_BITS.leftCircuitOnBackup).toBe(23);
     expect(AVS_BITS.rightCircuitOnBackup).toBe(24);
-    expect(fwsCore).toContain(
-      'this.avncsLeftCircuitOnBackup.set(avsDiscreteWordToUse.bitValueOr(AVS_BITS.leftCircuitOnBackup, false))',
-    );
-    expect(fwsCore).toContain(
-      'this.avncsRightCircuitOnBackup.set(avsDiscreteWordToUse.bitValueOr(AVS_BITS.rightCircuitOnBackup, false))',
-    );
+    const avsWord = Arinc429Register.empty();
+    avsWord.setSsm(Arinc429SignStatusMatrix.NormalOperation);
+    avsWord.setBitValue(AVS_BITS.leftCircuitOnBackup, true);
+    simVars.set('L:A32NX_COND_CPIOM_B1_AVS_DISCRETE_WORD', avsWord.rawWord);
+    runFwsCycle(core);
+    expect(core.avncsLeftCircuitOnBackup.get()).toBe(true);
+    expect(core.avncsRightCircuitOnBackup.get()).toBe(false);
+    avsWord.setBitValue(AVS_BITS.leftCircuitOnBackup, false);
+    avsWord.setBitValue(AVS_BITS.rightCircuitOnBackup, true);
+    simVars.set('L:A32NX_COND_CPIOM_B1_AVS_DISCRETE_WORD', avsWord.rawWord);
+    runFwsCycle(core);
+    expect(core.avncsLeftCircuitOnBackup.get()).toBe(false);
+    expect(core.avncsRightCircuitOnBackup.get()).toBe(true);
   });
 
   it('uses one bit per condition', () => {
@@ -86,18 +91,12 @@ describe('A380X FWS avionics ventilation word', () => {
 
 describe('A380X FWS avionics ventilation alerts', () => {
   it.each(AVIONICS_VENTILATION_ALERTS)('alert %s has a FWS entry with the avionics ventilation inhibition', (id) => {
-    const entry = entryOf(id);
-    expect(entry).toContain('flightPhaseInhib: AVIONICS_VENTILATION_PHASE_INHIBITION');
-    expect(ata21Messages).toContain(`  ${id}: {`);
+    expect(alert(id).flightPhaseInhib).toEqual(AVIONICS_VENTILATION_PHASE_INHIBITION);
+    expect(EcamAbnormalProcedures[Number(id)]).toBeDefined();
   });
 
   it('shows one ECAM line per FWS item entry of the alerts that have procedure lines', () => {
-    const itemCountOfMessage = (id: string) => {
-      const start = ata21Messages.indexOf(`  ${id}: {`);
-      const rest = ata21Messages.slice(start);
-      const block = rest.slice(0, /\r?\n {2}\},/.exec(rest)?.index ?? rest.length);
-      return [...block.matchAll(/^ {8}name: /gm)].length;
-    };
+    const itemCountOfMessage = (id: string) => EcamAbnormalProcedures[Number(id)].items.length;
 
     expect(itemCountOfMessage('212800014')).toBe(4);
     expect(itemCountOfMessage('212800015')).toBe(1);
@@ -113,31 +112,40 @@ describe('A380X FWS avionics ventilation alerts', () => {
   });
 
   it('only names INOP SYS and LIMITATION lines that exist', () => {
-    const referenced = AVIONICS_VENTILATION_ALERTS.flatMap((id) => [
-      ...entryOf(id).matchAll(/'(21(?:23|04)000\d\d)'/g),
-    ]).map((match) => match[1]);
-
-    expect(referenced.length).toBeGreaterThanOrEqual(10);
-    for (const code of referenced) {
-      expect(ecamMessageIndex).toContain(`  ${code}: `);
+    core.avncsBlowingFaultPersists.set(true);
+    const referenced: string[] = [];
+    for (const id of AVIONICS_VENTILATION_ALERTS) {
+      const entry = alert(id);
+      for (const inopSysCode of entry.inopSysAllPhases?.([]) ?? []) {
+        expect(EcamInopSys[inopSysCode as string], `${id} INOP SYS ${inopSysCode}`).toBeDefined();
+        referenced.push(inopSysCode as string);
+      }
+      for (const limitationCode of entry.limitationsAllPhases?.([]) ?? []) {
+        expect(EcamLimitations[limitationCode as string], `${id} LIMITATION ${limitationCode}`).toBeDefined();
+        referenced.push(limitationCode as string);
+      }
     }
+    expect(referenced.length).toBeGreaterThanOrEqual(10);
   });
 
   it('raises the 5 minute limitation of the BLOWING FAULT only once the alert persists', () => {
-    expect(entryOf('212800014')).toContain(
-      "limitationsAllPhases: () => (this.fws.avncsBlowingFaultPersists.get() ? ['210400006'] : [])",
-    );
+    core.avncsBlowingFaultPersists.set(false);
+    expect(alert('212800014').limitationsAllPhases?.([])).toEqual([]);
+    core.avncsBlowingFaultPersists.set(true);
+    expect(alert('212800014').limitationsAllPhases?.([])).toEqual(['210400006']);
   });
 
   it('raises the BLOWING DEGRADED awareness message only with both circuits on their backup valves', () => {
-    const entry = entryOf('212800029');
+    const entry = alert('212800029');
 
-    expect(entry).toContain('this.fws.avncsLeftCircuitOnBackup');
-    expect(entry).toContain('this.fws.avncsRightCircuitOnBackup');
-    expect(entry).toContain('SubscribableMapFunctions.and()');
-    expect(entry).toContain('failure: 1');
-    expect(entry).toContain('sysPage: SdPages.None');
-    expect(entry).toContain("notActiveWhenItemActive: ['212800014', '212800016', '212800017']");
-    expect(ata21Messages).toContain('AVNCS BLOWING DEGRADED');
+    core.avncsLeftCircuitOnBackup.set(true);
+    core.avncsRightCircuitOnBackup.set(false);
+    expect((entry.simVarIsActive as { get(): boolean }).get()).toBe(false);
+    core.avncsRightCircuitOnBackup.set(true);
+    expect((entry.simVarIsActive as { get(): boolean }).get()).toBe(true);
+    expect(entry.failure).toBe(1);
+    expect(entry.sysPage).toBe(SdPages.None);
+    expect(entry.notActiveWhenItemActive).toEqual(['212800014', '212800016', '212800017']);
+    expect(EcamAbnormalProcedures[212800029].title).toContain('AVNCS BLOWING DEGRADED');
   });
 });

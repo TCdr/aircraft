@@ -1,24 +1,20 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
+import {
+  EcamAbnormalProcedures,
+  EcamDeferredProcedures,
+  EcamInopSys,
+} from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { DeferredProcedureType } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/EcamProcedureTypes';
 import { ElecPumpRedundancyLoss, enginePumpPressLoStatus } from './HydPumpStatus';
+import { createFws, runFwsCycle, procedureItemNames } from './FwsSpecFixture';
 
-/* The wiring is read from the source text, as FwsAbnormalSensedItems.spec.ts does (EcamMessages import cycle). */
-const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-const inopSys = readFileSync(resolve(__dirname, 'FwsInopSys.ts'), 'utf-8');
-const messagesDir = '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
-const ata29 = readFileSync(resolve(__dirname, messagesDir, 'AbnormalSensed/ata29-30.ts'), 'utf-8');
-const messageIndex = readFileSync(resolve(__dirname, messagesDir, 'index.ts'), 'utf-8');
-
-/** The source of one entry of FwsAbnormalSensed, from its id to the end of its object */
-function alertBlock(id: string, from = 0): string {
-  const start = abnormalSensed.indexOf(`    ${id}: {`, from);
-  expect(start).toBeGreaterThan(0);
-  return abnormalSensed.slice(start, abnormalSensed.indexOf('\n    },', start));
-}
+const { core, simVars } = createFws(new Set());
+const alert = (id: string) => core.abnormalSensed.ewdAbnormalSensed[id];
+const deferred = (id: string) => core.abnormalSensed.ewdDeferredProcs[id];
+const inopSysLine = (id: string) => core.inopSys.inopSys[id];
 
 describe('HYD G(Y) ENG PMP PRESS LO STATUS', () => {
   it('one pump failed: REDUND LOSS of that pump, no INOP SYS', () => {
@@ -44,15 +40,11 @@ describe('HYD G(Y) ENG PMP PRESS LO STATUS', () => {
 
   it('the 8 INOP SYS and 8 REDUND LOSS lines exist and are wired', () => {
     for (let pump = 0; pump < 8; pump++) {
-      const inopCode = 290300005 + pump;
-      const redundCode = 290300027 + pump;
-      expect(inopSys).toContain(`${inopCode}: { simVarIsActive: this.fws.enginePumpInopSys[${pump}],`);
-      expect(inopSys).toMatch(
-        new RegExp(
-          `${redundCode}: \\{\\s+simVarIsActive: this\\.fws\\.enginePumpRedundLoss\\[${pump}\\],[^}]*redundancyLoss: true`,
-        ),
-      );
-      expect(messageIndex).toContain(`${redundCode}: '`);
+      const redundCode = String(290300027 + pump);
+      expect(inopSysLine(String(290300005 + pump)).simVarIsActive).toBe(core.enginePumpInopSys[pump]);
+      expect(inopSysLine(redundCode).simVarIsActive).toBe(core.enginePumpRedundLoss[pump]);
+      expect(inopSysLine(redundCode).redundancyLoss).toBe(true);
+      expect(EcamInopSys[redundCode]).toBeDefined();
     }
   });
 });
@@ -63,40 +55,37 @@ describe('HYD deferred procedures', () => {
     ['290700002', '290800020'],
     ['290700003', '290800031'],
     ['290700004', '290800032'],
-  ])('%s comes from %s FOR APPROACH and is sensed', (deferred, alert) => {
-    const start = ata29.indexOf(`  ${deferred}: {`);
-    expect(start).toBeGreaterThan(0);
-    const procedure = ata29.slice(start, ata29.indexOf('\n  },', start));
-    expect(procedure).toContain(`fromAbnormalProcs: ['${alert}'],`);
-    expect(procedure).toContain('type: DeferredProcedureType.FOR_APPROACH,');
-    const deferredEntries = abnormalSensed.indexOf('public ewdDeferredProcs');
-    expect(alertBlock(deferred, deferredEntries)).toContain('whichItemsChecked');
-    expect(messageIndex).toContain('...EcamDeferredProcAta2930,');
+  ])('%s comes from %s FOR APPROACH and is sensed', (id, fromAlert) => {
+    expect(EcamDeferredProcedures[id].fromAbnormalProcs).toEqual([fromAlert]);
+    expect(EcamDeferredProcedures[id].type).toBe(DeferredProcedureType.FOR_APPROACH);
+    expect(deferred(id).whichItemsChecked()).toHaveLength(EcamDeferredProcedures[id].items.length);
   });
 
   it('SYS OVHT: not shown with the engine pumps disconnected', () => {
-    const deferredEntries = abnormalSensed.indexOf('public ewdDeferredProcs');
-    expect(alertBlock('290700003', deferredEntries)).toContain('!eng1PumpDisc && !eng2PumpDisc');
-    expect(alertBlock('290700004', deferredEntries)).toContain('!eng3PumpDisc && !eng4PumpDisc');
+    expect(deferred('290700003').simVarIsActive.get()).toBe(true);
+    simVars.set('L:A32NX_HYD_ENG_2AB_PUMP_DISC', true);
+    runFwsCycle(core);
+    expect(deferred('290700003').simVarIsActive.get()).toBe(false);
+    expect(deferred('290700004').simVarIsActive.get()).toBe(true);
+    simVars.set('L:A32NX_HYD_ENG_4AB_PUMP_DISC', true);
+    runFwsCycle(core);
+    expect(deferred('290700004').simVarIsActive.get()).toBe(false);
+    simVars.set('L:A32NX_HYD_ENG_2AB_PUMP_DISC', false);
+    simVars.set('L:A32NX_HYD_ENG_4AB_PUMP_DISC', false);
+    runFwsCycle(core);
   });
 });
 
 describe('HYD G+Y SYS PRESS LO', () => {
   it('LDG PERF AFFECTED, not LDG DIST AFFECTED', () => {
-    const start = ata29.indexOf('  290800039: {');
-    const procedure = ata29.slice(start, ata29.indexOf('  290800040: {'));
-    expect(procedure).toContain("name: 'LDG PERF AFFECTED',");
-    expect(procedure).not.toContain('LDG DIST AFFECTED');
+    expect(procedureItemNames('290800039')).toContain('LDG PERF AFFECTED');
+    expect(procedureItemNames('290800039')).not.toContain('LDG DIST AFFECTED');
   });
 
   it('STATUS INOP SYS: no STABILIZER; BTV, CAT 2 and GLS AUTOLAND in APP & LDG', () => {
-    const block = alertBlock('290800039');
-    const allPhases = block.split('inopSysAllPhases')[1].split('inopSysApprLdg')[0];
-    const apprLdg = block.split('inopSysApprLdg')[1];
-    expect(allPhases).not.toContain("'290100007'");
-    for (const code of ['320300007', '220300027', '220300010']) {
-      expect(apprLdg).toContain(`'${code}'`);
-    }
+    const entry = alert('290800039');
+    expect(entry.inopSysAllPhases!([])).not.toContain('290100007');
+    expect(entry.inopSysApprLdg!([])).toEqual(expect.arrayContaining(['320300007', '220300027', '220300010']));
   });
 });
 
@@ -121,34 +110,21 @@ describe('HYD G(Y) ELEC PMP A(B) FAULT STATUS', () => {
     ['290800002', '290300002', 1],
     ['290800003', '290300003', 2],
     ['290800004', '290300004', 3],
-  ])('%s: no INOP SYS, REDUND LOSS %s from FwsInopSys', (alert, redundCode, pump) => {
-    expect(alertBlock(alert)).not.toContain('inopSysAllPhases');
-    expect(inopSys).toMatch(
-      new RegExp(
-        `${redundCode}: \\{\\s+simVarIsActive: this\\.fws\\.elecPumpRedundLoss\\[${pump}\\],[^}]*redundancyLoss: true`,
-      ),
-    );
+  ])('%s: no INOP SYS, REDUND LOSS %s from FwsInopSys', (id, redundCode, pump) => {
+    expect(alert(id).inopSysAllPhases).toBeUndefined();
+    expect(inopSysLine(redundCode).simVarIsActive).toBe(core.elecPumpRedundLoss[pump]);
+    expect(inopSysLine(redundCode).redundancyLoss).toBe(true);
   });
 });
 
 describe('HYD G(Y) SYS TEMP EXCESS HI', () => {
-  const itemNames = (id: string) => {
-    const start = ata29.indexOf(`  ${id}: {`);
-    expect(start).toBeGreaterThan(0);
-    const procedure = ata29.slice(start, ata29.indexOf('\n  },', start));
-    return {
-      procedure,
-      names: [...procedure.matchAll(/name: '([^']*)'/g)].map((match) => match[1]),
-    };
-  };
-
   it.each([
     ['290800037', 'G', 1, 2],
     ['290800038', 'Y', 3, 4],
   ])('%s: %s SYS TEMP EXCESS HI with the lines', (id, system, engA, engB) => {
-    const { procedure, names } = itemNames(id);
-    expect(procedure).toContain(`title: '\\x1b<4m\\x1b4mHYD\\x1bm ${system} SYS TEMP EXCESS HI',`);
-    expect(names).toEqual([
+    const procedure = EcamAbnormalProcedures[id];
+    expect(procedure.title).toBe(`\x1b<4m\x1b4mHYD\x1bm ${system} SYS TEMP EXCESS HI`);
+    expect(procedure.items.map((item) => item.name)).toEqual([
       `${system} ENG ${engA} PMP A AND B`,
       `${system} ENG ${engB} PMP A AND B`,
       `${system} ENG ${engA} PMP A+B`,

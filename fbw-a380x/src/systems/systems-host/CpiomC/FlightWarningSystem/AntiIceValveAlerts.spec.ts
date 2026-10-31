@@ -1,8 +1,6 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import {
   ANTI_ICE_VALVE_ALERT_IDS,
@@ -14,6 +12,8 @@ import {
   wingPressLoLines,
   wingValveOpenLines,
 } from './AntiIceValveAlerts';
+import { EcamAbnormalProcedures } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { createFws } from './FwsSpecFixture';
 
 const noWingFlag = { abnormallyClosed: false, abnormallyOpen: false, lowPressure: false, highPressure: false };
 
@@ -179,20 +179,8 @@ describe('A-ICE L(R) WING VLV PRESS LO lines', () => {
   });
 });
 
-/* The procedures of ata29-30.ts and the FwsAbnormalSensed entries: read from the source text (importing the
- * EcamMessages tables in a test fails on a circular import, see FwsAbnormalSensedItems.spec.ts) */
 describe('A-ICE valve alert definitions', () => {
-  const procedures = readFileSync(
-    resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata29-30.ts'),
-    'utf-8',
-  );
-  const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-  const procedureItems = (id: string) => {
-    const start = procedures.indexOf(`  ${id}: {`);
-    expect(start).toBeGreaterThan(0);
-    const block = procedures.slice(start, procedures.indexOf('\n  },', start));
-    return (block.match(/\{ name: /g) ?? []).length;
-  };
+  const procedureItems = (id: string) => EcamAbnormalProcedures[id].items.length;
 
   it('defines every alert, with as many items as its lines', () => {
     const ids = ([] as string[]).concat(...Object.values(ANTI_ICE_VALVE_ALERT_IDS));
@@ -206,6 +194,8 @@ describe('A-ICE valve alert definitions', () => {
   });
 
   it('adds the alerts to the FWS abnormal sensed alerts', () => {
-    expect(abnormalSensed).toContain('...this.antiIceValveAlerts(),');
+    const { core } = createFws();
+    const ids = ([] as string[]).concat(...Object.values(ANTI_ICE_VALVE_ALERT_IDS));
+    ids.forEach((id) => expect(core.abnormalSensed.ewdAbnormalSensed[id]).toBeDefined());
   });
 });

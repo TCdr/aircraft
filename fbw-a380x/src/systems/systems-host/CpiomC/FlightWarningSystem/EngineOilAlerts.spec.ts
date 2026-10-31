@@ -1,11 +1,19 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { SdPages } from '@shared/EcamSystemPages';
 import { describe, expect, it } from 'vitest';
+import { EcamAbnormalProcedures } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
 import { FadecEngineState } from './EngineFailAlerts';
-import { EngineOilInputs, engineOilAlerts, OIL_FILTER_CLOGGED_LEVEL } from './EngineOilAlerts';
+import {
+  EngineOilInputs,
+  engineOilAlerts,
+  OIL_FILTER_CLOGGED_LEVEL,
+  OIL_FILTER_CLOGGED_PHASE_INHIBITION,
+  OIL_PRESS_LO_PHASE_INHIBITION,
+  OIL_TEMP_HI_PHASE_INHIBITION,
+} from './EngineOilAlerts';
+import { createFws, runFwsCycle } from './FwsSpecFixture';
 
 const running: EngineOilInputs = {
   masterOn: true,
@@ -54,78 +62,70 @@ describe('ENG OIL FILTER CLOGGED', () => {
   });
 });
 
-/*
- * The alerts in the FWS and their procedures, read from the source text (importing the EcamMessages tables in a test
- * fails on a circular import, see FwsAbnormalSensedItems.spec.ts).
- */
 describe('FWS oil alerts', () => {
-  const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-  const ata70 = readFileSync(
-    resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata70.ts'),
-    'utf-8',
-  );
-
-  /** The source of one entry, from its id to the end of its object, at the indentation of its table */
-  function block(source: string, id: number): string {
-    const indent = source === abnormalSensed ? '    ' : '  ';
-    const start = source.indexOf(`\n${indent}${id}: {`);
-    expect(start, `alert ${id}`).toBeGreaterThan(0);
-    return source.slice(start, source.indexOf(`\n${indent}},`, start));
-  }
-
-  function itemCount(id: number): number {
-    return (block(ata70, id).match(/\{ name: /g) ?? []).length;
-  }
+  const { core, simVars } = createFws();
+  const sensed = (id: number) => core.abnormalSensed.ewdAbnormalSensed[id];
 
   it.each([1, 2, 3, 4])(
     'ENG %d OIL PRESS LO: red warning, inhibited in phases 1, 5, 6 and 12, THR LEVER IDLE, MASTER OFF',
     (engine) => {
       const id = 701800085 + engine - 1;
-      const alert = block(abnormalSensed, id);
-      expect(alert).toContain(`simVarIsActive: this.fws.engineOilPressLo[${engine - 1}],`);
-      expect(alert).toContain('flightPhaseInhib: OIL_PRESS_LO_PHASE_INHIBITION,');
-      expect(alert).toContain('failure: 3,');
-      expect(alert).toContain(`this.fws.thrustLever${engine}Idle.get(), !this.fws.engine${engine}Master.get()`);
-      const message = block(ata70, id);
+      const entry = sensed(id);
+      expect(entry.simVarIsActive).toBe(core.engineOilPressLo[engine - 1]);
+      expect(entry.flightPhaseInhib).toEqual(OIL_PRESS_LO_PHASE_INHIBITION);
+      expect(entry.failure).toBe(3);
+      expect(entry.sysPage).toBe(SdPages.Eng);
+      expect(entry.whichItemsToShow()).toEqual([true, true]);
+      const thrustLeverIdle = (core as any)[`thrustLever${engine}Idle`].get();
+      const masterOn = (core as any)[`engine${engine}Master`].get();
+      expect(entry.whichItemsChecked()).toEqual([thrustLeverIdle, !masterOn]);
+      const message = EcamAbnormalProcedures[id];
       // red title
-      expect(message).toContain("title: '\\x1b<2m");
-      expect(message).toContain(`{ name: 'THR LEVER ${engine}', sensed: true, labelNotCompleted: 'IDLE' }`);
-      expect(message).toContain(`{ name: 'ENG ${engine} MASTER', sensed: true, labelNotCompleted: 'OFF' }`);
-      expect(itemCount(id)).toBe(2);
+      expect(message.title).toBe(`\x1b<2m\x1b4mENG\x1bm ${engine} OIL PRESS LO`);
+      expect(message.items).toEqual([
+        { name: `THR LEVER ${engine}`, sensed: true, labelNotCompleted: 'IDLE' },
+        { name: `ENG ${engine} MASTER`, sensed: true, labelNotCompleted: 'OFF' },
+      ]);
     },
   );
 
   it.each([1, 2, 3, 4])('ENG %d OIL TEMP HI: amber, THR LEVER REDUCE, IF HI TEMP PERSISTS MASTER OFF', (engine) => {
     const id = 701800093 + engine - 1;
-    const alert = block(abnormalSensed, id);
-    expect(alert).toContain(`simVarIsActive: this.fws.engineOilTempHi[${engine - 1}],`);
-    expect(alert).toContain('flightPhaseInhib: OIL_TEMP_HI_PHASE_INHIBITION,');
-    expect(alert).toContain('failure: 2,');
-    expect(alert).toContain('whichItemsToShow: () => [true, true, true],');
-    const message = block(ata70, id);
-    expect(message).toContain("title: '\\x1b<4m");
-    expect(message).toContain(`{ name: 'ENG ${engine} MASTER', sensed: true, labelNotCompleted: 'OFF', level: 1 }`);
-    expect(itemCount(id)).toBe(3);
+    const entry = sensed(id);
+    expect(entry.simVarIsActive).toBe(core.engineOilTempHi[engine - 1]);
+    expect(entry.flightPhaseInhib).toEqual(OIL_TEMP_HI_PHASE_INHIBITION);
+    expect(entry.failure).toBe(2);
+    expect(entry.whichItemsToShow()).toEqual([true, true, true]);
+    const message = EcamAbnormalProcedures[id];
+    expect(message.title).toBe(`\x1b<4m\x1b4mENG\x1bm ${engine} OIL TEMP HI`);
+    const items = message.items as any[];
+    expect(items).toHaveLength(3);
+    expect(items[2]).toEqual({ name: `ENG ${engine} MASTER`, sensed: true, labelNotCompleted: 'OFF', level: 1 });
     // the line fits the 39 characters of the WD (WdAbnormalNonSensed / ProcedureLinesGenerator)
-    expect(`THR LEVER ${engine}`.length + 'REDUCE BELOW OIL TEMP LIM'.length + 2).toBeLessThanOrEqual(39);
+    expect(items[0].name.length + items[0].labelNotCompleted.length + 2).toBeLessThanOrEqual(39);
   });
 
   /* The only indication is the ENGINE SD page (no aural, no MASTER CAUT) */
   it.each([1, 2, 3, 4])('ENG %d OIL FILTER CLOGGED: amber, crew awareness, inhibited in phases 3 to 10', (engine) => {
     const id = 701800081 + engine - 1;
-    const alert = block(abnormalSensed, id);
-    expect(alert).toContain(`simVarIsActive: this.fws.engineOilFilterClogged[${engine - 1}],`);
-    expect(alert).toContain('flightPhaseInhib: OIL_FILTER_CLOGGED_PHASE_INHIBITION,');
-    expect(alert).toContain('failure: OIL_FILTER_CLOGGED_LEVEL,');
-    expect(alert).toContain('sysPage: SdPages.Eng,');
+    const entry = sensed(id);
+    expect(entry.simVarIsActive).toBe(core.engineOilFilterClogged[engine - 1]);
+    expect(entry.flightPhaseInhib).toEqual(OIL_FILTER_CLOGGED_PHASE_INHIBITION);
+    expect(entry.failure).toBe(OIL_FILTER_CLOGGED_LEVEL);
+    expect(entry.sysPage).toBe(SdPages.Eng);
     expect(OIL_FILTER_CLOGGED_LEVEL).toBe(1);
-    expect(itemCount(id)).toBe(0);
+    expect(EcamAbnormalProcedures[id].items).toEqual([]);
   });
 
-  it('reads the FADEC oil parameters and the clogged filter in FwsCore', () => {
-    const core = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
-    expect(core).toContain('SimVar.GetSimVarValue(`GENERAL ENG OIL PRESSURE:${engineNumber}`');
-    expect(core).toContain('SimVar.GetSimVarValue(`GENERAL ENG OIL TEMPERATURE:${engineNumber}`');
-    expect(core).toContain('SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engineNumber}_OIL_FILTER_CLOGGED`');
+  it('follows the FADEC oil pressure, temperature and the clogged filter of a running engine', () => {
+    core.bus.getPublisher<any>().pub('engine_master_2', true, true);
+    simVars.set('L:A32NX_ENGINE_STATE:2', FadecEngineState.On);
+    simVars.set('GENERAL ENG OIL PRESSURE:2', 10);
+    simVars.set('GENERAL ENG OIL TEMPERATURE:2', 200);
+    simVars.set('L:A32NX_ENGINE_2_OIL_FILTER_CLOGGED', 1);
+    runFwsCycle(core);
+    expect(core.engineOilPressLo.map((a) => a.get())).toEqual([false, true, false, false]);
+    expect(core.engineOilTempHi.map((a) => a.get())).toEqual([false, true, false, false]);
+    expect(core.engineOilFilterClogged.map((a) => a.get())).toEqual([false, true, false, false]);
   });
 });

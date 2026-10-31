@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { describe, expect, it } from 'vitest';
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { Subject } from '@microsoft/msfs-sdk';
+import { createFws, runFwsCycle } from './FwsSpecFixture';
 import { isEnginePumpsTurnOffUnsuccessful, isHydSystemOverheat } from './HydOverheatFlags';
 
 /* HYD G (Y) SYS OVHT: the reservoir is above 95 C, or an engine pump case drain is above 120 C */
@@ -20,24 +20,50 @@ describe('HYD SYS OVHT trigger', () => {
     expect(isHydSystemOverheat(false, [false, false, false, false])).toBe(false);
   });
 
-  it('is fed by the reservoir and the 4 engine pump overheats of each system in FwsCore', () => {
-    const core = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
-    expect(core).toContain('SimVar.GetSimVarValue(`L:A32NX_HYD_${pump}_EDPUMP_OVHT`');
-    for (const [color, pumps] of [
-      ['GREEN', ['1A', '1B', '2A', '2B']],
-      ['YELLOW', ['3A', '3B', '4A', '4B']],
-    ] as const) {
-      expect(core).toContain(`L:A32NX_HYD_${color}_RESERVOIR_OVHT`);
-      expect(core).toContain(`[${pumps.map((pump) => `'${color}_${pump}'`).join(', ')}].map(enginePumpOverheat)`);
-    }
-    expect(core).toMatch(/this\.greenRsvOverheat\.set\(\s*isHydSystemOverheat\(/);
-    expect(core).toMatch(/this\.yellowRsvOverheat\.set\(\s*isHydSystemOverheat\(/);
+  describe('in the FWS', () => {
+    const overheatOf = (simVar: string) => {
+      const { core, simVars } = createFws(new Set());
+      simVars.set(simVar, true);
+      runFwsCycle(core);
+      return [core.greenRsvOverheat.get(), core.yellowRsvOverheat.get()];
+    };
+
+    it.each([
+      ['L:A32NX_HYD_GREEN_RESERVOIR_OVHT', [true, false]],
+      ['L:A32NX_HYD_GREEN_1A_EDPUMP_OVHT', [true, false]],
+      ['L:A32NX_HYD_GREEN_1B_EDPUMP_OVHT', [true, false]],
+      ['L:A32NX_HYD_GREEN_2A_EDPUMP_OVHT', [true, false]],
+      ['L:A32NX_HYD_GREEN_2B_EDPUMP_OVHT', [true, false]],
+      ['L:A32NX_HYD_YELLOW_RESERVOIR_OVHT', [false, true]],
+      ['L:A32NX_HYD_YELLOW_3A_EDPUMP_OVHT', [false, true]],
+      ['L:A32NX_HYD_YELLOW_3B_EDPUMP_OVHT', [false, true]],
+      ['L:A32NX_HYD_YELLOW_4A_EDPUMP_OVHT', [false, true]],
+      ['L:A32NX_HYD_YELLOW_4B_EDPUMP_OVHT', [false, true]],
+    ])('is fed by %s: [green, yellow] SYS OVHT %j', (simVar, expected) => {
+      expect(overheatOf(simVar)).toEqual(expected);
+    });
   });
 
-  it('reads the engine pump pressure switches as below 2 500 PSI (ENG PMP PRESS LO)', () => {
-    const core = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
-    expect(core).not.toContain('PumpBelow2900');
-    expect(core.match(/const eng[1-4][AB]PumpBelow2500 = /g)).toHaveLength(8);
+  describe('ENG PMP A+B DISC line in the FWS: the pump pressure switch is read at 2 500 PSI', () => {
+    it.each([
+      ['GREEN', 1, 'eng1PumpsOffUnsuccessful'],
+      ['GREEN', 2, 'eng1PumpsOffUnsuccessful'],
+      ['GREEN', 3, 'eng2PumpsOffUnsuccessful'],
+      ['GREEN', 4, 'eng2PumpsOffUnsuccessful'],
+      ['YELLOW', 1, 'eng3PumpsOffUnsuccessful'],
+      ['YELLOW', 2, 'eng3PumpsOffUnsuccessful'],
+      ['YELLOW', 3, 'eng4PumpsOffUnsuccessful'],
+      ['YELLOW', 4, 'eng4PumpsOffUnsuccessful'],
+    ])('%s pump %i keeping its pressure with ENG PMP OFF shows %s', (color, pump, signal) => {
+      const { core, simVars } = createFws(new Set());
+      const signals = core as unknown as Record<string, Subject<boolean>>;
+      runFwsCycle(core);
+      // all pumps OFF and depressurised
+      expect(signals[signal].get()).toBe(false);
+      simVars.set(`L:A32NX_HYD_${color}_PUMP_${pump}_SECTION_PRESSURE_SWITCH`, true);
+      runFwsCycle(core);
+      expect(signals[signal].get()).toBe(true);
+    });
   });
 });
 

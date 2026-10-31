@@ -20,6 +20,15 @@ import {
   wingTkOverflowLines,
 } from './FwsFuelRefuelAlerts';
 import { FuelTankProcedureInputs } from './FwsFuelTankAlerts';
+import {
+  FUEL_MANAGEMENT_ALERT_IDS,
+  FuelManagementAlerts,
+  fuelManagementAbnormalItems,
+  readFuelManagementInputs,
+} from './FwsFuelManagementAlerts';
+import { FUEL_GAUGING_DEGRADED_TANKS_VAR } from '@shared/FuelQuantityMeasurement';
+import { EcamAbnormalProcedures, EcamInopSys } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { createFws } from './FwsSpecFixture';
 
 const quiet: FuelRefuelInputs = {
   onGround: true,
@@ -278,44 +287,65 @@ describe('readFuelRefuelInputs', () => {
 });
 
 describe('FUEL refuel alert wiring', () => {
-  const read = (path: string) => readFileSync(resolve(__dirname, path), 'utf-8');
-  const ata28 = read('../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata28.ts');
-
-  /** The number of items of an ata28 procedure */
-  function ata28ItemCount(id: number): number {
-    const start = ata28.indexOf(`  ${id}: {`);
-    expect(start).toBeGreaterThan(0);
-    const block = ata28.slice(start, ata28.indexOf('\n  },', start));
-    return (block.match(/\{ name: /g) ?? []).length;
-  }
-
   it('the ata28 procedures have the lines of their alert', () => {
     const entries = fuelRefuelAlertEntries(new FwsFuelRefuelAlerts());
     for (const id of Object.values(FUEL_REFUEL_ALERT_IDS)) {
-      expect(ata28ItemCount(id)).toBe(entries[id].whichItemsToShow().length);
+      expect(EcamAbnormalProcedures[id].items).toHaveLength(entries[id].whichItemsToShow().length);
     }
   });
 
-  it('the FWS raises the alerts and the systems host runs their systems', () => {
-    expect(read('FwsAbnormalSensed.ts')).toContain('...fuelRefuelAlertEntries(this.fws.fuelRefuelAlerts),');
-    expect(read('FwsCore.ts')).toContain('this.fuelRefuelAlerts.update(');
-    const systemsHost = read('../../SystemsHost.ts');
-    for (const instrument of ['FuelApuFeed', 'FuelOverflow', 'FuelRefuelFaults']) {
-      expect(systemsHost).toContain(`addInstrument('${instrument}'`);
+  it('the FWS lists the alerts in its abnormal sensed table, on the refuel alerts of the core', () => {
+    const { core } = createFws();
+    for (const id of Object.values(FUEL_REFUEL_ALERT_IDS)) {
+      expect(core.abnormalSensed.ewdAbnormalSensed[id]).toBeDefined();
     }
+    expect(core.abnormalSensed.ewdAbnormalSensed[FUEL_REFUEL_ALERT_IDS.trimTkOverflow].simVarIsActive).toBe(
+      core.fuelRefuelAlerts.trimTkOverflow,
+    );
+  });
+
+  it('the FWS reads the systems outputs into the alerts on every update', () => {
+    const { core, simVars } = createFws();
+    core.startupCompleted.set(true);
+    simVars.set('L:A380X_FUEL_TRIM_TK_OVERFLOW', 1);
+    core.update(1000);
+    expect(core.fuelRefuelAlerts.trimTkOverflow.get()).toBe(true);
+    simVars.set('L:A380X_FUEL_TRIM_TK_OVERFLOW', 0);
+    core.update(1000);
+    expect(core.fuelRefuelAlerts.trimTkOverflow.get()).toBe(false);
   });
 
   it('the INOP SYS lines exist', () => {
-    const index = read('../../../instruments/src/MsfsAvionicsCommon/EcamMessages/index.ts');
     for (const key of [FUEL_REFUEL_INOP_SYS.refuel, FUEL_REFUEL_INOP_SYS.wbbc, FUEL_REFUEL_INOP_SYS.autoGndXfr]) {
-      expect(index).toContain(`  ${key}: '`);
+      expect(EcamInopSys[key]).toBeDefined();
     }
   });
 
   it('FUEL AUTO GND XFR is one INOP SYS line, shared with the fuel quantity alerts', () => {
-    const index = read('../../../instruments/src/MsfsAvionicsCommon/EcamMessages/index.ts');
-    const keys = [...index.matchAll(/^[ \t]*'?(\d{9})'?: '\\x1b<4mFUEL AUTO GND XFR',/gm)].map((line) => line[1]);
+    const keys = Object.keys(EcamInopSys).filter((key) => EcamInopSys[key] === '\x1b<4mFUEL AUTO GND XFR');
     expect(keys).toEqual([FUEL_REFUEL_INOP_SYS.autoGndXfr]);
-    expect(read('FwsFuelManagementAlerts.ts')).toContain(`autoGndXfr: '${FUEL_REFUEL_INOP_SYS.autoGndXfr}',`);
+    // The gauging fault takes it away on ground, with the same message
+    const management = new FuelManagementAlerts();
+    const trimTankDegraded = 1024;
+    management.update(
+      readFuelManagementInputs(
+        (name) => (name === FUEL_GAUGING_DEGRADED_TANKS_VAR ? trimTankDegraded : 0),
+        () => false,
+        true,
+        0,
+      ),
+      1,
+    );
+    const gaugingFault = fuelManagementAbnormalItems(management)[FUEL_MANAGEMENT_ALERT_IDS.gaugingFault];
+    expect(management.gaugingFault.get()).toBe(true);
+    expect(gaugingFault.inopSysAllPhases?.([])).toContain(FUEL_REFUEL_INOP_SYS.autoGndXfr);
+  });
+
+  it('the systems host runs the systems of the alerts', () => {
+    // SystemsHost cannot be built in vitest (it needs the sim), so its source text is read
+    const systemsHost = readFileSync(resolve(__dirname, '../../SystemsHost.ts'), 'utf-8');
+    for (const instrument of ['FuelApuFeed', 'FuelOverflow', 'FuelRefuelFaults']) {
+      expect(systemsHost).toContain(`addInstrument('${instrument}'`);
+    }
   });
 });

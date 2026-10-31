@@ -1,9 +1,9 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
+import { Arinc429SignStatusMatrix, Arinc429Word } from '@flybywiresim/fbw-sdk';
+import { A380Failure } from '@failures';
 import {
   TAIL_STRIKE_DET_FAULT_PHASE_INHIBITION,
   TAIL_STRIKE_PHASE_INHIBITION,
@@ -11,6 +11,9 @@ import {
   TailStrikeInputs,
   firstValidPitch,
 } from './FwsTailStrikeAlerts';
+import { EcamAbnormalProcedures, EcamInopSys } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { createFws, runFwsCycle } from './FwsSpecFixture';
+import { FwsInopSysPhases } from './FwsInopSys';
 
 const rotation: TailStrikeInputs = { pitchDegrees: 8, mainGearCompressed: true, detectorFailed: false, flightPhase: 4 };
 
@@ -72,48 +75,53 @@ describe('TAIL STRIKE detector (aircraft geometry limit)', () => {
 });
 
 describe('FWS wiring of TAIL STRIKE and TAIL STRIKE DET FAULT', () => {
-  const sensed = readFileSync(resolve(__dirname, './FwsAbnormalSensed.ts'), 'utf-8');
-  const core = readFileSync(resolve(__dirname, './FwsCore.ts'), 'utf-8');
-  const inopSys = readFileSync(resolve(__dirname, './FwsInopSys.ts'), 'utf-8');
-  const messages = readFileSync(
-    resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata27.ts'),
-    'utf-8',
-  );
-  const index = readFileSync(
-    resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/index.ts'),
-    'utf-8',
-  );
-
-  function entry(source: string, key: string, indent = '    '): string {
-    const start = source.indexOf(`${indent}${key}: {`);
-    expect(start, `entry ${key}`).toBeGreaterThan(0);
-    return source.substring(start, source.indexOf(`\n${indent}},`, start));
-  }
+  const { core, simVars } = createFws(new Set());
+  const sensed = core.abnormalSensed.ewdAbnormalSensed;
 
   it('raises TAIL STRIKE as a master caution with LAND ANSA', () => {
-    const alert = entry(sensed, '271800071');
-    expect(alert).toContain('flightPhaseInhib: TAIL_STRIKE_PHASE_INHIBITION,');
-    expect(alert).toContain('simVarIsActive: this.fws.tailStrike,');
-    expect(alert).toContain('failure: 2,');
-    expect(messages).toContain("title: '\\x1b<4mTAIL STRIKE',");
-    expect(entry(messages, '271800071', '  ')).toContain("recommendation: 'LAND ANSA',");
+    const alert = sensed['271800071'];
+    expect(alert.flightPhaseInhib).toBe(TAIL_STRIKE_PHASE_INHIBITION);
+    expect(alert.simVarIsActive).toBe(core.tailStrike);
+    expect(alert.failure).toBe(2);
+    expect(EcamAbnormalProcedures['271800071'].title).toBe('\x1b<4mTAIL STRIKE');
+    expect(EcamAbnormalProcedures['271800071'].recommendation).toBe('LAND ANSA');
   });
 
   it('raises TAIL STRIKE DET FAULT as crew awareness with INOP SYS APPR TAIL STRIKE DET', () => {
-    const alert = entry(sensed, '271800072');
-    expect(alert).toContain('flightPhaseInhib: TAIL_STRIKE_DET_FAULT_PHASE_INHIBITION,');
-    expect(alert).toContain('simVarIsActive: this.fws.tailStrikeDetFault,');
-    expect(alert).toContain('failure: 1,');
-    expect(messages).toContain("title: '\\x1b<4mTAIL STRIKE DET FAULT',");
-    expect(index).toContain("270300016: '\\x1b<4mTAIL STRIKE DET',");
-    const inop = entry(inopSys, '270300016');
-    expect(inop).toContain('simVarIsActive: this.fws.tailStrikeDetFault,');
-    expect(inop).toContain('phase: FwsInopSysPhases.ApprLdg,');
+    const alert = sensed['271800072'];
+    expect(alert.flightPhaseInhib).toBe(TAIL_STRIKE_DET_FAULT_PHASE_INHIBITION);
+    expect(alert.simVarIsActive).toBe(core.tailStrikeDetFault);
+    expect(alert.failure).toBe(1);
+    expect(EcamAbnormalProcedures['271800072'].title).toBe('\x1b<4mTAIL STRIKE DET FAULT');
+    expect(EcamInopSys['270300016']).toBe('\x1b<4mTAIL STRIKE DET');
+    const inop = core.inopSys.inopSys['270300016'];
+    expect(inop.simVarIsActive).toBe(core.tailStrikeDetFault);
+    expect(inop.phase).toBe(FwsInopSysPhases.ApprLdg);
   });
 
-  it('feeds the detector with the IR pitch, both LGCIUs and the flyPad failure', () => {
-    expect(core).toContain('this.failuresConsumer.isActive(A380Failure.TailStrikeDetector)');
-    expect(core).toContain("SimVar.GetSimVarValue('L:A32NX_LGCIU_1_RIGHT_GEAR_COMPRESSED', 'bool') > 0");
-    expect(core).toContain('firstValidPitch([this.ir1Pitch, this.ir2Pitch, this.ir3Pitch])');
+  it('feeds the detector with the IR pitch and a compressed main gear of the LGCIUs', () => {
+    simVars.set('L:A32NX_ADIRS_IR_1_PITCH', Arinc429Word.getRawWord(12, Arinc429SignStatusMatrix.NormalOperation));
+    simVars.set('L:A32NX_ELEC_DC_ESS_BUS_IS_POWERED', 1);
+    runFwsCycle(core);
+    // the main gear is not compressed: no contact at 12 deg
+    expect(core.tailStrike.get()).toBe(false);
+
+    simVars.set('L:A32NX_LGCIU_1_RIGHT_GEAR_COMPRESSED', 1);
+    runFwsCycle(core);
+    expect(core.tailStrike.get()).toBe(true);
+    expect(core.tailStrikeDetFault.get()).toBe(false);
+  });
+
+  it('raises the detector fault and detects nothing with the flyPad failure', () => {
+    const failed = createFws(new Set([A380Failure.TailStrikeDetector]));
+    failed.simVars.set(
+      'L:A32NX_ADIRS_IR_1_PITCH',
+      Arinc429Word.getRawWord(12, Arinc429SignStatusMatrix.NormalOperation),
+    );
+    failed.simVars.set('L:A32NX_ELEC_DC_ESS_BUS_IS_POWERED', 1);
+    failed.simVars.set('L:A32NX_LGCIU_1_RIGHT_GEAR_COMPRESSED', 1);
+    runFwsCycle(failed.core);
+    expect(failed.core.tailStrikeDetFault.get()).toBe(true);
+    expect(failed.core.tailStrike.get()).toBe(false);
   });
 });

@@ -1,9 +1,9 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { SdPages } from '@shared/EcamSystemPages';
 import { describe, expect, it } from 'vitest';
+import { EcamAbnormalProcedures } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
 import { FadecEngineState } from './EngineFailAlerts';
 import {
   EngineFuelFilterInputs,
@@ -11,6 +11,7 @@ import {
   FUEL_FILTER_CLOGGED_PHASE_INHIBITION,
   engineFuelFilterClogged,
 } from './EngineFuelFilterAlerts';
+import { createFws, runFwsCycle } from './FwsSpecFixture';
 
 const running: EngineFuelFilterInputs = { masterOn: true, engineState: FadecEngineState.On, fuelFilterClogged: false };
 
@@ -32,38 +33,32 @@ describe('ENG FUEL FILTER CLOGGED', () => {
   });
 });
 
-/* The alerts in the FWS, read from the source text (see EngineOilAlerts.spec.ts) */
 describe('FWS fuel filter alerts', () => {
-  const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-  const ata70 = readFileSync(
-    resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata70.ts'),
-    'utf-8',
-  );
-
-  /** The source of one entry, from its id to the end of its object, at the indentation of its table */
-  function block(source: string, id: number): string {
-    const indent = source === abnormalSensed ? '    ' : '  ';
-    const start = source.indexOf(`\n${indent}${id}: {`);
-    expect(start, `alert ${id}`).toBeGreaterThan(0);
-    return source.slice(start, source.indexOf(`\n${indent}},`, start));
-  }
+  const { core, simVars } = createFws();
 
   /* The only indication is the ENGINE SD page (no aural, no MASTER CAUT) */
   it.each([1, 2, 3, 4])('ENG %d FUEL FILTER CLOGGED: amber, crew awareness, ENGINE SD page', (engine) => {
     const id = 701800033 + engine - 1;
-    const alert = block(abnormalSensed, id);
-    expect(alert).toContain(`simVarIsActive: this.fws.engineFuelFilterClogged[${engine - 1}],`);
-    expect(alert).toContain('flightPhaseInhib: FUEL_FILTER_CLOGGED_PHASE_INHIBITION,');
-    expect(alert).toContain('failure: FUEL_FILTER_CLOGGED_LEVEL,');
+    const entry = core.abnormalSensed.ewdAbnormalSensed[id];
+    expect(entry.simVarIsActive).toBe(core.engineFuelFilterClogged[engine - 1]);
+    expect(entry.flightPhaseInhib).toEqual(FUEL_FILTER_CLOGGED_PHASE_INHIBITION);
+    expect(entry.failure).toBe(FUEL_FILTER_CLOGGED_LEVEL);
     expect(FUEL_FILTER_CLOGGED_LEVEL).toBe(1);
-    expect(alert).toContain('sysPage: SdPages.Eng,');
-    const message = block(ata70, id);
-    expect(message).toContain(`title: '\\x1b<4m\\x1b4mENG\\x1bm ${engine} FUEL FILTER CLOGGED',`);
-    expect(message).toContain('items: [],');
+    expect(entry.sysPage).toBe(SdPages.Eng);
+    expect(entry.whichItemsToShow()).toEqual([]);
+    const message = EcamAbnormalProcedures[id];
+    expect(message.title).toBe(`\x1b<4m\x1b4mENG\x1bm ${engine} FUEL FILTER CLOGGED`);
+    expect(message.items).toEqual([]);
   });
 
-  it('reads the clogged fuel filter of each engine in FwsCore', () => {
-    const core = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
-    expect(core).toContain('SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engineNumber}_FUEL_FILTER_CLOGGED`');
+  it('follows the clogged fuel filter simvar of a running engine', () => {
+    core.bus.getPublisher<any>().pub('engine_master_3', true, true);
+    simVars.set('L:A32NX_ENGINE_STATE:3', FadecEngineState.On);
+    simVars.set('L:A32NX_ENGINE_3_FUEL_FILTER_CLOGGED', 1);
+    runFwsCycle(core);
+    expect(core.engineFuelFilterClogged.map((alert) => alert.get())).toEqual([false, false, true, false]);
+    simVars.set('L:A32NX_ENGINE_3_FUEL_FILTER_CLOGGED', 0);
+    runFwsCycle(core);
+    expect(core.engineFuelFilterClogged[2].get()).toBe(false);
   });
 });

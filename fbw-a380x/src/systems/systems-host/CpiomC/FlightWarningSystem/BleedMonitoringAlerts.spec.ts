@@ -1,8 +1,6 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import {
   BleedMonitoringInputs,
@@ -19,17 +17,8 @@ import {
   WING_LEAK_ALERT_IDS,
 } from './BleedMonitoringAlerts';
 
-/* The wiring is read from the source text, as FwsAbnormalSensedItems.spec.ts does (EcamMessages import cycle). */
-const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-const fwsCore = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
-const ata36 = readFileSync(
-  resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata35-36-42.ts'),
-  'utf-8',
-);
-const ecamMessages = readFileSync(
-  resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/index.ts'),
-  'utf-8',
-);
+import { EcamAbnormalProcedures, EcamInopSys } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { createFws, runFwsCycle } from './FwsSpecFixture';
 
 /** Four engines running in flight, all bleeds open, crossbleed valves closed */
 const cruise: BleedMonitoringInputs = {
@@ -158,28 +147,33 @@ describe('AIR bleed leak alerts', () => {
 describe('AIR bleed alerts wiring', () => {
   it('has a message for every alert, with the lines the logic gives', () => {
     for (const id of [...ENG_BLEED_FAULT_ALERT_IDS, ...ENG_BLEED_LEAK_ALERT_IDS, ...WING_LEAK_ALERT_IDS]) {
-      expect(ata36).toContain(`  ${id}: `);
+      expect(EcamAbnormalProcedures[id], String(id)).toBeDefined();
     }
-    const leakProcedure = ata36.slice(ata36.indexOf('function bleedLeak('));
-    expect(leakProcedure.match(/\{ name: /g)).toHaveLength(bleedLeakItems(cruise, 0, true).show.length);
-    const faultProcedure = ata36.slice(
-      ata36.indexOf('function engineBleedFault('),
-      ata36.indexOf('function bleedLeak('),
-    );
-    expect(faultProcedure.match(/name: /g)).toHaveLength(engineBleedFaultItems(cruise, 0).show.length);
+    for (const id of [...ENG_BLEED_LEAK_ALERT_IDS, ...WING_LEAK_ALERT_IDS]) {
+      expect(EcamAbnormalProcedures[id].items).toHaveLength(bleedLeakItems(cruise, 0, true).show.length);
+    }
+    for (const id of ENG_BLEED_FAULT_ALERT_IDS) {
+      expect(EcamAbnormalProcedures[id].items).toHaveLength(engineBleedFaultItems(cruise, 0).show.length);
+    }
     for (const engine of [1, 2, 3, 4]) {
-      expect(ecamMessages).toContain(`80030000${engine}: '\\x1b<4mENG ${engine} STARTER',`);
+      expect(EcamInopSys[`80030000${engine}`]).toBe(`\x1b<4mENG ${engine} STARTER`);
     }
   });
 
   it('reads the CPIOM-A monitoring and creates the alerts', () => {
-    expect(fwsCore).toContain('readBoolVar(`L:A32NX_PNEU_ENG_${engine}_OVERHEAT`)');
-    expect(fwsCore).toContain('readBoolVar(`L:A32NX_PNEU_${zone}_WING_LEAK`)');
-    expect(fwsCore).toContain(
-      'this.engineBleedFault[engine].set(isEngineBleedFault(this.bleedMonitoringInputs, engine));',
-    );
-    expect(abnormalSensed).toContain('...this.bleedMonitoringAlerts(),');
-    expect(abnormalSensed).toContain('simVarIsActive: this.fws.engineBleedFault[engine],');
+    const { core, simVars } = createFws(new Set());
+    runFwsCycle(core);
+    expect(core.engineBleedFault.map((fault) => fault.get())).toEqual([false, false, false, false]);
+    simVars.set('L:A32NX_PNEU_ENG_2_OVERPRESSURE', 1);
+    simVars.set('L:A32NX_PNEU_L_INR_WING_LEAK', 1);
+    simVars.set('L:A32NX_PNEU_ENG_4_BLEED_LEAK', 1);
+    runFwsCycle(core);
+    expect(core.engineBleedFault.map((fault) => fault.get())).toEqual([false, true, false, false]);
+    expect(core.engineBleedLeak.map((leak) => leak.get())).toEqual([false, false, false, true]);
+    expect(core.wingBleedLeak.map((leak) => leak.get())).toEqual([false, true, false, false]);
+    ENG_BLEED_FAULT_ALERT_IDS.forEach((id, engine) => {
+      expect(core.abnormalSensed.ewdAbnormalSensed[String(id)].simVarIsActive).toBe(core.engineBleedFault[engine]);
+    });
   });
 });
 
@@ -210,10 +204,12 @@ describe('INOP SYS ENG 1(2)(3)(4) BLEED (FwsInopSys 260300002-005)', () => {
   });
 
   it('is the INOP SYS condition of FwsCore', () => {
-    expect(fwsCore).toContain('public readonly eng1BleedInop = this.engineBleedInop[0];');
-    expect(fwsCore).toContain(
-      'this.engineBleedInop[index].set(isEngineBleedInoperative(this.bleedMonitoringInputs, index, engineOut.get())),',
-    );
-    expect(fwsCore).not.toContain('// TODO add bleed inop conditions');
+    const { core, simVars } = createFws(new Set());
+    expect(core.eng1BleedInop).toBe(core.engineBleedInop[0]);
+    runFwsCycle(core);
+    expect(core.engineBleedInop.map((inop) => inop.get())).toEqual([false, false, false, false]);
+    simVars.set('L:A32NX_PNEU_ENG_3_OVERHEAT', 1);
+    runFwsCycle(core);
+    expect(core.engineBleedInop.map((inop) => inop.get())).toEqual([false, false, true, false]);
   });
 });
