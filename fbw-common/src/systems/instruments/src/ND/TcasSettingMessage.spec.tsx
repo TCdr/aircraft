@@ -3,7 +3,12 @@
 
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { EfisNdMode } from '@flybywiresim/fbw-sdk';
+import { EventBus, FSComponent, Subject } from '@microsoft/msfs-sdk';
 import { describe, expect, it } from 'vitest';
+import { GenericFcuEvents } from './types/GenericFcuEvents';
+import { GenericTcasEvents } from './types/GenericTcasEvents';
+import { TcasWxrMessages } from './TcasWxrMessages';
 import {
   isTrafficShownAtRange,
   MAX_TRAFFIC_RANGE_NM,
@@ -56,9 +61,69 @@ describe('TCAS ND setting message', () => {
     expect(tcasSettingMessage(TcasAdvisoryState.Ra, true, false, ND_ZOOM_RANGE, false)?.text).toBe('TCAS: CHANGE MODE');
   });
 
-  it('the ND TCAS message layer shows it', () => {
-    const layer = readFileSync(resolve(__dirname, 'TcasWxrMessages.tsx'), 'utf-8');
-    expect(layer).toContain('tcasSettingMessage(');
+  describe('on the ND message layer', () => {
+    // the ND range in NM of each range selector position, the last one is the ZOOM position of the A380X (range -1)
+    const rangeValues = [10, 20, 40, 80, 160, 320, ND_ZOOM_RANGE];
+    const ZOOM_SETTING = 6;
+
+    function renderLayer(mode: EfisNdMode) {
+      const bus = new EventBus();
+      const modeSubject = Subject.create(mode);
+      const container = document.createElement('div');
+      FSComponent.render(<TcasWxrMessages bus={bus} mode={modeSubject} rangeValues={rangeValues} />, container);
+      const publisher = bus.getPublisher<GenericTcasEvents & GenericFcuEvents>();
+      const message = () => {
+        // the setting message is the first text of the layer
+        const text = container.querySelector('text');
+        return {
+          text: text?.textContent,
+          colour: text?.getAttribute('class'),
+          shown: text?.getAttribute('visibility'),
+        };
+      };
+      return { modeSubject, publisher, message };
+    }
+
+    it('shows nothing without a TA or RA', () => {
+      const { message } = renderLayer(EfisNdMode.ARC);
+      expect(message().shown).toBe('hidden');
+    });
+
+    it('asks for a lower range above 40 NM, amber for a TA and red for an RA', () => {
+      const { publisher, message } = renderLayer(EfisNdMode.ARC);
+      publisher.pub('tcasAircraftOnGround', false, false, false);
+      publisher.pub('ndRangeSetting', 3, false, false);
+      publisher.pub('tcasState', 1, false, false);
+      expect(message()).toMatchObject({ text: 'TCAS: REDUCE RANGE', shown: 'inherit' });
+      expect(message().colour).toContain('Amber');
+
+      publisher.pub('tcasState', 2, false, false);
+      expect(message().colour).toContain('Red');
+
+      publisher.pub('ndRangeSetting', 2, false, false);
+      expect(message().shown).toBe('hidden');
+    });
+
+    it('asks for another mode in PLAN, and follows the mode of the ND', () => {
+      const { modeSubject, publisher, message } = renderLayer(EfisNdMode.PLAN);
+      publisher.pub('ndRangeSetting', 0, false, false);
+      publisher.pub('tcasState', 1, false, false);
+      expect(message().text).toBe('TCAS: CHANGE MODE');
+
+      modeSubject.set(EfisNdMode.ARC);
+      expect(message().shown).toBe('hidden');
+    });
+
+    it('A380X: asks for a larger range with ZOOM in ROSE-VOR in flight, and not on the ground', () => {
+      const { publisher, message } = renderLayer(EfisNdMode.ROSE_VOR);
+      publisher.pub('ndRangeSetting', ZOOM_SETTING, false, false);
+      publisher.pub('tcasAircraftOnGround', false, false, false);
+      publisher.pub('tcasState', 1, false, false);
+      expect(message().text).toBe('TCAS: INCREASE RANGE');
+
+      publisher.pub('tcasAircraftOnGround', true, false, false);
+      expect(message().shown).toBe('hidden');
+    });
   });
 });
 

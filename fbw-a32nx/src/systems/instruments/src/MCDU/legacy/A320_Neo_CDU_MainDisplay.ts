@@ -37,7 +37,7 @@ import { CDUFlightPlanPage } from '../legacy_pages/A320_Neo_CDU_FlightPlanPage';
 import { CDUPerformancePage } from '../legacy_pages/A320_Neo_CDU_PerformancePage';
 import { CDUUplinkTakeoffDataPages } from '../legacy_pages/A320_Neo_CDU_UplinkTakeoffDataPages';
 import { UplinkTakeoffData } from './UplinkTakeoffData';
-import { PrintRequestOutcome, printRequestOutcome } from './McduPrinter';
+import { requestPrint } from './McduPrinter';
 
 export class A320_Neo_CDU_MainDisplay
   extends FMCMainDisplay
@@ -1843,14 +1843,9 @@ export class A320_Neo_CDU_MainDisplay
 
   public printPage(lines: any[]) {
     // The cockpit printer failure (see McduPrinter): PRINTER NOT AVAILABLE, nothing printed
-    switch (printRequestOutcome(SimVar.GetSimVarValue('L:A32NX_PRINTER_FAILED', 'bool') > 0, this.printing)) {
-      case PrintRequestOutcome.PrinterNotAvailable:
-        this.addMessageToQueue(NXSystemMessages.printerNotAvailable);
-        return;
-      case PrintRequestOutcome.Busy:
-        return;
-      default:
-        break;
+    const printerFailed = SimVar.GetSimVarValue('L:A32NX_PRINTER_FAILED', 'bool') > 0;
+    if (!requestPrint(printerFailed, this.printing, (message) => this.addMessageToQueue(message))) {
+      return;
     }
     this.printing = true;
 

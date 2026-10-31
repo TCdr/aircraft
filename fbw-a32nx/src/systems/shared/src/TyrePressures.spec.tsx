@@ -3,7 +3,12 @@
 
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+// The harness comes first: it creates the root element the React instrument framework looks for when it loads
+import { renderSdPage, RenderedSdPage } from '../../instruments/src/SD/Common/SdPageSpecHarness';
+import React from 'react';
+import { Arinc429SignStatusMatrix, Arinc429Word } from '@flybywiresim/fbw-sdk';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { WheelPage } from '../../instruments/src/SD/Pages/Wheel/Wheel';
 import {
   axleMate,
   isTyrePressureAbnormal,
@@ -29,12 +34,16 @@ const CLIMB = 6; // between liftoff and engines shutdown
 const TAXI = 2; // other cases
 
 describe('TPIS tyres', () => {
-  it('reads the L:vars that the TPIS model writes', () => {
+  // Needs a different kind of test (a Rust test of the model): the names are written by the Rust model
+  it('reads the L:vars that the TPIS model writes (Rust model source)', () => {
     const model = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems/src/tyre_pressure.rs'), 'utf-8');
     expect(model).toContain('format!("TPIS_MAIN_{number}_TYRE_PRESSURE")');
     expect(model).toContain('format!("TPIS_NOSE_{number}_TYRE_PRESSURE")');
     expect(model).toContain(`"${MAIN_NOMINAL_PRESSURE_VAR.replace('L:A32NX_', '')}"`);
     expect(model).toContain(`"${NOSE_NOMINAL_PRESSURE_VAR.replace('L:A32NX_', '')}"`);
+  });
+
+  it('names the L:vars of the six tyres', () => {
     expect(TYRES.map(tyrePressureVar)).toEqual([
       'L:A32NX_TPIS_MAIN_1_TYRE_PRESSURE',
       'L:A32NX_TPIS_MAIN_2_TYRE_PRESSURE',
@@ -52,6 +61,10 @@ describe('TPIS tyres', () => {
   it('is an aircraft option, not installed by default', () => {
     expect(TPIS_INSTALLED_SETTING).toBe('CONFIG_A32NX_TPIS_INSTALLED');
     expect(TPIS_INSTALLED_DEFAULT).toBe('0');
+  });
+
+  // Needs a different kind of test (an EFB test): the flyPad option page lives in fbw-common and repeats the key
+  it('is switched by the flyPad aircraft option page and listed in the EFB option set', () => {
     const efbPage = readFileSync(
       resolve(
         __dirname,
@@ -143,12 +156,56 @@ describe('WHEEL page tyre pressure indication', () => {
     });
   });
 
-  it('is shown on the SD WHEEL page with the flyPad option only', () => {
-    const page = readFileSync(resolve(__dirname, '../../instruments/src/SD/Pages/Wheel/Wheel.tsx'), 'utf-8');
-    expect(page).toContain('<TyrePressures />');
-    expect(page).toContain('usePersistentProperty(TPIS_INSTALLED_SETTING, TPIS_INSTALLED_DEFAULT)');
-    expect(page).toContain("if (tpisInstalled !== '1') {");
-    expect(page).toContain('tyrePressureIndication(pressures, nominal, tyre, fwcFlightPhase)');
-    expect(page).toContain('PSI');
+  describe('on the SD WHEEL page', () => {
+    let page: RenderedSdPage;
+    afterEach(() => {
+      page?.unmount();
+      vi.unstubAllGlobals();
+    });
+
+    /** The flyPad option is a persistent setting of the aircraft (the sim data store, key prefixed with the aircraft) */
+    const setTpisOption = (value: string) => {
+      vi.stubGlobal('GetStoredData', (key: string) => (key === `A32NX_${TPIS_INSTALLED_SETTING}` ? value : ''));
+    };
+
+    const normalWord = (psi: number) => Arinc429Word.getRawWord(psi, Arinc429SignStatusMatrix.NormalOperation);
+    const tpisSimVars = (phase: number, main1Psi: number) => ({
+      'L:A32NX_FWC_FLIGHT_PHASE': phase,
+      [MAIN_NOMINAL_PRESSURE_VAR]: 200,
+      [NOSE_NOMINAL_PRESSURE_VAR]: 180,
+      [tyrePressureVar(Tyre.Main1)]: normalWord(main1Psi),
+      [tyrePressureVar(Tyre.Main2)]: normalWord(200),
+      [tyrePressureVar(Tyre.Main3)]: normalWord(200),
+      [tyrePressureVar(Tyre.Main4)]: normalWord(200),
+      [tyrePressureVar(Tyre.Nose1)]: normalWord(180),
+      [tyrePressureVar(Tyre.Nose2)]: normalWord(180),
+    });
+    const textElements = (content: string) =>
+      Array.from(page.container.querySelectorAll('text')).filter((text) => text.textContent === content);
+
+    it('shows nothing with the flyPad option off', () => {
+      setTpisOption('0');
+      page = renderSdPage(<WheelPage />, tpisSimVars(TAXI, 200));
+      expect(textElements('PSI')).toHaveLength(0);
+    });
+
+    it('shows the pressures in green with PSI under each gear with the flyPad option on', () => {
+      setTpisOption('1');
+      page = renderSdPage(<WheelPage />, tpisSimVars(TAXI, 200));
+      expect(textElements('PSI')).toHaveLength(3);
+      expect(textElements('200')).toHaveLength(4);
+      expect(textElements('180')).toHaveLength(2);
+      expect(textElements('200').every((text) => text.classList.contains('Green'))).toBe(true);
+    });
+
+    it('shows a low tyre pressure in amber, with the limit of the flight phase', () => {
+      setTpisOption('1');
+      // 160 PSI is above 74 % of 200 PSI (in flight), below 89 % (on ground)
+      page = renderSdPage(<WheelPage />, tpisSimVars(CLIMB, 160));
+      expect(textElements('160')[0].classList.contains('Amber')).toBe(false);
+      page.unmount();
+      page = renderSdPage(<WheelPage />, tpisSimVars(TAXI, 160));
+      expect(textElements('160')[0].classList.contains('Amber')).toBe(true);
+    });
   });
 });

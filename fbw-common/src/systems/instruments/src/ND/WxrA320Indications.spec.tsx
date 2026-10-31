@@ -3,7 +3,11 @@
 
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { Arinc429SignStatusMatrix, Arinc429Word, EfisNdMode } from '@flybywiresim/fbw-sdk';
+import { EventBus, FSComponent, Subject } from '@microsoft/msfs-sdk';
 import { describe, expect, it } from 'vitest';
+import { A320WxrPanelEvents, GenericWxrEvents } from './types/GenericWxrEvents';
+import { WxrModeLabel } from './WxrModeLabel';
 import { A320WxrNdMode, A320WxrState, a320WxrIndications, isA320PwsScanningWithRadarOff } from './WxrA320Indications';
 
 // The A32NX ND radar rows: MAN GAIN (cyan), the mode in cyan with MULTISCAN MAN and green in AUTO, PWS SCAN / WXR OFF,
@@ -75,10 +79,50 @@ describe('A32NX PWS scanning with the radar off', () => {
 });
 
 describe('A32NX ND radar rows wiring', () => {
-  it('the ND label draws the A32NX rows and the A32NX ND asks for them', () => {
-    const label = readFileSync(resolve(__dirname, 'WxrModeLabel.tsx'), 'utf-8');
-    expect(label).toContain('a320WxrIndications({');
-    expect(label).toContain('isA320PwsScanningWithRadarOff(');
+  /** The label of the left ND with the A32NX rows, and the texts of its first, second and third row */
+  function renderLabel(ndMode: EfisNdMode = EfisNdMode.ARC) {
+    const bus = new EventBus();
+    const container = document.createElement('div');
+    FSComponent.render(<WxrModeLabel bus={bus} side="L" mode={Subject.create(ndMode)} a320Indications />, container);
+    const publisher = bus.getPublisher<GenericWxrEvents & A320WxrPanelEvents>();
+    const rows = () => Array.from(container.querySelectorAll('text')).map((text) => text.textContent?.trim());
+    return { container, publisher, rows };
+  }
+
+  it('the ND label draws the rows of the radar panel state: gain, mode and tilt', () => {
+    const { publisher, rows } = renderLabel();
+    publisher.pub('wxrNdModeLeft', A320WxrNdMode.Wx, false, false);
+    publisher.pub('wxrA320GainKnob', 0.5, false, false);
+    publisher.pub('wxrA320MultiscanAuto', false, false, false);
+    publisher.pub('wxrA320TiltKnob', -1.25, false, false);
+    expect(rows()).toEqual(['MAN GAIN', 'WX', 'MAN -1.25°']);
+  });
+
+  it('the ND label shows PWS SCAN with the radar off from the radio height, engine and ground speed', () => {
+    const { container, publisher, rows } = renderLabel();
+    publisher.pub('wxrNdModeLeft', A320WxrNdMode.Off, false, false);
+    expect(rows()).toEqual(['', 'WXR OFF', '']);
+
+    publisher.pub('wxrA320PwsAuto', true, false, false);
+    publisher.pub(
+      'wxrA320RadioAltitude1',
+      Arinc429Word.getRawWord(100, Arinc429SignStatusMatrix.NormalOperation),
+      false,
+      false,
+    );
+    publisher.pub('wxrA320Engine1State', 1, false, false);
+    publisher.pub('wxrA320GroundSpeed', 40, false, false);
+    expect(rows()).toEqual(['', 'PWS SCAN', '']);
+    expect(container.querySelectorAll('text')[1].getAttribute('class')).toContain('Green');
+  });
+
+  it('the ND label is hidden in PLAN mode', () => {
+    const { container, publisher } = renderLabel(EfisNdMode.PLAN);
+    publisher.pub('wxrNdModeLeft', A320WxrNdMode.Wx, false, false);
+    expect(container.querySelector('g')?.getAttribute('visibility')).toBe('hidden');
+  });
+
+  it('the A32NX ND draws the rows (ND.tsx and the A32NX instrument)', () => {
     const nd = readFileSync(resolve(__dirname, 'ND.tsx'), 'utf-8');
     expect(nd).toContain('a320Indications={this.props.a320WxrIndications}');
     const a32nxNd = readFileSync(
@@ -86,17 +130,5 @@ describe('A32NX ND radar rows wiring', () => {
       'utf-8',
     );
     expect(a32nxNd).toMatch(/<NDComponent[\s\S]*a320WxrIndications[\s\S]*\/>/);
-    const publisher = readFileSync(
-      resolve(__dirname, '../../../../../../fbw-a32nx/src/systems/instruments/src/ND/NDSimvarPublisher.tsx'),
-      'utf-8',
-    );
-    for (const variable of [
-      'L:A32NX_WXR_GAIN_KNOB',
-      'L:A32NX_RADAR_MULTISCAN_AUTO',
-      'L:A32NX_WXR_TILT_KNOB',
-      'L:A32NX_SWITCH_RADAR_PWS_Position',
-    ]) {
-      expect(publisher).toContain(variable);
-    }
   });
 });

@@ -102,11 +102,16 @@ const EwdGroupTitles = new Map<string, { code: string; text: string }>(
   ]),
 );
 
-// In priority order
-const EwdMessages = new Map<
-  string,
-  { group?: string; text: string; specialLine?: boolean; secondaryFailure?: boolean }
->([
+interface EwdMessage {
+  group?: string;
+  text: string;
+  specialLine?: boolean;
+  secondaryFailure?: boolean;
+}
+
+// In priority order. The table entries as written: a code written twice would silently replace the first line in the
+// Map built from them
+export const EwdMessageEntries: [string, EwdMessage][] = [
   ['220000501', { group: 'AUTO FLT$1', text: ' AP OFF' }],
   ['270005201', { group: 'F/CTL$1', text: ' FLAP LVR NOT ZERO' }],
   ['340021001', { group: 'OVER SPEED$1', text: '' }],
@@ -2108,7 +2113,9 @@ const EwdMessages = new Map<
   ['000068001', { text: '\x1b<3mADIRS SWTG' }],
   // BKUP SPD/ALT, see FWC/Logic/NavSensorAlerts
   ['000069001', { text: '\x1b<3mBKUP SPD/ALT' }],
-]);
+];
+
+const EwdMessages = new Map<string, EwdMessage>(EwdMessageEntries);
 
 EwdGroupTitles.forEach(({ code, text }) => EwdMessages.set(code, { text }));
 

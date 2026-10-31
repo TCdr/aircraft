@@ -1,11 +1,21 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { Arinc429SignStatusMatrix, FailuresConsumer } from '@flybywiresim/fbw-sdk';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { isTcasFault, isTcasStandbyWithoutAltitudeSensors, TcasFaultInputs } from './TcasFault';
 import { A320Failure, A320FailureDefinitions } from '../../../failures/src/a320';
+import {
+  arincWord,
+  createTcasComputer,
+  readSimVar,
+  setHealthyTcasInputs,
+  setSimVar,
+  southboundIntruder,
+  TCAS_FAULT_VAR,
+  TCAS_MODE_VAR,
+  TCAS_STATE_VAR,
+} from '../components/TcasComputerTestBed';
 
 /* Amber TCAS on the ND and the PFD and NAV TCAS FAULT on an internal failure of the TCAS. */
 describe('TCAS fault', () => {
@@ -34,11 +44,53 @@ describe('TCAS fault', () => {
     expect(A320FailureDefinitions.some(([ata, id]) => ata === 34 && id === A320Failure.TcasComputer)).toBe(true);
   });
 
-  it('the TCAS computer reads the failure, shows the fault and drops the traffic and advisories', () => {
-    const computer = readFileSync(resolve(__dirname, '../components/TcasComputer.ts'), 'utf-8');
-    expect(computer).toContain('this.tcasInternalFailure = this.failuresConsumer.isActive(A320Failure.TcasComputer);');
-    expect(computer).toContain('internalFailure: this.tcasInternalFailure,');
-    expect(computer).toContain('if (this.tcasMode.getVar() === TcasMode.STBY || this.tcasInternalFailure) {');
+  describe('in the TCAS computer', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    const FAULT_AND_TARA = { fault: 1, state: 0, mode: 2 };
+    const readOutputs = () => ({
+      fault: readSimVar(TCAS_FAULT_VAR),
+      state: readSimVar(TCAS_STATE_VAR),
+      mode: readSimVar(TCAS_MODE_VAR),
+    });
+
+    it('shows no fault with healthy inputs and the switch in TA/RA', async () => {
+      setHealthyTcasInputs();
+      const tcas = createTcasComputer();
+      await tcas.runSeconds(2);
+      expect(readOutputs()).toEqual({ fault: 0, state: 0, mode: 2 });
+    });
+
+    it('reads the flyPad failure of the TCAS computer and shows the fault, out of standby', async () => {
+      setHealthyTcasInputs();
+      vi.spyOn(FailuresConsumer.prototype, 'isActive').mockImplementation((id) => id === A320Failure.TcasComputer);
+      const tcas = createTcasComputer();
+      await tcas.runSeconds(2);
+      expect(readOutputs()).toEqual(FAULT_AND_TARA);
+    });
+
+    it('drops the traffic of the ND on the internal failure', async () => {
+      setHealthyTcasInputs();
+      const traffic = (second: number) => [southboundIntruder(1234567, 20, 1000, second)];
+      const healthyComputer = createTcasComputer(traffic);
+      await healthyComputer.runSeconds(5);
+      expect(healthyComputer.lastSentIds()).toEqual(['1234567']);
+
+      vi.spyOn(FailuresConsumer.prototype, 'isActive').mockImplementation((id) => id === A320Failure.TcasComputer);
+      const failed = createTcasComputer(traffic);
+      await failed.runSeconds(5);
+      expect(failed.lastSentIds()).toEqual([]);
+    });
+
+    it('shows the fault with an invalid pressure altitude of the selected ADR', async () => {
+      setHealthyTcasInputs();
+      setSimVar('L:A32NX_ADIRS_ADR_1_ALTITUDE', arincWord(10_000, Arinc429SignStatusMatrix.NoComputedData));
+      const tcas = createTcasComputer();
+      await tcas.runSeconds(2);
+      expect(readOutputs().fault).toBe(1);
+    });
   });
 });
 
@@ -61,9 +113,39 @@ describe('TCAS standby without altitude sensors', () => {
     expect(isTcasStandbyWithoutAltitudeSensors(false, false, [false, false, false])).toBe(true);
   });
 
-  it('the TCAS computer goes to STBY with it, which also clears the TCAS fault', () => {
-    const computer = readFileSync(resolve(__dirname, '../components/TcasComputer.ts'), 'utf-8');
-    expect(computer).toContain('this.altitudeSensorsLost = isTcasStandbyWithoutAltitudeSensors(');
-    expect(computer).toMatch(/this\.bothXpdrsFailed \|\|\s+this\.altitudeSensorsLost \|\|/);
+  describe('in the TCAS computer', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('goes to STBY with both radio altimeters failed, which also clears the TCAS fault', async () => {
+      setHealthyTcasInputs();
+      const failed = arincWord(0, Arinc429SignStatusMatrix.FailureWarning);
+      setSimVar('L:A32NX_RA_1_RADIO_ALTITUDE', failed);
+      setSimVar('L:A32NX_RA_2_RADIO_ALTITUDE', failed);
+      const tcas = createTcasComputer();
+      await tcas.runSeconds(2);
+      expect(readSimVar(TCAS_MODE_VAR)).toBe(0);
+      expect(readSimVar(TCAS_FAULT_VAR)).toBe(0);
+    });
+
+    it('goes to STBY on a triple ADR failure, which also clears the TCAS fault', async () => {
+      setHealthyTcasInputs();
+      for (const adr of [1, 2, 3]) {
+        setSimVar(`L:A32NX_ADIRS_ADR_${adr}_ALTITUDE`, arincWord(0, Arinc429SignStatusMatrix.FailureWarning));
+      }
+      const tcas = createTcasComputer();
+      await tcas.runSeconds(2);
+      expect(readSimVar(TCAS_MODE_VAR)).toBe(0);
+      expect(readSimVar(TCAS_FAULT_VAR)).toBe(0);
+    });
+
+    it('stays out of standby with one radio altimeter failed', async () => {
+      setHealthyTcasInputs();
+      setSimVar('L:A32NX_RA_1_RADIO_ALTITUDE', arincWord(0, Arinc429SignStatusMatrix.FailureWarning));
+      const tcas = createTcasComputer();
+      await tcas.runSeconds(2);
+      expect(readSimVar(TCAS_MODE_VAR)).toBe(2);
+    });
   });
 });

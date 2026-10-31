@@ -1,10 +1,11 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import React from 'react';
+import { afterEach, describe, expect, it } from 'vitest';
+import { renderSdPage, RenderedSdPage, SimVarValues, visibleTexts } from '../../Common/SdPageSpecHarness';
 import { WheelBrakeInputs, wheelBrakeIndications } from './WheelBrakeIndications';
+import { WheelPage } from './Wheel';
 
 /** Everything working: green and yellow pressure, both BSCU channels, A/SKID & N/W STRG sw ON */
 const NORMAL: WheelBrakeInputs = {
@@ -142,19 +143,90 @@ describe('SD WHEEL brake and steering legends', () => {
       expect(legends.accumulatorOnly).toBe(false);
     });
   });
+});
 
-  it('is wired on the WHEEL page from the brake fault L:vars', () => {
-    const page = readFileSync(resolve(__dirname, 'Wheel.tsx'), 'utf-8');
-    expect(page).toContain('wheelBrakeIndications(');
-    for (const name of [
-      'L:A32NX_BRAKES_BSCU_1_FAULT',
-      'L:A32NX_BRAKES_BSCU_2_FAULT',
-      'L:A32NX_BRAKES_ALTN_BRK_FAULT',
-      'L:A32NX_BRAKES_NORM_BRK_FAULT',
-      'L:A32NX_BRAKES_AUTO_BRK_FAULT',
-      'L:A32NX_BRAKES_NW_STRG_FAULT',
-    ]) {
-      expect(page).toContain(name);
-    }
+describe('SD WHEEL page brake and steering legends', () => {
+  let page: RenderedSdPage;
+  afterEach(() => page?.unmount());
+
+  /** Both hydraulic systems pressurised and the A/SKID & N/W STRG sw ON: the page state of the NORMAL inputs */
+  const NORMAL_SIM_VARS: SimVarValues = {
+    'L:A32NX_HYD_GREEN_SYSTEM_1_SECTION_PRESSURE_SWITCH': 1,
+    'L:A32NX_HYD_YELLOW_SYSTEM_1_SECTION_PRESSURE_SWITCH': 1,
+    'ANTISKID BRAKES ACTIVE': 1,
+  };
+
+  /** The legend texts of the page with their colour class, null when not shown. */
+  const legendColours = () => {
+    const colourOf = (text: string): string | null => {
+      const element = visibleTexts(page, text)[0];
+      if (!element) {
+        return null;
+      }
+      return element.classList.contains('Amber') ? 'Amber' : 'Green';
+    };
+    return {
+      noseWheelSteering: colourOf('N/W STEERING'),
+      antiSkid: colourOf('ANTI SKID'),
+      normalBraking: colourOf('NORM BRK'),
+      alternateBraking: colourOf('ALTN BRK'),
+      // the failed BSCU channel numbers beside ANTI SKID
+      failedBscuChannels: ['171', '200'].map((x) => page.container.querySelector(`text[x="${x}"]`) !== null),
+    };
+  };
+
+  it('shows no legend when everything works', () => {
+    page = renderSdPage(<WheelPage />, NORMAL_SIM_VARS);
+
+    expect(legendColours()).toEqual({
+      noseWheelSteering: null,
+      antiSkid: null,
+      normalBraking: null,
+      alternateBraking: null,
+      failedBscuChannels: [false, false],
+    });
+  });
+
+  // Each brake fault L:var of the a320_systems brake model, the hydraulic pressure switches and the A/SKID & N/W STRG sw
+  // have to reach the matching input of wheelBrakeIndications
+  const wiredInputs: [string, SimVarValues, Partial<WheelBrakeInputs>][] = [
+    // one lost BSCU channel shows only beside ANTI SKID, which another failure brings up
+    [
+      'BSCU 1 fault with an alternate braking fault',
+      { 'L:A32NX_BRAKES_BSCU_1_FAULT': 1, 'L:A32NX_BRAKES_ALTN_BRK_FAULT': 1 },
+      { bscu1Lost: true, alternateBrakingLost: true },
+    ],
+    [
+      'BSCU 2 fault with an alternate braking fault',
+      { 'L:A32NX_BRAKES_BSCU_2_FAULT': 1, 'L:A32NX_BRAKES_ALTN_BRK_FAULT': 1 },
+      { bscu2Lost: true, alternateBrakingLost: true },
+    ],
+    [
+      'both BSCU channels faulted',
+      { 'L:A32NX_BRAKES_BSCU_1_FAULT': 1, 'L:A32NX_BRAKES_BSCU_2_FAULT': 1 },
+      { bscu1Lost: true, bscu2Lost: true },
+    ],
+    ['alternate braking fault', { 'L:A32NX_BRAKES_ALTN_BRK_FAULT': 1 }, { alternateBrakingLost: true }],
+    ['normal braking fault', { 'L:A32NX_BRAKES_NORM_BRK_FAULT': 1 }, { normalBrakingFailed: true }],
+    ['nose wheel steering fault', { 'L:A32NX_BRAKES_NW_STRG_FAULT': 1 }, { noseWheelSteeringFailed: true }],
+    ['A/SKID & N/W STRG sw OFF', { 'ANTISKID BRAKES ACTIVE': 0 }, { antiSkidSwitchOff: true }],
+    ['green low pressure', { 'L:A32NX_HYD_GREEN_SYSTEM_1_SECTION_PRESSURE_SWITCH': 0 }, { greenLowPressure: true }],
+    ['yellow low pressure', { 'L:A32NX_HYD_YELLOW_SYSTEM_1_SECTION_PRESSURE_SWITCH': 0 }, { yellowLowPressure: true }],
+  ];
+
+  it.each(wiredInputs)('draws the legends of the %s', (_name, simVars, inputs) => {
+    const expected = withInputs(inputs);
+    // a case that changes no legend would prove no wiring
+    expect(expected).not.toEqual(withInputs({}));
+
+    page = renderSdPage(<WheelPage />, { ...NORMAL_SIM_VARS, ...simVars });
+
+    expect(legendColours()).toEqual({
+      noseWheelSteering: expected.noseWheelSteering ? 'Amber' : null,
+      antiSkid: expected.antiSkid,
+      normalBraking: expected.normalBraking,
+      alternateBraking: expected.alternateBraking,
+      failedBscuChannels: expected.failedBscuChannels,
+    });
   });
 });

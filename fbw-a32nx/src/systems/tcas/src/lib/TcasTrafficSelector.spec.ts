@@ -1,10 +1,15 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { isIntruderShownForTrafficSelector } from './TcasTrafficSelector';
+import { TcasThreat } from './TcasConstants';
+import {
+  createTcasComputer,
+  setHealthyTcasInputs,
+  setSimVar,
+  southboundIntruder,
+} from '../components/TcasComputerTestBed';
 
 /* THRT shows the proximate and other intruders only if a TA or RA is present, within +-2 700 ft. */
 describe('TCAS TRAFFIC selector', () => {
@@ -31,9 +36,36 @@ describe('TCAS TRAFFIC selector', () => {
     expect(isIntruderShownForTrafficSelector(false, -9000, [-2700, 9900], false, false)).toBe(false);
   });
 
-  it('the TCAS computer uses it with the TCAS advisory state', () => {
-    const computer = readFileSync(resolve(__dirname, '../components/TcasComputer.ts'), 'utf-8');
-    expect(computer).toContain('isIntruderShownForTrafficSelector(');
-    expect(computer).toContain('this.advisoryState !== TcasState.NONE');
+  describe('in the TCAS computer', () => {
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    const OTHER_INTRUDER = 1111111;
+    const CLOSE_INTRUDER = 2222222;
+
+    /** The IDs of the intruders on the ND with the selector position and the intruders given */
+    async function shownIntruders(selector: TcasThreat, closeIntruder: boolean): Promise<string[]> {
+      setHealthyTcasInputs();
+      setSimVar('L:A32NX_SWITCH_TCAS_Traffic_Position', selector);
+      const tcas = createTcasComputer((second) => [
+        // 20 NM away and 2 000 ft above: no TA, inside the +-2 700 ft band of every selector position
+        southboundIntruder(OTHER_INTRUDER, 20, 2000, second),
+        ...(closeIntruder ? [southboundIntruder(CLOSE_INTRUDER, 0.4, 300, second)] : []),
+      ]);
+      await tcas.runSeconds(6);
+      return tcas.lastSentIds();
+    }
+
+    it('ALL shows an intruder without a TA or RA, THRT does not', async () => {
+      expect(await shownIntruders(TcasThreat.ALL, false)).toEqual([String(OTHER_INTRUDER)]);
+      expect(await shownIntruders(TcasThreat.THREAT, false)).toEqual([]);
+    });
+
+    it('THRT shows the other intruders while the TCAS has a TA or RA on a close intruder', async () => {
+      const shown = await shownIntruders(TcasThreat.THREAT, true);
+      expect(shown).toContain(String(CLOSE_INTRUDER));
+      expect(shown).toContain(String(OTHER_INTRUDER));
+    });
   });
 });
