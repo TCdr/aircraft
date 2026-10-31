@@ -19,6 +19,11 @@ interface PendingReport {
   readonly timeout: ReturnType<typeof setTimeout>;
 }
 
+/** The OOOI station, shared by both OITs because only the captain's OIT queues the OOOI reports */
+export interface CompanyComReportEvents {
+  oitOooiStation: string | null;
+}
+
 /** The report forms of one OIT: sends them and follows their answers */
 export class CompanyComReports {
   private readonly subscriptions: Subscription[] = [];
@@ -52,7 +57,14 @@ export class CompanyComReports {
   ) {}
 
   public init(): void {
+    const publisher = this.bus.getPublisher<CompanyComReportEvents>();
     this.subscriptions.push(
+      // Setting a subject to its own value notifies nobody: the echo of the own publication ends here
+      this.bus
+        .getSubscriber<CompanyComReportEvents>()
+        .on('oitOooiStation')
+        .handle((station) => this.oooiStation.set(station)),
+      this.oooiStation.sub((station) => publisher.pub('oitOooiStation', station, true, false)),
       this.bus
         .getSubscriber<AocFmsMessages>()
         .on('aocTransmissionResponse')

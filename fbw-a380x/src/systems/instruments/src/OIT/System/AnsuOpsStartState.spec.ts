@@ -60,7 +60,7 @@ function setUp() {
 describe('OOOI times and fuel of the state the aircraft starts in', () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it('records OUT with the sim time and the fuel on board when the park brake is released at the start', () => {
+  it('records no OUT when the park brake is off and the doors are closed from the start', () => {
     const { ansu, simvars, fqms, fwc, frame } = setUp();
     // The avionics publish their first values after the ANSU init, in the first frame of the instrument
     simvars.pub('parkBrakeSet', false);
@@ -71,8 +71,27 @@ describe('OOOI times and fuel of the state the aircraft starts in', () => {
     frame(START_TIME_MS);
     frame(START_TIME_MS + 1_000);
 
-    expect(ansu.outBlockTime.get()).toBe(START_TIME_MS);
-    expect(ansu.outBlockFob.get()).toBe(FUEL_AT_START_KG);
+    expect(ansu.outBlockTime.get()).toBeNull();
+    expect(ansu.outBlockFob.get()).toBeNull();
+  });
+
+  it('still records OUT at a real release of the park brake after such a start', () => {
+    const { ansu, clock, simvars, fqms, fwc, frame } = setUp();
+    simvars.pub('parkBrakeSet', false);
+    simvars.pub('cabinDoorOpen', 0);
+    fwc.pub('a32nx_fwc_discrete_word_126_1', arincWord(null, [ON_GROUND_BIT]));
+    fqms.pub('fqms_total_fuel_on_board', arincWord(FUEL_AT_START_KG));
+    frame(START_TIME_MS);
+    frame(START_TIME_MS + 1_000);
+
+    simvars.pub('parkBrakeSet', true);
+    frame(START_TIME_MS + 2_000);
+    clock.pub('simTime', START_TIME_MS + 60_000);
+    simvars.pub('parkBrakeSet', false);
+    ansu.onUpdate();
+    frame(START_TIME_MS + 61_000);
+
+    expect(ansu.outBlockTime.get()).toBe(START_TIME_MS + 60_000);
   });
 
   it('records OUT with the time and the fuel of the release when the park brake is set at the start', () => {
@@ -96,19 +115,19 @@ describe('OOOI times and fuel of the state the aircraft starts in', () => {
     expect(ansu.outBlockFob.get()).toBe(FUEL_AT_START_KG - 500);
   });
 
-  it('records OFF with the sim time and the fuel on board when the aircraft starts in the air', () => {
+  it('records neither OUT nor OFF when the aircraft starts in the air', () => {
     const { ansu, simvars, fqms, fwc, frame } = setUp();
     simvars.pub('parkBrakeSet', false);
     simvars.pub('cabinDoorOpen', 0);
     fwc.pub('a32nx_fwc_discrete_word_126_1', arincWord(null));
     fqms.pub('fqms_total_fuel_on_board', arincWord(FUEL_AT_START_KG));
 
-    // OFF is confirmed after 10 s in the air
+    // OFF would be confirmed after 10 s in the air
     for (let second = 0; second <= 12; second++) {
       frame(START_TIME_MS + second * 1_000);
     }
 
-    expect(ansu.offBlockTime.get()).toBe(START_TIME_MS);
-    expect(ansu.offBlockFob.get()).toBe(FUEL_AT_START_KG);
+    expect(ansu.outBlockTime.get()).toBeNull();
+    expect(ansu.offBlockTime.get()).toBeNull();
   });
 });

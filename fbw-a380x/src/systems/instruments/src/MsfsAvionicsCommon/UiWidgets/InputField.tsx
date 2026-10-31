@@ -372,12 +372,16 @@ export class InputField<
     }
   }
 
-  /** ESC: cancels the current field edition, the field returns to the last valid value */
-  private handleEscape() {
+  private discardEdition() {
     this.modifiedFieldValue.set(null);
     if (this.isOverFlow) {
       this.overflow(false);
     }
+  }
+
+  /** ESC: cancels the current field edition, the field returns to the last valid value */
+  private handleEscape() {
+    this.discardEdition();
     this.onBlur(false);
     if (!this.props.handleFocusBlurExternally) {
       this.textInputRef.instance.blur();
@@ -412,7 +416,8 @@ export class InputField<
   private onFocusHandler = this.onFocus.bind(this);
 
   public async onBlur(validateAndUpdate: boolean = true) {
-    if (!this.disabled.get() && !this.inactive.get() && this.isFocused.get()) {
+    // A field disabled or made inactive while focused still has to give the keyboard back
+    if (this.isFocused.get()) {
       if (this.props.interactionMode.get() === InteractionMode.Touchscreen) {
         Coherent.trigger('UNFOCUS_INPUT_FIELD', this.guid);
       }
@@ -422,7 +427,18 @@ export class InputField<
       }
       this.valueSelected.set(false);
       this.caretRef.instance.style.display = 'none';
+
+      const unavailable = this.disabled.get() || this.inactive.get();
+      if (unavailable) {
+        // The typed text must not stay visible on a field that can no longer be edited
+        this.discardEdition();
+      }
       this.updateDisplayElement();
+
+      if (unavailable) {
+        this.editing.set(false);
+        return;
+      }
 
       if (validateAndUpdate) {
         if (this.modifiedFieldValue.get() == null && this.readValue.get() !== null) {
