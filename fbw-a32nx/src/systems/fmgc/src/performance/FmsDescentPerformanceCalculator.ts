@@ -116,7 +116,7 @@ export class FmsDescentPerformanceCalculator implements DescentPerformanceCalcul
 
     const target = inputs.targetAltitude;
     const needsDecel =
-      schedule.cas > schedule.limitCas && schedule.limitAltitude > target && schedule.limitAltitude < altitude;
+      schedule.cas > schedule.limitCas && schedule.limitAltitude >= target && schedule.limitAltitude < altitude;
     // The deceleration ends at the speed limit altitude: it starts above it by the height it takes
     let decelTop = schedule.limitAltitude;
     if (needsDecel) {
@@ -128,8 +128,12 @@ export class FmsDescentPerformanceCalculator implements DescentPerformanceCalcul
     }
     let decelDone = !needsDecel;
 
+    // The speed limit only caps the schedule speed at and below its altitude, and never raises it
+    const casAt = (at: number) =>
+      at > schedule.limitAltitude || !decelDone ? schedule.cas : Math.min(schedule.cas, schedule.limitCas);
+
     const push = (step: StepResults | undefined, event?: DescentProfilePoint['event']) => {
-      const cas = altitude > schedule.limitAltitude || !decelDone ? schedule.cas : schedule.limitCas;
+      const cas = casAt(altitude);
       const above = altitude > TROPOPAUSE;
       const delta = Common.getDelta(altitude, above);
       const theta = Common.getTheta(altitude, inputs.isaDeviation, above);
@@ -171,7 +175,7 @@ export class FmsDescentPerformanceCalculator implements DescentPerformanceCalcul
       if (!decelDone) {
         next = Math.max(next, decelTop);
       }
-      const cas = decelDone ? schedule.limitCas : schedule.cas;
+      const cas = casAt(altitude);
       const step = this.descentStep(
         altitude,
         next,
