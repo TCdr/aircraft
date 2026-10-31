@@ -22,6 +22,8 @@ export class CDUDirectToPage {
    * @param directWaypoint the DIR TO waypoint, once the DIR TO temporary flight plan exists
    * @param directToFunction the DIRECT TO / INTERCEPT function of the DIR TO temporary flight plan (DirectToRadial.ts)
    * @param radial the radial of the RADIAL IN or RADIAL OUT function
+   * @param directLegIndex the flight plan leg the DIR TO was made to, undefined for a DIR TO to an entered waypoint;
+   * the functions must rebuild the DIR TO to that leg, as a fix can appear in several legs
    */
   static ShowPage(
     mcdu: LegacyFmsPageInterface,
@@ -29,20 +31,21 @@ export class CDUDirectToPage {
     wptsListIndex = 0,
     directToFunction = DirectToFunction.Direct,
     radial?: DirectToRadial,
+    directLegIndex?: number,
   ) {
     const plan = mcdu.flightPlanService.active;
 
     mcdu.clearDisplay();
     mcdu.page.Current = mcdu.page.DirectToPage;
     mcdu.returnPageCallback = () => {
-      CDUDirectToPage.ShowPage(mcdu, directWaypoint, wptsListIndex, directToFunction, radial);
+      CDUDirectToPage.ShowPage(mcdu, directWaypoint, wptsListIndex, directToFunction, radial, directLegIndex);
     };
 
     mcdu.activeSystem = 'FMGC';
 
     mcdu.SelfPtr = setTimeout(() => {
       if (mcdu.page.Current === mcdu.page.DirectToPage) {
-        CDUDirectToPage.ShowPage(mcdu, directWaypoint, wptsListIndex, directToFunction, radial);
+        CDUDirectToPage.ShowPage(mcdu, directWaypoint, wptsListIndex, directToFunction, radial, directLegIndex);
       }
     }, mcdu.PageTimeout.Medium);
 
@@ -134,7 +137,14 @@ export class CDUDirectToPage {
           scratchpadCallback();
           return;
         }
-        CDUDirectToPage.applyFunction(mcdu, directWaypoint, wptsListIndex, DirectToFunction.AbeamPoints);
+        CDUDirectToPage.applyFunction(
+          mcdu,
+          directWaypoint,
+          wptsListIndex,
+          DirectToFunction.AbeamPoints,
+          undefined,
+          directLegIndex,
+        );
       };
       // RADIAL IN: the entered radial, or the default radial in when the field is selected without an entry
       mcdu.onRightInput[0] = (value, scratchpadCallback) => {
@@ -143,7 +153,14 @@ export class CDUDirectToPage {
           scratchpadCallback();
           return;
         }
-        CDUDirectToPage.applyFunction(mcdu, directWaypoint, wptsListIndex, DirectToFunction.RadialIn, radialIn);
+        CDUDirectToPage.applyFunction(
+          mcdu,
+          directWaypoint,
+          wptsListIndex,
+          DirectToFunction.RadialIn,
+          radialIn,
+          directLegIndex,
+        );
       };
       // RADIAL OUT: the entered radial
       mcdu.onRightInput[1] = (value, scratchpadCallback) => {
@@ -152,7 +169,14 @@ export class CDUDirectToPage {
           scratchpadCallback();
           return;
         }
-        CDUDirectToPage.applyFunction(mcdu, directWaypoint, wptsListIndex, DirectToFunction.RadialOut, radialOut);
+        CDUDirectToPage.applyFunction(
+          mcdu,
+          directWaypoint,
+          wptsListIndex,
+          DirectToFunction.RadialOut,
+          radialOut,
+          directLegIndex,
+        );
       };
     }
 
@@ -178,7 +202,7 @@ export class CDUDirectToPage {
               mcdu
                 .directToLeg(fpIndex)
                 .then(() => {
-                  CDUDirectToPage.ShowPage(mcdu, term, newWptsListIndex);
+                  CDUDirectToPage.ShowPage(mcdu, term, newWptsListIndex, DirectToFunction.Direct, undefined, fpIndex);
                 })
                 .catch((err) => {
                   mcdu.logTroubleshootingError(err);
@@ -206,14 +230,14 @@ export class CDUDirectToPage {
     if (wptsListIndex < waypointsAndMarkers.length - 5) {
       mcdu.onUp = () => {
         wptsListIndex++;
-        CDUDirectToPage.ShowPage(mcdu, directWaypoint, wptsListIndex, directToFunction, radial);
+        CDUDirectToPage.ShowPage(mcdu, directWaypoint, wptsListIndex, directToFunction, radial, directLegIndex);
       };
       up = true;
     }
     if (wptsListIndex > 0) {
       mcdu.onDown = () => {
         wptsListIndex--;
-        CDUDirectToPage.ShowPage(mcdu, directWaypoint, wptsListIndex, directToFunction, radial);
+        CDUDirectToPage.ShowPage(mcdu, directWaypoint, wptsListIndex, directToFunction, radial, directLegIndex);
       };
       down = true;
     }
@@ -230,17 +254,23 @@ export class CDUDirectToPage {
     wptsListIndex: number,
     directToFunction: DirectToFunction,
     radial?: DirectToRadial,
+    directLegIndex?: number,
   ) {
     const interceptCourse =
       radial && (directToFunction === DirectToFunction.RadialIn || directToFunction === DirectToFunction.RadialOut)
         ? { course: radial.course, isTrue: radial.isTrue, inbound: directToFunction === DirectToFunction.RadialIn }
         : undefined;
 
+    const withAbeam = directToFunction === DirectToFunction.AbeamPoints;
+
     mcdu.eraseTemporaryFlightPlan(() => {
-      mcdu
-        .directToWaypoint(directWaypoint, directToFunction === DirectToFunction.AbeamPoints, interceptCourse)
+      const directTo =
+        directLegIndex === undefined
+          ? mcdu.directToWaypoint(directWaypoint, withAbeam, interceptCourse)
+          : mcdu.directToLeg(directLegIndex, withAbeam, interceptCourse);
+      directTo
         .then(() => {
-          CDUDirectToPage.ShowPage(mcdu, directWaypoint, wptsListIndex, directToFunction, radial);
+          CDUDirectToPage.ShowPage(mcdu, directWaypoint, wptsListIndex, directToFunction, radial, directLegIndex);
         })
         .catch((err) => {
           mcdu.logTroubleshootingError(err);

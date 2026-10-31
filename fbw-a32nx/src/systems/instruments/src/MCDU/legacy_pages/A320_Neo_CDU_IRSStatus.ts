@@ -7,8 +7,6 @@ import { Coordinates } from '@fmgc/flightplanning/data/geo';
 import { FmsFormatters } from '../legacy/FmsFormatters';
 
 export class CDUIRSStatus {
-  private static frozen = false;
-
   private static readonly ir1LatitudeVar = RegisteredSimVar.create('L:A32NX_ADIRS_IR_1_LATITUDE', SimVarValueType.Enum);
   private static readonly ir1LongitudeVar = RegisteredSimVar.create(
     'L:A32NX_ADIRS_IR_1_LONGITUDE',
@@ -127,7 +125,7 @@ export class CDUIRSStatus {
   private static readonly FEET_PER_NM = 6076.12;
 
   static ShowPage(mcdu: LegacyFmsPageInterface, index: 1 | 2 | 3, frozenTime?: string): void {
-    if (!this.frozen) {
+    if (!mcdu.irsStatusFrozen) {
       mcdu.clearDisplay();
       this.populateIrData(index);
       // [5L] GPIRS: "GPS/IRS hybrid position of the IRS"; [4R] GPIRS ACCUR: "GPS/IRS Figure of Merit (meters or feet)"
@@ -138,9 +136,9 @@ export class CDUIRSStatus {
       const gpirsValid = this.gpirsLatitude.isNormalOperation() && this.gpirsLongitude.isNormalOperation();
       this.gpirsCoordinates.lat = this.gpirsLatitude.value;
       this.gpirsCoordinates.long = this.gpirsLongitude.value;
-      this.frozen = frozenTime !== undefined;
+      mcdu.irsStatusFrozen = frozenTime !== undefined;
       mcdu.setTemplate([
-        [`IRS${index} ${this.frozen ? `FROZEN {small}AT{end} ${frozenTime}` : ''}`],
+        [`IRS${index} ${mcdu.irsStatusFrozen ? `FROZEN {small}AT{end} ${frozenTime}` : ''}`],
         ['POSITION'],
         [
           this.irLatitude.isInvalid() || this.irLongitude.isInvalid()
@@ -181,14 +179,14 @@ export class CDUIRSStatus {
             : '--°--.--/---°--.--[color]white',
         ],
         ['', ''],
-        [this.frozen ? '{UNFREEZE[color]cyan' : '{FREEZE[color]cyan', 'NEXT IRS>'],
+        [mcdu.irsStatusFrozen ? '{UNFREEZE[color]cyan' : '{FREEZE[color]cyan', 'NEXT IRS>'],
       ]);
     }
     mcdu.page.Current = mcdu.page.IRSStatus;
 
     mcdu.onLeftInput[5] = () => {
-      if (this.frozen) {
-        this.frozen = false;
+      if (mcdu.irsStatusFrozen) {
+        mcdu.irsStatusFrozen = false;
         CDUIRSStatus.ShowPage(mcdu, index);
       } else {
         CDUIRSStatus.ShowPage(
@@ -212,13 +210,13 @@ export class CDUIRSStatus {
     };
 
     mcdu.onUnload = () => {
-      this.frozen = false;
+      mcdu.irsStatusFrozen = false;
     };
 
     // regular update due to showing dynamic data on this page
     mcdu.SelfPtr = setTimeout(() => {
       if (mcdu.page.Current === mcdu.page.IRSStatus) {
-        if (!this.frozen) {
+        if (!mcdu.irsStatusFrozen) {
           this.ShowPage(mcdu, index);
         }
       }

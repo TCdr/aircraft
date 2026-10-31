@@ -17,9 +17,6 @@ import { FlightPlan } from '@fmgc/flightplanning/plans/FlightPlan';
 import { descentCabinRateField, parseDescentCabinRateEntry } from '@fmgc/guidance/vnav/descent/CabinRepressurization';
 
 export class CDUPerformancePage {
-  private static _timer: number = 0;
-  private static _lastPhase: FmgcFlightPhase | undefined = undefined;
-
   static ShowPage(mcdu: LegacyFmsPageInterface, forPlan: FlightPlanIndex = FlightPlanIndex.Active, _phase = undefined) {
     if (forPlan >= FlightPlanIndex.FirstSecondary) {
       mcdu.efisInterfaces?.L.setSecRelatedPageOpen(
@@ -67,17 +64,17 @@ export class CDUPerformancePage {
   static ShowTAKEOFFPage(mcdu: LegacyFmsPageInterface, forPlan: FlightPlanIndex) {
     mcdu.clearDisplay();
     mcdu.page.Current = mcdu.page.PerformancePageTakeoff;
-    CDUPerformancePage._timer = 0;
-    CDUPerformancePage._lastPhase = mcdu.flightPhaseManager.phase;
+    let updatesSinceDraw = 0;
+    const phaseAtDraw = mcdu.flightPhaseManager.phase;
 
     const targetPlan = mcdu.getFlightPlan(forPlan);
 
     mcdu.pageUpdate = () => {
-      CDUPerformancePage._timer++;
-      if (CDUPerformancePage._timer >= 50) {
+      updatesSinceDraw++;
+      if (updatesSinceDraw >= 50) {
         if (
           !targetPlan.isActiveOrCopiedFromActive() || // Do not switch page automatically on SEC page
-          mcdu.flightPhaseManager.phase === CDUPerformancePage._lastPhase
+          mcdu.flightPhaseManager.phase === phaseAtDraw
         ) {
           CDUPerformancePage.ShowTAKEOFFPage(mcdu, forPlan);
         } else {
@@ -414,17 +411,17 @@ export class CDUPerformancePage {
   static ShowCLBPage(mcdu: LegacyFmsPageInterface, forPlan: FlightPlanIndex, confirmAppr = false) {
     mcdu.clearDisplay();
     mcdu.page.Current = mcdu.page.PerformancePageClb;
-    CDUPerformancePage._timer = 0;
-    CDUPerformancePage._lastPhase = mcdu.flightPhaseManager.phase;
+    let updatesSinceDraw = 0;
+    const phaseAtDraw = mcdu.flightPhaseManager.phase;
 
     const targetPlan = mcdu.getFlightPlan(forPlan);
 
     mcdu.pageUpdate = () => {
-      CDUPerformancePage._timer++;
-      if (CDUPerformancePage._timer >= 100) {
+      updatesSinceDraw++;
+      if (updatesSinceDraw >= 100) {
         if (
           !targetPlan.isActiveOrCopiedFromActive() || // Do not switch page automatically on SEC page
-          mcdu.flightPhaseManager.phase === CDUPerformancePage._lastPhase
+          mcdu.flightPhaseManager.phase === phaseAtDraw
         ) {
           CDUPerformancePage.ShowCLBPage(mcdu, forPlan);
         } else {
@@ -641,17 +638,17 @@ export class CDUPerformancePage {
   static ShowCRZPage(mcdu: LegacyFmsPageInterface, forPlan: FlightPlanIndex, confirmAppr = false) {
     mcdu.clearDisplay();
     mcdu.page.Current = mcdu.page.PerformancePageCrz;
-    CDUPerformancePage._timer = 0;
-    CDUPerformancePage._lastPhase = mcdu.flightPhaseManager.phase;
+    let updatesSinceDraw = 0;
+    const phaseAtDraw = mcdu.flightPhaseManager.phase;
 
     const targetPlan = mcdu.getFlightPlan(forPlan);
 
     mcdu.pageUpdate = () => {
-      CDUPerformancePage._timer++;
-      if (CDUPerformancePage._timer >= 100) {
+      updatesSinceDraw++;
+      if (updatesSinceDraw >= 100) {
         if (
           !targetPlan.isActiveOrCopiedFromActive() || // Do not switch page automatically on SEC page
-          mcdu.flightPhaseManager.phase === CDUPerformancePage._lastPhase
+          mcdu.flightPhaseManager.phase === phaseAtDraw
         ) {
           CDUPerformancePage.ShowCRZPage(mcdu, forPlan);
         } else {
@@ -793,11 +790,8 @@ export class CDUPerformancePage {
     }
 
     if (shouldShowStepAltsOption) {
-      CDUStepAltsPage.Return = () => {
-        CDUPerformancePage.ShowCRZPage(mcdu, forPlan, false);
-      };
       mcdu.onRightInput[4] = () => {
-        CDUStepAltsPage.ShowPage(mcdu, forPlan);
+        CDUStepAltsPage.ShowPage(mcdu, forPlan, () => CDUPerformancePage.ShowCRZPage(mcdu, forPlan, false));
       };
     }
 
@@ -875,17 +869,17 @@ export class CDUPerformancePage {
   static ShowDESPage(mcdu: LegacyFmsPageInterface, forPlan: FlightPlanIndex, confirmAppr = false) {
     mcdu.clearDisplay();
     mcdu.page.Current = mcdu.page.PerformancePageDes;
-    CDUPerformancePage._timer = 0;
-    CDUPerformancePage._lastPhase = mcdu.flightPhaseManager.phase;
+    let updatesSinceDraw = 0;
+    const phaseAtDraw = mcdu.flightPhaseManager.phase;
 
     const targetPlan = mcdu.getFlightPlan(forPlan);
 
     mcdu.pageUpdate = () => {
-      CDUPerformancePage._timer++;
-      if (CDUPerformancePage._timer >= 100) {
+      updatesSinceDraw++;
+      if (updatesSinceDraw >= 100) {
         if (
           !targetPlan.isActiveOrCopiedFromActive() || // Do not switch page automatically on SEC page
-          mcdu.flightPhaseManager.phase === CDUPerformancePage._lastPhase
+          mcdu.flightPhaseManager.phase === phaseAtDraw
         ) {
           CDUPerformancePage.ShowDESPage(mcdu, forPlan);
         } else {
@@ -1075,12 +1069,12 @@ export class CDUPerformancePage {
 
     const isPhaseActive = mcdu.flightPhaseManager.phase === FmgcFlightPhase.Approach;
 
-    CDUPerformancePage._timer = 0;
-    CDUPerformancePage._lastPhase = mcdu.flightPhaseManager.phase;
+    let updatesSinceDraw = 0;
+    const phaseAtDraw = mcdu.flightPhaseManager.phase;
     mcdu.pageUpdate = () => {
-      CDUPerformancePage._timer++;
-      if (CDUPerformancePage._timer >= 100) {
-        if (!plan.isActiveOrCopiedFromActive() || mcdu.flightPhaseManager.phase === CDUPerformancePage._lastPhase) {
+      updatesSinceDraw++;
+      if (updatesSinceDraw >= 100) {
+        if (!plan.isActiveOrCopiedFromActive() || mcdu.flightPhaseManager.phase === phaseAtDraw) {
           CDUPerformancePage.ShowAPPRPage(mcdu, forPlan);
         }
       }
@@ -1333,12 +1327,12 @@ export class CDUPerformancePage {
   static ShowGOAROUNDPage(mcdu: LegacyFmsPageInterface, forPlan: FlightPlanIndex, confirmAppr = false) {
     mcdu.clearDisplay();
     mcdu.page.Current = mcdu.page.PerformancePageGoAround;
-    CDUPerformancePage._timer = 0;
-    CDUPerformancePage._lastPhase = mcdu.flightPhaseManager.phase;
+    let updatesSinceDraw = 0;
+    const phaseAtDraw = mcdu.flightPhaseManager.phase;
     mcdu.pageUpdate = () => {
-      CDUPerformancePage._timer++;
-      if (CDUPerformancePage._timer >= 100) {
-        if (mcdu.flightPhaseManager.phase === CDUPerformancePage._lastPhase) {
+      updatesSinceDraw++;
+      if (updatesSinceDraw >= 100) {
+        if (mcdu.flightPhaseManager.phase === phaseAtDraw) {
           CDUPerformancePage.ShowGOAROUNDPage(mcdu, forPlan);
         } else {
           CDUPerformancePage.ShowPage(mcdu, forPlan);

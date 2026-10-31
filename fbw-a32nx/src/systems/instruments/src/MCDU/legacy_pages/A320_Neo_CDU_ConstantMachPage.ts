@@ -29,10 +29,9 @@ interface PendingConstantMachBounds {
 const VISIBLE_WAYPOINT_ROWS = 3;
 
 export class CDUConstantMachPage {
-  static Return() {}
-
   /**
    * @param revisedLegIndex the waypoint of the VERT REV the page was called from
+   * @param returnTo what the RETURN key does, set by the page that opened this one on this screen
    * @param pending start and end selected before the Mach entry
    * @param scroll the first waypoint shown in the SELECTABLE F-PLN WPTS list
    */
@@ -40,6 +39,7 @@ export class CDUConstantMachPage {
     mcdu: LegacyFmsPageInterface,
     revisedLegIndex: number,
     forPlan: FlightPlanIndex,
+    returnTo: () => void,
     pending: PendingConstantMachBounds | null = null,
     scroll = 0,
   ) {
@@ -47,7 +47,7 @@ export class CDUConstantMachPage {
     mcdu.page.Current = mcdu.page.ConstantMachPage;
 
     const refresh = (newPending = pending, newScroll = scroll) =>
-      CDUConstantMachPage.ShowPage(mcdu, revisedLegIndex, forPlan, newPending, newScroll);
+      CDUConstantMachPage.ShowPage(mcdu, revisedLegIndex, forPlan, returnTo, newPending, newScroll);
 
     const plan = mcdu.getFlightPlan(forPlan);
     const isActivePlan = forPlan === FlightPlanIndex.Active;
@@ -191,7 +191,7 @@ export class CDUConstantMachPage {
       if (tmpy) {
         CDUFlightPlanPage.ShowPage(mcdu, 0, false, forPlan);
       } else {
-        CDUConstantMachPage.Return();
+        returnTo();
       }
     };
 

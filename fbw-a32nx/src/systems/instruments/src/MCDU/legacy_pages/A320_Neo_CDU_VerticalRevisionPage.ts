@@ -202,7 +202,7 @@ export class CDUVerticalRevisionPage {
         if (!showConstantMach) {
           return;
         }
-        CDUConstantMachPage.Return = () => {
+        const returnToVertRev = () => {
           CDUVerticalRevisionPage.ShowPage(
             mcdu,
             waypoint,
@@ -215,7 +215,7 @@ export class CDUVerticalRevisionPage {
             inAlternate,
           );
         };
-        CDUConstantMachPage.ShowPage(mcdu, wpIndex, forPlan);
+        CDUConstantMachPage.ShowPage(mcdu, wpIndex, forPlan, returnToVertRev);
       }; // CONSTANT MACH
 
       if (
@@ -504,7 +504,7 @@ export class CDUVerticalRevisionPage {
     }
 
     mcdu.onLeftInput[4] = () => {
-      CDUWindPage.Return = () => {
+      const returnToVertRev = () => {
         CDUVerticalRevisionPage.ShowPage(
           mcdu,
           waypoint,
@@ -520,11 +520,11 @@ export class CDUVerticalRevisionPage {
 
       const phase = this.getProfilePhase(waypoint, verticalWaypoint);
       if (phase === ProfilePhase.Cruise) {
-        CDUWindPage.ShowCRZPage(mcdu, forPlan, wpIndex);
+        CDUWindPage.ShowCRZPage(mcdu, forPlan, returnToVertRev, wpIndex);
       } else if (phase === ProfilePhase.Descent) {
-        CDUWindPage.ShowDESPage(mcdu, forPlan);
+        CDUWindPage.ShowDESPage(mcdu, forPlan, returnToVertRev);
       } else {
-        CDUWindPage.ShowPage(mcdu, forPlan);
+        CDUWindPage.ShowPage(mcdu, forPlan, returnToVertRev);
       }
     }; // WIND
 
@@ -535,7 +535,7 @@ export class CDUVerticalRevisionPage {
       ) {
         return;
       }
-      CDUStepAltsPage.Return = () => {
+      const returnToVertRev = () => {
         CDUVerticalRevisionPage.ShowPage(
           mcdu,
           waypoint,
@@ -548,7 +548,7 @@ export class CDUVerticalRevisionPage {
           inAlternate,
         );
       };
-      CDUStepAltsPage.ShowPage(mcdu, forPlan);
+      CDUStepAltsPage.ShowPage(mcdu, forPlan, returnToVertRev);
     }; // STEP ALTS
     if (!confirmConstraint) {
       mcdu.onLeftInput[5] = () => {

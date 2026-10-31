@@ -9,7 +9,7 @@ import { LegacyFmsPageInterface } from '../legacy/LegacyFmsPageInterface';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
 import { Column, FormatLine } from '../legacy/A320_Neo_CDU_Format';
 import { WaypointEntryUtils } from '@fmgc/flightplanning/WaypointEntryUtils';
-import { PendingPositionUpdate, positionUpdateAtLines } from './PositionMonitorFields';
+import { positionUpdateAtLines } from './PositionMonitorFields';
 import { NXUnits } from '@flybywiresim/fbw-sdk';
 import { FmsFormatters } from '../legacy/FmsFormatters';
 import { ProfilePhase } from '@fmgc/guidance/vnav/profile/NavGeometryProfile';
@@ -31,9 +31,6 @@ import {
 } from './PredictiveGpsFields';
 
 export class CDUProgressPage {
-  /** The position entered in POSITION UPDATE AT, waiting for the CONFIRM UPDATE AT [3R] */
-  private static pendingPositionUpdate: PendingPositionUpdate | null = null;
-
   /** The crew entries of the PREDICTIVE GPS page (PredictiveGpsFields) */
   private static predictiveGps = {
     /** The destination the DEST ETA entry belongs to */
@@ -184,12 +181,9 @@ export class CDUProgressPage {
 
     // POSITION UPDATE AT [3L], CONFIRM UPDATE AT [3R] (A320 FCOM DSC-22_20-30-10-18, see PositionMonitorFields)
     if (gpsPrimary) {
-      CDUProgressPage.pendingPositionUpdate = null;
+      mcdu.pendingPositionUpdate = null;
     }
-    const [positionUpdateLabel, positionUpdateData] = positionUpdateAtLines(
-      gpsPrimary,
-      CDUProgressPage.pendingPositionUpdate,
-    );
+    const [positionUpdateLabel, positionUpdateData] = positionUpdateAtLines(gpsPrimary, mcdu.pendingPositionUpdate);
     mcdu.onLeftInput[2] = (input, scratchpadCallback) => {
       if (gpsPrimary) {
         mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
@@ -197,7 +191,7 @@ export class CDUProgressPage {
         return;
       }
       if (input === Keypad.clrValue) {
-        CDUProgressPage.pendingPositionUpdate = null;
+        mcdu.pendingPositionUpdate = null;
         CDUProgressPage.ShowPage(mcdu);
         return;
       }
@@ -208,7 +202,7 @@ export class CDUProgressPage {
             scratchpadCallback();
             return;
           }
-          CDUProgressPage.pendingPositionUpdate = { ident: fix.ident, location: fix.location };
+          mcdu.pendingPositionUpdate = { ident: fix.ident, location: fix.location };
           CDUProgressPage.ShowPage(mcdu);
         })
         .catch((err) => {
@@ -221,7 +215,7 @@ export class CDUProgressPage {
         });
     };
     mcdu.onRightInput[2] = (_input, scratchpadCallback) => {
-      const pending = CDUProgressPage.pendingPositionUpdate;
+      const pending = mcdu.pendingPositionUpdate;
       if (pending === null) {
         return;
       }
@@ -230,7 +224,7 @@ export class CDUProgressPage {
         mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
         scratchpadCallback();
       }
-      CDUProgressPage.pendingPositionUpdate = null;
+      mcdu.pendingPositionUpdate = null;
       CDUProgressPage.ShowPage(mcdu);
     };
 
