@@ -47,10 +47,16 @@ import { Ata52SlidesSystemsEntries, Ata52SlidesSystemsFamilies } from './details
 import { Ata73FadecEntries, Ata73FadecFamilies } from './details/ata73Fadec';
 import { Ata73FuelFamilies } from './details/ata73Fuel';
 import { Ata73ThrustFamilies } from './details/ata73Thrust';
+import { Ata72EngineFamilies } from './details/ata72Engine';
+import { Ata79OilFamilies } from './details/ata79Oil';
+import { Ata80StartFamilies } from './details/ata80Start';
+import { Ata74IgnitionFamilies } from './details/ata74Ignition';
+import { Ata77VibrationFamilies } from './details/ata77Vibration';
+import { Ata78ReversersFamilies } from './details/ata78Reversers';
 
 /** Chapters whose failures all have a detail; the coverage spec only demands these. */
 export const A380_DETAIL_CHAPTERS_DONE: readonly AtaChapterNumber[] = [
-  21, 24, 26, 27, 28, 29, 30, 32, 34, 36, 42, 52, 73,
+  21, 24, 26, 27, 28, 29, 30, 32, 34, 36, 42, 52, 72, 73, 74, 77, 78, 79, 80,
 ];
 
 export const A380FailureDetails: FailureDetailTable = {
@@ -131,5 +137,11 @@ export const A380FailureDetails: FailureDetailTable = {
     ...Ata73FadecFamilies,
     ...Ata73FuelFamilies,
     ...Ata73ThrustFamilies,
+    ...Ata72EngineFamilies,
+    ...Ata79OilFamilies,
+    ...Ata80StartFamilies,
+    ...Ata74IgnitionFamilies,
+    ...Ata77VibrationFamilies,
+    ...Ata78ReversersFamilies,
   ],
 };

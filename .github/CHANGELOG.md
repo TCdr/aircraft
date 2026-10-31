@@ -1001,6 +1001,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OIT] The NSS AVNCS routers (ARU 1 and 2) and the SIRU are simulated: an ANSU serves the applications only while its router operates, the FMS data reach the FLT OPS laptops only through ARU 2, and the A380X SYSTEMS application shows the unit states - @TCdr
 1. [EFB] Failure details for the A380X door failures: door actuators, flight locks, latch monitoring, local door controllers, escape slides, door system computers and the residual pressure detection (ATA 52) - @TCdr
 1. [EFB] Failure details for the A380X engine fuel and control failures: FADEC channels and power supply, thrust control, thrust lever resolvers and engine fuel filters and valves (ATA 73) - @TCdr
+1. [EFB] Failure details for the A380X engine failures (flameout, seizure, stall, overtemperature, overspeed), oil, igniter, start, vibration and thrust reverser failures (ATA 72, 74, 77, 78, 79, 80) - @TCdr
 
 ## 2024.1.0
 
