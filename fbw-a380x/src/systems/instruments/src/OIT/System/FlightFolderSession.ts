@@ -5,7 +5,14 @@ import { MappedSubject, Subject, Subscribable, Subscription } from '@microsoft/m
 import type { ISimbriefData } from '@flybywiresim/fbw-sdk';
 import { FlightFolder, EffSyncState } from './FlightFolder';
 import { buildFlightFolderTree } from './FlightFolderDocuments';
-import { buildFlightPlan, EffNavLogActual, EffNavLogFollowUp, NextWaypointOutcome } from './FlightFolderFlightPlan';
+import {
+  buildFlightPlan,
+  EffFuelKey,
+  EffLoadKey,
+  EffNavLogActual,
+  EffNavLogFollowUp,
+  NextWaypointOutcome,
+} from './FlightFolderFlightPlan';
 import { FollowUpAvionics, FollowUpSample, FollowUpSampler } from './FlightFolderFollowUp';
 import { FltOpsLaptopIndex } from './FltOpsStatusSync';
 import { effExportIdentifier, effFolderLabel, effFromOfp, effIdentifier, LoadBoxItem } from './OisLoadBox';
@@ -334,7 +341,64 @@ export class FlightFolderSession {
    * this laptop is the master. A window that was opened for a folder asks again before it applies its entry.
    */
   public canEditFollowUp(folderId: string): boolean {
-    return this.editableFolder()?.id === folderId;
+    return this.editableFolderOf(folderId) !== null;
+  }
+
+  /**
+   * @param folderId a folder
+   * @returns the folder when it is the one this laptop may change now
+   */
+  private editableFolderOf(folderId: string): FlightFolder | null {
+    const folder = this.editableFolder();
+    return folder?.id === folderId ? folder : null;
+  }
+
+  /**
+   * @param folder a folder
+   * @returns whether this laptop may change the flight plan of the folder, kept up to date: it follows GET MASTER on
+   * either laptop, the promotion of another folder and the closure of the folder. The caller destroys it.
+   */
+  public followUpEditable(folder: FlightFolder): Subscribable<boolean> & Subscription {
+    return MappedSubject.create(
+      () => this.canEditFollowUp(folder.id),
+      // A flight closure closes the folder without changing who is current or master
+      folder.changed,
+      this.isMaster,
+      this.currentId,
+    );
+  }
+
+  /**
+   * An Update cell of the FUEL lines of the flight plan
+   * @param folderId the folder the cell belongs to
+   * @param key the fuel line
+   * @param kg the crew's entry in kg, null to remove it
+   * @returns whether the entry was kept; rejected unless this laptop may change the folder (see canEditFollowUp)
+   */
+  public setFuelUpdate(folderId: string, key: EffFuelKey, kg: number | null): boolean {
+    return this.editableFolderOf(folderId)?.setFuelUpdate(key, kg) ?? false;
+  }
+
+  /**
+   * An Update cell of the LOAD lines of the flight plan
+   * @param folderId the folder the cell belongs to
+   * @param key the load line
+   * @param kg the crew's entry in kg, null to remove it
+   * @returns whether the entry was kept; rejected unless this laptop may change the folder (see canEditFollowUp)
+   */
+  public setLoadUpdate(folderId: string, key: EffLoadKey, kg: number | null): boolean {
+    return this.editableFolderOf(folderId)?.setLoadUpdate(key, kg) ?? false;
+  }
+
+  /**
+   * An Update cell of the ALTN panel
+   * @param folderId the folder the cell belongs to
+   * @param row the ALTN row
+   * @param kg the crew's alternate fuel in kg, null to remove it
+   * @returns whether the entry was kept; rejected unless this laptop may change the folder (see canEditFollowUp)
+   */
+  public setAltnFuelUpdate(folderId: string, row: number, kg: number | null): boolean {
+    return this.editableFolderOf(folderId)?.setAltnFuelUpdate(row, kg) ?? false;
   }
 
   /**
