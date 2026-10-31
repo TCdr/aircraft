@@ -2,9 +2,12 @@
 //
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+// first: the fmgc modules it loads depend on their import order
+import { createAdvisoryMessages, withStubbedSimVars } from './FmsAdvisoryMessagesSpecSupport';
+import { describe, expect, it, vi } from 'vitest';
+
+// FmsAdvisoryMessages only needs the PI leg class for an instanceof check: the real leg classes import each other in a cycle
+vi.mock('@fmgc/guidance/lnav/legs/PI', () => ({ PILeg: class {} }));
 import { AutoThrustMode, VerticalMode } from '@shared/autopilot';
 import { FmgcFlightPhase } from '@shared/flightphase';
 
@@ -61,7 +64,23 @@ describe('EXTEND SPD BRK / RETRACT SPD BRK on the MFD', () => {
   });
 
   it('are checked by the FMS advisory messages each cycle', () => {
-    const advisory = readFileSync(resolve(__dirname, 'FmsAdvisoryMessages.ts'), 'utf-8');
-    expect(advisory).toMatch(/this\.speedBrakeLatch,\s*fmsSpeedBrakeMessage\(readFmsSpeedBrakeData\(/);
+    const simVars: Record<string, number> = {
+      'L:A32NX_FMA_VERTICAL_MODE': VerticalMode.DES,
+      'L:A32NX_AUTOTHRUST_MODE': AutoThrustMode.THR_IDLE,
+      'L:A32NX_FLAPS_HANDLE_INDEX': 0,
+      'L:A32NX_PFD_LINEAR_DEVIATION_ACTIVE': 1,
+      'L:A32NX_PFD_TARGET_ALTITUDE': 10000,
+      'L:A32NX_PFD_SHOW_SPEED_MARGINS': 1,
+      'L:A32NX_PFD_UPPER_SPEED_MARGIN': 310,
+    };
+    withStubbedSimVars(simVars, () => {
+      const { advisoryMessages, queued } = createAdvisoryMessages({
+        flightPhase: FmgcFlightPhase.Descent,
+        baroAltitudeFt: 10300,
+        computedAirspeedKt: 310,
+      });
+      advisoryMessages.update();
+      expect(queued).toEqual([NXSystemMessages.extendSpdBrk]);
+    });
   });
 });
