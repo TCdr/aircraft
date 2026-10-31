@@ -945,9 +945,11 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
       this.flightPhaseManager.shouldActivateNextPhase(flightPhaseManagerDelta);
     }
 
-    if (this.fmsUpdateThrottler.canUpdate(deltaTime) !== -1) {
+    // The navigation code integrates time, so it needs the time elapsed since its last throttled update, not one frame.
+    const fmsDelta = this.fmsUpdateThrottler.canUpdate(deltaTime);
+    if (fmsDelta !== -1) {
       this.checkSpeedLimit();
-      this.navigation.update(deltaTime);
+      this.navigation.update(fmsDelta);
       this.getGW();
       this.checkGWParams();
       this.toSpeedsChecks();
