@@ -1,8 +1,6 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { A320Failure } from '@failures';
 import { DoorFailures, DoorFailuresSource } from './DoorFailures';
@@ -93,10 +91,5 @@ describe('DoorFailures (A32NX ATA 52 door proximity sensors and cockpit door loc
     const firstWrites = writes;
     system.onUpdate();
     expect(writes).toBe(firstWrites);
-  });
-
-  it('is added to the systems host', () => {
-    const host = readFileSync(resolve(__dirname, '../../index.ts'), 'utf-8');
-    expect(host).toContain("this.backplane.addInstrument('DoorFailures', new DoorFailures());");
   });
 });

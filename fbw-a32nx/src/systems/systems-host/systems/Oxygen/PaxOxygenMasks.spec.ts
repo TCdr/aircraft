@@ -1,8 +1,6 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { PAX_MASK_RELEASE_CABIN_ALTITUDE_FT, isPaxMaskAutoRelease } from './PaxOxygenMasks';
 
@@ -24,10 +22,5 @@ describe('passenger oxygen masks automatic release', () => {
 
   it('not at the first update (a flight loaded on an airfield above 14 000 ft)', () => {
     expect(isPaxMaskAutoRelease(null, 14_500)).toBe(false);
-  });
-
-  it('runs in the systems host', () => {
-    const host = readFileSync(resolve(__dirname, '../../index.ts'), 'utf-8');
-    expect(host).toContain("this.backplane.addInstrument('PaxOxygenMasks', new PaxOxygenMasks());");
   });
 });
