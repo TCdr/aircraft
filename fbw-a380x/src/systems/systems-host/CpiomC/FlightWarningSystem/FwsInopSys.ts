@@ -97,6 +97,17 @@ export class FwsInopSys {
     740300011: { simVarIsActive: this.fws.engineIgnBFault[1], phase: FwsInopSysPhases.AllPhases, redundancyLoss: true },
     740300012: { simVarIsActive: this.fws.engineIgnBFault[2], phase: FwsInopSysPhases.AllPhases, redundancyLoss: true },
     740300013: { simVarIsActive: this.fws.engineIgnBFault[3], phase: FwsInopSysPhases.AllPhases, redundancyLoss: true },
+    // ELEC SECONDARY SUPPLY CTR 1(2) REDUND LOST MORE INFO REDUND LOSS: PART ELEC SEC CTR 1(2)
+    240300032: {
+      simVarIsActive: this.fws.elecSecondarySupplyCentreRedundLost[0],
+      phase: FwsInopSysPhases.AllPhases,
+      redundancyLoss: true,
+    },
+    240300033: {
+      simVarIsActive: this.fws.elecSecondarySupplyCentreRedundLost[1],
+      phase: FwsInopSysPhases.AllPhases,
+      redundancyLoss: true,
+    },
     280300001: {
       // JETTISON (FUEL JETTISON FAULT STATUS)
       simVarIsActive: this.fws.fuelJettisonFault,

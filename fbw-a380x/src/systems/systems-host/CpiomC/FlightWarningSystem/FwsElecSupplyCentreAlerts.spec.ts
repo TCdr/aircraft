@@ -464,6 +464,16 @@ describe('ELEC supply centre alert entries (FwsAbnormalSensed)', () => {
 });
 
 describe('FwsAbnormalSensed and FwsCore wiring', () => {
+  it('shows PART ELEC SEC CTR under REDUND LOSS while a secondary supply centre has lost its redundancy', () => {
+    const { core } = createFws();
+    ['240300032', '240300033'].forEach((id, centre) => {
+      const entry = core.inopSys.inopSys[id];
+      expect(entry, `centre ${centre + 1}`).toBeDefined();
+      expect(entry.redundancyLoss).toBe(true);
+      expect(entry.simVarIsActive).toBe(core.elecSupplyCentreAlerts.secondarySupplyCentreRedundancyLost[centre]);
+    });
+  });
+
   it('adds the entries and the deferred procedure', () => {
     const { core } = createFws();
     const listed = elecSupplyCentreAbnormalItems(core.elecSupplyCentreAlerts, core);

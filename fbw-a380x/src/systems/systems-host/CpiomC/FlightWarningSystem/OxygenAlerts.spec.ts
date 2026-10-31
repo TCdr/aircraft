@@ -1,6 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
+import { Arinc429SignStatusMatrix, Arinc429Word } from '@flybywiresim/fbw-sdk';
 import { describe, expect, it } from 'vitest';
 import { EcamAbnormalProcedures } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
 import { createFws, runFwsCycle } from './FwsSpecFixture';
@@ -101,6 +102,28 @@ describe('OXY alert definitions', () => {
     runFwsCycle(core);
     expect(core.oxyCkptBottlePressLo.get()).toBe(true);
     expect(core.oxyCabinValveClosed.get()).toBe(true);
+    expect(core.oxyCabinBottlePressLo.get()).toBe(false);
+  });
+});
+
+describe('OXY BOTTLE PRESS LO depressurization inhibit in flight', () => {
+  it('reads the cabin altitude in cruise too', () => {
+    const { core, simVars } = createFws(new Set());
+    const normalWord = (value: number) => Arinc429Word.getRawWord(value, Arinc429SignStatusMatrix.NormalOperation);
+    // Hold the phase: the cycle would compute phase 1 from the all-zero simvars
+    core.flightPhase.set(6);
+    core.flightPhase.set = () => undefined;
+    simVars.set('L:A32NX_AFDX_3_7_REACHABLE', true);
+    simVars.set('L:A32NX_COND_CPIOM_B1_CPCS_DISCRETE_WORD', normalWord(0));
+    simVars.set('L:A32NX_PRESS_CABIN_ALTITUDE_B1', normalWord(8000));
+    simVars.set('L:A32NX_OXYGEN_CREW_BOTTLE_PRESSURE', 100);
+    simVars.set('L:A32NX_OXYGEN_CABIN_BOTTLE_PRESSURE', 100);
+    runFwsCycle(core);
+    expect(core.oxyCkptBottlePressLo.get()).toBe(true);
+
+    simVars.set('L:A32NX_PRESS_CABIN_ALTITUDE_B1', normalWord(20_000));
+    runFwsCycle(core);
+    expect(core.oxyCkptBottlePressLo.get()).toBe(false);
     expect(core.oxyCabinBottlePressLo.get()).toBe(false);
   });
 });

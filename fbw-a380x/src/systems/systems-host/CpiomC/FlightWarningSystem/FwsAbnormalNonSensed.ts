@@ -9,6 +9,11 @@ import { FwcAuralWarning, FwsCore } from './FwsCore';
 import { EcamAbNormalSensedSubMenuVector } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
 // FIXME should not import from instruments
 import { AbnormalNonSensedProceduresOverview } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalNonSensedProcedures';
+// FIXME should not import from instruments
+import {
+  FUEL_LEAK_CONTINUES_ITEM_INDEX,
+  FUEL_LEAK_STOPS_ITEM_INDEX,
+} from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata28';
 import { EwdAbnormalDict, showAllItems } from './FwsAbnormalSensed';
 import { SdPages } from '@shared/EcamSystemPages';
 
@@ -901,10 +906,10 @@ export class FwsAbnormalNonSensed {
         false,
       ],
       // STATUS: LAND ANSA; FUEL PARTLY UNUSABLE except an engine fuel
-      // leak (LEAK STOPS, item 13); the minimum usable fuel when the leak continues (item 17)
-      limitationsAllPhases: (checked) => ['2', checked[13] ? null : '280400001'],
+      // leak (LEAK STOPS); the minimum usable fuel when the leak continues (LEAK CONTINUES)
+      limitationsAllPhases: (checked) => ['2', checked[FUEL_LEAK_STOPS_ITEM_INDEX] ? null : '280400001'],
       limitationsPfd: () => ['2'],
-      info: (checked) => (checked[17] ? ['280200001', '280200002'] : []),
+      info: (checked) => (checked[FUEL_LEAK_CONTINUES_ITEM_INDEX] ? ['280200001', '280200002'] : []),
       failure: 1,
       auralWarning: Subject.create(FwcAuralWarning.None),
       sysPage: SdPages.Fuel,

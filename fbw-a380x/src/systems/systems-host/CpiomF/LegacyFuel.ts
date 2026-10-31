@@ -252,6 +252,10 @@ export class LegacyFuel implements Instrument {
           this.keyEventManager.triggerKey('FUELSYSTEM_TRIGGER_OFF', true, index);
         }
       }
+      // The start triggers only have effects when they turn on and the end triggers are not evaluated meanwhile, so
+      // a running transfer is stopped at the feed tank inlets; the other valves (crossfeed, trim, jettison) keep
+      // their state for the jettison
+      this.closeFeedTankTransferValves();
       return;
     } else if (this.jettisonInProgress) {
       if (!jettisoning) {
@@ -727,6 +731,16 @@ export class LegacyFuel implements Instrument {
   private setJunctionOption(index: number, option: number): void {
     if (this.junctionSettings.get(index).get() !== option && this.keyEventManager) {
       this.keyEventManager.triggerKey('FUELSYSTEM_JUNCTION_SET', true, index, option);
+    }
+  }
+
+  /** The forward (5-16) and aft (23-30) transfer valves that let fuel into the feed tanks */
+  private closeFeedTankTransferValves(): void {
+    for (let index = 5; index <= 16; index++) {
+      this.setValve(index, ValveState.Closed);
+    }
+    for (let index = 23; index <= 30; index++) {
+      this.setValve(index, ValveState.Closed);
     }
   }
 

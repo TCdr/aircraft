@@ -2,7 +2,7 @@
 import { Arinc429SignStatusMatrix, Arinc429Word, MathUtils, NXDataStore, UpdateThrottler } from '@flybywiresim/fbw-sdk';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { voteRadioAltitude } from '@shared/RadioAltimeterVoting';
-import { LegacySoundManager, soundList } from './LegacySoundManager';
+import { LegacySoundManager, SoundPriority, soundList } from './LegacySoundManager';
 import {
   A380X_DEFAULT_RADIO_AUTO_CALL_OUTS,
   A380XRadioAutoCallOutFlags,
@@ -26,6 +26,12 @@ type ModesType = {
  * This 1:1 port from the A32NX's GPWS+FWS serves as temporary replacement, until a more sophisticated system simulation is in place.
  */
 export class LegacyGpws {
+  /**
+   * Pause after a GLIDE SLOPE repeat. With no pause its period equals its length and, being due the instant it ends,
+   * it took the sound channel back from the higher priority alerts.
+   */
+  static readonly GLIDE_SLOPE_REPEAT_PAUSE_S = 1;
+
   /** Mode 4A: TOO LOW TERRAIN instead of TOO LOW GEAR above this speed */
   static readonly MODE_4A_TERRAIN_SPEED_KT = 200;
 
@@ -146,7 +152,7 @@ export class LegacyGpws {
         previous: 0,
         type: [
           {},
-          { sound: soundList.sink_rate, soundPeriod: 1.1, gpwsLight: true },
+          { sound: soundList.sink_rate, soundPeriod: 1.1, priority: SoundPriority.SinkRate, gpwsLight: true },
           { gpwsLight: true, pullUp: true },
         ],
       },
@@ -156,14 +162,18 @@ export class LegacyGpws {
         // A32NX GPWS.
         current: 0,
         previous: 0,
-        type: [{}, { sound: soundList.terrain, soundPeriod: 1.1, gpwsLight: true }, { gpwsLight: true, pullUp: true }],
+        type: [
+          {},
+          { sound: soundList.terrain, soundPeriod: 1.1, priority: SoundPriority.Terrain, gpwsLight: true },
+          { gpwsLight: true, pullUp: true },
+        ],
       },
       // Mode 3
       {
         // 0: no warning, 1: "don't sink"
         current: 0,
         previous: 0,
-        type: [{}, { sound: soundList.dont_sink, soundPeriod: 1.1, gpwsLight: true }],
+        type: [{}, { sound: soundList.dont_sink, soundPeriod: 1.1, priority: SoundPriority.DontSink, gpwsLight: true }],
       },
       // Mode 4
       {
@@ -172,9 +182,9 @@ export class LegacyGpws {
         previous: 0,
         type: [
           {},
-          { sound: soundList.too_low_gear, soundPeriod: 1.1, gpwsLight: true },
-          { sound: soundList.too_low_flaps, soundPeriod: 1.1, gpwsLight: true },
-          { sound: soundList.too_low_terrain, soundPeriod: 1.1, gpwsLight: true },
+          { sound: soundList.too_low_gear, soundPeriod: 1.1, priority: SoundPriority.TooLow, gpwsLight: true },
+          { sound: soundList.too_low_flaps, soundPeriod: 1.1, priority: SoundPriority.TooLow, gpwsLight: true },
+          { sound: soundList.too_low_terrain, soundPeriod: 1.1, priority: SoundPriority.TooLow, gpwsLight: true },
         ],
       },
       // Mode 5, not all warnings are fully implemented
@@ -186,8 +196,16 @@ export class LegacyGpws {
         // aural_glideslope_quiet / _loud voices of the A32NX GPWS.
         type: [
           {},
-          { sound: soundList.glideslope_quiet, soundPeriod: soundList.glideslope_quiet.length },
-          { sound: soundList.glideslope_loud, soundPeriod: soundList.glideslope_loud.length },
+          {
+            sound: soundList.glideslope_quiet,
+            soundPeriod: soundList.glideslope_quiet.length + LegacyGpws.GLIDE_SLOPE_REPEAT_PAUSE_S,
+            priority: SoundPriority.GlideSlope,
+          },
+          {
+            sound: soundList.glideslope_loud,
+            soundPeriod: soundList.glideslope_loud.length + LegacyGpws.GLIDE_SLOPE_REPEAT_PAUSE_S,
+            priority: SoundPriority.GlideSlope,
+          },
         ],
         onChange: (current) => {
           this.setGlideSlopeWarning(current >= 1);
@@ -347,7 +365,7 @@ export class LegacyGpws {
       const FlapsInLandingConfig = flapsThreeSelected ? FlapPosition === 3 : FlapPosition === 4; // fixme should be actual flap angle
       const vSpeed = Simplane.getVerticalSpeed();
       const Airspeed = SimVar.GetSimVarValue('AIRSPEED INDICATED', 'Knots');
-      const gearExtended = SimVar.GetSimVarValue('GEAR TOTAL PCT EXTENDED', 'Percent') > 0.9;
+      const gearExtended = SimVar.GetSimVarValue('GEAR TOTAL PCT EXTENDED', 'percent over 100') > 0.9;
 
       this.updateMaxRA(radioAlt.value, onGround, phase);
 
@@ -465,7 +483,7 @@ export class LegacyGpws {
       this.soundManager.removePeriodicSound(previousType.sound);
 
       const currentType = mode.type[mode.current];
-      this.soundManager.addPeriodicSound(currentType.sound, currentType.soundPeriod);
+      this.soundManager.addPeriodicSound(currentType.sound, currentType.soundPeriod, currentType.priority);
 
       if (mode.onChange) {
         mode.onChange(mode.current, mode.previous);
@@ -479,7 +497,7 @@ export class LegacyGpws {
     const shouldPullUpPlay = activeTypes.some((type) => type.pullUp);
     if (shouldPullUpPlay !== this.PrevShouldPullUpPlay) {
       if (shouldPullUpPlay) {
-        this.soundManager.addPeriodicSound(soundList.pull_up, 1.1);
+        this.soundManager.addPeriodicSound(soundList.pull_up, 1.1, SoundPriority.PullUp);
       } else {
         this.soundManager.removePeriodicSound(soundList.pull_up);
       }
@@ -603,7 +621,10 @@ export class LegacyGpws {
     } else {
       mode.current = 0;
     }
-    if (!FlapsInLandingConfig || !gearExtended) {
+    // Mode 4C only applies to the takeoff and the climb; the highest radio height of a whole flight would otherwise
+    // turn the approach alerts (TOO LOW GEAR / TOO LOW FLAPS) into TOO LOW TERRAIN
+    const mode4cPhase = phase === FmgcFlightPhase.Takeoff || phase === FmgcFlightPhase.Climb;
+    if (mode4cPhase && (!FlapsInLandingConfig || !gearExtended)) {
       const maxWarnAltSpeed = Math.max(Math.min(8.3333 * speed - 1083.33, 1000), 500);
       const maxWarnAlt = 0.750751 * this.Mode4MaxRAAlt - 0.750751;
 
