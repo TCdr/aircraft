@@ -115,6 +115,8 @@ export class ChartsSession {
   private readonly _tab = Subject.create<ChartsTab>(DEFAULT_TAB);
   public readonly tab = this._tab as Subscribable<ChartsTab>;
 
+  private readonly _pageOpen = Subject.create(false);
+
   private readonly _runway = Subject.create<string | null>(null);
   /** The runway the list is limited to, null for all */
   public readonly runway = this._runway as Subscribable<string | null>;
@@ -136,6 +138,9 @@ export class ChartsSession {
 
   /** The runways the crew can pick for the tab */
   public readonly runwaysOfTab: Subscribable<string[]>;
+
+  /** Whether the PREPARED tab carries the (NEW) mark: charts arrived that the crew has not looked at yet */
+  public readonly preparedTabIsNew: Subscribable<boolean>;
 
   /** Whether the application stands as it opens: the first airport, the departure tab, no chart open */
   public readonly atHome: Subscribable<boolean>;
@@ -194,11 +199,36 @@ export class ChartsSession {
       this._runway,
       this._chart,
     );
+
+    // The tab selected is not enough to have seen the charts: the page can be closed with the PREPARED tab remembered
+    const preparedTabShown = MappedSubject.create(
+      ([pageOpen, tab]) => pageOpen && tab === CLIPBOARD_TAB,
+      this._pageOpen,
+      this._tab,
+    );
+    // What arrives while the PREPARED tab is shown is in front of the crew's eyes: no mark on the tab itself
+    this.preparedTabIsNew = MappedSubject.create(
+      ([offerIsNew, shown]) => offerIsNew && !shown,
+      this.clipboard.offerIsNew,
+      preparedTabShown,
+    );
+    MappedSubject.create(([offerIsNew, shown]) => offerIsNew && shown, this.clipboard.offerIsNew, preparedTabShown).sub(
+      (seen) => {
+        if (seen) {
+          this.clipboard.markOfferSeen();
+        }
+      },
+    );
   }
 
   /** @returns the supplier of chart images of the gauge, the same one for every viewer */
   public createImageSupplier(): ChartImageSupplier {
     return this.source.createImageSupplier();
+  }
+
+  /** @param open whether the CHARTS page is displayed: the crew sees the tab only while it is */
+  public setPageOpen(open: boolean): void {
+    this._pageOpen.set(open);
   }
 
   /** The application opens: the first time since the laptop started it reads the charts of the first airport */

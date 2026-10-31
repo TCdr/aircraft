@@ -94,8 +94,13 @@ export class OitFltOpsTerminalCharts extends DisplayComponent<OitFltOpsTerminalC
 
   private readonly homeAvailable = this.session.atHome.map(SubscribableMapFunctions.not());
 
-  private readonly preparedLabel = this.session.clipboard.charts.map((charts) =>
-    charts.length > 0 ? `PREPARED ${charts.length}` : 'PREPARED',
+  private readonly preparedLabel = MappedSubject.create(
+    ([charts, isNew]) => {
+      const countSuffix = charts.length > 0 ? ` ${charts.length}` : '';
+      return `PREPARED${countSuffix}${isNew ? ' (NEW)' : ''}`;
+    },
+    this.session.clipboard.charts,
+    this.session.preparedTabIsNew,
   );
 
   private readonly tabSelected = TAB_KEYS.map((tab) => this.session.tab.map((selected) => selected === tab));
@@ -154,6 +159,7 @@ export class OitFltOpsTerminalCharts extends DisplayComponent<OitFltOpsTerminalC
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
+    this.session.setPageOpen(true);
     this.session.start();
 
     this.props.uiService.registerPageFunctions({
@@ -183,6 +189,7 @@ export class OitFltOpsTerminalCharts extends DisplayComponent<OitFltOpsTerminalC
   }
 
   public destroy(): void {
+    this.session.setPageOpen(false);
     this.paneScope?.destroy();
     // The page closes with the viewer: it gives its chart view back to the sim
     this.viewerRef.getOrDefault()?.destroy();
