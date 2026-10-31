@@ -1,10 +1,8 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
-import { PrintRequestOutcome, printRequestOutcome } from './McduPrinter';
+import { describe, expect, it, vi } from 'vitest';
+import { PrintRequestOutcome, printRequestOutcome, requestPrint } from './McduPrinter';
 import { NXSystemMessages } from '../messages/NXSystemMessages';
 
 /* The cockpit printer failure (flyPad 46004): PRINTER NOT AVAILABLE, nothing printed */
@@ -26,8 +24,17 @@ describe('MCDU print with the cockpit printer failure', () => {
     expect(message.isAmber).toBe(false);
   });
 
-  it('the MCDU print queues the message for a failed printer', () => {
-    const mcdu = readFileSync(resolve(__dirname, 'A320_Neo_CDU_MainDisplay.ts'), 'utf-8');
-    expect(mcdu).toContain('this.addMessageToQueue(NXSystemMessages.printerNotAvailable);');
+  it('the print request queues the message for a failed printer and prints nothing', () => {
+    const queueMessage = vi.fn();
+    expect(requestPrint(true, false, queueMessage)).toBe(false);
+    expect(queueMessage).toHaveBeenCalledTimes(1);
+    expect(queueMessage).toHaveBeenCalledWith(NXSystemMessages.printerNotAvailable);
+  });
+
+  it('the print request prints with a working printer without a message, and drops a request while printing', () => {
+    const queueMessage = vi.fn();
+    expect(requestPrint(false, false, queueMessage)).toBe(true);
+    expect(requestPrint(false, true, queueMessage)).toBe(false);
+    expect(queueMessage).not.toHaveBeenCalled();
   });
 });

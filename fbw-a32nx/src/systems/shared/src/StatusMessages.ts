@@ -18,12 +18,18 @@ export enum StatusPart {
   ProcedureTitle,
 }
 
+interface StatusMessage {
+  part: StatusPart;
+  text: string;
+}
+
 /**
  * The STATUS page lines, by code: ATA chapter, then 04 xxxxx limitations, 02 xxxxx information, 03 xxxxx inoperative
  * systems (as the A380 codes). Their order here is their order on the page: the limitations come before the information
- * in the left column.
+ * in the left column. These are the entries as written: a code written twice would silently replace the first line in
+ * the Map built from them.
  */
-const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
+export const StatusMessageEntries: [string, StatusMessage][] = [
   // 70 ENGINE: the STATUS of ENG ALL ENGINES FAILURE (see FWC/Logic/AllEnginesFailure), first on the page in the
   // aircraft order: the lines the other alerts of an all engines failure share with it are shown once, here
   ['700400070', { part: StatusPart.Limitation, text: 'MIN RAT SPEED....140 KT' }],
@@ -686,7 +692,9 @@ const StatusMessages = new Map<string, { part: StatusPart; text: string }>([
   ['230300001', { part: StatusPart.InopSys, text: 'CIDS' }],
   ['230300002', { part: StatusPart.InopSys, text: 'SINGLE PTT' }],
   ['230300003', { part: StatusPart.InopSys, text: 'VHF 3 DATA' }],
-]);
+];
+
+const StatusMessages = new Map<string, StatusMessage>(StatusMessageEntries);
 
 const StatusMessageOrder = new Map([...StatusMessages.keys()].map((code, index) => [code, index]));
 
