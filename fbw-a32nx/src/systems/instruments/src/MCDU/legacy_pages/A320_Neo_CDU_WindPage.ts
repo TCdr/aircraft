@@ -31,38 +31,36 @@ export class CDUWindPage {
 
   static readonly EmptyWindVector = '\xa0\xa0\xa0\xa0\xa0\xa0\xa0\xa0';
 
-  static Return() {}
-
-  static ShowPage(mcdu: LegacyFmsPageInterface, forPlan: FlightPlanIndex) {
+  static ShowPage(mcdu: LegacyFmsPageInterface, forPlan: FlightPlanIndex, returnTo: () => void) {
     const phase = mcdu.flightPhaseManager.phase;
 
     switch (phase) {
       case FmgcFlightPhase.Cruise:
-        CDUWindPage.ShowCRZPage(mcdu, forPlan, 0);
+        CDUWindPage.ShowCRZPage(mcdu, forPlan, returnTo, 0);
         break;
       case FmgcFlightPhase.Descent:
       case FmgcFlightPhase.Approach:
       case FmgcFlightPhase.GoAround:
-        CDUWindPage.ShowDESPage(mcdu, forPlan);
+        CDUWindPage.ShowDESPage(mcdu, forPlan, returnTo);
         break;
       case FmgcFlightPhase.Preflight:
       case FmgcFlightPhase.Takeoff:
       case FmgcFlightPhase.Climb:
       case FmgcFlightPhase.Done:
       default:
-        CDUWindPage.ShowCLBPage(mcdu, forPlan);
+        CDUWindPage.ShowCLBPage(mcdu, forPlan, returnTo);
         break;
     }
   }
 
-  static ShowCLBPage(mcdu: LegacyFmsPageInterface, forPlan: FlightPlanIndex) {
+  static ShowCLBPage(mcdu: LegacyFmsPageInterface, forPlan: FlightPlanIndex, returnTo: () => void) {
     mcdu.clearDisplay();
     mcdu.page.Current = mcdu.page.ClimbWind;
 
     // Auto refresh the page to switch to the next page if we sequenced out of the climb phase while the page was open
     mcdu.SelfPtr = setTimeout(() => {
       if (mcdu.page.Current === mcdu.page.ClimbWind) {
-        CDUWindPage.ShowCLBPage(mcdu, forPlan);
+        CDUWindPage.ShowCLBPage(mcdu, forPlan, returnTo);
       }
     }, mcdu.PageTimeout.Medium);
 
@@ -86,7 +84,7 @@ export class CDUWindPage {
     const allowHistoryWindAccess = forPlan === FlightPlanIndex.Active && phase === FmgcFlightPhase.Preflight;
 
     if (!this.allowClimbWindPageAccess(plan, phase)) {
-      this.ShowCRZPage(mcdu, forPlan, 0);
+      this.ShowCRZPage(mcdu, forPlan, returnTo, 0);
       return;
     }
 
@@ -148,7 +146,7 @@ export class CDUWindPage {
               await mcdu.flightPlanService.setClimbWindEntry(wind.altitude, entry, forPlan);
             }
 
-            CDUWindPage.ShowCLBPage(mcdu, forPlan);
+            CDUWindPage.ShowCLBPage(mcdu, forPlan, returnTo);
           } catch (e) {
             console.error('Error updating climb wind entry:', e);
             mcdu.setScratchpadMessage(NXFictionalMessages.internalError);
@@ -171,7 +169,7 @@ export class CDUWindPage {
 
             await mcdu.flightPlanService.setClimbWindEntry(entry.altitude, entry, forPlan);
 
-            CDUWindPage.ShowCLBPage(mcdu, forPlan);
+            CDUWindPage.ShowCLBPage(mcdu, forPlan, returnTo);
           } catch (e) {
             console.error('Error adding climb wind entry:', e);
             mcdu.setScratchpadMessage(NXFictionalMessages.internalError);
@@ -186,7 +184,7 @@ export class CDUWindPage {
     if (allowHistoryWindAccess) {
       // HISTORY WIND
       mcdu.onRightInput[0] = async () => {
-        CDUWindPage.ShowHistoryPage(mcdu, forPlan);
+        CDUWindPage.ShowHistoryPage(mcdu, forPlan, returnTo);
       };
     }
 
@@ -195,19 +193,19 @@ export class CDUWindPage {
       if (doesClbWindUplinkExist) {
         if (value === Keypad.clrValue) {
           plan.pendingWindUplink.delete();
-          CDUWindPage.ShowCLBPage(mcdu, forPlan);
+          CDUWindPage.ShowCLBPage(mcdu, forPlan, returnTo);
           return;
         }
 
         try {
-          await mcdu.uplinkWinds(forPlan, () => CDUWindPage.ShowCLBPage(mcdu, forPlan));
+          await mcdu.uplinkWinds(forPlan, () => CDUWindPage.ShowCLBPage(mcdu, forPlan, returnTo));
         } catch (e) {
           console.error('Error inserting climb wind uplink:', e);
           mcdu.setScratchpadMessage(NXFictionalMessages.internalError);
         }
       } else if (!isWindUplinkInProgress) {
         try {
-          await mcdu.uplinkWinds(forPlan, () => CDUWindPage.ShowCLBPage(mcdu, forPlan));
+          await mcdu.uplinkWinds(forPlan, () => CDUWindPage.ShowCLBPage(mcdu, forPlan, returnTo));
         } catch (e) {
           console.error('Error requesting winds:', e);
           mcdu.setScratchpadMessage(NXFictionalMessages.internalError);
@@ -215,7 +213,7 @@ export class CDUWindPage {
       }
 
       if (mcdu.page.Current === mcdu.page.ClimbWind) {
-        CDUWindPage.ShowCLBPage(mcdu, forPlan);
+        CDUWindPage.ShowCLBPage(mcdu, forPlan, returnTo);
       }
     };
 
@@ -223,21 +221,26 @@ export class CDUWindPage {
     mcdu.onRightInput[4] = () => {
       const nextCruiseLegIndex = this.findNextCruiseLegIndex(mcdu, plan, 0);
       if (nextCruiseLegIndex >= 0) {
-        CDUWindPage.ShowCRZPage(mcdu, forPlan, nextCruiseLegIndex);
+        CDUWindPage.ShowCRZPage(mcdu, forPlan, returnTo, nextCruiseLegIndex);
       } else {
-        CDUWindPage.ShowDESPage(mcdu, forPlan);
+        CDUWindPage.ShowDESPage(mcdu, forPlan, returnTo);
       }
     };
   }
 
-  static async ShowCRZPage(mcdu: LegacyFmsPageInterface, forPlan: FlightPlanIndex, fpIndex: number) {
+  static async ShowCRZPage(
+    mcdu: LegacyFmsPageInterface,
+    forPlan: FlightPlanIndex,
+    returnTo: () => void,
+    fpIndex: number,
+  ) {
     mcdu.clearDisplay();
     mcdu.page.Current = mcdu.page.CruiseWind;
 
     // Auto refresh the page to switch to the next page if we sequenced out of the crusie phase while the page was open
     mcdu.SelfPtr = setTimeout(() => {
       if (mcdu.page.Current === mcdu.page.CruiseWind) {
-        CDUWindPage.ShowCRZPage(mcdu, forPlan, fpIndex);
+        CDUWindPage.ShowCRZPage(mcdu, forPlan, returnTo, fpIndex);
       }
     }, mcdu.PageTimeout.Medium);
 
@@ -249,7 +252,7 @@ export class CDUWindPage {
     // descent wind page instead
     const nextSuitableLegIndex = this.findNextCruiseLegIndex(mcdu, plan, fpIndex);
     if (!this.allowCruiseWindPageAccess(plan, phase, nextSuitableLegIndex >= 0)) {
-      this.ShowDESPage(mcdu, forPlan);
+      this.ShowDESPage(mcdu, forPlan, returnTo);
       return;
     }
 
@@ -362,7 +365,7 @@ export class CDUWindPage {
               await mcdu.flightPlanService.editCruiseWindEntry(nextSuitableLegIndex, i, entry, forPlan);
             }
 
-            CDUWindPage.ShowCRZPage(mcdu, forPlan, nextSuitableLegIndex);
+            CDUWindPage.ShowCRZPage(mcdu, forPlan, returnTo, nextSuitableLegIndex);
           } catch (e) {
             console.error('Error deleting cruise wind entry:', e);
             mcdu.setScratchpadMessage(NXFictionalMessages.internalError);
@@ -385,7 +388,7 @@ export class CDUWindPage {
           try {
             await mcdu.flightPlanService.addCruiseWindEntry(nextSuitableLegIndex, entry, forPlan);
 
-            CDUWindPage.ShowCRZPage(mcdu, forPlan, nextSuitableLegIndex);
+            CDUWindPage.ShowCRZPage(mcdu, forPlan, returnTo, nextSuitableLegIndex);
           } catch (e) {
             console.error('Error adding cruise wind entry:', e);
             mcdu.setScratchpadMessage(NXFictionalMessages.internalError);
@@ -417,7 +420,7 @@ export class CDUWindPage {
           await mcdu.flightPlanService.setCruiseTemperatureEntry(nextSuitableLegIndex, entry, forPlan);
         }
 
-        CDUWindPage.ShowCRZPage(mcdu, forPlan, nextSuitableLegIndex);
+        CDUWindPage.ShowCRZPage(mcdu, forPlan, returnTo, nextSuitableLegIndex);
       } catch (e) {
         console.error('Error setting cruise temperature entry:', e);
         mcdu.setScratchpadMessage(NXFictionalMessages.internalError);
@@ -429,35 +432,35 @@ export class CDUWindPage {
 
     if (canGoToPrevPhase) {
       mcdu.onRightInput[3] = () => {
-        CDUWindPage.ShowCLBPage(mcdu, forPlan);
+        CDUWindPage.ShowCLBPage(mcdu, forPlan, returnTo);
       };
     }
 
     mcdu.onRightInput[4] = () => {
-      CDUWindPage.ShowDESPage(mcdu, forPlan);
+      CDUWindPage.ShowDESPage(mcdu, forPlan, returnTo);
     };
 
     mcdu.onLeftInput[5] = () => {
-      CDUWindPage.Return();
+      returnTo();
     };
 
     mcdu.onRightInput[1] = async (value) => {
       if (doesWindUplinkExist && plan.pendingWindUplink.cruiseWinds !== undefined) {
         if (value === Keypad.clrValue) {
           plan.pendingWindUplink.delete();
-          CDUWindPage.ShowCRZPage(mcdu, forPlan, nextSuitableLegIndex);
+          CDUWindPage.ShowCRZPage(mcdu, forPlan, returnTo, nextSuitableLegIndex);
           return;
         }
 
         try {
-          await mcdu.uplinkWinds(forPlan, () => CDUWindPage.ShowCRZPage(mcdu, forPlan, nextSuitableLegIndex));
+          await mcdu.uplinkWinds(forPlan, () => CDUWindPage.ShowCRZPage(mcdu, forPlan, returnTo, nextSuitableLegIndex));
         } catch (e) {
           console.error('Error inserting cruise wind uplink:', e);
           mcdu.setScratchpadMessage(NXFictionalMessages.internalError);
         }
       } else if (!isWindUplinkInProgress) {
         try {
-          await mcdu.uplinkWinds(forPlan, () => CDUWindPage.ShowCRZPage(mcdu, forPlan, nextSuitableLegIndex));
+          await mcdu.uplinkWinds(forPlan, () => CDUWindPage.ShowCRZPage(mcdu, forPlan, returnTo, nextSuitableLegIndex));
         } catch (e) {
           console.error('Error requesting winds:', e);
           mcdu.setScratchpadMessage(NXFictionalMessages.internalError);
@@ -465,7 +468,7 @@ export class CDUWindPage {
       }
 
       if (mcdu.page.Current === mcdu.page.CruiseWind) {
-        CDUWindPage.ShowCRZPage(mcdu, forPlan, nextSuitableLegIndex);
+        CDUWindPage.ShowCRZPage(mcdu, forPlan, returnTo, nextSuitableLegIndex);
       }
     };
 
@@ -476,23 +479,23 @@ export class CDUWindPage {
     const allowScrollingUp = nextCruiseLegIndex >= 0 && nextCruiseLegIndex > nextSuitableLegIndex;
 
     if (allowScrollingUp) {
-      mcdu.onUp = () => this.ShowCRZPage(mcdu, forPlan, nextCruiseLegIndex);
+      mcdu.onUp = () => this.ShowCRZPage(mcdu, forPlan, returnTo, nextCruiseLegIndex);
     }
 
     if (allowScrollingDown) {
-      mcdu.onDown = () => this.ShowCRZPage(mcdu, forPlan, previousCruiseLegIndex);
+      mcdu.onDown = () => this.ShowCRZPage(mcdu, forPlan, returnTo, previousCruiseLegIndex);
     }
 
     mcdu.setArrows(allowScrollingUp, allowScrollingDown, false, false);
   }
 
-  static ShowDESPage(mcdu: LegacyFmsPageInterface, forPlan: FlightPlanIndex, page: number = 0) {
+  static ShowDESPage(mcdu: LegacyFmsPageInterface, forPlan: FlightPlanIndex, returnTo: () => void, page: number = 0) {
     mcdu.clearDisplay();
     mcdu.page.Current = mcdu.page.DescentWind;
 
     mcdu.SelfPtr = setTimeout(() => {
       if (mcdu.page.Current === mcdu.page.DescentWind) {
-        CDUWindPage.ShowDESPage(mcdu, forPlan, page);
+        CDUWindPage.ShowDESPage(mcdu, forPlan, returnTo, page);
       }
     }, mcdu.PageTimeout.Medium);
 
@@ -596,7 +599,7 @@ export class CDUWindPage {
               await mcdu.flightPlanService.setDescentWindEntry(wind.altitude, entry, forPlan);
             }
 
-            CDUWindPage.ShowDESPage(mcdu, forPlan, page);
+            CDUWindPage.ShowDESPage(mcdu, forPlan, returnTo, page);
           } catch (e) {
             console.error('Error updating descent wind entry:', e);
             mcdu.setScratchpadMessage(NXFictionalMessages.internalError);
@@ -626,7 +629,7 @@ export class CDUWindPage {
           try {
             await mcdu.flightPlanService.setDescentWindEntry(entry.altitude, entry, forPlan);
 
-            CDUWindPage.ShowDESPage(mcdu, forPlan, page);
+            CDUWindPage.ShowDESPage(mcdu, forPlan, returnTo, page);
           } catch (e) {
             console.error('Error adding descent wind entry:', e);
             mcdu.setScratchpadMessage(NXFictionalMessages.internalError);
@@ -679,7 +682,7 @@ export class CDUWindPage {
               await mcdu.flightPlanService.setAlternateWind(wind, forPlan);
             }
 
-            CDUWindPage.ShowDESPage(mcdu, forPlan, page);
+            CDUWindPage.ShowDESPage(mcdu, forPlan, returnTo, page);
           } catch (e) {
             console.error('Error updating alternate wind:', e);
             mcdu.setScratchpadMessage(NXFictionalMessages.internalError);
@@ -701,13 +704,13 @@ export class CDUWindPage {
 
     if (canScrollDown) {
       mcdu.onDown = () => {
-        CDUWindPage.ShowDESPage(mcdu, forPlan, Math.max(0, page - 1));
+        CDUWindPage.ShowDESPage(mcdu, forPlan, returnTo, Math.max(0, page - 1));
       };
     }
 
     if (canScrollUp) {
       mcdu.onUp = () => {
-        CDUWindPage.ShowDESPage(mcdu, forPlan, Math.min(numPages - 1, page + 1));
+        CDUWindPage.ShowDESPage(mcdu, forPlan, returnTo, Math.min(numPages - 1, page + 1));
       };
     }
 
@@ -718,9 +721,9 @@ export class CDUWindPage {
     if (canGoToPrevPhase) {
       mcdu.onRightInput[3] = () => {
         if (hasCruiseLegs) {
-          CDUWindPage.ShowCRZPage(mcdu, forPlan, nextCruiseLegIndex);
+          CDUWindPage.ShowCRZPage(mcdu, forPlan, returnTo, nextCruiseLegIndex);
         } else {
-          CDUWindPage.ShowCLBPage(mcdu, forPlan);
+          CDUWindPage.ShowCLBPage(mcdu, forPlan, returnTo);
         }
       };
     }
@@ -730,19 +733,19 @@ export class CDUWindPage {
         if (doesDesWindUplinkExist) {
           if (value === Keypad.clrValue) {
             plan.pendingWindUplink.delete();
-            CDUWindPage.ShowDESPage(mcdu, forPlan, page);
+            CDUWindPage.ShowDESPage(mcdu, forPlan, returnTo, page);
             return;
           }
 
           try {
-            await mcdu.uplinkWinds(forPlan, () => CDUWindPage.ShowDESPage(mcdu, forPlan));
+            await mcdu.uplinkWinds(forPlan, () => CDUWindPage.ShowDESPage(mcdu, forPlan, returnTo));
           } catch (e) {
             console.error('Error inserting descent wind uplink:', e);
             mcdu.setScratchpadMessage(NXFictionalMessages.internalError);
           }
         } else if (!isWindUplinkInProgress) {
           try {
-            await mcdu.uplinkWinds(forPlan, () => CDUWindPage.ShowDESPage(mcdu, forPlan));
+            await mcdu.uplinkWinds(forPlan, () => CDUWindPage.ShowDESPage(mcdu, forPlan, returnTo));
           } catch (e) {
             console.error('Error requesting winds:', e);
             mcdu.setScratchpadMessage(NXFictionalMessages.internalError);
@@ -750,7 +753,7 @@ export class CDUWindPage {
         }
 
         if (mcdu.page.Current === mcdu.page.DescentWind) {
-          CDUWindPage.ShowDESPage(mcdu, forPlan, page);
+          CDUWindPage.ShowDESPage(mcdu, forPlan, returnTo, page);
         }
       };
     }
@@ -760,13 +763,13 @@ export class CDUWindPage {
     mcdu.onPrevPage = () => mcdu.setScratchpadMessage(NXFictionalMessages.notYetImplemented);
   }
 
-  static async ShowHistoryPage(mcdu: LegacyFmsPageInterface, forPlan: FlightPlanIndex) {
+  static async ShowHistoryPage(mcdu: LegacyFmsPageInterface, forPlan: FlightPlanIndex, returnTo: () => void) {
     mcdu.clearDisplay();
     mcdu.page.Current = mcdu.page.HistoryWind;
 
     mcdu.SelfPtr = setTimeout(() => {
       if (mcdu.page.Current === mcdu.page.HistoryWind && mcdu.flightPhaseManager.phase !== FmgcFlightPhase.Preflight) {
-        CDUWindPage.ShowPage(mcdu, forPlan);
+        CDUWindPage.ShowPage(mcdu, forPlan, returnTo);
       }
     }, mcdu.PageTimeout.Medium);
 
@@ -805,7 +808,7 @@ export class CDUWindPage {
 
     // RETURN
     mcdu.onLeftInput[5] = () => {
-      this.ShowCLBPage(mcdu, forPlan);
+      this.ShowCLBPage(mcdu, forPlan, returnTo);
     };
 
     // INSERT
@@ -815,7 +818,7 @@ export class CDUWindPage {
       mcdu.onRightInput[5] = () => {
         mcdu.flightPlanService.insertHistoryWinds().then((v) => {
           if (v) {
-            this.ShowCLBPage(mcdu, forPlan);
+            this.ShowCLBPage(mcdu, forPlan, returnTo);
           }
         });
       };

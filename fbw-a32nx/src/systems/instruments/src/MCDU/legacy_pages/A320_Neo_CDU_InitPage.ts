@@ -406,11 +406,7 @@ export class CDUInitPage {
         return;
       }
 
-      CDUWindPage.Return = () => {
-        CDUInitPage.ShowPage1(mcdu, forPlan);
-      };
-
-      CDUWindPage.ShowPage(mcdu, forPlan);
+      CDUWindPage.ShowPage(mcdu, forPlan, () => CDUInitPage.ShowPage1(mcdu, forPlan));
     };
 
     mcdu.onUp = () => {};

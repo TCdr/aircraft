@@ -37,15 +37,13 @@ export class CDUStepAltsPage {
 
   private static readonly optimumStepCache = new A320OptimumStepCache();
 
-  static Return() {}
-
-  static ShowPage(mcdu: LegacyFmsPageInterface, forPlan: FlightPlanIndex) {
+  static ShowPage(mcdu: LegacyFmsPageInterface, forPlan: FlightPlanIndex, returnTo: () => void) {
     mcdu.pageUpdate = () => {};
 
     mcdu.page.Current = mcdu.page.StepAltsPage;
     mcdu.SelfPtr = setTimeout(() => {
       if (mcdu.page.Current === mcdu.page.StepAltsPage) {
-        CDUStepAltsPage.ShowPage(mcdu, forPlan);
+        CDUStepAltsPage.ShowPage(mcdu, forPlan, returnTo);
       }
     }, mcdu.PageTimeout.Medium);
 
@@ -126,7 +124,7 @@ export class CDUStepAltsPage {
     };
 
     mcdu.onLeftInput[5] = () => {
-      CDUStepAltsPage.Return();
+      returnTo();
     };
 
     mcdu.onRightInput[0] = () => {};

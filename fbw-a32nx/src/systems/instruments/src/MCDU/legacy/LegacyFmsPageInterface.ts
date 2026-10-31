@@ -32,6 +32,7 @@ import { OverheadWaypointRecorder } from '../legacy_pages/ProgressReportFields';
 import { WindEntry } from '@fmgc/flightplanning/data/wind';
 import { Accessible } from '@microsoft/msfs-sdk';
 import { FlightPlan } from '@fmgc/flightplanning/plans/FlightPlan';
+import { PendingPositionUpdate } from '../legacy_pages/PositionMonitorFields';
 import { UplinkTakeoffData } from './UplinkTakeoffData';
 import { DirectToInterceptCourse } from '@fmgc/flightplanning/plans/DirectTo';
 import { A32nxRtaFunction } from './A32nxRtaFunction';
@@ -100,6 +101,8 @@ interface LegacyFmsPageDrawingInterface {
     Slow: number;
   };
   returnPageCallback: typeof EmptyCallback.Void | null;
+  irsStatusFrozen: boolean;
+  pendingPositionUpdate: PendingPositionUpdate | null;
   mcduScratchpad: ScratchpadDataLink;
 }
 
