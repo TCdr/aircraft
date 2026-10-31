@@ -39,6 +39,19 @@ describe('COMPANY COM menu', () => {
     );
   });
 
+  it('offers the In Range report with the other in-flight reports', () => {
+    const { files } = menuFiles(fakeCompanyComAnsu().ansu);
+    const inFlightPrefix = 'nss-avncs/company-com/in-flight/';
+    const inFlightIndexes = files
+      .map((file, index) => (file.target?.startsWith(inFlightPrefix) ? index : -1))
+      .filter((index) => index >= 0);
+    const inRangeIndex = files.findIndex((file) => file.target === `${inFlightPrefix}in-range`);
+
+    expect(files[inRangeIndex]?.name).toBe('In Range');
+    expect(inRangeIndex).toBeGreaterThan(Math.min(...inFlightIndexes));
+    expect(inRangeIndex).toBeLessThan(Math.max(...inFlightIndexes));
+  });
+
   it('opens the Outbox and Sent folders', () => {
     const targets = menuFiles(fakeCompanyComAnsu().ansu).files.map((file) => file.target);
     expect(targets).toEqual(expect.arrayContaining(['nss-avncs/company-com/outbox', 'nss-avncs/company-com/sent']));
