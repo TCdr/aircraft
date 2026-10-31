@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { formatEwdMessages } from '@shared/EwdMessages';
 import {
   GPWS_PHASE_INHIBITION,
@@ -12,7 +12,19 @@ import {
   gpwsFaultMemory,
   terrStbyMemo,
 } from './GpwsAlerts';
-import { ewdLines, pseudoFwcSource, statusLines } from './FwcAlertSpecHelpers';
+import { ewdLines, statusLines } from './FwcAlertSpecHelpers';
+import { isAlertTriggered, isMemoActive, startCruiseFwc } from '../FwcAlertProbe';
+import { installFwcSimVarMocks, runFwc } from '../PseudoFwcTestBed';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
+
+/** The simvar values the real PseudoFWC reads (by name) */
+let simvars: Map<string, number>;
+
+beforeEach(() => {
+  ({ simvars } = installFwcSimVarMocks());
+});
 
 const normal: GpwsInputs = {
   sysFault: false,
@@ -64,12 +76,19 @@ describe('NAV GPWS TERR DET FAULT', () => {
     expect(statusLines({ left: item.statusInfo(), inopSys: item.inopSys() }).right).toEqual(['INOP SYS', 'GPWS TERR']);
   });
 
-  it('both are cautions shown in phases 2, 6, 7 and 9, wired in the PseudoFWC', () => {
+  it('both are cautions shown in phases 2, 6, 7 and 9, raised by the real PseudoFWC from the EGPWC simvars', () => {
     expect(new GpwsAlerts().ewdFailures[GpwsAlertKeys.gpwsFault].failure).toBe(2);
     expect(GPWS_PHASE_INHIBITION).toEqual([1, 3, 4, 5, 8, 10]);
-    const fwc = pseudoFwcSource();
-    expect(fwc).toContain('...this.gpwsAlerts.ewdFailures');
-    expect(fwc).toContain('this.gpwsAlerts.update(readGpwsInputs())');
+    const fwc = startCruiseFwc(simvars).fwc;
+    expect(fwc.ewdMessageFailures[GpwsAlertKeys.gpwsFault].flightPhaseInhib).toEqual(GPWS_PHASE_INHIBITION);
+    expect(isAlertTriggered(fwc, GpwsAlertKeys.gpwsFault)).toBe(false);
+    expect(isAlertTriggered(fwc, GpwsAlertKeys.terrainDetectionFault)).toBe(false);
+
+    simvars.set('L:A32NX_GPWS_SYS_FAULT', 1);
+    simvars.set('L:A32NX_GPWS_TERR_FAULT', 1);
+    runFwc(fwc, 1);
+    expect(isAlertTriggered(fwc, GpwsAlertKeys.gpwsFault)).toBe(true);
+    expect(isAlertTriggered(fwc, GpwsAlertKeys.terrainDetectionFault)).toBe(true);
   });
 });
 
@@ -96,8 +115,11 @@ describe('TERR STBY memo', () => {
   it('is a green memo, read from the EGPWC and wired in the PseudoFWC memo list', () => {
     // eslint-disable-next-line no-control-regex
     expect(formatEwdMessages([TERR_STBY_MEMO_CODE])[0]).toMatch(/^\x1b<3m.*TERR STBY/);
-    const fwc = pseudoFwcSource();
-    expect(fwc).toContain('simVarIsActive: this.gpwsAlerts.terrStbyMemo,');
-    expect(fwc).toContain('codesToReturn: [TERR_STBY_MEMO_CODE],');
+    const fwc = startCruiseFwc(simvars).fwc;
+    expect(isMemoActive(fwc, '0000546')).toBe(false);
+    simvars.set('L:A32NX_EGPWC_TERR_STBY', 1);
+    runFwc(fwc, 1);
+    expect(isMemoActive(fwc, '0000546')).toBe(true);
+    expect(fwc.ewdMessageMemos['0000546'].codesToReturn).toEqual([TERR_STBY_MEMO_CODE]);
   });
 });

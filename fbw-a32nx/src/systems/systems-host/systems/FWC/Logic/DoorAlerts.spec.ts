@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   DOOR_PHASE_INHIBITION,
   DoorAlertKeys,
@@ -10,7 +10,19 @@ import {
   isInteractivePointNotClosed,
   readDoorsNotClosed,
 } from './DoorAlerts';
-import { ewdLines, pseudoFwcSource, statusLines } from './FwcAlertSpecHelpers';
+import { ewdLines, statusLines } from './FwcAlertSpecHelpers';
+import { isAlertTriggered, startCruiseFwc } from '../FwcAlertProbe';
+import { installFwcSimVarMocks, runFwc } from '../PseudoFwcTestBed';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
+
+/** The simvar values the real PseudoFWC reads (by name) */
+let simvars: Map<string, number>;
+
+beforeEach(() => {
+  ({ simvars } = installFwcSimVarMocks());
+});
 
 const allClosed = Object.values(DoorAlertKeys).reduce(
   (doors, key) => ({ ...doors, [key]: false }),
@@ -114,9 +126,15 @@ describe('DOOR cautions', () => {
     }
   });
 
-  it('are wired in the PseudoFWC', () => {
-    const fwc = pseudoFwcSource();
-    expect(fwc).toContain('...this.doorAlerts.ewdFailures');
-    expect(fwc).toContain('this.doorAlerts.update(readDoorsNotClosed()');
+  it('the real PseudoFWC raises the caution of a door from its interactive point, and only that door', () => {
+    const fwc = startCruiseFwc(simvars).fwc;
+    const doorKeys = Object.values(DoorAlertKeys);
+    expect(doorKeys.filter((key) => isAlertTriggered(fwc, key))).toEqual([]);
+    simvars.set('INTERACTIVE POINT OPEN:2', 40);
+    runFwc(fwc, 1);
+    expect(doorKeys.filter((key) => isAlertTriggered(fwc, key))).toEqual([DoorAlertKeys.leftAftCabin]);
+    simvars.set('INTERACTIVE POINT OPEN:2', 0);
+    runFwc(fwc, 1);
+    expect(isAlertTriggered(fwc, DoorAlertKeys.leftAftCabin)).toBe(false);
   });
 });

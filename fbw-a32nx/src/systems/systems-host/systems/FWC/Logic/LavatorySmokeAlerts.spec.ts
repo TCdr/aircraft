@@ -1,9 +1,21 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LavatorySmokeAlertKeys, LavatorySmokeAlerts, LavatorySmokeInputs } from './LavatorySmokeAlerts';
-import { ewdLines, pseudoFwcSource, statusLines } from './FwcAlertSpecHelpers';
+import { ewdLines, statusLines } from './FwcAlertSpecHelpers';
+import { isAlertTriggered, startCruiseFwc } from '../FwcAlertProbe';
+import { installFwcSimVarMocks, runFwc } from '../PseudoFwcTestBed';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
+
+/** The simvar values the real PseudoFWC reads (by name) */
+let simvars: Map<string, number>;
+
+beforeEach(() => {
+  ({ simvars } = installFwcSimVarMocks());
+});
 
 const healthy: LavatorySmokeInputs = {
   lavatorySmoke: false,
@@ -64,9 +76,17 @@ describe('SMOKE lavatory and smoke detection alerts', () => {
     expect(ewdLines(item)).toEqual(['SMOKE DET FAULT', '  .IF NO LIVE STOCK:', ' -PAX SYS............OFF']);
   });
 
-  it('the PseudoFWC updates and shows the alerts', () => {
-    const fwc = pseudoFwcSource();
-    expect(fwc).toContain('this.lavatorySmokeAlerts.update(readLavatorySmokeInputs());');
-    expect(fwc).toContain('...this.lavatorySmokeAlerts.ewdFailures,');
+  it('the real PseudoFWC raises the alerts from the lavatory smoke simvars', () => {
+    const fwc = startCruiseFwc(simvars).fwc;
+    const keys = [
+      LavatorySmokeAlertKeys.lavatorySmoke,
+      LavatorySmokeAlertKeys.lavatoryDetectionFault,
+      LavatorySmokeAlertKeys.smokeDetectionFault,
+    ];
+    expect(keys.map((key) => isAlertTriggered(fwc, key))).toEqual([false, false, false]);
+    simvars.set('L:A32NX_SMOKE_LAVATORY_DETECTED', 1);
+    simvars.set('L:A32NX_SMOKE_DETECTION_CONTROL_UNIT_FAULT', 1);
+    runFwc(fwc, 1);
+    expect(keys.map((key) => isAlertTriggered(fwc, key))).toEqual([true, false, true]);
   });
 });

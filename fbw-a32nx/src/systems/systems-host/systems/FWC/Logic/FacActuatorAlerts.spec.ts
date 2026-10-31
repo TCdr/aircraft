@@ -3,9 +3,10 @@
 
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   FAC_SYSTEM_ALERT_CONFIRM_SECONDS,
+  FacDiscreteWord2Bits,
   FacActuatorPhaseInhibition,
   FacFunctionInputs,
   facActuatorStatus,
@@ -15,6 +16,8 @@ import {
   tluLockedAtHighSpeed,
   yawDamperSystemLines,
 } from './FacActuatorAlerts';
+import { A320Failure, A320FailureDefinitions } from '../../../../failures/src/a320';
+import { FwcRig, discreteWordWithBits, probedFailure, startCruiseFwc, triggeredAmong } from '../FwcControlsAlertProbe';
 import { formatEwdMessages } from '../../../../shared/src/EwdMessages';
 import { formatStatusPage } from '../../../../shared/src/StatusMessages';
 
@@ -32,6 +35,9 @@ const text = (prefix: string, lines: (number | null)[]) =>
       .filter((line): line is number => line !== null)
       .map((line) => `${prefix}${(line + 1).toString().padStart(2, '0')}`),
   ).join(' | ');
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
 
 const INOP_SYS = '\x1b<7m\x1b4mINOP SYS\x1bm';
 
@@ -186,63 +192,139 @@ describe('AUTO FLT yaw damper, rudder trim and rudder travel limiter alerts', ()
   });
 });
 
-describe('AUTO FLT FAC actuator alerts: wiring', () => {
-  const wasm = resolve(__dirname, '../../../../../wasm/fbw_a320/src');
-  const flyByWireInterface = readFileSync(resolve(wasm, 'FlyByWireInterface.cpp'), 'utf8');
-  const failureList = readFileSync(resolve(wasm, 'failures/FailureList.h'), 'utf8');
-  const failuresConsumer = readFileSync(resolve(wasm, 'failures/FailuresConsumer.cpp'), 'utf8');
-  const flyPadFailures = readFileSync(resolve(__dirname, '../../../../failures/src/a320.ts'), 'utf8');
-  const pseudoFwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf8');
+describe('AUTO FLT FAC actuator alerts: failures', () => {
+  const FAILURES = [
+    ['YawDamperActuator1', 22006],
+    ['YawDamperActuator2', 22007],
+    ['RudderTrimActuator1', 22008],
+    ['RudderTrimActuator2', 22009],
+    ['RudderTravelLimiterActuator1', 22010],
+    ['RudderTravelLimiterActuator2', 22011],
+  ] as const;
 
-  it('the six actuator failures exist in the flyPad list and in the fbw_a320 module, with the same ids', () => {
-    for (const [name, id] of [
-      ['YawDamperActuator1', 22006],
-      ['YawDamperActuator2', 22007],
-      ['RudderTrimActuator1', 22008],
-      ['RudderTrimActuator2', 22009],
-      ['RudderTravelLimiterActuator1', 22010],
-      ['RudderTravelLimiterActuator2', 22011],
-    ] as const) {
-      expect(flyPadFailures).toContain(`${name}Failure: ${id},`);
-      expect(flyPadFailures).toContain(`[22, A320Failure.${name}Failure, '`);
+  it('the six actuator failures exist in the flyPad list with these ids', () => {
+    const definitions = A320FailureDefinitions.filter(([ata]) => ata === 22);
+    for (const [name, id] of FAILURES) {
+      expect((A320Failure as Record<string, number>)[`${name}Failure`]).toBe(id);
+      expect(definitions.map(([, failureId]) => failureId)).toContain(id);
+    }
+  });
+
+  // vitest cannot run the C++ flight controls: the failures of the fbw_a320 module are checked in its source
+  it('the six actuator failures exist in the fbw_a320 module, with the same ids', () => {
+    const wasm = resolve(__dirname, '../../../../../wasm/fbw_a320/src');
+    const failureList = readFileSync(resolve(wasm, 'failures/FailureList.h'), 'utf8');
+    const failuresConsumer = readFileSync(resolve(wasm, 'failures/FailuresConsumer.cpp'), 'utf8');
+    for (const [name, id] of FAILURES) {
       expect(failureList).toContain(`${name} = ${id},`);
       expect(failuresConsumer).toContain(`Failures::${name}, false`);
     }
   });
 
-  it('the FACs write the actuator faults that the FWC reads', () => {
+  it('the FACs write the actuator faults that the C++ flight controls pass to the FAC model', () => {
+    const flyByWireInterface = readFileSync(
+      resolve(__dirname, '../../../../../wasm/fbw_a320/src/FlyByWireInterface.cpp'),
+      'utf8',
+    );
     for (const actuator of ['YAW_DAMPER', 'RUDDER_TRIM', 'RUDDER_TRAVEL_LIM']) {
       expect(flyByWireInterface).toContain(`"A32NX_FAC_" + idString + "_${actuator}_ACTUATOR_FAULT"`);
     }
-    expect(pseudoFwc).toContain('`L:A32NX_FAC_${fac}_${actuator}_ACTUATOR_FAULT`');
-    expect(pseudoFwc).toContain("'L:A32NX_FAC_1_DISCRETE_WORD_2'");
-    expect(pseudoFwc).toContain("'L:A32NX_FAC_2_DISCRETE_WORD_2'");
-    // the failed actuators reach the FAC model inputs
     expect(flyByWireInterface).toContain('rudder_trim_actuator_healthy = facActuatorInputs.rudderTrimActuatorHealthy;');
     expect(flyByWireInterface).toContain(
       'rudder_travel_lim_actuator_healthy = facActuatorInputs.rudderTravelLimActuatorHealthy;',
     );
     expect(flyByWireInterface).toContain('yaw_damper_has_hyd_press = facActuatorInputs.yawDamperAvailable;');
   });
+});
 
-  it('the nine alerts are in the FWC table, with their subjects and phases', () => {
-    for (const [id, subject, phases] of [
-      ['2200236', 'yawDamper1Fault', 'yawDamperFault'],
-      ['2200237', 'yawDamper2Fault', 'yawDamperFault'],
-      ['2200238', 'yawDamperSystemFault', 'yawDamperSystem'],
-      ['2200230', 'rudderTrim1Fault', 'rudderTrimFault'],
-      ['2200231', 'rudderTrim2Fault', 'rudderTrimFault'],
-      ['2200232', 'rudderTrimSystemFault', 'rudderTrimSystem'],
-      ['2200233', 'rudderTravelLimiter1Fault', 'rudderTravelLimiterFault'],
-      ['2200234', 'rudderTravelLimiter2Fault', 'rudderTravelLimiterFault'],
-      ['2200235', 'rudderTravelLimiterSystemFault', 'rudderTravelLimiterSystem'],
-    ]) {
-      const start = pseudoFwc.indexOf(`    ${id}: {`);
-      expect(start).toBeGreaterThan(0);
-      const block = pseudoFwc.slice(start, pseudoFwc.indexOf('\n    },', start));
-      expect(block).toContain(`simVarIsActive: this.${subject},`);
-      expect(block).toContain(`flightPhaseInhib: FacPhases.${phases},`);
-      expect(block).toContain('inopSys: () => facActuatorStatus.');
+describe('AUTO FLT FAC actuator alerts: the whole FWC', () => {
+  /** FAC discrete word 2: the own engaged bits of the yaw damper, rudder trim and rudder travel limiter */
+  const FAC_FUNCTIONS_ENGAGED = discreteWordWithBits(
+    FacDiscreteWord2Bits.yawDamperOwnEngaged,
+    FacDiscreteWord2Bits.rudderTrimOwnEngaged,
+    FacDiscreteWord2Bits.rudderTravelLimiterOwnEngaged,
+  );
+
+  const FUNCTIONS = [
+    {
+      actuator: 'YAW_DAMPER',
+      unit1: '2200236',
+      unit2: '2200237',
+      system: '2200238',
+      fault: 'yawDamperFault',
+      sys: 'yawDamperSystem',
+    },
+    {
+      actuator: 'RUDDER_TRIM',
+      unit1: '2200230',
+      unit2: '2200231',
+      system: '2200232',
+      fault: 'rudderTrimFault',
+      sys: 'rudderTrimSystem',
+    },
+    {
+      actuator: 'RUDDER_TRAVEL_LIM',
+      unit1: '2200233',
+      unit2: '2200234',
+      system: '2200235',
+      fault: 'rudderTravelLimiterFault',
+      sys: 'rudderTravelLimiterSystem',
+    },
+  ] as const;
+  const ALL_ALERTS: string[] = [];
+  FUNCTIONS.forEach((fn) => ALL_ALERTS.push(fn.unit1, fn.unit2, fn.system));
+
+  /** The FWC with FAC 1 having every rudder function engaged, FAC 2 on standby */
+  function startWithFac1Engaged(): FwcRig {
+    const rig = startCruiseFwc();
+    rig.simvars.set('L:A32NX_FAC_1_DISCRETE_WORD_2', FAC_FUNCTIONS_ENGAGED);
+    rig.run(3);
+    return rig;
+  }
+
+  it('the FWC reads the actuator faults and the engaged functions of both FACs', () => {
+    for (const fn of FUNCTIONS) {
+      const rig = startWithFac1Engaged();
+      expect(triggeredAmong(rig.fwc, ALL_ALERTS)).toEqual([]);
+
+      rig.simvars.set(`L:A32NX_FAC_1_${fn.actuator}_ACTUATOR_FAULT`, 1);
+      rig.simvars.set('L:A32NX_FAC_2_DISCRETE_WORD_2', FAC_FUNCTIONS_ENGAGED);
+      rig.simvars.set('L:A32NX_FAC_1_DISCRETE_WORD_2', discreteWordWithBits());
+      rig.run(3);
+      expect(triggeredAmong(rig.fwc, ALL_ALERTS)).toEqual([fn.unit1]);
+
+      rig.simvars.set(`L:A32NX_FAC_1_${fn.actuator}_ACTUATOR_FAULT`, 0);
+      rig.simvars.set(`L:A32NX_FAC_2_${fn.actuator}_ACTUATOR_FAULT`, 1);
+      rig.simvars.set('L:A32NX_FAC_1_DISCRETE_WORD_2', FAC_FUNCTIONS_ENGAGED);
+      rig.run(3);
+      expect(triggeredAmong(rig.fwc, ALL_ALERTS)).toEqual([fn.unit2]);
+
+      // no FAC has the function engaged: the system alert replaces the single one
+      rig.simvars.set('L:A32NX_FAC_1_DISCRETE_WORD_2', discreteWordWithBits());
+      rig.simvars.set('L:A32NX_FAC_2_DISCRETE_WORD_2', discreteWordWithBits());
+      rig.run(3);
+      expect(triggeredAmong(rig.fwc, ALL_ALERTS)).toEqual([fn.system]);
     }
+  });
+
+  it('the nine alerts have their flight phase inhibitions and their STATUS', () => {
+    const { fwc } = startCruiseFwc();
+    for (const fn of FUNCTIONS) {
+      for (const [unit, key] of [
+        [1, fn.unit1],
+        [2, fn.unit2],
+      ] as const) {
+        const alert = probedFailure(fwc, key);
+        expect(alert.flightPhaseInhib).toEqual(FacActuatorPhaseInhibition[fn.fault]);
+        expect(alert.inopSys?.()).toEqual(facActuatorStatus[fn.fault](unit).inopSys);
+        expect(alert.statusInfo?.()).toEqual(facActuatorStatus[fn.fault](unit).left);
+      }
+      expect(probedFailure(fwc, fn.system).flightPhaseInhib).toEqual(FacActuatorPhaseInhibition[fn.sys]);
+    }
+    expect(probedFailure(fwc, '2200238').inopSys?.()).toEqual(facActuatorStatus.yawDamperSystem().inopSys);
+    expect(probedFailure(fwc, '2200232').inopSys?.()).toEqual(facActuatorStatus.rudderTrimSystem().inopSys);
+    expect(probedFailure(fwc, '2200235').inopSys?.()).toEqual(
+      facActuatorStatus.rudderTravelLimiterSystem(false).inopSys,
+    );
   });
 });

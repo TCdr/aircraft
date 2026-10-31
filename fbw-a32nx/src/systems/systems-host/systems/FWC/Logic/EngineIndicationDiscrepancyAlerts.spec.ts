@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DmcSwitchingKnob } from '@flybywiresim/fbw-sdk';
 import {
   ENGINE_DISCREPANCY_PARAMETERS,
@@ -9,7 +9,12 @@ import {
   EngineIndicationDiscrepancyAlerts,
   engineDiscrepancyKey,
 } from './EngineIndicationDiscrepancyAlerts';
-import { ewdLines, pseudoFwcSource } from './FwcAlertSpecHelpers';
+import { ewdLines } from './FwcAlertSpecHelpers';
+import { installFwcSimVarMocks, runFwc } from '../PseudoFwcTestBed';
+import { isAlertTriggered, startCruiseFwc } from '../FwcAlertProbe';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
 
 const none = [false, false, false, false];
 
@@ -59,12 +64,31 @@ describe('ENG 1(2) N1 or N2 or EGT or FF DISCREPANCY', () => {
     alerts.update({ ...engine2Discrepancy(0), fadecPowered: [true, false] });
     expect(n1.simVarIsActive.get()).toBe(false);
   });
+});
 
-  it('the PseudoFWC updates and shows the alerts', () => {
-    const fwc = pseudoFwcSource();
-    expect(fwc).toContain(
-      'this.engineIndicationDiscrepancyAlerts.update(readEngineDiscrepancyInputs(this.dmcSwitchingKnob.get()));',
-    );
-    expect(fwc).toContain('...this.engineIndicationDiscrepancyAlerts.ewdFailures,');
+describe('the real FWC: engine indication discrepancy alerts', () => {
+  let simvars: Map<string, number>;
+
+  beforeEach(() => {
+    ({ simvars } = installFwcSimVarMocks());
+  });
+
+  it('shows the alert of the parameter that the systems report discrepant, while the FADEC is powered', () => {
+    const { fwc } = startCruiseFwc(simvars, () => {
+      simvars.set('L:A32NX_FADEC_POWERED_ENG2', 1);
+      simvars.set('L:A32NX_EIS_DMC_SWITCHING_KNOB', DmcSwitchingKnob.Norm);
+    });
+    const key = engineDiscrepancyKey(2, 'EGT');
+    expect(isAlertTriggered(fwc, key)).toBe(false);
+
+    simvars.set('L:A32NX_ENGINE_2_EGT_DISCREPANCY', 1);
+    runFwc(fwc, 1);
+    expect(isAlertTriggered(fwc, key)).toBe(true);
+    expect(isAlertTriggered(fwc, engineDiscrepancyKey(1, 'EGT'))).toBe(false);
+    expect(isAlertTriggered(fwc, engineDiscrepancyKey(2, 'N1'))).toBe(false);
+
+    simvars.set('L:A32NX_FADEC_POWERED_ENG2', 0);
+    runFwc(fwc, 1);
+    expect(isAlertTriggered(fwc, key)).toBe(false);
   });
 });

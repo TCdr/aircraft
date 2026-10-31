@@ -1,7 +1,8 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { FwcRig, discreteWordWithBits, probedFailure, startCruiseFwc, triggeredAmong } from '../FwcControlsAlertProbe';
 import { A320Failure } from '@failures';
 import {
   SLAT_FLAP_COMPONENT_PHASE_INHIBITION,
@@ -12,7 +13,10 @@ import {
   SlatFlapLockInputs,
   SlatFlapLockKeys,
 } from './SlatFlapLockAlerts';
-import { ewdLines, pseudoFwcSource, statusLines } from './FwcAlertSpecHelpers';
+import { ewdLines, statusLines } from './FwcAlertSpecHelpers';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
 
 /** A failures consumer double: the registered failures and the active ones */
 class TestFailures implements SlatFlapFailuresSource {
@@ -262,11 +266,55 @@ describe('F/CTL slat and flap component cautions', () => {
   });
 });
 
-describe('PseudoFWC wiring of the slat and flap cautions', () => {
-  it('adds the items, registers the failures and updates them from the SFCC words and the FPPU angles', () => {
-    const fwc = pseudoFwcSource();
-    expect(fwc).toContain('...this.slatFlapLockAlerts.ewdFailures,');
-    expect(fwc).toContain('this.slatFlapLockAlerts.init();');
-    expect(fwc).toMatch(/this\.slatFlapLockAlerts\.update\(\{\s+sfcc1: sfcc1SystemStatusWord,/);
+describe('PseudoFWC with the slat and flap cautions', () => {
+  const ALERT_KEYS = [SlatFlapLockKeys.slats, SlatFlapLockKeys.flaps, SlatFlapLockKeys.slatsAndFlapsFaultInConf0];
+  const SFCC_SLAT_CHANNEL_FAULT_BIT = 11;
+  const SFCC_FLAP_CHANNEL_FAULT_BIT = 12;
+  const SFCC_SLAT_WING_TIP_BRAKE_BIT = 15;
+
+  function setSfccWords(rig: FwcRig, sfcc1Bits: number[], sfcc2Bits: number[]): void {
+    rig.simvars.set('L:A32NX_SFCC_1_SLAT_FLAP_SYSTEM_STATUS_WORD', discreteWordWithBits(...sfcc1Bits));
+    rig.simvars.set('L:A32NX_SFCC_2_SLAT_FLAP_SYSTEM_STATUS_WORD', discreteWordWithBits(...sfcc2Bits));
+    rig.run(1);
+  }
+
+  it('raises the slat and flap cautions from the SFCC words of both SFCCs', () => {
+    const rig = startCruiseFwc();
+    expect(triggeredAmong(rig.fwc, ALERT_KEYS)).toEqual([]);
+
+    // both slat channels failed with the surfaces extended
+    rig.simvars.set('L:A32NX_SLATS_IPPU_ANGLE', 200);
+    rig.simvars.set('L:A32NX_FLAPS_IPPU_ANGLE', 100);
+    setSfccWords(rig, [SFCC_SLAT_CHANNEL_FAULT_BIT], [SFCC_SLAT_CHANNEL_FAULT_BIT]);
+    expect(triggeredAmong(rig.fwc, ALERT_KEYS)).toEqual([SlatFlapLockKeys.slats]);
+    // one SFCC alone does not make the caution
+    setSfccWords(rig, [SFCC_SLAT_CHANNEL_FAULT_BIT], []);
+    expect(triggeredAmong(rig.fwc, ALERT_KEYS)).toEqual([]);
+    // the wing tip brake on in one SFCC
+    setSfccWords(rig, [], [SFCC_SLAT_WING_TIP_BRAKE_BIT]);
+    expect(triggeredAmong(rig.fwc, ALERT_KEYS)).toEqual([SlatFlapLockKeys.slats]);
+    setSfccWords(rig, [SFCC_FLAP_CHANNEL_FAULT_BIT], [SFCC_FLAP_CHANNEL_FAULT_BIT]);
+    expect(triggeredAmong(rig.fwc, ALERT_KEYS)).toEqual([SlatFlapLockKeys.flaps]);
+
+    // both faults with everything retracted: the CONF 0 caution replaces them
+    rig.simvars.set('L:A32NX_SLATS_IPPU_ANGLE', 0);
+    rig.simvars.set('L:A32NX_FLAPS_IPPU_ANGLE', 0);
+    setSfccWords(
+      rig,
+      [SFCC_SLAT_CHANNEL_FAULT_BIT, SFCC_FLAP_CHANNEL_FAULT_BIT],
+      [SFCC_SLAT_CHANNEL_FAULT_BIT, SFCC_FLAP_CHANNEL_FAULT_BIT],
+    );
+    expect(triggeredAmong(rig.fwc, ALERT_KEYS)).toEqual([SlatFlapLockKeys.slatsAndFlapsFaultInConf0]);
+  });
+
+  it('the STATUS follows the slat angle of L:A32NX_SLATS_IPPU_ANGLE', () => {
+    const rig = startCruiseFwc();
+    const alert = probedFailure(rig.fwc, SlatFlapLockKeys.slats);
+    setSfccWords(rig, [SFCC_SLAT_CHANNEL_FAULT_BIT], [SFCC_SLAT_CHANNEL_FAULT_BIT]);
+    const retractedLines = alert.statusInfo?.().length ?? 0;
+    rig.simvars.set('L:A32NX_SLATS_IPPU_ANGLE', 200);
+    rig.run(1);
+    // FUEL CONSUMPT INCRSD and FMS PRED UNRELIABLE with the slats extended
+    expect((alert.statusInfo?.().length ?? 0) - retractedLines).toBe(2);
   });
 });

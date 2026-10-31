@@ -1,9 +1,8 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { EventBus } from '@microsoft/msfs-sdk';
 import { CANCELLED_CAUTION_STATUS_CODE, formatStatusPage } from '@shared/StatusMessages';
 import { formatEwdMessages } from '@shared/EwdMessages';
 import {
@@ -18,6 +17,19 @@ import {
   isIrAligned,
   isNothingToRecall,
 } from './EmerCancelRecall';
+import { PseudoFWC } from '../PseudoFWC';
+import { createFwc, installFwcSimVarMocks, runFwc, setHealthyCruise, writtenEwdLines } from '../PseudoFwcTestBed';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
+
+/** The simvar values the real PseudoFWC reads (by name), and the last value it wrote to each simvar */
+let simvars: Map<string, number>;
+let writes: Map<string, unknown>;
+
+beforeEach(() => {
+  ({ simvars, writes } = installFwcSimVarMocks());
+});
 
 const hold = (pb: RecallPushbutton, seconds: number) => {
   const pulses: number[] = [];
@@ -149,23 +161,87 @@ describe('STATUS CANCELLED CAUTION', () => {
   });
 });
 
-describe('PseudoFWC wiring', () => {
-  const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
+describe('the real PseudoFWC with the EMER CANC and RCL pbs', () => {
+  const L_AFT_CABIN_DOOR_ALERT = '5200103';
+  const L_AFT_CABIN_DOOR_TITLE = '520010301';
+  /** The door sensor of the L AFT cabin door: any opening is a door not closed */
+  const L_AFT_CABIN_DOOR_OPEN = 'INTERACTIVE POINT OPEN:2';
+  const FLIGHT_PHASE_INHIBITING_DOORS = 4;
 
-  it('reads the EMER CANC pulse (before, it was computed and never read)', () => {
-    expect(fwc).toContain('this.emergencyCancel();');
-    expect(fwc).toMatch(/if \(this\.emerCancel\.isCancelledCaution\(key\)\) \{\s+continue;/);
+  /**
+   * Holds a pb of the ECP (the hardwired discrete the FWC reads), then releases it
+   * @param whileHeld what to check before the release: a long RCL press also brings the alerts of the flight phase
+   * inhibition, which fill the E/WD once the pb is released
+   */
+  const pressButton = (bus: EventBus, fwc: PseudoFWC, discrete: string, seconds: number, whileHeld = () => {}) => {
+    bus.getPublisher<any>().pub(discrete, true, false, true);
+    runFwc(fwc, seconds);
+    whileHeld();
+    bus.getPublisher<any>().pub(discrete, false, false, true);
+    runFwc(fwc, 1);
+  };
+  const leftMemos = () => writtenEwdLines(writes, 'LEFT');
+  const statusPageShowsCancelledCaution = () =>
+    Array.from(writes.entries()).some(
+      ([name, value]) => name.includes('STATUS_LEFT_LINE') && value === CANCELLED_CAUTION_STATUS_CODE,
+    );
+
+  it('cancels the displayed caution with EMER CANC (also on the STATUS page) until a long RCL press restores it', () => {
+    const { fwc, bus } = createFwc();
+    setHealthyCruise(bus, simvars);
+    runFwc(fwc, 2);
+    simvars.set(L_AFT_CABIN_DOOR_OPEN, 40);
+    runFwc(fwc, 3);
+    expect(leftMemos()).toContain(L_AFT_CABIN_DOOR_TITLE);
+    expect(statusPageShowsCancelledCaution()).toBe(false);
+
+    pressButton(bus, fwc, 'a32nx_ecp_discrete_out_emer_canc', 0.2);
+    expect(fwc.ewdMessageFailures[L_AFT_CABIN_DOOR_ALERT].simVarIsActive.get()).toBe(true);
+    expect(leftMemos()).not.toContain(L_AFT_CABIN_DOOR_TITLE);
+    expect(statusPageShowsCancelledCaution()).toBe(true);
+    expect(writes.get('L:A32NX_ECAM_STATUS_NORMAL')).toBe(false);
+
+    // a short RCL press does not bring it back, a long one does
+    const isCancelled = () => (fwc as any).emerCancel.isCancelledCaution(L_AFT_CABIN_DOOR_ALERT);
+    pressButton(bus, fwc, 'a32nx_ecp_discrete_out_rcl', 0.2);
+    expect(isCancelled()).toBe(true);
+    expect(statusPageShowsCancelledCaution()).toBe(true);
+    pressButton(bus, fwc, 'a32nx_ecp_discrete_out_rcl', 3.5, () => {
+      expect(isCancelled()).toBe(false);
+    });
+    expect(statusPageShowsCancelledCaution()).toBe(false);
   });
 
-  it('overrides the flight phase inhibition after a long RCL press only, also for the alerts', () => {
-    expect(fwc).toContain('this.flightPhaseInhibitOverrideNode.write(this.ecpRecallLongPress,');
-    expect(fwc).not.toContain('this.flightPhaseInhibitOverrideNode.write(this.ecpRecallPulseUp,');
-    expect(fwc).toMatch(/newWarning &&\s+!this\.flightPhaseInhibitOverrideNode\.read\(\) &&/);
+  it('overrides the flight phase inhibition after a long RCL press only', () => {
+    const { fwc, bus } = createFwc();
+    setHealthyCruise(bus, simvars);
+    simvars.set('L:A32NX_FWC_FLIGHT_PHASE', FLIGHT_PHASE_INHIBITING_DOORS);
+    runFwc(fwc, 2);
+    simvars.set(L_AFT_CABIN_DOOR_OPEN, 40);
+    runFwc(fwc, 3);
+    expect(leftMemos()).not.toContain(L_AFT_CABIN_DOOR_TITLE);
+
+    pressButton(bus, fwc, 'a32nx_ecp_discrete_out_rcl', 0.2);
+    expect(leftMemos()).not.toContain(L_AFT_CABIN_DOOR_TITLE);
+
+    pressButton(bus, fwc, 'a32nx_ecp_discrete_out_rcl', 3.5, () =>
+      expect(leftMemos()).toContain(L_AFT_CABIN_DOOR_TITLE),
+    );
   });
 
-  it('shows NORMAL on a RCL press with nothing to recall and the CANCELLED CAUTION on the STATUS page', () => {
-    expect(fwc).toContain('this.recallNormalMessage.show();');
-    expect(fwc).toContain('[RECALL_NORMAL_MEMO_CODE]');
-    expect(fwc).toContain('this.statusNormal.set(statusEmpty && cancelledCautions.length === 0);');
+  it('shows NORMAL for 3 s on a RCL press with nothing to recall', () => {
+    const { fwc, bus } = createFwc();
+    setHealthyCruise(bus, simvars);
+    runFwc(fwc, 2);
+    const shownNormal = () =>
+      [...writtenEwdLines(writes, 'LEFT'), ...writtenEwdLines(writes, 'RIGHT')].includes(RECALL_NORMAL_MEMO_CODE);
+    expect(shownNormal()).toBe(false);
+    bus.getPublisher<any>().pub('a32nx_ecp_discrete_out_rcl', true, false, true);
+    runFwc(fwc, 0.5);
+    bus.getPublisher<any>().pub('a32nx_ecp_discrete_out_rcl', false, false, true);
+    runFwc(fwc, 1);
+    expect(shownNormal()).toBe(true);
+    runFwc(fwc, RECALL_NORMAL_SECONDS + 1);
+    expect(shownNormal()).toBe(false);
   });
 });

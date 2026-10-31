@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { A320Failure } from '@failures';
 import {
   AIR_PACK_PHASE_INHIBITION,
@@ -11,7 +11,19 @@ import {
   AirPackInputs,
   isPackOverheatAlert,
 } from './AirPackAlerts';
-import { ewdLines, pseudoFwcSource, statusLines } from './FwcAlertSpecHelpers';
+import { ewdLines, statusLines } from './FwcAlertSpecHelpers';
+import { fwcModule, isAlertTriggered, setActiveFailures, startCruiseFwc } from '../FwcAlertProbe';
+import { installFwcSimVarMocks, runFwc } from '../PseudoFwcTestBed';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
+
+/** The simvar values the real PseudoFWC reads (by name) */
+let simvars: Map<string, number>;
+
+beforeEach(() => {
+  ({ simvars } = installFwcSimVarMocks());
+});
 
 class TestFailures implements AirPackFailuresSource {
   public readonly registered: number[] = [];
@@ -89,10 +101,25 @@ describe('AIR PACK 1(2) REGUL FAULT', () => {
     expect(statusLines({ left: [], inopSys: item.inopSys() }).right).toEqual(['INOP SYS', 'PACK 2 REGUL']);
   });
 
-  it('the PseudoFWC registers, updates and shows the alerts', () => {
-    const fwc = pseudoFwcSource();
-    expect(fwc).toContain('this.airPackAlerts.init();');
-    expect(fwc).toContain('this.airPackAlerts.update();');
-    expect(fwc).toContain('...this.airPackAlerts.ewdFailures,');
+  it('the real PseudoFWC raises the overheat from the pack simvars and the regulation fault from the failures', () => {
+    const fwc = startCruiseFwc(simvars).fwc;
+    const [overheat1, overheat2] = AirPackAlertKeys.overheat;
+    const [regulation1, regulation2] = AirPackAlertKeys.regulationFault;
+    expect([overheat1, overheat2, regulation1, regulation2].map((key) => isAlertTriggered(fwc, key))).toEqual([
+      false,
+      false,
+      false,
+      false,
+    ]);
+
+    simvars.set('L:A32NX_COND_PACK_1_OVERHEAT', 1);
+    setActiveFailures(fwcModule(fwc, 'airPackAlerts'), [A320Failure.Pack2Regulation]);
+    runFwc(fwc, 1);
+    expect([overheat1, overheat2, regulation1, regulation2].map((key) => isAlertTriggered(fwc, key))).toEqual([
+      true,
+      false,
+      false,
+      true,
+    ]);
   });
 });

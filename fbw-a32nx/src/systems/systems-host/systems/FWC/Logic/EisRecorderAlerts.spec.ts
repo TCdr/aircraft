@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DmcSwitchingKnob } from '@flybywiresim/fbw-sdk';
 import { A320Failure } from '@failures';
 import {
@@ -11,7 +11,19 @@ import {
   EisRecorderAlerts,
   EisRecorderFailuresSource,
 } from './EisRecorderAlerts';
-import { ewdLines, pseudoFwcSource, statusLines } from './FwcAlertSpecHelpers';
+import { ewdLines, statusLines } from './FwcAlertSpecHelpers';
+import { fwcModule, isAlertTriggered, setActiveFailures, startCruiseFwc } from '../FwcAlertProbe';
+import { installFwcSimVarMocks, runFwc } from '../PseudoFwcTestBed';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
+
+/** The simvar values the real PseudoFWC reads (by name) */
+let simvars: Map<string, number>;
+
+beforeEach(() => {
+  ({ simvars } = installFwcSimVarMocks());
+});
 
 /** A failures consumer double: the registered failures and the active ones */
 class TestFailures implements EisRecorderFailuresSource {
@@ -163,10 +175,20 @@ describe('EIS, FWS and RECORDER alerts', () => {
     ]);
   });
 
-  it('the PseudoFWC registers, updates and shows the alerts', () => {
-    const fwc = pseudoFwcSource();
-    expect(fwc).toContain('this.eisRecorderAlerts.init();');
-    expect(fwc).toContain('this.eisRecorderAlerts.update(');
-    expect(fwc).toContain('...this.eisRecorderAlerts.ewdFailures,');
+  it('the real PseudoFWC raises the failure alerts and holds DMC FAULT back during the first seconds of takeoff', () => {
+    const fwc = startCruiseFwc(simvars).fwc;
+    const dmc2Key = EisRecorderAlertKeys.dmcFault[1];
+    setActiveFailures(fwcModule(fwc, 'eisRecorderAlerts'), [A320Failure.Dfdr]);
+    runFwc(fwc, 1);
+    expect(isAlertTriggered(fwc, EisRecorderAlertKeys.dfdrFault)).toBe(true);
+    expect(isAlertTriggered(fwc, EisRecorderAlertKeys.recorderSysFault)).toBe(false);
+
+    simvars.set('L:A32NX_FWC_FLIGHT_PHASE', 5);
+    runFwc(fwc, 1);
+    setActiveFailures(fwcModule(fwc, 'eisRecorderAlerts'), [A320Failure.Dfdr, A320Failure.Dmc2]);
+    runFwc(fwc, DMC_FAULT_PHASE_5_INHIBITION_SECONDS - 4);
+    expect(isAlertTriggered(fwc, dmc2Key)).toBe(false);
+    runFwc(fwc, 5);
+    expect(isAlertTriggered(fwc, dmc2Key)).toBe(true);
   });
 });

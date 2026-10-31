@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { CrossBleedSelector } from './EngineFailAlerts';
 import {
   OPEN_ON_GROUND_SECONDS,
@@ -11,7 +11,12 @@ import {
   WingAntiIceValveSideInputs,
 } from './WingAntiIceValveOpenAlerts';
 import { WING_ANTI_ICE_CONFIRM_SECONDS } from './WingAntiIceAlerts';
-import { ewdLines, pseudoFwcSource, statusLines } from './FwcAlertSpecHelpers';
+import { ewdLines, statusLines } from './FwcAlertSpecHelpers';
+import { installFwcSimVarMocks, runFwc } from '../PseudoFwcTestBed';
+import { isAlertTriggered, setOnGround, shownText, startCruiseFwc } from '../FwcAlertProbe';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
 
 const closed: WingAntiIceValveSideInputs = { valveClosed: true, engineBleedPbAuto: true };
 const open: WingAntiIceValveSideInputs = { valveClosed: false, engineBleedPbAuto: true };
@@ -146,9 +151,25 @@ describe('WING A.ICE OPEN ON GND', () => {
     expect(run(inFlight, 60).ewdFailures[K.openOnGround].simVarIsActive.get()).toBe(false);
   });
 
-  it('the PseudoFWC updates and shows the alerts', () => {
-    const fwc = pseudoFwcSource();
-    expect(fwc).toContain('this.wingAntiIceValveOpenAlerts.update(');
-    expect(fwc).toContain('...this.wingAntiIceValveOpenAlerts.ewdFailures,');
+  it('the real FWC raises WING A.ICE OPEN ON GND from the valves and the pb-sw of the systems', () => {
+    const GROUND_PHASE = 1;
+    const mocks = installFwcSimVarMocks();
+    const { fwc } = startCruiseFwc(mocks.simvars, () => {
+      setOnGround(mocks.simvars);
+      mocks.simvars.set('L:A32NX_FWC_FLIGHT_PHASE', GROUND_PHASE);
+      mocks.simvars.set('L:A32NX_PNEU_WING_ANTI_ICE_SYSTEM_SELECTED', 1);
+      // the valve of the left wing is closed, the one of the right wing stays open
+      mocks.simvars.set('L:A32NX_PNEU_WING_ANTI_ICE_1_VALVE_CLOSED', 1);
+    });
+    const key = K.openOnGround;
+    expect(isAlertTriggered(fwc, key)).toBe(false);
+
+    runFwc(fwc, OPEN_ON_GROUND_SECONDS + 1);
+    expect(isAlertTriggered(fwc, key)).toBe(true);
+    expect(shownText(fwc, key)).toEqual(['WING A.ICE OPEN ON GND', '-WING ANTI ICE......OFF']);
+
+    mocks.simvars.set('L:A32NX_PNEU_WING_ANTI_ICE_2_VALVE_CLOSED', 1);
+    runFwc(fwc, 1);
+    expect(isAlertTriggered(fwc, key)).toBe(false);
   });
 });

@@ -1,10 +1,14 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { SdPages as EcamSysPage } from '@shared/SdPages';
+import { formatEwdMessages } from '../../../../shared/src/EwdMessages';
+import { formatStatusPage } from '../../../../shared/src/StatusMessages';
+import { installFwcSimVarMocks, runFwc } from '../PseudoFwcTestBed';
+import { failureItem, isAlertTriggered, plainText, startCruiseFwc } from '../FwcAlertProbe';
 import {
+  EngineMonitoringAlertDefinition,
   FADEC_ALTERNATOR,
   HP_FUEL_VALVE_PHASE_INHIBITION,
   HpFuelValveFault,
@@ -20,6 +24,9 @@ import {
   probesFaultInhibitedInPhase9,
   sensorFaultLines,
 } from './EngineMonitoringAlerts';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
 
 const notOpenOnGround = {
   fault: HpFuelValveFault.NotOpen,
@@ -87,61 +94,79 @@ describe('FADEC fault crew awareness alerts', () => {
   });
 });
 
-describe('PseudoFWC FADEC fault alerts', () => {
-  const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
-  const messages = readFileSync(resolve(__dirname, '../../../../shared/src/EwdMessages.ts'), 'utf-8');
-  const status = readFileSync(resolve(__dirname, '../../../../shared/src/StatusMessages.ts'), 'utf-8');
+describe('the real FWC: FADEC fault alerts', () => {
+  let simvars: Map<string, number>;
 
-  it.each([
-    ['7707311', 'this.engineHpFuelValveAlertItem(1)'],
-    ['7707312', 'this.engineHpFuelValveAlertItem(2)'],
-    ['7707321', "this.engineMonitoringAlertItem('7707321', FADEC_ALTERNATOR, this.engineFadecAlternator[0])"],
-    ['7707322', "this.engineMonitoringAlertItem('7707322', FADEC_ALTERNATOR, this.engineFadecAlternator[1])"],
-    ['7707331', "this.engineMonitoringAlertItem('7707331', OVSPD_PROT_FAULT, this.engineOvspdProtFault[0])"],
-    ['7707332', "this.engineMonitoringAlertItem('7707332', OVSPD_PROT_FAULT, this.engineOvspdProtFault[1])"],
-    ['7707341', "this.engineMonitoringAlertItem('7707341', PROBES_FAULT, this.engineProbesFault[0])"],
-    ['7707342', "this.engineMonitoringAlertItem('7707342', PROBES_FAULT, this.engineProbesFault[1])"],
-    ['7707351', 'this.engineSensorFaultAlertItem(1)'],
-    ['7707352', 'this.engineSensorFaultAlertItem(2)'],
-    ['7707361', "this.engineMonitoringAlertItem('7707361', ONE_TLA_FAULT, this.engineOneTlaFault[0])"],
-    ['7707362', "this.engineMonitoringAlertItem('7707362', ONE_TLA_FAULT, this.engineOneTlaFault[1])"],
-    ['7707811', "this.engineMonitoringAlertItem('7707811', REV_SWITCH_FAULT, this.engineRevSwitchFault[0])"],
-    ['7707812', "this.engineMonitoringAlertItem('7707812', REV_SWITCH_FAULT, this.engineRevSwitchFault[1])"],
-  ])('alert %s is %s', (key, item) => {
-    expect(fwc).toContain(`    ${key}: ${item},`);
+  beforeEach(() => {
+    ({ simvars } = installFwcSimVarMocks());
+  });
+
+  // [engine 1 key, engine 2 key, the end of the systems variable, the alert definition when it is a crew awareness title]
+  const FAULTS: [string, string, string, EngineMonitoringAlertDefinition | undefined][] = [
+    ['7707311', '7707312', 'HP_FUEL_VALVE_FAULT', undefined],
+    ['7707321', '7707322', FADEC_ALTERNATOR.variable, FADEC_ALTERNATOR],
+    ['7707331', '7707332', OVSPD_PROT_FAULT.variable, OVSPD_PROT_FAULT],
+    ['7707341', '7707342', PROBES_FAULT.variable, PROBES_FAULT],
+    ['7707351', '7707352', SENSOR_FAULT.variable, SENSOR_FAULT],
+    ['7707361', '7707362', ONE_TLA_FAULT.variable, ONE_TLA_FAULT],
+    ['7707811', '7707812', REV_SWITCH_FAULT.variable, REV_SWITCH_FAULT],
+  ];
+
+  it.each(FAULTS)('alerts %s and %s follow the %s variable of their own engine', (key1, key2, variable, definition) => {
+    const { fwc } = startCruiseFwc(simvars);
+    expect(isAlertTriggered(fwc, key1)).toBe(false);
+    expect(isAlertTriggered(fwc, key2)).toBe(false);
+
+    simvars.set(`L:A32NX_ENGINE_2_${variable}`, 1);
+    runFwc(fwc, 1);
+    expect(isAlertTriggered(fwc, key2)).toBe(true);
+    expect(isAlertTriggered(fwc, key1)).toBe(false);
+
+    simvars.set(`L:A32NX_ENGINE_2_${variable}`, 0);
+    simvars.set(`L:A32NX_ENGINE_1_${variable}`, 1);
+    runFwc(fwc, 1);
+    expect(isAlertTriggered(fwc, key1)).toBe(true);
+    expect(isAlertTriggered(fwc, key2)).toBe(false);
+
+    // amber ENG cautions with the flight phase inhibition of their definition
+    expect(failureItem(fwc, key1).failure).toBe(2);
+    expect(failureItem(fwc, key1).sysPage).toBe(EcamSysPage.ENG);
+    expect(failureItem(fwc, key1).flightPhaseInhib).toEqual(
+      definition ? definition.flightPhaseInhibition : HP_FUEL_VALVE_PHASE_INHIBITION,
+    );
+  });
+
+  it('the FADEC ALTERNATOR alert needs a running engine', () => {
+    const { fwc } = startCruiseFwc(simvars);
+    simvars.set('L:A32NX_ENGINE_STATE:1', 0);
+    simvars.set('L:A32NX_ENGINE_1_FADEC_ALTERNATOR_FAULT', 1);
+    runFwc(fwc, 1);
+    expect(isAlertTriggered(fwc, '7707321')).toBe(false);
   });
 
   it.each([
-    ['770731101', ' 1 HP FUEL VALVE'],
-    ['770731201', ' 2 HP FUEL VALVE'],
-    ['770732101', ' 1 FADEC ALTERNATOR'],
-    ['770733201', ' 2 OVSPD PROT FAULT'],
-    ['770734101', ' 1 PROBES FAULT'],
-    ['770735201', ' 2 SENSOR FAULT'],
-    ['770736101', ' 1 ONE TLA FAULT'],
-    ['770781201', ' 2 REV SWITCH FAULT'],
-  ])('title %s is the amber ENG title%s', (code, text) => {
-    expect(messages).toContain(`['${code}', { group: 'ENG$5', text: '${text}' }],`);
+    ['7707311', ' 1 HP FUEL VALVE'],
+    ['7707312', ' 2 HP FUEL VALVE'],
+    ['7707321', ' 1 FADEC ALTERNATOR'],
+    ['7707332', ' 2 OVSPD PROT FAULT'],
+    ['7707341', ' 1 PROBES FAULT'],
+    ['7707352', ' 2 SENSOR FAULT'],
+    ['7707361', ' 1 ONE TLA FAULT'],
+    ['7707812', ' 2 REV SWITCH FAULT'],
+  ])('the title of %s is the amber ENG title%s', (key, text) => {
+    const { fwc } = startCruiseFwc(simvars);
+    const title = formatEwdMessages([failureItem(fwc, key).codesToReturn[0]])[0];
+    expect(plainText(title)).toBe(`ENG${text}`);
   });
 
   it('has the lines of HP FUEL VALVE and SENSOR FAULT', () => {
-    expect(messages).toContain("['770731102', { text: '\\x1b<4m HP FUEL VALVE NOT OPEN' }],");
-    expect(messages).toContain("['770731103', { text: '\\x1b<5m -MAN START 1........OFF' }],");
-    expect(messages).toContain("['770731204', { text: '\\x1b<5m -ENG MASTER 2.......OFF' }],");
-    expect(messages).toContain("['770731105', { text: '\\x1b<4m HP FUEL POS SWT FAULT' }],");
-    expect(messages).toContain("['770735102', { text: '\\x1b<5m -THR LEVER 1.......IDLE' }],");
-    expect(messages).toContain("['770735104', { text: '\\x1b<5m AVOID RAPID THR CHANGES' }],");
-    expect(status).toContain("['700400063', { part: StatusPart.Limitation, text: 'AVOID RAPID THR CHANGES' }],");
-  });
-
-  it('reads the HP fuel valve fault and the FADEC faults of each engine', () => {
-    expect(fwc).toContain('`L:A32NX_ENGINE_${engine}_HP_FUEL_VALVE_FAULT`');
-    expect(fwc).toContain("SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_${variable}`, 'bool') > 0");
-    expect(FADEC_ALTERNATOR.variable).toBe('FADEC_ALTERNATOR_FAULT');
-    expect(OVSPD_PROT_FAULT.variable).toBe('OVERSPEED_PROTECTION_FAULT');
-    expect(PROBES_FAULT.variable).toBe('PROBES_FAULT');
-    expect(SENSOR_FAULT.variable).toBe('SENSOR_FAULT');
-    expect(ONE_TLA_FAULT.variable).toBe('ONE_TLA_FAULT');
-    expect(REV_SWITCH_FAULT.variable).toBe('REVERSER_SWITCH_FAULT');
+    const { fwc } = startCruiseFwc(simvars);
+    const text = (key: string, lines: number[]) =>
+      formatEwdMessages(lines.map((line) => failureItem(fwc, key).codesToReturn[line])).map(plainText);
+    expect(text('7707311', [1, 2])).toEqual(['HP FUEL VALVE NOT OPEN', '-MAN START 1........OFF']);
+    expect(text('7707312', [3])).toEqual(['-ENG MASTER 2.......OFF']);
+    expect(text('7707311', [4])).toEqual(['HP FUEL POS SWT FAULT']);
+    expect(text('7707351', [1, 3])).toEqual(['-THR LEVER 1.......IDLE', 'AVOID RAPID THR CHANGES']);
+    expect(plainText(formatStatusPage(SENSOR_FAULT_STATUS, []).left)).toBe('AVOID RAPID THR CHANGES');
   });
 });
