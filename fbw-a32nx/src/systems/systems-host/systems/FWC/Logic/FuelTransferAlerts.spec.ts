@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   AUTO_TRANSFER_FAULT_PHASE_INHIBITION,
   CTR_TK_XFR_OFF_PHASE_INHIBITION,
@@ -11,7 +11,12 @@ import {
   isAutoTransferFault,
   isCentreTankTransferOff,
 } from './FuelTransferAlerts';
-import { ewdLines, pseudoFwcSource, statusLines } from './FwcAlertSpecHelpers';
+import { ewdLines, statusLines } from './FwcAlertSpecHelpers';
+import { installFwcSimVarMocks, runFwc } from '../PseudoFwcTestBed';
+import { failureItem, isAlertTriggered, shownText, startCruiseFwc } from '../FwcAlertProbe';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
 
 const normal: FuelTransferInputs = {
   modeSelMan: false,
@@ -67,10 +72,50 @@ describe('FUEL CTR TK XFR OFF', () => {
     expect(ewdLines(item)).toEqual(['FUEL CTR TK XFR OFF', ' -CTR TK L XFR........ON', ' -CTR TK R XFR........ON']);
     expect(CTR_TK_XFR_OFF_PHASE_INHIBITION).toEqual([1, 3, 4, 5, 7, 8, 9, 10]);
   });
+});
 
-  it('is wired in the PseudoFWC', () => {
-    const fwc = pseudoFwcSource();
-    expect(fwc).toContain('...this.fuelTransferAlerts.ewdFailures');
-    expect(fwc).toContain('this.fuelTransferAlerts.update(readFuelTransferInputs(');
+describe('the real FWC: fuel transfer alerts', () => {
+  const KG_PER_GALLON = 3;
+  let simvars: Map<string, number>;
+
+  beforeEach(() => {
+    ({ simvars } = installFwcSimVarMocks());
+    simvars.set('FUEL WEIGHT PER GALLON', KG_PER_GALLON);
+  });
+
+  it('raises FUEL CTR TK XFR OFF with both pb-sw OFF in AUTO mode, and asks for them ON', () => {
+    const { fwc, bus } = startCruiseFwc(simvars);
+    const key = FuelTransferAlertKeys.centreTankTransferOff;
+    expect(isAlertTriggered(fwc, key)).toBe(false);
+    expect(failureItem(fwc, key).flightPhaseInhib).toEqual(CTR_TK_XFR_OFF_PHASE_INHIBITION);
+
+    simvars.set('L:A32NX_OVHD_FUEL_CTR_TK_L_XFR_PB_IS_ON', 0);
+    runFwc(fwc, 1);
+    expect(isAlertTriggered(fwc, key)).toBe(false);
+
+    simvars.set('L:A32NX_OVHD_FUEL_CTR_TK_R_XFR_PB_IS_ON', 0);
+    runFwc(fwc, 1);
+    expect(isAlertTriggered(fwc, key)).toBe(true);
+    expect(shownText(fwc, key)).toEqual(['FUEL CTR TK XFR OFF', '-CTR TK L XFR........ON', '-CTR TK R XFR........ON']);
+
+    // the MAN mode of the CTR TK MODE SEL pb-sw takes the alert away
+    bus.getPublisher<any>().pub('fuel_ctr_tk_mode_sel_man', true, false, true);
+    runFwc(fwc, 1);
+    expect(isAlertTriggered(fwc, key)).toBe(false);
+  });
+
+  it('raises FUEL AUTO TRANSFER FAULT from the tank quantities of the systems', () => {
+    const { fwc } = startCruiseFwc(simvars, () => {
+      simvars.set('FUEL TANK CENTER QUANTITY', 4000 / KG_PER_GALLON);
+      simvars.set('FUEL TANK LEFT MAIN QUANTITY', 6200 / KG_PER_GALLON);
+      simvars.set('FUEL TANK RIGHT MAIN QUANTITY', 6200 / KG_PER_GALLON);
+    });
+    const key = FuelTransferAlertKeys.autoTransferFault;
+    expect(failureItem(fwc, key).flightPhaseInhib).toEqual(AUTO_TRANSFER_FAULT_PHASE_INHIBITION);
+    expect(isAlertTriggered(fwc, key)).toBe(false);
+
+    simvars.set('FUEL TANK RIGHT MAIN QUANTITY', 4999 / KG_PER_GALLON);
+    runFwc(fwc, 1);
+    expect(isAlertTriggered(fwc, key)).toBe(true);
   });
 });

@@ -3,7 +3,7 @@
 
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { formatStatusPage } from '../../../../shared/src/StatusMessages';
 import { formatEwdMessages } from '../../../../shared/src/EwdMessages';
 import {
@@ -23,6 +23,11 @@ import {
   SYS_1_FAULT_STATUS,
   SYS_2_FAULT_STATUS,
 } from './BrakeSystemAlerts';
+import { probedFailure, probedMemo, shownLineText, startCruiseFwc, triggeredAmong } from '../FwcControlsAlertProbe';
+import { isAlertTriggered } from '../FwcAlertProbe';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
 
 const healthy: BrakeSystemAlertInputs = {
   bscu1Lost: false,
@@ -174,32 +179,50 @@ describe('BRAKES and WHEEL wiring', () => {
   });
 
   it('PseudoFWC reads the brake model outputs and raises the alerts', () => {
-    const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
-    for (const simvar of [
-      'BSCU_1_FAULT',
-      'BSCU_2_FAULT',
-      'ALTN_BRK_FAULT',
-      'NORM_BRK_FAULT',
-      'AUTO_BRK_FAULT',
-      'NW_STRG_FAULT',
-      'HYD_SEL_FAULT',
+    const rig = startCruiseFwc();
+    const alertCodes = [
+      '3200400',
+      '3200410',
+      '3200420',
+      '3200430',
+      '3200440',
+      '3200450',
+      '3200460',
+      '3200470',
+      '3200480',
+    ];
+    expect(triggeredAmong(rig.fwc, alertCodes)).toEqual([]);
+    for (const [simvar, alertCode, titleCode] of [
+      ['BSCU_1_FAULT', '3200450', '320045001'],
+      ['BSCU_2_FAULT', '3200460', '320046001'],
+      ['ALTN_BRK_FAULT', '3200430', '320043001'],
+      ['NORM_BRK_FAULT', '3200420', '320042001'],
+      ['AUTO_BRK_FAULT', '3200440', '320044001'],
+      ['NW_STRG_FAULT', '3200470', '320047001'],
+      ['HYD_SEL_FAULT', '3200480', '320048001'],
     ]) {
-      expect(fwc).toContain(`'L:A32NX_BRAKES_${simvar}'`);
+      rig.simvars.set(`L:A32NX_BRAKES_${simvar}`, 1);
+      rig.run(1);
+      expect(triggeredAmong(rig.fwc, alertCodes)).toEqual([alertCode]);
+      expect(probedFailure(rig.fwc, alertCode).codesToReturn[0]).toBe(titleCode);
+      rig.simvars.set(`L:A32NX_BRAKES_${simvar}`, 0);
+      rig.run(1);
     }
-    expect(fwc).toContain('brakeSystemAlerts({');
-    for (const code of [
-      '3200400:',
-      '3200410:',
-      '3200420:',
-      '3200430:',
-      '3200440:',
-      '3200450:',
-      '3200460:',
-      '3200470:',
-      '3200480:',
-    ]) {
-      expect(fwc).toContain(code);
-    }
+  });
+
+  it('both BSCU channels lost and both braking functions lost give their own alerts', () => {
+    const rig = startCruiseFwc();
+    rig.simvars.set('L:A32NX_BRAKES_BSCU_1_FAULT', 1);
+    rig.simvars.set('L:A32NX_BRAKES_BSCU_2_FAULT', 1);
+    rig.run(1);
+    expect(probedFailure(rig.fwc, '3200400').codesToReturn[0]).toBe('320040001');
+    expect(isAlertTriggered(rig.fwc, '3200400')).toBe(true);
+    expect(isAlertTriggered(rig.fwc, '3200450')).toBe(false);
+    rig.simvars.set('L:A32NX_BRAKES_ALTN_BRK_FAULT', 1);
+    rig.run(1);
+    expect(probedFailure(rig.fwc, '3200410').codesToReturn[0]).toBe('320041001');
+    expect(isAlertTriggered(rig.fwc, '3200410')).toBe(true);
+    expect(isAlertTriggered(rig.fwc, '3200400')).toBe(false);
   });
 
   it('the brake model writes the variables that PseudoFWC reads', () => {
@@ -239,19 +262,34 @@ describe('AUTO BRK memo', () => {
   });
 
   it('gives no amber AUTO BRK OFF memo, aural or MASTER CAUT at an autobrake disarm', () => {
-    const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
-    expect(fwc).not.toContain("'320000001'");
-    expect(fwc).not.toContain("enqueueSound('autoBrakeOff')");
-    expect(fwc).not.toContain('requestMasterCautionFromABrkOff');
+    const rig = startCruiseFwc();
+    rig.simvars.set('L:A32NX_FWC_FLIGHT_PHASE', 7);
+    rig.simvars.set('L:A32NX_AUTOBRAKES_ARMED_MODE', 2);
+    rig.run(1);
+    rig.simvars.set('L:A32NX_AUTOBRAKES_ARMED_MODE', 0);
+    rig.run(2);
+    expect(Object.values(rig.fwc.ewdMessageFailures).map((item) => item.codesToReturn[0])).not.toContain('320000001');
+    expect(Object.values(rig.fwc.ewdMessageMemos).map((item) => item.codesToReturn[0])).not.toContain('320000001');
     expect(formatEwdMessages(['320000001'])).toEqual(['']);
-    const sounds = readFileSync(resolve(__dirname, '../FwsSoundManager.ts'), 'utf-8');
-    expect(sounds).not.toContain('A32NX_AUDIO_AUTOBRAKE_OFF');
+    expect(rig.writes.get('L:A32NX_AUDIO_AUTOBRAKE_OFF')).toBeUndefined();
+    expect(rig.writes.get('L:A32NX_MASTER_CAUTION')).toBeFalsy();
   });
 
   it('is the PseudoFWC AUTO BRK memo, from the BSCU autobrake fault', () => {
-    const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
-    expect(fwc).toContain('whichCodeToReturn: () => [this.autoBrakeMemoLineIndex]');
-    expect(fwc).toContain('codesToReturn: Brakes.AUTO_BRK_MEMO_CODES');
-    expect(fwc).toContain("SimVar.GetSimVarValue('L:A32NX_BRAKES_AUTO_BRK_FAULT', 'bool') > 0");
+    const rig = startCruiseFwc();
+    const memo = probedMemo(rig.fwc, '0000022');
+    expect(memo.codesToReturn).toEqual(AUTO_BRK_MEMO_CODES);
+    expect(memo.simVarIsActive.get()).toBe(false);
+
+    rig.simvars.set('L:A32NX_BRAKES_AUTO_BRK_FAULT', 1);
+    rig.run(1);
+    expect(memo.simVarIsActive.get()).toBe(true);
+    expect(shownLineText(memo)).toEqual(['AUTO BRK OFF']);
+
+    rig.simvars.set('L:A32NX_BRAKES_AUTO_BRK_FAULT', 0);
+    rig.simvars.set('L:A32NX_FWC_FLIGHT_PHASE', 7);
+    rig.simvars.set('L:A32NX_AUTOBRAKES_ARMED_MODE', 3);
+    rig.run(1);
+    expect(shownLineText(memo)).toEqual(['AUTO BRK MAX']);
   });
 });

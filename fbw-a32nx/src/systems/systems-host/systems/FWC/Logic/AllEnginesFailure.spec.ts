@@ -1,17 +1,38 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   ALL_ENGINES_FAILURE_CODES,
   allEnginesFailureLines,
   allEnginesFailureStatus,
   isApuStartLineShown,
 } from './AllEnginesFailure';
-import { pseudoFwcItem, statusLines } from './FwcAlertSpecHelpers';
+import { statusLines } from './FwcAlertSpecHelpers';
 import { formatEwdMessages } from '../../../../shared/src/EwdMessages';
+import { installFwcSimVarMocks, runFwc } from '../PseudoFwcTestBed';
+import { failureItem, isAlertTriggered, shownCodes, startCruiseFwc } from '../FwcAlertProbe';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
+
+let simvars: Map<string, number>;
+
+beforeEach(() => {
+  ({ simvars } = installFwcSimVarMocks());
+});
+
+const DUAL_ENGINE_FAILURE = '7700027';
+const PACK_2_OFF = '2161208';
+// 5 s for the bleed to count as available, then 60 s of pack OFF
+const PACK_OFF_CONFIRM_SECONDS = 70;
+
+/** Both engines stopped in cruise */
+function stopBothEngines() {
+  for (const side of [1, 2]) {
+    simvars.set(`L:A32NX_ENGINE_STATE:${side}`, 0);
+  }
+}
 
 /* The procedure asks for an APU start below FL 250 only. */
 describe('ALL ENGINES FAILURE: APU START line', () => {
@@ -28,20 +49,26 @@ describe('ALL ENGINES FAILURE: APU START line', () => {
     expect(isApuStartLineShown(false, true, 10_000)).toBe(false);
   });
 
-  it('the DUAL ENGINE FAILURE alert uses the rule, no longer the radio altitude', () => {
-    const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
-    const start = fwc.indexOf('    7700027: {');
-    const block = fwc.slice(start, fwc.indexOf('\n    },', start));
-    expect(block).toContain('isApuStartLineShown(');
-    expect(block).not.toContain('radioAlt');
+  it('the DUAL ENGINE FAILURE alert shows the APU START line in cruise although the radio altitude is not computed', () => {
+    const { fwc } = startCruiseFwc(simvars, stopBothEngines);
+    expect(isAlertTriggered(fwc, DUAL_ENGINE_FAILURE)).toBe(true);
+    expect(formatEwdMessages(shownCodes(fwc, DUAL_ENGINE_FAILURE)).join(' | ')).toContain('-APU');
   });
 });
 
 /* PACK 1(2) OFF: each pack is checked against its own bleed. */
 describe('PACK 2 OFF bleed availability', () => {
-  it('reads the ENG 2 BLEED pb', () => {
-    const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
-    expect(fwc).toMatch(/const eng2Bleed = SimVar\.GetSimVarValue\('L:A32NX_OVHD_PNEU_ENG_2_BLEED_PB_IS_AUTO'/);
+  it('is checked against the ENG 2 BLEED pb: PACK 2 OFF shows only while ENG 2 BLEED is AUTO', () => {
+    const { fwc } = startCruiseFwc(simvars, () => {
+      simvars.set('L:A32NX_OVHD_COND_PACK_2_PB_IS_ON', 0);
+      simvars.set('L:A32NX_OVHD_PNEU_ENG_2_BLEED_PB_IS_AUTO', 0);
+    });
+    runFwc(fwc, PACK_OFF_CONFIRM_SECONDS);
+    expect(isAlertTriggered(fwc, PACK_2_OFF)).toBe(false);
+
+    simvars.set('L:A32NX_OVHD_PNEU_ENG_2_BLEED_PB_IS_AUTO', 1);
+    runFwc(fwc, PACK_OFF_CONFIRM_SECONDS);
+    expect(isAlertTriggered(fwc, PACK_2_OFF)).toBe(true);
   });
 });
 
@@ -95,11 +122,12 @@ describe('ALL ENGINES FAILURE: lines', () => {
     expect(lines.filter((line) => line.includes('-FAC 1') && line.includes('OFF THEN ON'))).toHaveLength(1);
   });
 
-  it('the DUAL ENGINE FAILURE alert no longer reads the FAC 1 failure for the FAC 1 line', () => {
-    const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
-    const start = fwc.indexOf('    7700027: {');
-    const block = fwc.slice(start, fwc.indexOf('\n    },', start));
-    expect(block).not.toContain('fac1Failed');
+  it('the DUAL ENGINE FAILURE alert shows the same lines with FAC 1 healthy or failed', () => {
+    const { fwc } = startCruiseFwc(simvars, stopBothEngines);
+    const healthyLines = shownCodes(fwc, DUAL_ENGINE_FAILURE);
+    simvars.set('L:A32NX_FAC_1_HEALTHY', 0);
+    runFwc(fwc, 3);
+    expect(shownCodes(fwc, DUAL_ENGINE_FAILURE)).toEqual(healthyLines);
   });
 });
 
@@ -155,6 +183,9 @@ describe('ALL ENGINES FAILURE STATUS', () => {
   });
 
   it('is the STATUS of the PseudoFWC ALL ENGINES FAILURE', () => {
-    expect(pseudoFwcItem('7700027')).toContain('...alertStatus(allEnginesFailureStatus)');
+    const { fwc } = startCruiseFwc(simvars);
+    const item = failureItem(fwc, DUAL_ENGINE_FAILURE);
+    expect(item.statusInfo?.()).toEqual(allEnginesFailureStatus().left);
+    expect(item.inopSys?.()).toEqual(allEnginesFailureStatus().inopSys);
   });
 });

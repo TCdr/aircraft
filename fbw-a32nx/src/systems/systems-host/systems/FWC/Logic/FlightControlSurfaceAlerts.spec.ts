@@ -3,8 +3,11 @@
 
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Arinc429SignStatusMatrix, Arinc429Word } from '@flybywiresim/fbw-sdk';
+import { FwcRig, probedFailure, shownLineText, startCruiseFwc, triggeredAmong } from '../FwcControlsAlertProbe';
+import { isAlertTriggered } from '../FwcAlertProbe';
+import { altnLawStatus } from './FlightControlStatus';
 import { formatEwdMessages } from '../../../../shared/src/EwdMessages';
 import {
   FcdcBits,
@@ -21,6 +24,9 @@ import {
   aileronFaultLines,
   spoilerFaultLines,
 } from './FlightControlSurfaceAlerts';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
 
 const W1 = FcdcBits.word1;
 const W3 = FcdcBits.word3;
@@ -271,63 +277,123 @@ describe('E/WD texts of the new F/CTL alerts', () => {
   });
 });
 
-/* Source-level checks of the PseudoFWC wiring: a wrong variable or a forgotten alert would silently show nothing. */
-describe('PseudoFWC wiring', () => {
+/* The whole PseudoFWC, driven by the words of both FCDCs: a wrong variable or a forgotten alert would show nothing. */
+describe('PseudoFWC with the FCDC words', () => {
+  const ELAC_1_FAULT = '2700110';
+  const ELAC_2_FAULT = '2700120';
+  const ELAC_12_FAULT = '2701010';
+  const ALTN_LAW_2 = '2700375';
+  const ALTN_LAW_1 = '2700390';
+  const L_ELEV_FAULT = '2701050';
+  const SPOILER_FAULT = '2701100';
+  const SPEED_BRAKE_DO_NOT_USE_BIT = 27;
+
+  /** Sets the words of both FCDCs (or only of the given ones) and lets the hydraulic recovery time pass */
+  function setFcdcWords(rig: FwcRig, setup: FcdcSetup, fcdcs: (1 | 2)[] = [1, 2]): void {
+    const words = fcdc(setup);
+    for (const fcdcNumber of fcdcs) {
+      rig.simvars.set(`L:A32NX_FCDC_${fcdcNumber}_DISCRETE_WORD_1`, (words.word1 as Arinc429Word).rawWord);
+      rig.simvars.set(`L:A32NX_FCDC_${fcdcNumber}_DISCRETE_WORD_3`, (words.word3 as Arinc429Word).rawWord);
+      rig.simvars.set(`L:A32NX_FCDC_${fcdcNumber}_DISCRETE_WORD_5`, (words.word5 as Arinc429Word).rawWord);
+    }
+    rig.run(HYDRAULIC_RECOVERY_CONFIRM_SECONDS + 3);
+  }
+
+  const elacAlertsTriggered = (rig: FwcRig) => triggeredAmong(rig.fwc, [ELAC_1_FAULT, ELAC_2_FAULT, ELAC_12_FAULT]);
+
+  it('ALTN LAW keys SPD BRK DO NOT USE on the elevator loss, not on the FCDC SPD BRK 3+4 bit', () => {
+    const rig = startCruiseFwc();
+    const shownSpeedBrakeLine = (key: string) =>
+      shownLineText(probedFailure(rig.fwc, key)).some((line) => line.includes('SPD BRK'));
+
+    setFcdcWords(rig, { word5: [SPEED_BRAKE_DO_NOT_USE_BIT] });
+    expect(shownSpeedBrakeLine(ALTN_LAW_1)).toBe(false);
+    expect(shownSpeedBrakeLine(ALTN_LAW_2)).toBe(false);
+
+    setFcdcWords(rig, { lost: [W3.leftElevator1Available, W3.leftElevator2Available] });
+    expect(shownSpeedBrakeLine(ALTN_LAW_1)).toBe(true);
+    expect(shownSpeedBrakeLine(ALTN_LAW_2)).toBe(true);
+  });
+
+  it('ELAC 1 FAULT and ELAC 2 FAULT give way to ELAC 1+2 FAULT', () => {
+    const rig = startCruiseFwc();
+    setFcdcWords(rig, {});
+    expect(elacAlertsTriggered(rig)).toEqual([]);
+
+    setFcdcWords(rig, { word1: [W1.elac1Invalid] });
+    expect(elacAlertsTriggered(rig)).toEqual([ELAC_1_FAULT]);
+    setFcdcWords(rig, { word1: [W1.elac2Invalid] });
+    expect(elacAlertsTriggered(rig)).toEqual([ELAC_2_FAULT]);
+    setFcdcWords(rig, { word1: [W1.elac1Invalid, W1.elac2Invalid] });
+    expect(elacAlertsTriggered(rig)).toEqual([ELAC_12_FAULT]);
+  });
+
+  it('the new alerts use the aircraft phase inhibitions and levels', () => {
+    const { fwc } = startCruiseFwc();
+    const expected: [string, number[], number][] = [
+      ['2701010', FlightControlSurfacePhaseInhibition.elacFault, 2],
+      ['2701020', FlightControlSurfacePhaseInhibition.elacPitchFault, 1],
+      ['2701030', FlightControlSurfacePhaseInhibition.elacPitchFault, 1],
+      ['2701040', FlightControlSurfacePhaseInhibition.elevServoFault, 1],
+      ['2701050', FlightControlSurfacePhaseInhibition.elevatorFault, 2],
+      ['2701060', FlightControlSurfacePhaseInhibition.elevatorFault, 2],
+      ['2701070', FlightControlSurfacePhaseInhibition.ailServoFault, 1],
+      ['2701080', FlightControlSurfacePhaseInhibition.aileronFault, 2],
+      ['2701090', FlightControlSurfacePhaseInhibition.aileronFault, 2],
+      ['2701100', FlightControlSurfacePhaseInhibition.spoilerFault, 2],
+      ['2700360', FlightControlSurfacePhaseInhibition.fcdc12Fault, 2],
+    ];
+    for (const [key, phases, level] of expected) {
+      const alert = probedFailure(fwc, key);
+      expect(alert.flightPhaseInhib).toEqual(phases);
+      expect(alert.failure).toBe(level);
+    }
+    expect(FlightControlSurfacePhaseInhibition.fcdc12Fault).toEqual([4, 5, 7]);
+  });
+
+  it('reads the words of FCDC 1 and of FCDC 2', () => {
+    for (const fcdcNumber of [1, 2] as const) {
+      const elacRig = startCruiseFwc();
+      setFcdcWords(elacRig, { word1: [W1.elac1Invalid] }, [fcdcNumber]);
+      expect(elacAlertsTriggered(elacRig)).toEqual([ELAC_1_FAULT]);
+
+      const elevatorRig = startCruiseFwc();
+      setFcdcWords(elevatorRig, {});
+      expect(isAlertTriggered(elevatorRig.fwc, L_ELEV_FAULT)).toBe(false);
+      setFcdcWords(elevatorRig, { lost: [W3.leftElevator1Available, W3.leftElevator2Available] }, [fcdcNumber]);
+      expect(isAlertTriggered(elevatorRig.fwc, L_ELEV_FAULT)).toBe(true);
+
+      const spoilerRig = startCruiseFwc();
+      setFcdcWords(spoilerRig, { word5: [FcdcBits.word5.spoilerFault[4]] }, [fcdcNumber]);
+      expect(isAlertTriggered(spoilerRig.fwc, SPOILER_FAULT)).toBe(true);
+    }
+  });
+
+  it('the ALTN LAW STATUS follows the autopilot engagement of either FMGC', () => {
+    const apOff = altnLawStatus(false, false, false);
+    const apOn = altnLawStatus(false, false, true);
+    expect(apOn.left).not.toEqual(apOff.left);
+    for (const fmgc of [1, 2]) {
+      const rig = startCruiseFwc();
+      const alert = probedFailure(rig.fwc, ALTN_LAW_1);
+      expect(alert.statusInfo?.()).toEqual(apOff.left);
+      rig.simvars.set(`L:A32NX_FMGC_${fmgc}_AP_ENGAGED`, 1);
+      rig.run(1);
+      expect(alert.statusInfo?.()).toEqual(apOn.left);
+    }
+  });
+});
+
+/* The FCDC words and the servo failures come from the C++ flight controls, which vitest cannot run: their source is read. */
+describe('the C++ flight controls', () => {
   const repoRoot = resolve(__dirname, '../../../../../../..');
-  const pseudoFwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf8');
   const flyByWireInterface = readFileSync(
     resolve(repoRoot, 'fbw-a32nx/src/wasm/fbw_a320/src/FlyByWireInterface.cpp'),
     'utf8',
   );
   const fcdcCpp = readFileSync(resolve(repoRoot, 'fbw-a32nx/src/wasm/fbw_a320/src/fcdc/Fcdc.cpp'), 'utf8');
 
-  /** The text of one alert entry of the PseudoFWC table */
-  const entry = (key: string) => {
-    const start = pseudoFwc.indexOf(`    ${key}: {`);
-    expect(start).toBeGreaterThan(0);
-    return pseudoFwc.slice(start, pseudoFwc.indexOf('\n    },', start));
-  };
-
-  it('ALTN LAW keys SPD BRK DO NOT USE on the elevator loss, not on the FCDC SPD BRK 3+4 bit', () => {
-    for (const key of ['2700375', '2700390']) {
-      expect(entry(key)).toContain('this.fctlSurfaces.leftOrRightElevatorLost');
-      expect(entry(key)).not.toContain('speedBrakeDoNotUse');
-    }
-  });
-
-  it('ELAC 1 FAULT and ELAC 2 FAULT give way to ELAC 1+2 FAULT', () => {
-    expect(entry('2700110')).toContain('simVarIsActive: this.elac1FaultAlert');
-    expect(entry('2700120')).toContain('simVarIsActive: this.elac2FaultAlert');
-    expect(entry('2701010')).toContain('simVarIsActive: this.elac12FaultAlert');
-  });
-
-  it('the new alerts use the aircraft phase inhibitions and levels', () => {
-    const expected: [string, string, number][] = [
-      ['2701010', 'FctlPhases.elacFault', 2],
-      ['2701020', 'FctlPhases.elacPitchFault', 1],
-      ['2701030', 'FctlPhases.elacPitchFault', 1],
-      ['2701040', 'FctlPhases.elevServoFault', 1],
-      ['2701050', 'FctlPhases.elevatorFault', 2],
-      ['2701060', 'FctlPhases.elevatorFault', 2],
-      ['2701070', 'FctlPhases.ailServoFault', 1],
-      ['2701080', 'FctlPhases.aileronFault', 2],
-      ['2701090', 'FctlPhases.aileronFault', 2],
-      ['2701100', 'FctlPhases.spoilerFault', 2],
-      ['2700360', 'FctlPhases.fcdc12Fault', 2],
-    ];
-    for (const [key, phases, level] of expected) {
-      expect(entry(key)).toContain(`flightPhaseInhib: ${phases},`);
-      expect(entry(key)).toContain(`failure: ${level},`);
-    }
-    expect(FlightControlSurfacePhaseInhibition.fcdc12Fault).toEqual([4, 5, 7]);
-  });
-
-  it('reads the FCDC words the C++ writes', () => {
-    for (const n of [1, 2]) {
-      for (const w of [1, 3, 5]) {
-        expect(pseudoFwc).toContain(`'L:A32NX_FCDC_${n}_DISCRETE_WORD_${w}'`);
-      }
-    }
+  it('write the FCDC words the FWC reads', () => {
     expect(flyByWireInterface).toContain('"A32NX_FCDC_" + idString + "_DISCRETE_WORD_');
     expect(flyByWireInterface).toMatch(/idFcdcDiscreteWord3\[fcdcIndex\]->set\(.*efcs_status_word_3/);
     expect(flyByWireInterface).toMatch(/idFcdcDiscreteWord5\[fcdcIndex\]->set\(.*efcs_status_word_5/);
@@ -367,7 +433,6 @@ describe('PseudoFWC wiring', () => {
   });
 
   it('the autopilot L:vars of the ALTN LAW STATUS are written by the C++', () => {
-    expect(pseudoFwc).toContain("'L:A32NX_FMGC_1_AP_ENGAGED'");
     expect(flyByWireInterface).toMatch(/"A32NX_FMGC_" \+ idString \+ "_AP_ENGAGED"|A32NX_FMGC_1_AP_ENGAGED/);
   });
 });

@@ -1,9 +1,9 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { EventBus } from '@microsoft/msfs-sdk';
+import { SdPages as EcamSysPage } from '@shared/SdPages';
 import { formatStatusPage } from '../../../../shared/src/StatusMessages';
 import {
   CrossBleedSelector,
@@ -16,6 +16,11 @@ import {
   isEngineFailGroundProcedure,
   isEngineShutDown,
 } from './EngineFailAlerts';
+import { installFwcSimVarMocks, runFwc } from '../PseudoFwcTestBed';
+import { failureItem, isAlertTriggered, shownCodes, startCruiseFwc } from '../FwcAlertProbe';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
 
 const IDLE_N2 = 65;
 
@@ -254,41 +259,104 @@ describe('ENG 1(2) SHUT DOWN STATUS', () => {
   });
 });
 
-describe('PseudoFWC wiring of ENG 1(2) FAIL / SHUT DOWN', () => {
-  const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
-  const block = (key: string) => {
-    const start = fwc.indexOf(`    ${key}: {`);
-    return fwc.slice(start, fwc.indexOf('\n    },', start));
-  };
+describe('the real FWC: ENG 1(2) FAIL / SHUT DOWN', () => {
+  const ENGINE_1_FAIL = '7700101';
+  const ENGINE_2_FAIL = '7700102';
+  const ENGINE_1_SHUT_DOWN = '7700111';
+  const ENGINE_2_SHUT_DOWN = '7700112';
+  const ALL_ENGINES_FAILURE = '7700027';
+  const LAND_ASAP_AMBER = '0000360';
+  const FAILED_CORE_N2 = 20;
 
-  it('has the four amber alerts on the ENG page', () => {
-    for (const key of ['7700101', '7700102', '7700111', '7700112']) {
-      expect(block(key)).toContain('failure: 2,');
-      expect(block(key)).toContain('sysPage: EcamSysPage.ENG,');
-      expect(block(key)).toContain('flightPhaseInhib: [],');
-    }
-    // the procedure and the STATUS get the reverser unlocked condition (whitespace-free, whatever the formatting)
-    const compact = (key: string) => block(key).replace(/\s/g, '');
-    expect(compact('7700111')).toContain('reverserUnlocked:this.reverserUnlocked[0].get()');
-    expect(compact('7700112')).toContain('reverserUnlocked:this.reverserUnlocked[1].get()');
-    const statusCall = (engine: 1 | 2) =>
-      `engineShutDownStatus(${engine},!!this.fireButton${engine}.get(),!!this.wingAntiIce.get(),this.reverserUnlocked[${engine - 1}].get()`;
-    expect(compact('7700111').split(statusCall(1))).toHaveLength(3);
-    expect(compact('7700112').split(statusCall(2))).toHaveLength(3);
+  let simvars: Map<string, number>;
+
+  beforeEach(() => {
+    ({ simvars } = installFwcSimVarMocks());
   });
 
-  it('calls LAND ASAP (amber) with ENG FAIL and SHUT DOWN', () => {
-    // whitespace collapsed: the condition is split over several lines once more alerts call LAND ASAP
-    const landAsap = block("'0000360'").replace(/\s+/g, ' ');
-    expect(landAsap).toContain('eng1Fail || eng2Fail || eng1ShutDown || eng2ShutDown');
+  const startWithIdleN2 = () =>
+    startCruiseFwc(simvars, () => {
+      simvars.set('L:A32NX_ENGINE_IDLE_N2', IDLE_N2);
+    });
+
+  const publishMaster = (bus: EventBus, engine: 1 | 2, on: boolean) => {
+    bus.getPublisher<any>().pub(`engine${engine}Master`, on ? 1 : 0, false, true);
+  };
+
+  it('has the four amber alerts on the ENG page, without flight phase inhibition', () => {
+    const { fwc } = startWithIdleN2();
+    for (const key of [ENGINE_1_FAIL, ENGINE_2_FAIL, ENGINE_1_SHUT_DOWN, ENGINE_2_SHUT_DOWN]) {
+      const item = failureItem(fwc, key);
+      expect(item.failure, key).toBe(2);
+      expect(item.sysPage, key).toBe(EcamSysPage.ENG);
+      expect(item.flightPhaseInhib, key).toEqual([]);
+    }
+  });
+
+  it('ENG 1 FAIL follows the core speed of engine 1 only, and calls LAND ASAP (amber)', () => {
+    const { fwc } = startWithIdleN2();
+    expect(isAlertTriggered(fwc, ENGINE_1_FAIL)).toBe(false);
+    expect(fwc.ewdMessageMemos[LAND_ASAP_AMBER].simVarIsActive.get()).toBe(false);
+
+    simvars.set('L:A32NX_ENGINE_N2:1', FAILED_CORE_N2);
+    runFwc(fwc, 1);
+    expect(isAlertTriggered(fwc, ENGINE_1_FAIL)).toBe(true);
+    expect(isAlertTriggered(fwc, ENGINE_2_FAIL)).toBe(false);
+    expect(fwc.ewdMessageMemos[LAND_ASAP_AMBER].simVarIsActive.get()).toBe(true);
+  });
+
+  it('ENG 2 SHUT DOWN follows the ENG MASTER 2 in cruise and calls LAND ASAP (amber)', () => {
+    const { fwc, bus } = startWithIdleN2();
+    publishMaster(bus, 2, false);
+    runFwc(fwc, 1);
+    expect(isAlertTriggered(fwc, ENGINE_2_SHUT_DOWN)).toBe(true);
+    expect(isAlertTriggered(fwc, ENGINE_1_SHUT_DOWN)).toBe(false);
+    expect(fwc.ewdMessageMemos[LAND_ASAP_AMBER].simVarIsActive.get()).toBe(true);
+  });
+
+  it.each([
+    [1, ENGINE_1_SHUT_DOWN],
+    [2, ENGINE_2_SHUT_DOWN],
+  ])('the procedure and the STATUS of ENG %i SHUT DOWN get the unlocked reverser of that engine', (engine, key) => {
+    const { fwc, bus } = startWithIdleN2();
+    publishMaster(bus, engine as 1 | 2, false);
+    runFwc(fwc, 1);
+    const item = failureItem(fwc, key);
+    const procedureWithoutReverser = shownCodes(fwc, key);
+    const statusWithoutReverser = item.statusInfo?.();
+    expect(statusWithoutReverser).toEqual(engineShutDownStatus(engine as 1 | 2, false, false, false).left);
+
+    simvars.set(`L:A32NX_REVERSER_${engine}_UNLOCKED`, 1);
+    runFwc(fwc, 1);
+    expect(item.statusInfo?.()).toEqual(engineShutDownStatus(engine as 1 | 2, false, false, true).left);
+    expect(item.statusInfo?.()).not.toEqual(statusWithoutReverser);
+    expect(shownCodes(fwc, key).length).toBeGreaterThan(procedureWithoutReverser.length);
   });
 
   it('inhibits ALL ENGINES FAILURE in the flight phases 1-4 and 8-10', () => {
-    expect(block('7700027')).toContain('flightPhaseInhib: [1, 2, 3, 4, 8, 9, 10],');
+    const { fwc } = startWithIdleN2();
+    expect(failureItem(fwc, ALL_ENGINES_FAILURE).flightPhaseInhib).toEqual([1, 2, 3, 4, 8, 9, 10]);
   });
 
   it('replaces the single engine alerts by ALL ENGINES FAILURE', () => {
-    expect(fwc).toContain('this.engine1Fail.set(this.engine1FailMonitor.isActive && !allEnginesFailed);');
-    expect(fwc).toMatch(/this\.engine2ShutDown\.set\(isEngineShutDown\([^;]*\) && !allEnginesFailed\);/);
+    const { fwc, bus } = startWithIdleN2();
+    simvars.set('L:A32NX_ENGINE_N2:1', FAILED_CORE_N2);
+    simvars.set('L:A32NX_ENGINE_N2:2', FAILED_CORE_N2);
+    runFwc(fwc, 1);
+    expect(isAlertTriggered(fwc, ALL_ENGINES_FAILURE)).toBe(true);
+    expect(isAlertTriggered(fwc, ENGINE_1_FAIL)).toBe(false);
+    expect(isAlertTriggered(fwc, ENGINE_2_FAIL)).toBe(false);
+
+    // both ENG MASTER at OFF with the fuel valves closed: the dual failure takes the SHUT DOWN alerts as well
+    simvars.set('L:A32NX_ENGINE_N2:1', 90);
+    simvars.set('L:A32NX_ENGINE_N2:2', 90);
+    for (const engine of [1, 2] as const) {
+      publishMaster(bus, engine, false);
+      bus.getPublisher<any>().pub(`fuel_valve_switch_${engine}`, false, false, true);
+    }
+    runFwc(fwc, 1);
+    expect(isAlertTriggered(fwc, ALL_ENGINES_FAILURE)).toBe(true);
+    expect(isAlertTriggered(fwc, ENGINE_1_SHUT_DOWN)).toBe(false);
+    expect(isAlertTriggered(fwc, ENGINE_2_SHUT_DOWN)).toBe(false);
   });
 });

@@ -1,9 +1,15 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  discreteWordWithBits,
+  probedFailure,
+  shownLineText,
+  startCruiseFwc,
+  triggeredAmong,
+} from '../FwcControlsAlertProbe';
+import { normalWord } from '../PseudoFwcTestBed';
 import {
   SLAT_FLAP_CHANNEL_FAULT_PHASE_INHIBITION,
   SfccStatusWord,
@@ -13,6 +19,9 @@ import {
   slatSysFaultStatus,
 } from './SlatFlapChannelAlerts';
 import { formatStatusPage } from '../../../../shared/src/StatusMessages';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
 
 /** The texts of the left column of the STATUS page for these codes, without their colour codes */
 function statusTexts(codes: string[]): string[] {
@@ -80,37 +89,32 @@ describe('F/CTL FLAP(SLAT) SYS 1(2) FAULT', () => {
 });
 
 describe('PseudoFWC F/CTL FLAP(SLAT) SYS 1(2) FAULT', () => {
-  const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
-  const messages = readFileSync(resolve(__dirname, '../../../../shared/src/EwdMessages.ts'), 'utf-8');
+  const CHANNEL_FAULTS = [
+    // alert key, SFCC, fault bit of the SFCC system status word, E/WD title, the STATUS of the alert
+    ['2701110', 1, 12, 'F/CTL FLAP SYS 1 FAULT', flapSysFaultStatus(1)],
+    ['2701120', 2, 12, 'F/CTL FLAP SYS 2 FAULT', flapSysFaultStatus(2)],
+    ['2701130', 1, 11, 'F/CTL SLAT SYS 1 FAULT', slatSysFaultStatus()],
+    ['2701140', 2, 11, 'F/CTL SLAT SYS 2 FAULT', slatSysFaultStatus()],
+  ] as const;
+  const ALERT_KEYS = CHANNEL_FAULTS.map(([key]) => key);
 
-  function alert(code: string): string {
-    const start = fwc.indexOf(`    ${code}: {`);
-    expect(start, `alert ${code}`).toBeGreaterThan(0);
-    return fwc.substring(start, fwc.indexOf('\n    },', start));
-  }
+  it.each(CHANNEL_FAULTS)(
+    '%s is a crew awareness F/CTL caution fed by SFCC %s bit %s',
+    (key, sfcc, bit, title, status) => {
+      const rig = startCruiseFwc();
+      const alert = probedFailure(rig.fwc, key);
+      expect(triggeredAmong(rig.fwc, ALERT_KEYS)).toEqual([]);
 
-  it.each([
-    ['2701110', 'flapSys1Fault', "['270111001']", ' FLAP SYS 1 FAULT', 'flapSysFaultStatus(1)'],
-    ['2701120', 'flapSys2Fault', "['270112001']", ' FLAP SYS 2 FAULT', 'flapSysFaultStatus(2)'],
-    ['2701130', 'slatSys1Fault', "['270113001']", ' SLAT SYS 1 FAULT', 'slatSysFaultStatus()'],
-    ['2701140', 'slatSys2Fault', "['270114001']", ' SLAT SYS 2 FAULT', 'slatSysFaultStatus()'],
-  ])('%s is a crew awareness F/CTL caution on %s', (code, subject, codes, title, status) => {
-    const item = alert(code);
-    expect(item).toContain(`simVarIsActive: this.${subject},`);
-    expect(item).toContain('flightPhaseInhib: SLAT_FLAP_CHANNEL_FAULT_PHASE_INHIBITION,');
-    expect(item).toContain('failure: 1,');
-    expect(item).toContain(`codesToReturn: ${codes},`);
-    expect(item).toContain(`statusInfo: () => ${status}.left,`);
-    expect(messages).toContain(`['${codes.substring(2, 11)}', { group: 'F/CTL$6', text: '${title}' }],`);
-  });
-
-  it('reads both SFCC status words each cycle', () => {
-    expect(fwc).toContain("Arinc429Word.fromSimVarValue('L:A32NX_SFCC_1_SLAT_FLAP_SYSTEM_STATUS_WORD');");
-    expect(fwc).toContain("Arinc429Word.fromSimVarValue('L:A32NX_SFCC_2_SLAT_FLAP_SYSTEM_STATUS_WORD');");
-    expect(fwc).toContain('slatFlapChannelFaults(sfcc1SystemStatusWord, sfcc2SystemStatusWord);');
-    expect(fwc).toContain('this.flapSys1Fault.set(slatFlapChannels.flapSysFault[0]);');
-    expect(fwc).toContain('this.slatSys2Fault.set(slatFlapChannels.slatSysFault[1]);');
-  });
+      rig.simvars.set(`L:A32NX_SFCC_${sfcc}_SLAT_FLAP_SYSTEM_STATUS_WORD`, discreteWordWithBits(bit));
+      rig.run(1);
+      expect(triggeredAmong(rig.fwc, ALERT_KEYS)).toEqual([key]);
+      expect(alert.flightPhaseInhib).toEqual(SLAT_FLAP_CHANNEL_FAULT_PHASE_INHIBITION);
+      expect(alert.failure).toBe(1);
+      expect(shownLineText(alert).join(' ').replace(/\s+/g, ' ').trim()).toBe(title);
+      expect(alert.statusInfo?.()).toEqual(status.left);
+      expect(alert.inopSys?.()).toEqual(status.inopSys);
+    },
+  );
 });
 
 /* Two SFCCs, each with one slat channel and one flap channel: each position word has two sources. */
@@ -130,10 +134,22 @@ describe('FWC flap and slat position source', () => {
     expect(selectSfccPositionWord(word('sfcc1', false), word('sfcc2', false)).name).toBe('sfcc1');
   });
 
-  it('PseudoFWC reads the SFCC 2 flap and slat position words too', () => {
-    const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
-    expect(fwc).toContain("'L:A32NX_SFCC_2_FLAP_ACTUAL_POSITION_WORD'");
-    expect(fwc).toContain("'L:A32NX_SFCC_2_SLAT_ACTUAL_POSITION_WORD'");
-    expect(fwc).not.toContain('TODO: add switching between SFCC_1 and SFCC_2');
+  it('PseudoFWC takes the SFCC 2 flap and slat positions when SFCC 1 sends none', () => {
+    // flap position D and F angles are 152 and 179 deg, slat position G is 309.5 deg of the SFCC position words
+    const rig = startCruiseFwc();
+    const flapsAboveF = () => (rig.fwc as any).flapsSuperiorToPositionF.get();
+    const slatsAboveG = () => (rig.fwc as any).slatsSuperiorToPositionG.get();
+    rig.simvars.set('L:A32NX_SFCC_2_FLAP_ACTUAL_POSITION_WORD', normalWord(200));
+    rig.simvars.set('L:A32NX_SFCC_2_SLAT_ACTUAL_POSITION_WORD', normalWord(320));
+    rig.run(1);
+    expect(flapsAboveF()).toBe(true);
+    expect(slatsAboveG()).toBe(true);
+
+    // SFCC 1 valid: its position is used
+    rig.simvars.set('L:A32NX_SFCC_1_FLAP_ACTUAL_POSITION_WORD', normalWord(100));
+    rig.simvars.set('L:A32NX_SFCC_1_SLAT_ACTUAL_POSITION_WORD', normalWord(100));
+    rig.run(1);
+    expect(flapsAboveF()).toBe(false);
+    expect(slatsAboveG()).toBe(false);
   });
 });

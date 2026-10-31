@@ -1,10 +1,14 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { SdPages as EcamSysPage } from '@shared/SdPages';
+import { installFwcSimVarMocks, runFwc } from '../PseudoFwcTestBed';
+import { failureItem, isAlertTriggered, startCruiseFwc } from '../FwcAlertProbe';
 import { EngineOilInputs, EngineOilMonitor, engineOilShutDownLines } from './EngineOilAlerts';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
 
 const running: EngineOilInputs = {
   masterOn: true,
@@ -105,28 +109,36 @@ describe('ENG 1(2) OIL LO PR and OIL HI TEMP lines', () => {
   });
 });
 
-/* The alerts in the FWC: levels and flight phase inhibitions */
-describe('PseudoFWC oil alerts', () => {
-  const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
+/* The alerts in the FWC: levels, flight phase inhibitions and the simvars that feed them */
+describe('the real FWC: oil alerts', () => {
+  let simvars: Map<string, number>;
 
-  function alert(code: string): string {
-    const start = fwc.indexOf(`    ${code}: {`);
-    expect(start, `alert ${code}`).toBeGreaterThan(0);
-    return fwc.substring(start, fwc.indexOf('\n    },', start));
-  }
-
-  it.each([
-    ['7707901', 'engine1OilLoPr', '[1, 10]', 3],
-    ['7707902', 'engine2OilLoPr', '[1, 10]', 3],
-    ['7707911', 'engine1OilHiTemp', '[4, 5, 7, 8]', 2],
-    ['7707912', 'engine2OilHiTemp', '[4, 5, 7, 8]', 2],
-    ['7707921', 'engine1OilFilterClog', '[3, 4, 5, 7, 8]', 2],
-    ['7707922', 'engine2OilFilterClog', '[3, 4, 5, 7, 8]', 2],
-  ])('%s is active on %s, inhibited in phases %s, level %d', (code, subject, phases, level) => {
-    const item = alert(code);
-    expect(item).toContain(`simVarIsActive: this.${subject},`);
-    expect(item).toContain(`flightPhaseInhib: ${phases},`);
-    expect(item).toContain(`failure: ${level},`);
-    expect(item).toContain('sysPage: EcamSysPage.ENG,');
+  beforeEach(() => {
+    ({ simvars } = installFwcSimVarMocks());
   });
+
+  // [engine 1 key, engine 2 key, flight phase inhibition, level, simvar of the failure, value that triggers it]
+  const OIL_ALERTS: [string, string, number[], number, (engine: number) => string, number][] = [
+    ['7707901', '7707902', [1, 10], 3, (engine) => `GENERAL ENG OIL PRESSURE:${engine}`, 5],
+    ['7707911', '7707912', [4, 5, 7, 8], 2, (engine) => `GENERAL ENG OIL TEMPERATURE:${engine}`, 160],
+    ['7707921', '7707922', [3, 4, 5, 7, 8], 2, (engine) => `L:A32NX_ENGINE_${engine}_OIL_FILTER_CLOGGED`, 1],
+  ];
+
+  it.each(OIL_ALERTS)(
+    '%s and %s: inhibited in phases %j, level %d, raised by the oil data of their own engine',
+    (key1, key2, phases, level, variableOf, triggeringValue) => {
+      const { fwc } = startCruiseFwc(simvars);
+      for (const key of [key1, key2]) {
+        expect(failureItem(fwc, key).flightPhaseInhib).toEqual(phases);
+        expect(failureItem(fwc, key).failure).toBe(level);
+        expect(failureItem(fwc, key).sysPage).toBe(EcamSysPage.ENG);
+        expect(isAlertTriggered(fwc, key)).toBe(false);
+      }
+
+      simvars.set(variableOf(2), triggeringValue);
+      runFwc(fwc, 1);
+      expect(isAlertTriggered(fwc, key2)).toBe(true);
+      expect(isAlertTriggered(fwc, key1)).toBe(false);
+    },
+  );
 });

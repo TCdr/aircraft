@@ -3,7 +3,7 @@
 
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { formatEwdMessages } from '@shared/EwdMessages';
 import { formatStatusPage } from '@shared/StatusMessages';
 import { A320Failure } from '@failures';
@@ -28,6 +28,18 @@ import {
   vhf3DataFaultAlert,
   vhfTransmitting,
 } from './CommunicationAlerts';
+import { startCruiseFwc } from '../FwcAlertProbe';
+import { installFwcSimVarMocks, runFwc } from '../PseudoFwcTestBed';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
+
+/** The simvar values the real PseudoFWC reads (by name) */
+let simvars: Map<string, number>;
+
+beforeEach(() => {
+  ({ simvars } = installFwcSimVarMocks());
+});
 
 /** A failures consumer double: the registered failures and the active ones */
 class TestFailures implements ComFailuresSource {
@@ -291,13 +303,24 @@ describe('COM alerts and AUDIO 3 XFRD memo', () => {
     expect([0, 1, 2, 4, 3].map(acpTransmitVhf)).toEqual([1, 2, 3, 0, 0]);
   });
 
-  it('the PseudoFWC wiring, the DC ESS BUS FAULT AUDIO SWTG line and the AUDIO SWITCHING selector L:var', () => {
-    const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
-    expect(fwc).toContain('this.communicationAlerts.init();');
-    expect(fwc).toContain('this.communicationAlerts.update(readComSystemInputs(), deltaTime / 1000);');
-    expect(fwc).toContain('...this.communicationAlerts.ewdFailures,');
-    expect(fwc).toContain('simVarIsActive: this.communicationAlerts.audio3Xfrd,');
-    expect(fwc).toContain('this.communicationAlerts.audioSwitchingNorm,');
+  it('the real PseudoFWC raises AUDIO 3 XFRD and the DC ESS BUS FAULT AUDIO SWTG line from the selector L:var', () => {
+    const fwc = startCruiseFwc(simvars).fwc;
+    const memo = fwc.ewdMessageMemos['0000568'];
+    const dcEssBusFault = fwc.ewdMessageFailures['2400111'];
+    const audioSwitchingLine = 2;
+    // the selector is at 0 (CAPT 3) until the cockpit sets it
+    expect(memo.simVarIsActive.get()).toBe(true);
+    expect(memo.codesToReturn).toEqual([AUDIO_3_XFRD_MEMO_CODE]);
+    expect(dcEssBusFault.whichCodeToReturn()).not.toContain(audioSwitchingLine);
+
+    simvars.set('L:KNOB_OVHD_AUDIOSWITCH_Position', 1);
+    runFwc(fwc, 1);
+    expect(memo.simVarIsActive.get()).toBe(false);
+    expect(dcEssBusFault.whichCodeToReturn()).toContain(audioSwitchingLine);
+  });
+
+  // The cockpit knob that the FWC reads is animated by the model: it can only be checked in the XML
+  it('the AUDIO SWITCHING selector L:var is the one of the cockpit knob', () => {
     const interior = readFileSync(
       resolve(
         __dirname,

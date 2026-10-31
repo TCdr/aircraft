@@ -3,7 +3,7 @@
 
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   AFT_CRG_DET_FAULT_INOP_SYS,
   cargoSmokeLines,
@@ -11,6 +11,19 @@ import {
   SmokeAlertInputs,
   smokeAlerts,
 } from './SmokeAlerts';
+import { isAlertTriggered, startCruiseFwc } from '../FwcAlertProbe';
+import { installFwcSimVarMocks, runFwc } from '../PseudoFwcTestBed';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
+
+/** The simvar values the real PseudoFWC reads (by name) */
+let simvars: Map<string, number>;
+
+beforeEach(() => {
+  ({ simvars } = installFwcSimVarMocks());
+});
+
 import { formatEwdMessages } from '../../../../shared/src/EwdMessages';
 import { formatStatusPage } from '../../../../shared/src/StatusMessages';
 
@@ -111,7 +124,8 @@ describe('cargo and avionics smoke alerts', () => {
     );
   });
 
-  it('reads the variables that systems.wasm writes and wires every alert', () => {
+  // The variables systems.wasm writes (smoke_detection.rs): the FWC reads them by name
+  it('systems.wasm writes the smoke detection variables', () => {
     const smokeDetection = readFileSync(
       resolve(
         __dirname,
@@ -121,30 +135,26 @@ describe('cargo and avionics smoke alerts', () => {
     );
     expect(smokeDetection).toContain('format!("SMOKE_{}_DETECTED", zone)');
     expect(smokeDetection).toContain('format!("SMOKE_{}_DET_FAULT", zone)');
-    const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf8');
-    for (const variable of [
-      'SMOKE_FWD_CARGO_DETECTED',
-      'SMOKE_AFT_CARGO_DETECTED',
-      'SMOKE_AVIONICS_DETECTED',
-      'SMOKE_FWD_CARGO_DET_FAULT',
-      'SMOKE_AFT_CARGO_DET_FAULT',
-      'CARGOSMOKE_BOTTLE_1_LOW_PRESSURE',
-    ]) {
-      expect(fwc).toContain(`'L:A32NX_${variable}'`);
-    }
-    for (const [id, subject] of [
-      ['2600150', 'fwdCargoSmoke'],
-      ['2600160', 'aftCargoSmoke'],
-      ['2600170', 'fwdCrgDetFault'],
-      ['2600180', 'aftCrgDetFault'],
-      ['2600190', 'fwdCrgBtlFault'],
-      ['2600191', 'aftCrgBtlFault'],
-      ['2600300', 'avionicsSmoke'],
-    ]) {
-      const start = fwc.indexOf(`    ${id}: {`);
-      expect(start, id).toBeGreaterThan(0);
-      const block = fwc.slice(start, fwc.indexOf('\n    },', start));
-      expect(block).toContain(`simVarIsActive: this.${subject},`);
+  });
+
+  it('the real PseudoFWC raises each alert from its smoke detection simvar', () => {
+    const simvarToAlert: [string, string][] = [
+      ['L:A32NX_SMOKE_FWD_CARGO_DETECTED', '2600150'],
+      ['L:A32NX_SMOKE_AFT_CARGO_DETECTED', '2600160'],
+      ['L:A32NX_SMOKE_FWD_CARGO_DET_FAULT', '2600170'],
+      ['L:A32NX_SMOKE_AFT_CARGO_DET_FAULT', '2600180'],
+      ['L:A32NX_CARGOSMOKE_BOTTLE_1_LOW_PRESSURE', '2600190'],
+      ['L:A32NX_CARGOSMOKE_BOTTLE_1_LOW_PRESSURE', '2600191'],
+      ['L:A32NX_SMOKE_AVIONICS_DETECTED', '2600300'],
+    ];
+    const fwc = startCruiseFwc(simvars, undefined, 1).fwc;
+    for (const [simvar, alertKey] of simvarToAlert) {
+      expect(isAlertTriggered(fwc, alertKey), `${alertKey} before`).toBe(false);
+      simvars.set(simvar, 1);
+      runFwc(fwc, 1);
+      expect(isAlertTriggered(fwc, alertKey), `${alertKey} from ${simvar}`).toBe(true);
+      simvars.set(simvar, 0);
+      runFwc(fwc, 1);
     }
   });
 });

@@ -1,9 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { formatEwdMessages } from '@shared/EwdMessages';
 import { formatStatusPage } from '@shared/StatusMessages';
 import {
@@ -40,6 +38,18 @@ import {
 } from './BleedAlerts';
 import { CrossBleedSelector } from './EngineFailAlerts';
 import { alertCodes } from './FwcAlertItem';
+import { isAlertTriggered, startCruiseFwc } from '../FwcAlertProbe';
+import { installFwcSimVarMocks, runFwc } from '../PseudoFwcTestBed';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
+
+/** The simvar values the real PseudoFWC reads (by name) */
+let simvars: Map<string, number>;
+
+beforeEach(() => {
+  ({ simvars } = installFwcSimVarMocks());
+});
 
 /** Engine running, bleed ON and supplying air, pack ON: the normal in-flight state */
 const running: EngineBleedInputs = {
@@ -539,9 +549,15 @@ describe('FWC alert items', () => {
     }
   });
 
-  it('the PseudoFWC updates them and adds them to its alerts', () => {
-    const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
-    expect(fwc).toContain('this.bleedAlerts.update(readBleedInputs(), deltaTime / 1000);');
-    expect(fwc).toContain('...this.bleedAlerts.ewdFailures,');
+  it('the real PseudoFWC raises ENG 1 BLEED FAULT from the overheat simvar of a running engine only', () => {
+    const fwc = startCruiseFwc(simvars).fwc;
+    expect(isAlertTriggered(fwc, BleedAlertKeys.eng1BleedFault)).toBe(false);
+    simvars.set('L:A32NX_PNEU_ENG_1_OVERHEAT', 1);
+    runFwc(fwc, 1);
+    expect(isAlertTriggered(fwc, BleedAlertKeys.eng1BleedFault)).toBe(true);
+    expect(isAlertTriggered(fwc, BleedAlertKeys.eng2BleedFault)).toBe(false);
+    simvars.set('L:A32NX_PNEU_ENG_1_OVERHEAT', 0);
+    runFwc(fwc, 1);
+    expect(isAlertTriggered(fwc, BleedAlertKeys.eng1BleedFault)).toBe(false);
   });
 });

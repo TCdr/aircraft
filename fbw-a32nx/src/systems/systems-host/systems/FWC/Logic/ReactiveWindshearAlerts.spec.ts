@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   REAC_WS_DET_FAULT_CODE,
   REAC_WS_DET_FAULT_PHASE_INHIBITION,
@@ -10,7 +10,19 @@ import {
   reacWsDetFaultStatus,
   reactiveWindshearFunctionLost,
 } from './ReactiveWindshearAlerts';
-import { ewdTexts, pseudoFwcItem, statusLines } from './FwcAlertSpecHelpers';
+import { ewdTexts, statusLines } from './FwcAlertSpecHelpers';
+import { isAlertTriggered, startCruiseFwc } from '../FwcAlertProbe';
+import { installFwcSimVarMocks, runFwc } from '../PseudoFwcTestBed';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
+
+/** The simvar values the real PseudoFWC reads (by name) */
+let simvars: Map<string, number>;
+
+beforeEach(() => {
+  ({ simvars } = installFwcSimVarMocks());
+});
 
 const healthy: ReactiveWindshearAlertInputs = {
   fac1Healthy: true,
@@ -69,11 +81,26 @@ describe('AUTO FLT REAC W/S DET FAULT', () => {
     expect(REAC_WS_DET_FAULT_PHASE_INHIBITION).toEqual([3, 4, 5, 8]);
   });
 
-  it('is a PseudoFWC crew awareness caution with its STATUS', () => {
-    const item = pseudoFwcItem('2200240');
-    expect(item).toContain('simVarIsActive: this.reacWsDetFault');
-    expect(item).toContain('flightPhaseInhib: REAC_WS_DET_FAULT_PHASE_INHIBITION');
-    expect(item).toContain('failure: 1');
-    expect(item).toContain('...alertStatus(reacWsDetFaultStatus)');
+  it('is a crew awareness caution of the real PseudoFWC with its STATUS', () => {
+    const fwc = startCruiseFwc(simvars).fwc;
+    const item = fwc.ewdMessageFailures['2200240'];
+    expect(item.flightPhaseInhib).toEqual(REAC_WS_DET_FAULT_PHASE_INHIBITION);
+    expect(item.failure).toBe(1);
+    expect(item.codesToReturn).toEqual([REAC_WS_DET_FAULT_CODE]);
+    expect(statusLines({ left: item.statusInfo!(), inopSys: item.inopSys!() })).toEqual(
+      statusLines(reacWsDetFaultStatus()),
+    );
+    expect(item.simVarIsActive.get()).toBe(false);
+    (fwc as any).reacWsDetFault.set(true);
+    expect(item.simVarIsActive.get()).toBe(true);
+  });
+
+  it('is not raised by the real PseudoFWC while FAC 1+2 FAULT already shows the loss of both FACs', () => {
+    const fwc = startCruiseFwc(simvars).fwc;
+    simvars.set('L:A32NX_FAC_1_HEALTHY', 0);
+    simvars.set('L:A32NX_FAC_2_HEALTHY', 0);
+    runFwc(fwc, 1);
+    expect(isAlertTriggered(fwc, '2200205')).toBe(true);
+    expect(isAlertTriggered(fwc, '2200240')).toBe(false);
   });
 });

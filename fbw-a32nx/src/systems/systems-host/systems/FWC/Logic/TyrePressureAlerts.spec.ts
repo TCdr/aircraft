@@ -1,11 +1,16 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { formatEwdMessages } from '../../../../shared/src/EwdMessages';
-import { Tyre, TYRES } from '../../../../shared/src/TyrePressures';
+import { SdPages as EcamSysPage } from '../../../../shared/src/SdPages';
+import {
+  MAIN_NOMINAL_PRESSURE_VAR,
+  NOSE_NOMINAL_PRESSURE_VAR,
+  Tyre,
+  TYRES,
+  tyrePressureVar,
+} from '../../../../shared/src/TyrePressures';
 import {
   isWheelTyreLoPr,
   TyrePressureAlertInputs,
@@ -13,6 +18,18 @@ import {
   WHEEL_TYRE_LO_PR_LEVEL,
   WHEEL_TYRE_LO_PR_PHASE_INHIBITION,
 } from './TyrePressureAlerts';
+import { startCruiseFwc } from '../FwcAlertProbe';
+import { installFwcSimVarMocks, normalWord, runFwc } from '../PseudoFwcTestBed';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
+
+/** The simvar values the real PseudoFWC reads (by name) */
+let simvars: Map<string, number>;
+
+beforeEach(() => {
+  ({ simvars } = installFwcSimVarMocks());
+});
 
 /** TPIS installed, every tyre at a round nominal pressure (main 200, nose 180 PSI), on the ground (phase 1) */
 const normal: TyrePressureAlertInputs = {
@@ -82,19 +99,33 @@ describe('WHEEL TYRE LO PR', () => {
     ]);
   });
 
-  it('is raised by PseudoFWC from the TPIS pressures and the flyPad option, with the WHEEL SD page', () => {
-    const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
-    expect(fwc).toContain('TyrePressure.isWheelTyreLoPr({');
-    expect(fwc).toContain('Arinc429Word.fromSimVarValue(tyrePressureVar(tyre))');
-    expect(fwc).toContain('TPIS_INSTALLED_SETTING,');
-    const start = fwc.indexOf('3200490: {');
-    const entry = fwc.slice(start, fwc.indexOf('\n    },', start));
-    expect(entry).toContain('flightPhaseInhib: TyrePressure.WHEEL_TYRE_LO_PR_PHASE_INHIBITION');
-    expect(entry).toContain('simVarIsActive: this.wheelTyreLoPr');
-    expect(entry).toContain('codesToReturn: TyrePressure.WHEEL_TYRE_LO_PR_CODES');
-    expect(entry).toContain('failure: TyrePressure.WHEEL_TYRE_LO_PR_LEVEL');
-    expect(entry).toContain('sysPage: EcamSysPage.WHEEL');
-    expect(entry).not.toContain('statusInfo');
-    expect(entry).not.toContain('inopSys');
+  it('is raised by the real PseudoFWC from the TPIS pressures and the flyPad option, with the WHEEL SD page', () => {
+    const fwc = startCruiseFwc(simvars).fwc;
+    const members = fwc as any;
+    const item = fwc.ewdMessageFailures['3200490'];
+    simvars.set(MAIN_NOMINAL_PRESSURE_VAR, 200);
+    simvars.set(NOSE_NOMINAL_PRESSURE_VAR, 180);
+    for (const tyre of TYRES) {
+      simvars.set(tyrePressureVar(tyre), normalWord(tyre >= Tyre.Nose1 ? 180 : 200));
+    }
+    simvars.set(tyrePressureVar(Tyre.Main1), normalWord(0));
+
+    // the flyPad option "TPIS installed" is off by default
+    runFwc(fwc, 1);
+    expect(item.simVarIsActive.get()).toBe(false);
+
+    members.tpisInstalled = true;
+    runFwc(fwc, 1);
+    expect(item.simVarIsActive.get()).toBe(true);
+    simvars.set(tyrePressureVar(Tyre.Main1), normalWord(200));
+    runFwc(fwc, 1);
+    expect(item.simVarIsActive.get()).toBe(false);
+
+    expect(item.flightPhaseInhib).toEqual(WHEEL_TYRE_LO_PR_PHASE_INHIBITION);
+    expect(item.codesToReturn).toEqual(WHEEL_TYRE_LO_PR_CODES);
+    expect(item.failure).toBe(WHEEL_TYRE_LO_PR_LEVEL);
+    expect(item.sysPage).toBe(EcamSysPage.WHEEL);
+    expect(item.statusInfo).toBeUndefined();
+    expect(item.inopSys).toBeUndefined();
   });
 });

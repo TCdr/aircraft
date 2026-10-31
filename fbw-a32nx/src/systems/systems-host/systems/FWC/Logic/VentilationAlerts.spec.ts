@@ -1,9 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { formatEwdMessages } from '@shared/EwdMessages';
 import { formatStatusPage } from '@shared/StatusMessages';
 import { A320Failure } from '@failures';
@@ -27,6 +25,18 @@ import {
   skinValveFaultExtractLines,
   ventilationAlerts,
 } from './VentilationAlerts';
+import { fwcModule, isAlertTriggered, setActiveFailures, startCruiseFwc } from '../FwcAlertProbe';
+import { installFwcSimVarMocks, runFwc } from '../PseudoFwcTestBed';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
+
+/** The simvar values the real PseudoFWC reads (by name) */
+let simvars: Map<string, number>;
+
+beforeEach(() => {
+  ({ simvars } = installFwcSimVarMocks());
+});
 
 /** A failures consumer double: the registered failures and the active ones */
 class TestFailures implements VentilationFailuresSource {
@@ -260,11 +270,21 @@ describe('VENT, AIR AFT CRG VENT FAULT and COND AFT CRG ISOL VALVE alerts', () =
     expect(left).not.toContain('DURING FINAL APPR:');
   });
 
-  it('the PseudoFWC registers, updates and shows the alerts, and adds the LAND ASAP of BLOWER FAULT', () => {
-    const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
-    expect(fwc).toContain('this.ventilationAlerts.init();');
-    expect(fwc).toContain('this.ventilationAlerts.update(');
-    expect(fwc).toContain('...this.ventilationAlerts.ewdFailures,');
-    expect(fwc).toContain('this.elecBusAlerts.landAsap || this.ventilationAlerts.landAsap');
+  it('the real PseudoFWC raises the alerts from the failures and adds the LAND ASAP of BLOWER FAULT', () => {
+    const fwc = startCruiseFwc(simvars).fwc;
+    const landAsap = () => (fwc as any).elecBusLandAsap.get();
+    expect(isAlertTriggered(fwc, VENT_BLOWER_FAULT_KEY)).toBe(false);
+    expect(landAsap()).toBe(false);
+
+    setActiveFailures(fwcModule(fwc, 'ventilationAlerts'), [A320Failure.AvionicsBlowerFan]);
+    runFwc(fwc, 1);
+    expect(isAlertTriggered(fwc, VENT_BLOWER_FAULT_KEY)).toBe(true);
+    expect(isAlertTriggered(fwc, VENT_EXTRACT_FAULT_KEY)).toBe(false);
+    // without ELEC DC ESS BUS FAULT the blower fault does not ask to land
+    expect(landAsap()).toBe(false);
+
+    simvars.set('L:A32NX_ELEC_DC_ESS_BUS_IS_POWERED', 0);
+    runFwc(fwc, 20);
+    expect(landAsap()).toBe(true);
   });
 });

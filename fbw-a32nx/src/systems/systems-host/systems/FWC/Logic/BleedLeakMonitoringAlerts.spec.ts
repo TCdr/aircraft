@@ -3,7 +3,7 @@
 
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { formatEwdMessages } from '@shared/EwdMessages';
 import { formatStatusPage } from '@shared/StatusMessages';
 import {
@@ -18,8 +18,21 @@ import {
   bleedLeakMonitoringStates,
   leakLines,
   leakStatus,
+  readBleedLeakMonitoringInputs,
 } from './BleedLeakMonitoringAlerts';
 import { alertCodes } from './FwcAlertItem';
+import { isAlertTriggered, startCruiseFwc } from '../FwcAlertProbe';
+import { installFwcSimVarMocks, runFwc } from '../PseudoFwcTestBed';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
+
+/** The simvar values the real PseudoFWC reads (by name) */
+let simvars: Map<string, number>;
+
+beforeEach(() => {
+  ({ simvars } = installFwcSimVarMocks());
+});
 
 const inputs = (changes: Partial<BleedLeakMonitoringInputs>): BleedLeakMonitoringInputs => ({
   ...NO_BLEED_LEAK_MONITORING_INPUTS,
@@ -119,13 +132,35 @@ describe('bleed leak and monitoring cautions', () => {
     ]) {
       expect(rust).toContain(`"${name}"`);
     }
-    const module = readFileSync(resolve(__dirname, './BleedLeakMonitoringAlerts.ts'), 'utf8');
-    expect(module).toContain("'L:A32NX_OVHD_PNEU_APU_BLEED_PB_IS_ON'");
   });
 
-  it('is wired into the PseudoFWC', () => {
-    const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf8');
-    expect(fwc).toContain('this.bleedLeakMonitoringAlerts.update(readBleedLeakMonitoringInputs());');
-    expect(fwc).toContain('...this.bleedLeakMonitoringAlerts.ewdFailures,');
+  it('reads each of those L:vars, and the cockpit APU BLEED pb-sw variable, into its input', () => {
+    const readVariables: [string, (inputs: BleedLeakMonitoringInputs) => boolean][] = [
+      ['L:A32NX_PNEU_ENG_1_BLEED_LEAK', (read) => read.pylonLeak[0]],
+      ['L:A32NX_PNEU_ENG_2_BLEED_LEAK', (read) => read.pylonLeak[1]],
+      ['L:A32NX_PNEU_LEFT_WING_LEAK', (read) => read.wingLeak[0]],
+      ['L:A32NX_PNEU_RIGHT_WING_LEAK', (read) => read.wingLeak[1]],
+      ['L:A32NX_PNEU_APU_BLEED_LEAK', (read) => read.apuLeak],
+      ['L:A32NX_PNEU_ENG_2_LEAK_DET_FAULT', (read) => read.pylonLeakDetectionFault[1]],
+      ['L:A32NX_PNEU_APU_LEAK_DET_FAULT', (read) => read.apuLeakDetectionFault],
+      ['L:A32NX_PNEU_ENG_1_HP_VALVE_FAULT', (read) => read.hpValveFault[0]],
+      ['L:A32NX_PNEU_BMC_2_FAULT', (read) => read.bmcFault[1]],
+      ['L:A32NX_OVHD_PNEU_APU_BLEED_PB_IS_ON', (read) => read.apuBleedPbOn],
+    ];
+    for (const [variable, readInput] of readVariables) {
+      expect(readInput(readBleedLeakMonitoringInputs()), variable).toBe(false);
+      simvars.set(variable, 1);
+      expect(readInput(readBleedLeakMonitoringInputs()), variable).toBe(true);
+      simvars.set(variable, 0);
+    }
+  });
+
+  it('the real PseudoFWC raises the HP valve fault of engine 2 from its simvar', () => {
+    const fwc = startCruiseFwc(simvars).fwc;
+    expect(isAlertTriggered(fwc, K.eng2HpValveFault)).toBe(false);
+    simvars.set('L:A32NX_PNEU_ENG_2_HP_VALVE_FAULT', 1);
+    runFwc(fwc, 1);
+    expect(isAlertTriggered(fwc, K.eng2HpValveFault)).toBe(true);
+    expect(isAlertTriggered(fwc, K.eng1HpValveFault)).toBe(false);
   });
 });

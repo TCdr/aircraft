@@ -1,12 +1,21 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { formatEwdMessages } from '../../../../shared/src/EwdMessages';
 import { formatStatusPage } from '../../../../shared/src/StatusMessages';
-import { eiuFaultStatus, isEiuFaultAlertActive } from './EngineInterfaceUnitAlerts';
+import { EIU_FAULT_FLIGHT_PHASE_INHIBITION, eiuFaultStatus, isEiuFaultAlertActive } from './EngineInterfaceUnitAlerts';
+import { installFwcSimVarMocks, runFwc } from '../PseudoFwcTestBed';
+import { failureItem, isAlertTriggered, startCruiseFwc } from '../FwcAlertProbe';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
+
+let simvars: Map<string, number>;
+
+beforeEach(() => {
+  ({ simvars } = installFwcSimVarMocks());
+});
 
 describe('ENG 1(2) EIU FAULT', () => {
   it('is detected by a powered FADEC that no longer receives its EIU data', () => {
@@ -33,11 +42,24 @@ describe('ENG 1(2) EIU FAULT', () => {
     expect(formatStatusPage(eiuFaultStatus(1).left, eiuFaultStatus(1).inopSys).right).toContain('ENG 1 START');
   });
 
-  it('is wired in the FWC for both engines', () => {
-    const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
-    expect(fwc).toContain('    7707731: this.engineEiuFaultAlertItem(1),');
-    expect(fwc).toContain('    7707732: this.engineEiuFaultAlertItem(2),');
-    expect(fwc).toContain('`L:A32NX_ENGINE_${engine}_EIU_FAULT`');
-    expect(fwc).toContain('flightPhaseInhib: EIU_FAULT_FLIGHT_PHASE_INHIBITION,');
+  it.each([
+    ['7707731', 1],
+    ['7707732', 2],
+  ])('is wired in the FWC: %s follows the EIU data loss of engine %i with a powered FADEC', (key, engine) => {
+    const { fwc } = startCruiseFwc(simvars);
+    const item = failureItem(fwc, key);
+    expect(item.flightPhaseInhib).toEqual(EIU_FAULT_FLIGHT_PHASE_INHIBITION);
+    expect(item.statusInfo?.()).toEqual(eiuFaultStatus(engine as 1 | 2).left);
+    expect(item.inopSys?.()).toEqual(eiuFaultStatus(engine as 1 | 2).inopSys);
+
+    simvars.set(`L:A32NX_ENGINE_${engine}_EIU_FAULT`, 1);
+    runFwc(fwc, 1);
+    // a FADEC that is not powered has no data to lose
+    expect(isAlertTriggered(fwc, key)).toBe(false);
+
+    simvars.set(`L:A32NX_FADEC_POWERED_ENG${engine}`, 1);
+    runFwc(fwc, 1);
+    expect(isAlertTriggered(fwc, key)).toBe(true);
+    expect(isAlertTriggered(fwc, engine === 1 ? '7707732' : '7707731')).toBe(false);
   });
 });

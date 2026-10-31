@@ -3,7 +3,8 @@
 
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { FwcRig, probedFailure, probedMemo, startCruiseFwc, triggeredAmong } from '../FwcControlsAlertProbe';
 import {
   HydraulicAlert,
   HydraulicAlertMonitor,
@@ -22,6 +23,9 @@ import {
 } from './HydraulicAlerts';
 import { formatEwdMessages } from '../../../../shared/src/EwdMessages';
 import { formatStatusPage } from '../../../../shared/src/StatusMessages';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
 
 type SystemOverrides = Partial<HydSystemInputs>;
 type Overrides = Partial<Omit<HydraulicInputs, 'green' | 'blue' | 'yellow'>> & {
@@ -382,8 +386,11 @@ describe('A320 HYD STATUS', () => {
   });
 });
 
-describe('A320 HYD alert wiring', () => {
-  const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf8');
+/*
+ * The Rust hydraulic system writes the simvars that the FWC reads. vitest cannot run it: the first two tests read its
+ * source for the names it writes, the FWC half is the whole-FWC describe below.
+ */
+describe('A320 HYD variables that the Rust hydraulic system writes', () => {
   const a320Hydraulic = readFileSync(
     resolve(__dirname, '../../../../../wasm/systems/a320_systems/src/hydraulic/mod.rs'),
     'utf8',
@@ -393,14 +400,12 @@ describe('A320 HYD alert wiring', () => {
     'utf8',
   );
 
-  it('reads the blue electric pump low pressure that Rust writes (HYD_BLUE_EPUMP_LOW_PRESS, not EDPUMP)', () => {
+  it('writes the blue electric pump low pressure as HYD_BLUE_EPUMP_LOW_PRESS, not EDPUMP', () => {
     expect(a320Hydraulic).toContain('"HYD_BLUE_EPUMP_LOW_PRESS"');
     expect(a320Hydraulic).not.toContain('"HYD_BLUE_EDPUMP_LOW_PRESS"');
-    expect(fwc).toContain("'L:A32NX_HYD_BLUE_EPUMP_LOW_PRESS'");
-    expect(fwc).not.toContain('HYD_BLUE_EDPUMP_LOW_PRESS');
   });
 
-  it('reads the other variables that the Rust hydraulic system writes', () => {
+  it('writes the other variables that the FWC reads', () => {
     expect(a320Hydraulic).toContain('"HYD_YELLOW_EPUMP_LOW_PRESS"');
     expect(a320Hydraulic).toContain('"HYD_GREEN_EDPUMP_LOW_PRESS"');
     expect(commonHydraulic).toContain('"HYD_{}_RESERVOIR_LEVEL_IS_LOW"');
@@ -410,24 +415,103 @@ describe('A320 HYD alert wiring', () => {
     expect(commonHydraulic).toContain('"HYD_PTU_SHAFT_RPM"');
     expect(commonHydraulic).toContain('"{}_PRESSURE_SWITCH"');
     expect(commonHydraulic).toContain('"HYD_{}_{}_{}_SECTION"');
-    for (const name of [
-      'L:A32NX_HYD_${color}_RESERVOIR_LEVEL_IS_LOW',
-      'L:A32NX_HYD_${color}_RESERVOIR_AIR_PRESSURE_IS_LOW',
-      'L:A32NX_HYD_${color}_RESERVOIR_OVHT',
-      'L:A32NX_HYD_YELLOW_EPUMP_LOW_PRESS',
-      'L:A32NX_HYD_BLUE_EPUMP_OVHT',
-      'L:A32NX_HYD_YELLOW_EPUMP_OVHT',
-      'L:A32NX_HYD_GREEN_PUMP_1_SECTION_PRESSURE_SWITCH',
-      'L:A32NX_HYD_YELLOW_PUMP_1_SECTION_PRESSURE_SWITCH',
-      'L:A32NX_HYD_PTU_SHAFT_RPM',
-      'L:A32NX_HYD_GREEN_SYSTEM_1_SECTION_PRESSURE',
-      'L:A32NX_HYD_YELLOW_SYSTEM_1_SECTION_PRESSURE',
+  });
+});
+
+describe('A320 HYD alert wiring in the whole FWC', () => {
+  const ALERT_KEYS = [
+    '2900101',
+    '2900102',
+    '2900103',
+    '2900104',
+    '2900105',
+    '2900106',
+    '2900107',
+    '2900108',
+    '2900109',
+    '2900110',
+    '2900111',
+    '2900112',
+    '2900113',
+    '2900114',
+    '2900115',
+    '2900116',
+    '2900120',
+    '2900121',
+    '2900122',
+    '2900126',
+    '2900127',
+    '2900128',
+  ];
+
+  /** The FWC in cruise, the hydraulic alerts settled (the systems normal) */
+  function startNormal(): FwcRig {
+    const rig = startCruiseFwc();
+    rig.run(10);
+    return rig;
+  }
+
+  it('raises no alert with the systems normal', () => {
+    expect(triggeredAmong(startNormal().fwc, ALERT_KEYS)).toEqual([]);
+  });
+
+  it('reads the blue electric pump low pressure (HYD_BLUE_EPUMP_LOW_PRESS, not EDPUMP)', () => {
+    const edpump = startNormal();
+    edpump.simvars.set('L:A32NX_HYD_BLUE_EDPUMP_LOW_PRESS', 1);
+    edpump.run(10);
+    expect(triggeredAmong(edpump.fwc, ALERT_KEYS)).toEqual([]);
+
+    const epump = startNormal();
+    epump.simvars.set('L:A32NX_HYD_BLUE_EPUMP_LOW_PRESS', 1);
+    epump.run(10);
+    expect(triggeredAmong(epump.fwc, ALERT_KEYS)).toContain('2900101');
+  });
+
+  it('reads the other variables that the Rust hydraulic system writes', () => {
+    for (const [simvar, key] of [
+      ['L:A32NX_HYD_GREEN_RESERVOIR_LEVEL_IS_LOW', '2900111'],
+      ['L:A32NX_HYD_BLUE_RESERVOIR_LEVEL_IS_LOW', '2900110'],
+      ['L:A32NX_HYD_YELLOW_RESERVOIR_LEVEL_IS_LOW', '2900112'],
+      ['L:A32NX_HYD_GREEN_RESERVOIR_AIR_PRESSURE_IS_LOW', '2900108'],
+      ['L:A32NX_HYD_BLUE_RESERVOIR_AIR_PRESSURE_IS_LOW', '2900107'],
+      ['L:A32NX_HYD_YELLOW_RESERVOIR_AIR_PRESSURE_IS_LOW', '2900109'],
+      ['L:A32NX_HYD_GREEN_RESERVOIR_OVHT', '2900128'],
+      ['L:A32NX_HYD_BLUE_RESERVOIR_OVHT', '2900126'],
+      ['L:A32NX_HYD_YELLOW_RESERVOIR_OVHT', '2900127'],
+      ['L:A32NX_HYD_BLUE_EPUMP_OVHT', '2900102'],
+      ['L:A32NX_HYD_YELLOW_EPUMP_OVHT', '2900104'],
+      ['L:A32NX_HYD_YELLOW_EPUMP_LOW_PRESS', '2900103'],
+      ['L:A32NX_HYD_GREEN_EDPUMP_LOW_PRESS', '2900105'],
+      ['L:A32NX_HYD_YELLOW_EDPUMP_LOW_PRESS', '2900106'],
     ]) {
-      expect(fwc).toContain(name);
+      const rig = startNormal();
+      rig.simvars.set(simvar, 1);
+      rig.run(10);
+      expect(triggeredAmong(rig.fwc, ALERT_KEYS), simvar).toContain(key);
     }
   });
 
+  it('reads the pump section pressure switches, the PTU shaft speed and the system pressures', () => {
+    const rig = startNormal();
+    const monitorInputs = () => (rig.fwc as any).hydraulicAlerts.inputs;
+    expect(monitorInputs().greenEnginePumpSectionLow).toBe(false);
+    expect(monitorInputs().yellowEnginePumpSectionLow).toBe(false);
+    rig.simvars.set('L:A32NX_HYD_GREEN_PUMP_1_SECTION_PRESSURE_SWITCH', 0);
+    rig.simvars.set('L:A32NX_HYD_YELLOW_PUMP_1_SECTION_PRESSURE_SWITCH', 0);
+    rig.simvars.set('L:A32NX_HYD_PTU_SHAFT_RPM', 1234);
+    rig.simvars.set('L:A32NX_HYD_GREEN_SYSTEM_1_SECTION_PRESSURE', 2345);
+    rig.simvars.set('L:A32NX_HYD_YELLOW_SYSTEM_1_SECTION_PRESSURE', 3456);
+    rig.run(1);
+    expect(monitorInputs().greenEnginePumpSectionLow).toBe(true);
+    expect(monitorInputs().yellowEnginePumpSectionLow).toBe(true);
+    expect(monitorInputs().ptuShaftRpm).toBe(1234);
+    expect(monitorInputs().greenPressurePsi).toBe(2345);
+    expect(monitorInputs().yellowPressurePsi).toBe(3456);
+  });
+
   it('the alert table uses the monitor, and the red LAND ASAP its dual failures', () => {
+    const { fwc } = startNormal();
+    const monitor = (fwc as any).hydraulicAlerts as HydraulicAlertMonitor;
     for (const [id, alert] of [
       ['2900126', 'blueRsvrOvht'],
       ['2900127', 'yellowRsvrOvht'],
@@ -439,13 +523,20 @@ describe('A320 HYD alert wiring', () => {
       ['2900120', 'blueYellowSysLoPr'],
       ['2900121', 'greenBlueSysLoPr'],
       ['2900122', 'greenYellowSysLoPr'],
-    ]) {
-      const start = fwc.indexOf(`    ${id}: {`);
-      expect(start).toBeGreaterThan(0);
-      const block = fwc.slice(start, fwc.indexOf('\n    },', start));
-      expect(block).toContain(`simVarIsActive: this.hydraulicAlerts.alerts.${alert},`);
+    ] as const) {
+      expect(probedFailure(fwc, id).simVarIsActive).toBe(monitor.alerts[alert]);
     }
-    expect(fwc).toContain('this.hydraulicAlerts.landAsapRed');
+  });
+
+  it('calls the red LAND ASAP with the dual system failures', () => {
+    const rig = startNormal();
+    const landAsapRed = probedMemo(rig.fwc, '0000350');
+    expect(landAsapRed.simVarIsActive.get()).toBe(false);
+    rig.simvars.set('L:A32NX_HYD_GREEN_SYSTEM_1_SECTION_PRESSURE_SWITCH', 0);
+    rig.simvars.set('L:A32NX_HYD_YELLOW_SYSTEM_1_SECTION_PRESSURE_SWITCH', 0);
+    rig.run(10);
+    expect(triggeredAmong(rig.fwc, ['2900122'])).toEqual(['2900122']);
+    expect(landAsapRed.simVarIsActive.get()).toBe(true);
   });
 });
 

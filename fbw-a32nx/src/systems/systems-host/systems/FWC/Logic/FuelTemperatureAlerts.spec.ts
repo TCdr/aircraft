@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   FUEL_TEMPERATURE_CELLS,
   FUEL_TEMPERATURE_PHASE_INHIBITION,
@@ -9,7 +9,12 @@ import {
   FuelTemperatureAlerts,
   FuelTemperatureInputs,
 } from './FuelTemperatureAlerts';
-import { ewdLines, pseudoFwcSource } from './FwcAlertSpecHelpers';
+import { ewdLines } from './FwcAlertSpecHelpers';
+import { installFwcSimVarMocks, runFwc } from '../PseudoFwcTestBed';
+import { failureItem, isAlertTriggered, setOnGround, shownCodes, shownText, startCruiseFwc } from '../FwcAlertProbe';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
 
 const normalCell: FuelCellState = { temperatureC: 15, quantityKg: 3000 };
 
@@ -101,11 +106,41 @@ describe('FUEL L (R) OUTER (INNER) TK LO TEMP', () => {
   });
 });
 
-describe('PseudoFWC fuel temperature alerts', () => {
-  it('is wired in the PseudoFWC', () => {
-    const fwc = pseudoFwcSource();
-    expect(fwc).toContain('...this.fuelTemperatureAlerts.ewdFailures');
-    expect(fwc).toContain('this.fuelTemperatureAlerts.update(');
-    expect(fwc).toContain('readFuelTemperatureInputs(this.aircraftOnGround.get()');
+describe('the real FWC: fuel temperature alerts', () => {
+  const KG_PER_GALLON = 3;
+  let simvars: Map<string, number>;
+
+  beforeEach(() => {
+    ({ simvars } = installFwcSimVarMocks());
+    simvars.set('FUEL WEIGHT PER GALLON', KG_PER_GALLON);
+  });
+
+  it('reads the temperature and the fuel of each cell from the systems', () => {
+    const { fwc } = startCruiseFwc(simvars, () => {
+      simvars.set('FUEL TANK LEFT MAIN QUANTITY', 1000);
+      simvars.set('FUEL TANK RIGHT MAIN QUANTITY', 1000);
+    });
+    expect(isAlertTriggered(fwc, '2800248')).toBe(false);
+
+    simvars.set('L:A32NX_FUEL_LEFT_INNER_TANK_TEMPERATURE', -44);
+    runFwc(fwc, 1);
+    expect(isAlertTriggered(fwc, '2800248')).toBe(true);
+    expect(isAlertTriggered(fwc, '2800250')).toBe(false);
+    expect(failureItem(fwc, '2800248').flightPhaseInhib).toEqual(FUEL_TEMPERATURE_PHASE_INHIBITION);
+    expect(shownText(fwc, '2800248')).toEqual(['FUEL L INNER TK LO TEMP']);
+  });
+
+  it('asks for the ENG MASTER of the engine of the tank on the ground', () => {
+    const { fwc, bus } = startCruiseFwc(simvars, () => {
+      setOnGround(simvars);
+      simvars.set('FUEL TANK RIGHT MAIN QUANTITY', 1000);
+      simvars.set('L:A32NX_FUEL_RIGHT_INNER_TANK_TEMPERATURE', 50);
+    });
+    expect(isAlertTriggered(fwc, '2800246')).toBe(true);
+    const linesWithEngineRunning = shownCodes(fwc, '2800246').length;
+
+    bus.getPublisher<any>().pub('engine2Master', 0, false, true);
+    runFwc(fwc, 1);
+    expect(shownCodes(fwc, '2800246').length).toBe(linesWithEngineRunning - 1);
   });
 });

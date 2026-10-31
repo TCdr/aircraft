@@ -1,15 +1,20 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { SdPages as EcamSysPage } from '@shared/SdPages';
+import { formatEwdMessages } from '../../../../shared/src/EwdMessages';
+import { installFwcSimVarMocks, noComputedDataWord, normalWord, runFwc } from '../PseudoFwcTestBed';
+import { failureItem, isAlertTriggered, plainText, setOnGround, startCruiseFwc } from '../FwcAlertProbe';
 import {
   SAT_ABOVE_FLEX_TEMP_PHASE_INHIBITION,
   THR_LEVER_ABV_IDLE_PHASE_INHIBITION,
   ThrustLeverAboveIdleMonitor,
   isSatAboveFlexTemp,
 } from './EngineThrustSettingAlerts';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
 
 /** Thrust lever angles in degrees: max reverse, idle, climb detent */
 const REVERSE = -20;
@@ -92,52 +97,80 @@ describe('ENG SAT ABOVE FLEX TEMP', () => {
   });
 });
 
-describe('PseudoFWC thrust setting alerts', () => {
-  const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8').replace(/\r\n/g, '\n');
-  const messages = readFileSync(resolve(__dirname, '../../../../shared/src/EwdMessages.ts'), 'utf-8');
+describe('the real FWC: thrust setting alerts', () => {
+  const THR_LEVER_ABV_IDLE = [
+    ['7700901', 1, '770090101', '770090102'],
+    ['7700902', 2, '770090201', '770090202'],
+  ] as const;
+  const SAT_ABOVE_FLEX_TEMP_KEY = '7700911';
+  const LANDING_ROLL_PHASE = 8;
+  let simvars: Map<string, number>;
 
-  function alert(code: string): string {
-    const start = fwc.indexOf(`    ${code}: {`);
-    expect(start, `alert ${code}`).toBeGreaterThan(0);
-    return fwc.substring(start, fwc.indexOf('\n    },', start));
-  }
-
-  it.each([
-    ['7700901', 'engine1ThrLeverAboveIdle', '770090101', '770090102', '1'],
-    ['7700902', 'engine2ThrLeverAboveIdle', '770090201', '770090202', '2'],
-  ])('%s is a red ENG warning on %s with the title %s and the lever line', (code, subject, title, line, engine) => {
-    const item = alert(code);
-    expect(item).toContain(`simVarIsActive: this.${subject},`);
-    expect(item).toContain('flightPhaseInhib: THR_LEVER_ABV_IDLE_PHASE_INHIBITION,');
-    expect(item).toContain('auralWarning: Subject.create(FwcAuralWarning.None),');
-    expect(item).toContain('failure: 3,');
-    expect(item).toContain(`codesToReturn: ['${title}', '${line}'],`);
-    expect(messages).toContain(`['${title}', { group: 'ENG$1', text: ' ${engine} THR LEVER ABV IDLE' }],`);
-    expect(messages).toContain(`['${line}', { text: '\\x1b<5m -THR LEVER ${engine}.......IDLE' }],`);
+  beforeEach(() => {
+    ({ simvars } = installFwcSimVarMocks());
   });
 
-  it('7700911 is the amber ENG SAT ABOVE FLEX TEMP caution with T.O DATA CHECK', () => {
-    const item = alert('7700911');
-    expect(item).toContain('simVarIsActive: this.satAboveFlexTemp,');
-    expect(item).toContain('flightPhaseInhib: SAT_ABOVE_FLEX_TEMP_PHASE_INHIBITION,');
-    expect(item).toContain('failure: 2,');
-    expect(item).toContain(`codesToReturn: ['770091101', '770091102'],`);
-    expect(messages).toContain(`['770091101', { group: 'ENG$5', text: ' SAT ABOVE FLEX TEMP' }],`);
-    expect(messages).toContain(`['770091102', { text: '\\x1b<5m -T.O DATA.........CHECK' }],`);
+  /** The landing roll with the lever of the given engine above idle and the other lever in reverse */
+  const landingRollWithLeverAboveIdle = (engine: 1 | 2) => () => {
+    setOnGround(simvars);
+    simvars.set('L:A32NX_FWC_FLIGHT_PHASE', LANDING_ROLL_PHASE);
+    simvars.set(`L:A32NX_AUTOTHRUST_TLA:${engine}`, CLIMB);
+    simvars.set(`L:A32NX_AUTOTHRUST_TLA:${3 - engine}`, REVERSE);
+  };
+
+  it.each(THR_LEVER_ABV_IDLE)(
+    '%s is a red ENG warning of engine %i with the title %s and the lever line %s',
+    (key, engine, title, line) => {
+      const { fwc } = startCruiseFwc(simvars, landingRollWithLeverAboveIdle(engine));
+      const item = failureItem(fwc, key);
+      expect(item.failure).toBe(3);
+      expect(item.sysPage).toBe(EcamSysPage.NONE);
+      expect(item.flightPhaseInhib).toEqual(THR_LEVER_ABV_IDLE_PHASE_INHIBITION);
+      expect(item.codesToReturn).toEqual([title, line]);
+      expect(isAlertTriggered(fwc, key)).toBe(true);
+      expect(isAlertTriggered(fwc, engine === 1 ? '7700902' : '7700901')).toBe(false);
+      expect(formatEwdMessages(item.codesToReturn).map(plainText)).toEqual([
+        `ENG ${engine} THR LEVER ABV IDLE`,
+        `-THR LEVER ${engine}.......IDLE`,
+      ]);
+    },
+  );
+
+  it('plays the RETARD voice of THR LEVER ABV IDLE above 40 kt', () => {
+    const { fwc, bus } = startCruiseFwc(simvars, landingRollWithLeverAboveIdle(1));
+    const soundManager = (fwc as any).soundManager;
+    const handleSoundCondition = vi.spyOn(soundManager, 'handleSoundCondition');
+    bus.getPublisher<any>().pub('a32nx_adr_computed_airspeed_1', normalWord(60), false, true);
+    runFwc(fwc, 1);
+    expect(handleSoundCondition).toHaveBeenCalledWith('retard_continuous', true);
   });
 
-  it('reads the FLEX TEMP and the ADR SATs, and plays the RETARD voice with the auto callouts', () => {
-    expect(fwc).toContain("SimVar.GetSimVarValue('L:A32NX_AIRLINER_TO_FLEX_TEMP', 'number')");
-    expect(fwc).toContain("this.sub.on('a32nx_adr_static_air_temperature_1')");
-    expect(fwc).toContain('this.autoCallouts.retardAudio,\n      this.thrLeverAboveIdleRetardAudio,');
-  });
+  it('7700911 is the amber ENG SAT ABOVE FLEX TEMP caution with T.O DATA CHECK, raised by the FLEX TEMP and an ADR SAT', () => {
+    const { fwc, bus } = startCruiseFwc(simvars);
+    const item = failureItem(fwc, SAT_ABOVE_FLEX_TEMP_KEY);
+    expect(item.failure).toBe(2);
+    expect(item.flightPhaseInhib).toEqual(SAT_ABOVE_FLEX_TEMP_PHASE_INHIBITION);
+    expect(item.codesToReturn).toEqual(['770091101', '770091102']);
+    expect(formatEwdMessages(item.codesToReturn).map(plainText)).toEqual([
+      'ENG SAT ABOVE FLEX TEMP',
+      '-T.O DATA.........CHECK',
+    ]);
+    expect(isAlertTriggered(fwc, SAT_ABOVE_FLEX_TEMP_KEY)).toBe(false);
 
-  it('the new alert codes are used once', () => {
-    for (const code of ['7700901', '7700902', '7700911']) {
-      expect(fwc.split(`    ${code}: `).length - 1, code).toBe(1);
-    }
-    for (const code of ['770090101', '770090102', '770090201', '770090202', '770091101', '770091102']) {
-      expect(messages.split(`['${code}'`).length - 1, code).toBe(1);
-    }
+    simvars.set('L:A32NX_AIRLINER_TO_FLEX_TEMP', 25);
+    bus.getPublisher<any>().pub('a32nx_adr_static_air_temperature_1', normalWord(30), false, true);
+    runFwc(fwc, 1);
+    expect(isAlertTriggered(fwc, SAT_ABOVE_FLEX_TEMP_KEY)).toBe(true);
+
+    // ADR 1 loses its SAT: the SAT of ADR 2, the first ADR with a valid one, is used
+    bus.getPublisher<any>().pub('a32nx_adr_static_air_temperature_1', noComputedDataWord(), false, true);
+    bus.getPublisher<any>().pub('a32nx_adr_static_air_temperature_2', normalWord(30), false, true);
+    runFwc(fwc, 1);
+    expect(isAlertTriggered(fwc, SAT_ABOVE_FLEX_TEMP_KEY)).toBe(true);
+
+    // ... and it clears when that SAT is below the FLEX TEMP
+    bus.getPublisher<any>().pub('a32nx_adr_static_air_temperature_2', normalWord(10), false, true);
+    runFwc(fwc, 1);
+    expect(isAlertTriggered(fwc, SAT_ABOVE_FLEX_TEMP_KEY)).toBe(false);
   });
 });

@@ -1,13 +1,14 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DatalinkStatusCode } from '@datalink/common';
 import { formatEwdMessages } from '@shared/EwdMessages';
 import { formatStatusPage } from '@shared/StatusMessages';
 import { A320Failure } from '@failures';
+import type { RouterFmsMessages } from '@datalink/router';
+import { fwcModule, setActiveFailures } from '../FwcAlertProbe';
+import { createFwc, installFwcSimVarMocks, runFwc, setHealthyCruise } from '../PseudoFwcTestBed';
 import {
   COMPANY_DATALINK_STBY_MEMO_CODES,
   DATALINK_ATSU_FAULT_KEY,
@@ -21,6 +22,16 @@ import {
   datalinkAtsuFaultAlert,
   datalinkCompanyFaultAlert,
 } from './DatalinkAlerts';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
+
+/** The simvar values the real PseudoFWC reads (by name) */
+let simvars: Map<string, number>;
+
+beforeEach(() => {
+  ({ simvars } = installFwcSimVarMocks());
+});
 
 /** A failures consumer double: the registered failures and the active ones */
 class TestFailures implements DatalinkFailuresSource {
@@ -155,11 +166,29 @@ describe('DATALINK alerts and COMPANY DATALINK STBY memo', () => {
     expect(DATALINK_PHASE_INHIBITION.companyDatalinkStbyMemo).toEqual([3, 4, 5, 7, 8]);
   });
 
-  it('the PseudoFWC listens to the router, updates the alerts with the AC BUS 1 supply and shows them', () => {
-    const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
-    expect(fwc).toContain('this.datalinkAlerts.init(this.bus);');
-    expect(fwc).toContain('this.datalinkAlerts.update(this.ac1BusPoweredVar.get());');
-    expect(fwc).toContain('...this.datalinkAlerts.ewdFailures,');
-    expect(fwc).toContain('simVarIsActive: this.datalinkAlerts.companyDatalinkStby,');
+  it('the real PseudoFWC listens to the router, and raises the alerts with the AC BUS 1 supply', () => {
+    const { fwc, bus } = createFwc();
+    setHealthyCruise(bus, simvars);
+    const router = bus.getPublisher<RouterFmsMessages>();
+    const standbyMemo = fwc.ewdMessageMemos['0000553'];
+    const atsuFault = fwc.ewdMessageFailures[DATALINK_ATSU_FAULT_KEY];
+
+    router.pub('routerDatalinkStatus', vhfData, false, true);
+    runFwc(fwc, 1);
+    expect(standbyMemo.simVarIsActive.get()).toBe(false);
+
+    router.pub('routerDatalinkStatus', vhfVoice, false, true);
+    runFwc(fwc, 1);
+    expect(standbyMemo.simVarIsActive.get()).toBe(true);
+    expect(standbyMemo.codesToReturn).toEqual(COMPANY_DATALINK_STBY_MEMO_CODES);
+
+    simvars.set('L:A32NX_ELEC_AC_1_BUS_IS_POWERED', 0);
+    runFwc(fwc, 1);
+    expect(standbyMemo.simVarIsActive.get()).toBe(false);
+
+    simvars.set('L:A32NX_ELEC_AC_1_BUS_IS_POWERED', 1);
+    setActiveFailures(fwcModule(fwc, 'datalinkAlerts'), [A320Failure.Atsu]);
+    runFwc(fwc, 1);
+    expect(atsuFault.simVarIsActive.get()).toBe(true);
   });
 });

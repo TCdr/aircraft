@@ -1,9 +1,8 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { discreteWordWithBits, probedFailure, startCruiseFwc } from '../FwcControlsAlertProbe';
 import { formatStatusPage, orderStatusCodes } from '../../../../shared/src/StatusMessages';
 import { StatusLines } from './CondStatus';
 import {
@@ -22,6 +21,9 @@ import {
   secFaultStatus,
   spoilerFaultStatus,
 } from './FlightControlStatus';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
 
 /** The STATUS page of a set of active alerts, as the FWC builds it (codes merged, each shown once) */
 function page(...alerts: StatusLines[]) {
@@ -235,36 +237,45 @@ describe('F/CTL SEC and spoiler STATUS', () => {
 });
 
 describe('PseudoFWC STATUS wiring', () => {
-  const pseudoFwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf8');
-  const entry = (key: string) => {
-    const start = pseudoFwc.indexOf(`    ${key}: {`);
-    expect(start).toBeGreaterThan(0);
-    return pseudoFwc.slice(start, pseudoFwc.indexOf('\n    },', start));
-  };
+  const noSecFault = secFaultStatus(false, false, false);
 
   it.each([
-    ['2700110', 'FctlStatus.elacFaultStatus(1)'],
-    ['2700120', 'FctlStatus.elacFaultStatus(2)'],
-    ['2700210', 'this.secFaultStatus()'],
-    ['2700220', 'this.secFaultStatus()'],
-    ['2700230', 'this.secFaultStatus()'],
-    ['2700360', 'FctlStatus.fcdc12FaultStatus()'],
-    ['2700365', 'FctlStatus.directLawStatus()'],
-    ['2700375', 'this.altnLawStatus()'],
-    ['2700390', 'this.altnLawStatus()'],
-    ['2700400', 'FctlStatus.leftAndRightElevatorFaultStatus()'],
-    ['2701010', 'FctlStatus.elac12FaultStatus()'],
-    ['2701050', "FctlStatus.elevatorFaultStatus('L')"],
-    ['2701080', "FctlStatus.aileronFaultStatus('L')"],
-  ])('%s gives its STATUS (%s)', (key, status) => {
-    expect(entry(key)).toContain(`inopSys: () => ${status}.inopSys`);
-    expect(entry(key)).toContain(`statusInfo: () => ${status}.left`);
+    ['2700110', elacFaultStatus(1)],
+    ['2700120', elacFaultStatus(2)],
+    ['2700210', noSecFault],
+    ['2700220', noSecFault],
+    ['2700230', noSecFault],
+    ['2700360', fcdc12FaultStatus()],
+    ['2700365', directLawStatus()],
+    ['2700375', altnLawStatus(false, false, false)],
+    ['2700390', altnLawStatus(false, false, false)],
+    ['2700400', leftAndRightElevatorFaultStatus()],
+    ['2701010', elac12FaultStatus()],
+    ['2701050', elevatorFaultStatus('L')],
+    ['2701080', aileronFaultStatus('L')],
+  ])('%s gives its STATUS', (key, status) => {
+    const alert = probedFailure(startCruiseFwc().fwc, key);
+    expect(alert.inopSys?.()).toEqual(status.inopSys);
+    expect(alert.statusInfo?.()).toEqual(status.left);
   });
 
   it.each([
-    ['2700555', 'FctlStatus.fcdcFaultStatus(1)'],
-    ['2700557', 'FctlStatus.fcdcFaultStatus(2)'],
-  ])('%s gives its INOP SYS (%s)', (key, status) => {
-    expect(entry(key)).toContain(`inopSys: () => ${status}.inopSys`);
+    ['2700555', fcdcFaultStatus(1)],
+    ['2700557', fcdcFaultStatus(2)],
+  ])('%s gives its INOP SYS', (key, status) => {
+    expect(probedFailure(startCruiseFwc().fwc, key).inopSys?.()).toEqual(status.inopSys);
+  });
+
+  it('the SEC alerts list the SECs that the FCDC words report invalid', () => {
+    const rig = startCruiseFwc();
+    const SEC_1_INVALID_BIT = 25;
+    for (const fcdc of [1, 2]) {
+      rig.simvars.set(`L:A32NX_FCDC_${fcdc}_DISCRETE_WORD_1`, discreteWordWithBits(SEC_1_INVALID_BIT));
+    }
+    rig.run(5);
+    const alert = probedFailure(rig.fwc, '2700210');
+    expect(alert.simVarIsActive.get()).toBe(true);
+    expect(alert.inopSys?.()).toEqual(secFaultStatus(true, false, false).inopSys);
+    expect(alert.statusInfo?.()).toEqual(secFaultStatus(true, false, false).left);
   });
 });

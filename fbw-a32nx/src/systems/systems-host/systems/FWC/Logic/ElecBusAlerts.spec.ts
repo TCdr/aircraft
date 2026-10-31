@@ -1,9 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { formatStatusPage } from '../../../../shared/src/StatusMessages';
 import { EwdMessageCodeOrder, formatEwdMessages } from '../../../../shared/src/EwdMessages';
 import {
@@ -41,6 +39,19 @@ import {
   essBusesOnBatLines,
   trFaultStatus,
 } from './ElecBusAlerts';
+import { SdPages as EcamSysPage } from '../../../../shared/src/SdPages';
+import { isAlertTriggered, startCruiseFwc } from '../FwcAlertProbe';
+import { installFwcSimVarMocks, runFwc } from '../PseudoFwcTestBed';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
+
+/** The simvar values the real PseudoFWC reads (by name) */
+let simvars: Map<string, number>;
+
+beforeEach(() => {
+  ({ simvars } = installFwcSimVarMocks());
+});
 
 /** The normal network: generators on line, every bus powered, the AC ESS BUS on the AC BUS 1 */
 const normal: ElecNetworkState = {
@@ -322,13 +333,7 @@ describe('ELEC STATUS pages', () => {
   });
 });
 
-describe('PseudoFWC wiring of the ELEC bus alerts', () => {
-  const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
-  const block = (key: string) => {
-    const start = fwc.indexOf(`    ${key}: {`);
-    expect(start, key).toBeGreaterThan(0);
-    return fwc.slice(start, fwc.indexOf('\n    },', start));
-  };
+describe('the real PseudoFWC ELEC bus alerts', () => {
   const alerts: [string, ElecBusAlert, number][] = [
     ['2400110', 'dcEmerConfig', 2],
     ['2400113', 'essBusesOnBat', 2],
@@ -348,16 +353,33 @@ describe('PseudoFWC wiring of the ELEC bus alerts', () => {
   ];
 
   it('has every alert, amber on the ELEC page, driven by the monitor', () => {
+    const fwc = startCruiseFwc(simvars, undefined, 1).fwc;
+    const monitor = (fwc as any).elecBusAlerts.alerts as Record<ElecBusAlert, { set: (value: boolean) => void }>;
     for (const [key, alert, level] of alerts) {
-      expect(block(key)).toContain(`simVarIsActive: this.elecBusAlerts.alerts.${alert},`);
-      expect(block(key)).toContain(`failure: ${level},`);
-      expect(block(key)).toContain('sysPage: EcamSysPage.ELEC,');
+      const item = fwc.ewdMessageFailures[key];
+      expect(item.failure, key).toBe(level);
+      expect(item.sysPage, key).toBe(EcamSysPage.ELEC);
+      // only the item of this alert follows its subject of the monitor
+      monitor[alert].set(true);
+      const raised = alerts.filter(([otherKey]) => isAlertTriggered(fwc, otherKey)).map(([otherKey]) => otherKey);
+      expect(raised, alert).toEqual([key]);
+      monitor[alert].set(false);
     }
   });
 
+  it('raises DC BUS 1 FAULT from the powered state of the bus, after its confirm time', () => {
+    const fwc = startCruiseFwc(simvars).fwc;
+    expect(isAlertTriggered(fwc, '2400107')).toBe(false);
+    simvars.set('L:A32NX_ELEC_DC_1_BUS_IS_POWERED', 0);
+    runFwc(fwc, ELEC_BUS_ALERT_CONFIRM_SECONDS.dcBus1Fault + 1);
+    expect(isAlertTriggered(fwc, '2400107')).toBe(true);
+    expect(isAlertTriggered(fwc, '2400108')).toBe(false);
+  });
+
   it('has an E/WD text for every code of the alerts', () => {
+    const fwc = startCruiseFwc(simvars, undefined, 1).fwc;
     for (const [key] of alerts) {
-      const codes = [...block(key).matchAll(/'(24\d{7})'/g)].map((match) => match[1]);
+      const codes = fwc.ewdMessageFailures[key].codesToReturn;
       expect(codes.length, key).toBeGreaterThan(0);
       for (const code of codes) {
         expect(EwdMessageCodeOrder.has(code), code).toBe(true);
@@ -370,25 +392,35 @@ describe('PseudoFWC wiring of the ELEC bus alerts', () => {
   });
 
   it('gives the generator alerts their STATUS', () => {
-    for (const key of ['2400001', '2400060', '2400400']) {
-      expect(block(key)).toContain('engineGeneratorLostStatus(1, this.elecNetwork.apuGenOnline)');
+    const fwc = startCruiseFwc(simvars, undefined, 1).fwc;
+    const statusOf = (key: string) => {
+      const item = fwc.ewdMessageFailures[key];
+      return { left: item.statusInfo!(), inopSys: item.inopSys!() };
+    };
+    for (const apuGenOnline of [false, true]) {
+      simvars.set('L:A32NX_ELEC_CONTACTOR_3XS_IS_CLOSED', apuGenOnline ? 1 : 0);
+      runFwc(fwc, 1);
+      for (const key of ['2400001', '2400060', '2400400']) {
+        expect(statusOf(key), key).toEqual(engineGeneratorLostStatus(1, apuGenOnline));
+      }
+      for (const key of ['2400002', '2400070', '2400405']) {
+        expect(statusOf(key), key).toEqual(engineGeneratorLostStatus(2, apuGenOnline));
+      }
     }
-    for (const key of ['2400002', '2400070', '2400405']) {
-      expect(block(key)).toContain('engineGeneratorLostStatus(2, this.elecNetwork.apuGenOnline)');
-    }
-    expect(block('2400004')).toContain('apuGenFaultStatus(this.elecNetwork.onlyOneGenOperating)');
+    // the APU GEN FAULT STATUS depends on how many generators supply the network: GEN 1 and 2 on line, APU GEN off
+    expect(statusOf('2400004')).toEqual(apuGenFaultStatus(false));
+    simvars.set('L:A32NX_ELEC_CONTACTOR_9XU2_IS_CLOSED', 0);
+    simvars.set('L:A32NX_ELEC_CONTACTOR_3XS_IS_CLOSED', 0);
+    runFwc(fwc, 1);
+    expect(statusOf('2400004')).toEqual(apuGenFaultStatus(true));
   });
 
   it('calls LAND ASAP (amber) with DC EMER CONFIG and ESS BUSES ON BAT', () => {
-    expect(block("'0000360'").replace(/\s+/g, ' ')).toContain('reverse2Unlocked || elecBusLandAsap');
-    // with the LAND ASAP of VENT BLOWER FAULT + DC ESS BUS FAULT (Logic/VentilationAlerts)
-    expect(fwc).toContain('this.elecBusLandAsap.set(this.elecBusAlerts.landAsap || this.ventilationAlerts.landAsap);');
-  });
-
-  it('updates the monitor with the network and ELEC EMER CONFIG', () => {
-    expect(fwc).toContain(
-      'this.elecBusAlerts.update(this.elecNetwork.readNetwork(), this.elecEmergency.get(), deltaTime / 1000);',
-    );
+    const fwc = startCruiseFwc(simvars, undefined, 1).fwc;
+    const landAsap = fwc.ewdMessageMemos['0000360'];
+    expect(landAsap.simVarIsActive.get()).toBe(false);
+    (fwc as any).elecBusLandAsap.set(true);
+    expect(landAsap.simVarIsActive.get()).toBe(true);
   });
 });
 
@@ -426,12 +458,17 @@ describe('ELEC EMER CONFIG', () => {
     expect(elecEmerConfigFuelLines(false)).toEqual([null, null]);
   });
 
-  it('PseudoFWC gives the two lines and the STATUS to ELEC EMER CONFIG', () => {
-    const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
-    const item = fwc.slice(fwc.indexOf('    2400031: {'), fwc.indexOf('    2400600: {'));
-    expect(item).toContain('...elecEmerConfigFuelLines(!this.aircraftOnGround.get())');
-    expect(item).toContain('...alertStatus(elecEmerConfigStatus)');
-    expect(item).not.toContain('TODO: Check increased fuel consumpt');
+  it('the real PseudoFWC gives the two lines (on the ground too) and the STATUS to ELEC EMER CONFIG', () => {
+    const fwc = startCruiseFwc(simvars, undefined, 1).fwc;
+    const item = fwc.ewdMessageFailures['2400031'];
+    const members = fwc as any;
+    for (const onGround of [false, true]) {
+      members.aircraftOnGround.set(onGround);
+      const fuelLines = elecEmerConfigFuelLines(!onGround);
+      expect(item.whichCodeToReturn().slice(-fuelLines.length)).toEqual(fuelLines);
+    }
+    const status = elecEmerConfigStatus();
+    expect({ left: item.statusInfo!(), inopSys: item.inopSys!() }).toEqual(status);
   });
 
   it('STATUS in the aircraft order', () => {

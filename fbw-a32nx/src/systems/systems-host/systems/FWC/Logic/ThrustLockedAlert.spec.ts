@@ -1,9 +1,14 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { THRUST_LOCKED_KEY, THRUST_LOCKED_PHASE_INHIBITION, ThrustLockedAlert } from './ThrustLockedAlert';
-import { ewdLines, ewdTexts, pseudoFwcSource } from './FwcAlertSpecHelpers';
+import { ewdLines, ewdTexts } from './FwcAlertSpecHelpers';
+import { installFwcSimVarMocks, normalWord, runFwc } from '../PseudoFwcTestBed';
+import { isAlertTriggered, shownText, startCruiseFwc } from '../FwcAlertProbe';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
 
 /** Runs the alert for some seconds in 0.25 s steps, returns the times of the repeated attention getters */
 function run(alert: ThrustLockedAlert, thrustLocked: boolean, seconds: number): number[] {
@@ -44,11 +49,31 @@ describe('ENG THRUST LOCKED', () => {
     expect(item.failure).toBe(2);
     expect(THRUST_LOCKED_PHASE_INHIBITION).toEqual([1, 2, 3, 4, 8, 9, 10]);
   });
+});
 
-  it('is wired in the PseudoFWC: the alert, its input and the repeated attention getters', () => {
-    const fwc = pseudoFwcSource();
-    expect(fwc).toContain('...this.thrustLockedAlert.ewdFailures');
-    expect(fwc).toContain('this.thrustLockedAlert.update(this.thrLocked.get()');
-    expect(fwc).toContain('this.thrustLockedAlert.repeatAttentionGetters');
+describe('the real FWC: ENG THRUST LOCKED', () => {
+  const THRUST_LOCKED_ECU_BIT = 1 << 11;
+  let simvars: Map<string, number>;
+
+  beforeEach(() => {
+    ({ simvars } = installFwcSimVarMocks());
+  });
+
+  it.each([1, 2])('is raised by the thrust lock bit of ECU %i and repeats the MASTER CAUTION every 5 s', (ecu) => {
+    const { fwc } = startCruiseFwc(simvars);
+    expect(isAlertTriggered(fwc, THRUST_LOCKED_KEY)).toBe(false);
+
+    simvars.set(`L:A32NX_ECU_${ecu}_MAINTENANCE_WORD_6`, normalWord(THRUST_LOCKED_ECU_BIT));
+    runFwc(fwc, 5.5);
+    expect(isAlertTriggered(fwc, THRUST_LOCKED_KEY)).toBe(true);
+    expect(shownText(fwc, THRUST_LOCKED_KEY)).toEqual(['ENG THRUST LOCKED', '-THR LEVERS........MOVE']);
+    expect((fwc as any).masterCaution.get()).toBe(true);
+
+    // the crew pushed the MASTER CAUTION light: it comes on again by itself
+    (fwc as any).requestMasterCautionFromFaults = false;
+    runFwc(fwc, 1);
+    expect((fwc as any).masterCaution.get()).toBe(false);
+    runFwc(fwc, 5);
+    expect((fwc as any).masterCaution.get()).toBe(true);
   });
 });
