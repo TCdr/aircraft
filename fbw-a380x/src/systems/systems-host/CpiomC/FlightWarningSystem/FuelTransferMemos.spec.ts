@@ -1,20 +1,11 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { FuelTransferMemoInputs, fuelTransferMemos, TankOutflowMonitor } from './FuelTransferMemos';
+import { createFws } from './FwsSpecFixture';
 
-/* The wiring is read from the source text, as FwsAbnormalSensedItems.spec.ts does (EcamMessages import cycle). */
-const memos = readFileSync(resolve(__dirname, 'FwsMemos.ts'), 'utf-8');
-
-/** The source of one memo entry, from its id to the end of its object */
-function memoBlock(id: string): string {
-  const start = memos.indexOf(`    ${id}: {`);
-  expect(start).toBeGreaterThan(0);
-  return memos.slice(start, memos.indexOf('\n    },', start));
-}
+const { core } = createFws();
 
 const steady: FuelTransferMemoInputs = {
   trimTankOutflow: false,
@@ -84,15 +75,18 @@ describe('fuel transfer memos', () => {
   });
 
   it.each([
-    ['280000004', 'fwdXfrInProgress', '[]'],
-    ['280000007', 'outerTankXfrInProgress', '[]'],
-    ['280000008', 'outerTanksXfrd', '[1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12]'],
-    ['280000012', 'trimTankXfrd', '[1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12]'],
-    ['280000005', 'gndXfrInProgress', '[3, 4, 5, 6, 7, 8, 9, 10]'],
-  ])('memo %s is wired to %s with the flight phase inhibition %s', (id, subject, phases) => {
-    const block = memoBlock(id);
-    expect(block).toContain(`simVarIsActive: this.fws.${subject},`);
-    expect(block).toContain(`flightPhaseInhib: ${phases},`);
-    expect(block).toContain(`codesToReturn: ['${id}'],`);
-  });
+    ['280000004', 'fwdXfrInProgress', []],
+    ['280000007', 'outerTankXfrInProgress', []],
+    ['280000008', 'outerTanksXfrd', [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12]],
+    ['280000012', 'trimTankXfrd', [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12]],
+    ['280000005', 'gndXfrInProgress', [3, 4, 5, 6, 7, 8, 9, 10]],
+  ] as [string, keyof typeof core, number[]][])(
+    'memo %s is wired to %s with the flight phase inhibition %j',
+    (id, subject, phases) => {
+      const memo = core.memos.ewdMemos[id];
+      expect(memo.simVarIsActive).toBe(core[subject]);
+      expect(memo.flightPhaseInhib).toEqual(phases);
+      expect(memo.codesToReturn).toEqual([id]);
+    },
+  );
 });

@@ -1,8 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { SdPages } from '@shared/EcamSystemPages';
 import { describe, expect, it } from 'vitest';
 import { FadecEngineState } from './EngineFailAlerts';
 import {
@@ -14,6 +13,8 @@ import {
   isThrustLeversNotSet,
   thrLeversNotSetItemsShown,
 } from './EngineTakeoffAlerts';
+import { EcamAbnormalProcedures } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { createFws, runFwsCycle } from './FwsSpecFixture';
 
 const coldRunning: OilTemperatureLowInputs = {
   onGround: true,
@@ -126,59 +127,59 @@ describe('ENG THR LEVERS NOT SET', () => {
   });
 });
 
-/* The alerts in the FWS, read from the source text (see EngineFuelFilterAlerts.spec.ts) */
 describe('FWS take-off engine alerts', () => {
-  const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8').replace(/\r\n/g, '\n');
-  const core = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8').replace(/\r\n/g, '\n');
-  const ata70 = readFileSync(
-    resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata70.ts'),
-    'utf-8',
-  ).replace(/\r\n/g, '\n');
-
-  /** The source of one entry, from its id to the end of its object, at the indentation of its table */
-  function block(source: string, id: number): string {
-    const indent = source === abnormalSensed ? '    ' : '  ';
-    const start = source.indexOf(`\n${indent}${id}: {`);
-    expect(start, `alert ${id}`).toBeGreaterThan(0);
-    return source.slice(start, source.indexOf(`\n${indent}},`, start));
-  }
+  const { core, simVars } = createFws();
+  const sensed = (id: number) => core.abnormalSensed.ewdAbnormalSensed[id];
 
   it.each([1, 2, 3, 4])('ENG %d OIL TEMP LO: amber, ENGINE SD page, THR LEVER IDLE and DELAY T.O', (engine) => {
     const id = 701800097 + engine - 1;
-    const alert = block(abnormalSensed, id);
-    expect(alert).toContain(`simVarIsActive: this.fws.engineOilTempLo[${engine - 1}],`);
-    expect(alert).toContain('flightPhaseInhib: OIL_TEMP_LO_PHASE_INHIBITION,');
-    expect(alert).toContain(`whichItemsChecked: () => [this.fws.thrustLever${engine}Idle.get(), false],`);
-    expect(alert).toContain('failure: 2,');
-    expect(alert).toContain('sysPage: SdPages.Eng,');
-    const message = block(ata70, id);
-    expect(message).toContain(`{ name: 'THR LEVER ${engine}', sensed: true, labelNotCompleted: 'IDLE' },`);
-    expect(message).toContain("{ name: 'DELAY T.O FOR WARM UP', sensed: false },");
+    const entry = sensed(id);
+    expect(entry.simVarIsActive).toBe(core.engineOilTempLo[engine - 1]);
+    expect(entry.flightPhaseInhib).toEqual(OIL_TEMP_LO_PHASE_INHIBITION);
+    expect(entry.whichItemsChecked()).toEqual([(core as any)[`thrustLever${engine}Idle`].get(), false]);
+    expect(entry.failure).toBe(2);
+    expect(entry.sysPage).toBe(SdPages.Eng);
+    const items = EcamAbnormalProcedures[id].items;
+    expect(items).toContainEqual({ name: `THR LEVER ${engine}`, sensed: true, labelNotCompleted: 'IDLE' });
+    expect(items).toContainEqual({ name: 'DELAY T.O FOR WARM UP', sensed: false });
   });
 
   it('ENG THR LEVERS NOT SET: amber, TOGA or MCT/FLEX line', () => {
-    const alert = block(abnormalSensed, 701800157);
-    expect(alert).toContain('simVarIsActive: this.fws.thrustLeverNotSet,');
-    expect(alert).toContain('flightPhaseInhib: THR_LEVERS_NOT_SET_PHASE_INHIBITION,');
+    const entry = sensed(701800157);
+    expect(entry.simVarIsActive).toBe(core.thrustLeverNotSet);
+    expect(entry.flightPhaseInhib).toEqual(THR_LEVERS_NOT_SET_PHASE_INHIBITION);
+    expect(entry.failure).toBe(2);
     // the MCT/FLEX line for a FLEX or a derated takeoff
-    expect(alert.replace(/\s+/g, ' ')).toContain(
-      'whichItemsToShow: () => thrLeversNotSetItemsShown(this.fws.flexTakeoffMode.get() || this.fws.derateTakeoffMode.get()),',
-    );
-    expect(alert).toContain('failure: 2,');
-    const message = block(ata70, 701800157);
-    expect(message).toContain("{ name: 'ALL THR LEVERS', sensed: true, labelNotCompleted: 'TOGA' },");
-    expect(message).toContain("{ name: 'THR LEVERS', sensed: true, labelNotCompleted: 'MCT/FLEX' },");
+    core.flexTakeoffMode.set(false);
+    core.derateTakeoffMode.set(false);
+    expect(entry.whichItemsToShow()).toEqual(thrLeversNotSetItemsShown(false));
+    core.derateTakeoffMode.set(true);
+    expect(entry.whichItemsToShow()).toEqual(thrLeversNotSetItemsShown(true));
+    core.derateTakeoffMode.set(false);
+    core.flexTakeoffMode.set(true);
+    expect(entry.whichItemsToShow()).toEqual(thrLeversNotSetItemsShown(true));
+    const items = EcamAbnormalProcedures[701800157].items;
+    expect(items).toContainEqual({ name: 'ALL THR LEVERS', sensed: true, labelNotCompleted: 'TOGA' });
+    expect(items).toContainEqual({ name: 'THR LEVERS', sensed: true, labelNotCompleted: 'MCT/FLEX' });
   });
 
-  it('FwsCore computes the alerts from the FADEC oil temperature, the levers and the FLEX TEMP', () => {
-    expect(core).toContain('this.engineOilTempLo[index].set(this.oilTemperatureLowMonitors[index].isActive);');
-    expect(core).toContain('this.thrustLeverNotSet.set(\n      isThrustLeversNotSet({');
-    expect(core).toContain("SimVar.GetSimVarValue('L:A32NX_AIRLINER_TO_FLEX_TEMP', 'number'),");
+  it('computes THR LEVERS NOT SET from the engine states, the levers and the derate setting', () => {
+    for (const engine of [1, 2, 3, 4]) {
+      simVars.set(`L:A32NX_ENGINE_STATE:${engine}`, FadecEngineState.On);
+      simVars.set(`L:A32NX_AUTOTHRUST_TLA:${engine}`, 35);
+    }
+    simVars.set('L:A32NX_AIRLINER_TO_DERATE', 1);
+    runFwsCycle(core);
+    expect(core.thrustLeverNotSet.get()).toBe(false);
+    // a derated takeoff does not allow TOGA
+    simVars.set('L:A32NX_AUTOTHRUST_TLA:3', 45);
+    runFwsCycle(core);
+    expect(core.thrustLeverNotSet.get()).toBe(true);
   });
 
   it('each alert id is defined once', () => {
     for (const id of [701800097, 701800098, 701800099, 701800100, 701800157]) {
-      expect(abnormalSensed.split(`\n    ${id}: {`).length - 1, `${id}`).toBe(1);
+      expect(sensed(id), `${id}`).toBeDefined();
     }
   });
 });

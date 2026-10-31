@@ -4,57 +4,55 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
+import { EcamAbnormalProcedures } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { feedTankLevelLoTransferLines } from './FwsFuelTankAlerts';
+import { createFws } from './FwsSpecFixture';
 
 /*
- * The wiring of the FUEL alerts, read from the source text (as FwsAbnormalSensedItems.spec.ts:
- * importing the EcamMessages tables in a test fails on a circular import).
+ * The SystemsHost and the FUEL SD page cannot be built in a test (they need the sim), so the last two tests read their
+ * source text.
  */
 const read = (path: string) => readFileSync(resolve(__dirname, path), 'utf-8');
-const abnormalSensed = read('FwsAbnormalSensed.ts');
-const ata28 = read('../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata28.ts');
 const systemsHost = read('../../SystemsHost.ts');
 const fuelPage = read('../../../instruments/src/SD/Pages/FuelPage.tsx');
-
-/** The source of one alert entry of FwsAbnormalSensed, from its id to the end of its object */
-function alertBlock(id: string): string {
-  const start = abnormalSensed.indexOf(`    ${id}: {`);
-  expect(start).toBeGreaterThan(0);
-  return abnormalSensed.slice(start, abnormalSensed.indexOf('\n    },', start));
-}
-
-/** The number of items of an ata28 procedure written as an item list */
-function ata28ItemCount(id: string): number {
-  const start = ata28.indexOf(`  ${id}: {`);
-  expect(start).toBeGreaterThan(0);
-  const block = ata28.slice(start, ata28.indexOf('\n  },', start));
-  return (block.match(/\{ name: /g) ?? []).length;
-}
 
 describe('FUEL CG, weight and tank alert wiring', () => {
   it.each(['281800023', '281800024', '281800025', '281800026', '281800102', '281800103'])(
     '%s FEED TK(s) LEVEL LO shows and ticks the TRIM TK FEED and XFR lines',
     (id) => {
-      const block = alertBlock(id);
-      expect(block).toContain('...this.feedTankLevelLoTransferLines().show');
-      expect(block).toContain('...this.feedTankLevelLoTransferLines().checked');
+      const { core } = createFws();
+      const alert = core.abnormalSensed.ewdAbnormalSensed[id];
+      const transferLines = feedTankLevelLoTransferLines(
+        core.feedTankLevelLoTransferInputs,
+        core.fuelTankProcedureInputs,
+      );
+      expect(alert.whichItemsToShow().slice(-transferLines.show.length)).toEqual(transferLines.show);
+      expect(alert.whichItemsChecked().slice(-transferLines.checked.length)).toEqual(transferLines.checked);
     },
   );
 
   it('the CG, weight, collector cell, temperature and MAN XFR COMPLETED alerts are in the abnormal sensed list', () => {
-    expect(abnormalSensed).toContain('...this.fuelCgAndTankAlerts(),');
-    for (const id of ['281800007', '281800008', '281800009', '281800022', '281800096', '281800086']) {
-      expect(abnormalSensed).toContain(`      ${id}: {`);
+    const { core } = createFws();
+    const alerts = core.abnormalSensed.ewdAbnormalSensed;
+    expect(alerts['281800007'].simVarIsActive).toBe(core.fuelCgAtFwdLimit);
+    expect(alerts['281800008'].simVarIsActive).toBe(core.fuelCgDataDisagree);
+    expect(alerts['281800009'].simVarIsActive).toBe(core.fuelCgOutOfRange);
+    expect(alerts['281800022'].simVarIsActive).toBe(core.fuelExcessAftCg);
+    expect(alerts['281800096'].simVarIsActive).toBe(core.fuelWeightDataDisagree);
+    expect(alerts['281800086'].simVarIsActive).toBe(core.fuelTempLo);
+    for (let index = 0; index < 4; index++) {
+      expect(alerts[281800010 + index].simVarIsActive).toBe(core.fuelCollectorCellNotFull[index]);
+      expect(alerts[281800039 + index].simVarIsActive).toBe(core.fuelFeedTankTempHi[index]);
     }
-    expect(abnormalSensed).toContain('alerts[281800010 + cell]');
-    expect(abnormalSensed).toContain('alerts[281800039 + tank]');
-    for (const id of ['281800050', '281800075', '281800080', '281800092']) {
-      expect(abnormalSensed).toContain(`[${id}, '`);
-    }
+    expect(alerts['281800050'].simVarIsActive).toBe(core.fuelInnerTankManXfrCompleted);
+    expect(alerts['281800075'].simVarIsActive).toBe(core.fuelMidTankManXfrCompleted);
+    expect(alerts['281800080'].simVarIsActive).toBe(core.fuelOuterTankManXfrCompleted);
+    expect(alerts['281800092'].simVarIsActive).toBe(core.fuelTrimTankManXfrCompleted);
   });
 
   it('FUEL EXCESS AFT CG is a master warning', () => {
-    const block = abnormalSensed.slice(abnormalSensed.indexOf('      281800022: {'));
-    expect(block.slice(0, block.indexOf('\n      },'))).toContain('failure: 3,');
+    const { core } = createFws();
+    expect(core.abnormalSensed.ewdAbnormalSensed['281800022'].failure).toBe(3);
   });
 
   it.each([
@@ -68,14 +66,22 @@ describe('FUEL CG, weight and tank alert wiring', () => {
     ['281800086', 8],
     ['281800092', 2],
     ['281800096', 7],
-  ])('ata28 %s has the %i items that its lines function gives', (id, count) => {
-    expect(ata28ItemCount(id)).toBe(count);
+  ])('ECAM procedure %s has the %i items that its lines function gives', (id, count) => {
+    const { core } = createFws();
+    const alert = core.abnormalSensed.ewdAbnormalSensed[id];
+    expect(EcamAbnormalProcedures[id].items).toHaveLength(count);
+    expect(alert.whichItemsToShow()).toHaveLength(count);
+    expect(alert.whichItemsChecked()).toHaveLength(count);
   });
 
   it('the collector cell and TEMP HI procedures are built for each tank', () => {
-    for (let cell = 1; cell <= 4; cell++) {
-      expect(ata28).toContain(`items: collectorCellNotFullItems(${cell}),`);
-      expect(ata28).toContain(`items: feedTankTempHiItems(${cell}),`);
+    const { core } = createFws();
+    for (let index = 0; index < 4; index++) {
+      for (const id of [281800010 + index, 281800039 + index]) {
+        const alert = core.abnormalSensed.ewdAbnormalSensed[id];
+        expect(EcamAbnormalProcedures[id].items.length, `${id}`).toBeGreaterThan(0);
+        expect(alert.whichItemsToShow(), `${id}`).toHaveLength(EcamAbnormalProcedures[id].items.length);
+      }
     }
   });
 

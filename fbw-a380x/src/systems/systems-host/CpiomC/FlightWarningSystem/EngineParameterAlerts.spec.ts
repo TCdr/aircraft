@@ -1,8 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { SdPages } from '@shared/EcamSystemPages';
 import { describe, expect, it } from 'vitest';
 import {
   ENG_OVER_LIMIT_ITEMS_SHOWN,
@@ -13,6 +12,8 @@ import {
   isN1N2OverLimit,
   isStallAlertShown,
 } from './EngineParameterAlerts';
+import { EcamAbnormalProcedures } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { createFws, runFwsCycle } from './FwsSpecFixture';
 
 const climb: EngineOverLimitInputs = {
   displayedEgtDegrees: 800,
@@ -69,12 +70,6 @@ describe('ENG EGT OVER LIMIT', () => {
     expect(isEgtOverLimit({ ...climb, alphaFloor: true, displayedEgtDegrees: 1002 })).toBe(true);
     expect(isEgtOverLimit({ ...climb, thrustLimitType: 4, alphaFloor: true, displayedEgtDegrees: 1002 })).toBe(true);
   });
-
-  it('FwsCore counts the time at or above the red line of each engine on the EGT the EWD shows', () => {
-    const core = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
-    expect(core).toContain('this.egtRedLineTimers[index].update(displayedEgtDegrees, deltaTime / 1000);');
-    expect(core).toContain('secondsAtOrAboveRedLine: this.egtRedLineTimers[index].secondsAtOrAboveRedLine,');
-  });
 });
 
 /* With ENG FADEC FAULT, ENG EGT OVER LIMIT does not trigger on an EGT exceedance */
@@ -83,18 +78,6 @@ describe('ENG EGT OVER LIMIT with ENG FADEC FAULT', () => {
     expect(isEgtOverLimitAlertTriggered(true, false)).toBe(true);
     expect(isEgtOverLimitAlertTriggered(true, true)).toBe(false);
     expect(isEgtOverLimitAlertTriggered(false, false)).toBe(false);
-  });
-
-  it('FwsCore gates the alert with the FADEC FAULT of the same engine, the EWD attention box keeps the exceedance', () => {
-    const core = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
-    expect(core).toContain(
-      'this.engEgtOverLimit[index].set(isEgtOverLimitAlertTriggered(egtExceeded[index], this.fadecFault[index].get()));',
-    );
-    expect(core).toContain('primaryAbnormal.get() || egtExceeded[index] ||');
-    // the FADEC FAULT is read before the EGT alert in the same update
-    expect(core.indexOf('this.fadecFault[engineIndex].set(fadecFault);')).toBeLessThan(
-      core.indexOf('isEgtOverLimitAlertTriggered(egtExceeded'),
-    );
   });
 });
 
@@ -106,45 +89,89 @@ describe('ENG N1/N2 OVER LIMIT', () => {
   });
 });
 
-/* The alert entries, read from the source text (importing the EcamMessages tables in a test fails on a circular import) */
-const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-const ata70 = readFileSync(
-  resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata70.ts'),
-  'utf-8',
-);
-
-/** The source of one entry, from its id to the end of its object (entries of ata70.ts at 2 spaces, of FwsAbnormalSensed at 4) */
-function block(source: string, id: number): string {
-  const indent = source === ata70 ? '  ' : '    ';
-  const start = source.indexOf(`\n${indent}${id}: {`);
-  expect(start).toBeGreaterThan(0);
-  return source.slice(start, source.indexOf(`\n${indent}},`, start));
-}
-
 describe('the ENG STALL, EGT OVER LIMIT and N1/N2 OVER LIMIT alerts of the four engines', () => {
-  it.each([0, 1, 2, 3])('engine %i: inhibition, level and number of items', (index) => {
-    const stall = block(abnormalSensed, 701800113 + index);
-    expect(stall).toContain(`this.fws.engStall[${index}]`);
-    expect(stall).toContain('flightPhaseInhib: [],');
-    expect(stall).toContain('failure: 2,');
-    const egt = block(abnormalSensed, 701800009 + index);
-    expect(egt).toContain(`this.fws.engEgtOverLimit[${index}]`);
-    expect(egt).toContain('flightPhaseInhib: [4, 5, 6],');
-    expect(egt).toContain('failure: 2,');
-    const n1n2 = block(abnormalSensed, 701800073 + index);
-    expect(n1n2).toContain(`this.fws.engN1N2OverLimit[${index}]`);
-    expect(n1n2).toContain('flightPhaseInhib: [5, 6],');
-    expect(n1n2).toContain('failure: 3,');
-    // Audio and Master Light only, no SD page; STALL has the ENGINE page
-    expect(egt).toContain('sysPage: SdPages.None');
-    expect(n1n2).toContain('sysPage: SdPages.None');
-    expect(stall).toContain('sysPage: SdPages.Eng');
+  const { core } = createFws();
+  const sensed = (id: number) => core.abnormalSensed.ewdAbnormalSensed[id];
+  const itemCount = (id: number) => EcamAbnormalProcedures[id].items.length;
 
-    const itemCount = (id: number) => (block(ata70, id).match(/\{ name:/g) ?? []).length;
+  it.each([0, 1, 2, 3])('engine %i: inhibition, level and number of items', (index) => {
+    const stall = sensed(701800113 + index);
+    expect(stall.simVarIsActive).toBe(core.engStall[index]);
+    expect(stall.flightPhaseInhib).toEqual([]);
+    expect(stall.failure).toBe(2);
+    const egt = sensed(701800009 + index);
+    expect(egt.simVarIsActive).toBe(core.engEgtOverLimit[index]);
+    expect(egt.flightPhaseInhib).toEqual([4, 5, 6]);
+    expect(egt.failure).toBe(2);
+    const n1n2 = sensed(701800073 + index);
+    expect(n1n2.simVarIsActive).toBe(core.engN1N2OverLimit[index]);
+    expect(n1n2.flightPhaseInhib).toEqual([5, 6]);
+    expect(n1n2.failure).toBe(3);
+    // Audio and Master Light only, no SD page; STALL has the ENGINE page
+    expect(egt.sysPage).toBe(SdPages.None);
+    expect(n1n2.sysPage).toBe(SdPages.None);
+    expect(stall.sysPage).toBe(SdPages.Eng);
+
     expect(itemCount(701800113 + index)).toBe(ENG_STALL_ITEMS_SHOWN.length);
     expect(itemCount(701800009 + index)).toBe(ENG_OVER_LIMIT_ITEMS_SHOWN.length);
     expect(itemCount(701800073 + index)).toBe(ENG_OVER_LIMIT_ITEMS_SHOWN.length);
+    expect(stall.whichItemsToShow()).toEqual(ENG_STALL_ITEMS_SHOWN);
+    expect(egt.whichItemsToShow()).toEqual(ENG_OVER_LIMIT_ITEMS_SHOWN);
+    expect(n1n2.whichItemsToShow()).toEqual(ENG_OVER_LIMIT_ITEMS_SHOWN);
     // N1/N2 OVER LIMIT is a red warning
-    expect(block(ata70, 701800073 + index)).toContain("title: '\\x1b<2m");
+    expect(EcamAbnormalProcedures[701800073 + index].title.startsWith('\x1b<2m')).toBe(true);
+  });
+});
+
+describe('the engine parameter alerts driven through the FWS', () => {
+  const runningEngine1 = () => {
+    const fixture = createFws();
+    fixture.core.bus.getPublisher<any>().pub('engine_master_1', true, true);
+    fixture.simVars.set('L:A32NX_ENGINE_STATE:1', 1);
+    // CLB thrust limit
+    fixture.simVars.set('L:A32NX_AUTOTHRUST_THRUST_LIMIT_TYPE', 1);
+    return fixture;
+  };
+
+  it('raises ENG STALL from the stall simvar of the engine', () => {
+    const { core, simVars } = runningEngine1();
+    simVars.set('L:A32NX_ENGINE_1_STALL', 1);
+    runFwsCycle(core);
+    expect(core.engStall.map((alert) => alert.get())).toEqual([true, false, false, false]);
+  });
+
+  it('raises ENG EGT OVER LIMIT from the EGT the EWD shows', () => {
+    const { core, simVars } = runningEngine1();
+    simVars.set('L:A32NX_ENGINE_EGT:1', 971);
+    runFwsCycle(core);
+    expect(core.engEgtOverLimit.map((alert) => alert.get())).toEqual([true, false, false, false]);
+  });
+
+  it('counts the time at or above the red line of each engine on the EGT the EWD shows', () => {
+    const { core, simVars } = runningEngine1();
+    // TOGA: 1 002 °C only counts once held for more than 20 s
+    simVars.set('L:A32NX_AUTOTHRUST_THRUST_LIMIT_TYPE', 4);
+    simVars.set('L:A32NX_ENGINE_EGT:1', 1010);
+    runFwsCycle(core, 10_000);
+    expect(core.engEgtOverLimit[0].get()).toBe(false);
+    runFwsCycle(core, 11_000);
+    expect(core.engEgtOverLimit[0].get()).toBe(true);
+  });
+
+  it('does not raise ENG EGT OVER LIMIT with the FADEC FAULT of the engine, the EWD attention box keeps the exceedance', () => {
+    const { core, simVars } = runningEngine1();
+    simVars.set('L:A32NX_ENGINE_EGT:1', 971);
+    simVars.set('L:A32NX_ENGINE_1_FADEC_FAULT', 1);
+    runFwsCycle(core);
+    expect(core.fadecFault[0].get()).toBe(true);
+    expect(core.engEgtOverLimit[0].get()).toBe(false);
+    expect(core.eng1PrimaryAbnormalParams.get()).toBe(true);
+  });
+
+  it('raises ENG N1/N2 OVER LIMIT above the red limit', () => {
+    const { core, simVars } = runningEngine1();
+    simVars.set('L:A32NX_ENGINE_N3:1', 119);
+    runFwsCycle(core);
+    expect(core.engN1N2OverLimit.map((alert) => alert.get())).toEqual([true, false, false, false]);
   });
 });

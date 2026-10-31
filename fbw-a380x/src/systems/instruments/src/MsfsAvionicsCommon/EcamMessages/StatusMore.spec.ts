@@ -1,10 +1,9 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { isStatusMoreAvailable } from '@shared/EcamSdMore';
+import { EcamAbnormalProcedures } from './index';
 import type { AbnormalProcedure } from './index';
 import {
   alertsImpactingLandingPerformance,
@@ -13,10 +12,7 @@ import {
   procedureImpactsLandingPerformance,
 } from './StatusMore';
 
-/*
- * The EcamMessages tables are not imported (an import cycle breaks them in a test, see FwsAbnormalSensedItems.spec.ts):
- * the procedures here are made up, and the real procedure lines are read from the source text.
- */
+/* The procedures here are made up; the real ones are checked in the tests that say so. */
 
 function procedure(...names: string[]): AbnormalProcedure {
   return { title: 'TEST', sensed: true, items: names.map((name) => ({ name, sensed: false })) };
@@ -50,9 +46,8 @@ describe('STATUS MORE: ALERTS IMPACTING LDG PERF', () => {
   });
 
   it('matches the landing performance lines of the real procedures', () => {
-    const ata80 = readFileSync(resolve(__dirname, 'AbnormalSensed/ata80-rest.ts'), 'utf-8');
-    const overweight = ata80.slice(ata80.indexOf('990900009: {'), ata80.indexOf('990900009: {') + 400);
-    expect(overweight).toContain("name: 'LDG DIST AFFECTED'");
+    expect(procedureImpactsLandingPerformance(EcamAbnormalProcedures['990900009'])).toBe(true);
+    expect(procedureImpactsLandingPerformance(EcamAbnormalProcedures['990900008'])).toBe(false);
   });
 });
 
@@ -62,8 +57,8 @@ describe('STATUS MORE: MORE INFO', () => {
       'IF CAPT + F/O OITs AFFECTED, CONSIDER NSS FLT OPS RESET PROCEDURE.',
     );
     expect(alertsWithMoreInfo(['990900009', '990900008', '990900008'])).toEqual(['990900008']);
-    const ata80 = readFileSync(resolve(__dirname, 'AbnormalSensed/ata80-rest.ts'), 'utf-8');
-    expect(ata80).toMatch(/990900008: \{\s*\/\/ The MORE INFO line of this procedure is in StatusMore\.ts/);
+    // The MORE INFO line is not an item of the procedure: it comes from EcamMoreInfo only
+    expect(EcamAbnormalProcedures['990900008'].items.some((item) => /MORE INFO/.test(item.name))).toBe(false);
   });
 });
 

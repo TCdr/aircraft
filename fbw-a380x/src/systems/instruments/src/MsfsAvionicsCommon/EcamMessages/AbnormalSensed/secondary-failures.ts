@@ -1,7 +1,7 @@
 ﻿// Copyright (c) 2024 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { AbnormalProcedure } from '..';
+import { AbnormalProcedure } from '../EcamProcedureTypes';
 
 // Convention for IDs:
 // First two digits: ATA chapter

@@ -1,10 +1,9 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import {
+  APU_FAULT_INOP_SYS,
   APU_FAULT_PHASE_INHIBITION,
   APU_MACH_LIMIT_PHASE_INHIBITION,
   APU_OIL_FILTER_CLOGGED_PHASE_INHIBITION,
@@ -17,13 +16,16 @@ import {
   isApuOilFilterClogged,
 } from './ApuFaultAlerts';
 
-/* The wiring is read from the source text, as FwsAbnormalSensedItems.spec.ts does (EcamMessages import cycle). */
-const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-const messagesDir = '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
-const ata49 = readFileSync(resolve(__dirname, messagesDir, 'AbnormalSensed/ata46-49-52-56.ts'), 'utf-8');
-const messageIndex = readFileSync(resolve(__dirname, messagesDir, 'index.ts'), 'utf-8');
-const fwsCore = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
-const failures = readFileSync(resolve(__dirname, '../../../failures/src/a380.ts'), 'utf-8');
+import { EcamAbnormalProcedures, EcamInopSys } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { A380Failure, A380FailureDefinitions } from '../../../failures/src/a380';
+import { SdPages } from '@shared/EcamSystemPages';
+import { createFws, FwsFixture } from './FwsSpecFixture';
+
+let fixture: FwsFixture;
+beforeAll(() => {
+  fixture = createFws();
+});
+const alert = (id: string) => fixture.core.abnormalSensed.ewdAbnormalSensed[id];
 
 const none: ApuFaultInputs = { emergencyShutdown: false, autoShutdown: false, apuFireWarning: false };
 
@@ -68,24 +70,15 @@ describe('APU FAULT', () => {
   });
 
   it('has a message with 8 lines, an INOP SYS APU and is wired', () => {
-    const start = ata49.indexOf('  490800001: {');
-    expect(start).toBeGreaterThan(0);
-    const procedure = ata49.slice(start, ata49.indexOf('\n  },', start));
-    expect(procedure).toContain("title: '\\x1b<4m\\x1b4mAPU\\x1bm FAULT',");
-    expect(procedure.match(/\{ name: '/g)).toHaveLength(apuFaultItemsChecked(true).length);
-    expect(messageIndex).toContain("490300001: '\\x1b<4mAPU',");
-    const entry = abnormalSensed.slice(abnormalSensed.indexOf('    490800001: {'));
-    expect(entry).toContain('simVarIsActive: this.fws.apuFault,');
-    expect(entry).toContain('inopSysAllPhases: () => APU_FAULT_INOP_SYS,');
+    const procedure = EcamAbnormalProcedures['490800001'];
+    expect(procedure.title).toBe('\x1b<4m\x1b4mAPU\x1bm FAULT');
+    expect(procedure.items).toHaveLength(apuFaultItemsChecked(true).length);
+    expect(EcamInopSys['490300001']).toBe('\x1b<4mAPU');
+    const entry = alert('490800001');
+    expect(entry.simVarIsActive).toBe(fixture.core.apuFault);
+    expect(entry.inopSysAllPhases?.([])).toEqual(APU_FAULT_INOP_SYS);
   });
 });
-
-/** The source of one ata46-49-52-56.ts procedure */
-function ata49Procedure(id: string): string {
-  const start = ata49.indexOf(`  ${id}: {`);
-  expect(start, id).toBeGreaterThan(0);
-  return ata49.slice(start, ata49.indexOf('\n  },', start));
-}
 
 describe('APU MACH LIMIT EXCEEDED', () => {
   it('triggers with the APU running above M 0.5', () => {
@@ -104,17 +97,14 @@ describe('APU MACH LIMIT EXCEEDED', () => {
   });
 
   it('has its message and is wired with SC, master caution, APU page and INOP SYS APU', () => {
-    const procedure = ata49Procedure('490800002');
-    expect(procedure).toContain("title: '\\x1b<4m\\x1b4mAPU\\x1bm MACH LIMIT EXCEEDED',");
-    expect(procedure.match(/\{ name: '/g)).toHaveLength(apuMachLimitItemsChecked(true).length);
-    const entry = abnormalSensed.slice(abnormalSensed.indexOf('    490800002: {'));
-    expect(abnormalSensed.indexOf('    490800002: {')).toBeGreaterThan(0);
-    expect(entry).toMatch(
-      /simVarIsActive: this\.fws\.apuMachLimitExceeded,[\s\S]*?inopSysAllPhases: \(\) => APU_FAULT_INOP_SYS,\s*failure: 2,\s*sysPage: SdPages\.Apu,/,
-    );
-    expect(fwsCore).toContain(
-      'this.apuMachLimitExceeded.set(isApuMachLimitExceeded(this.apuAvail.get(), this.machSelectedFromAdr.get()));',
-    );
+    const procedure = EcamAbnormalProcedures['490800002'];
+    expect(procedure.title).toBe('\x1b<4m\x1b4mAPU\x1bm MACH LIMIT EXCEEDED');
+    expect(procedure.items).toHaveLength(apuMachLimitItemsChecked(true).length);
+    const entry = alert('490800002');
+    expect(entry.simVarIsActive).toBe(fixture.core.apuMachLimitExceeded);
+    expect(entry.inopSysAllPhases?.([])).toEqual(APU_FAULT_INOP_SYS);
+    expect(entry.failure).toBe(2);
+    expect(entry.sysPage).toBe(SdPages.Apu);
   });
 });
 
@@ -130,12 +120,11 @@ describe('APU OIL FILTER CLOGGED', () => {
   });
 
   it('has its message, is a no-audio crew awareness alert fed by the flyPad failure 49004', () => {
-    expect(ata49Procedure('490800003')).toContain("title: '\\x1b<4m\\x1b4mAPU\\x1bm OIL FILTER CLOGGED',");
-    const entry = abnormalSensed.slice(abnormalSensed.indexOf('    490800003: {'));
-    expect(abnormalSensed.indexOf('    490800003: {')).toBeGreaterThan(0);
-    expect(entry).toMatch(/simVarIsActive: this\.fws\.apuOilFilterClogged,[\s\S]*?failure: 1,/);
-    expect(fwsCore).toContain('A380Failure.ApuOilFilterClogging');
-    expect(failures).toContain('  ApuOilFilterClogging: 49004,');
-    expect(failures).toContain("  [49, A380Failure.ApuOilFilterClogging, '");
+    expect(EcamAbnormalProcedures['490800003'].title).toBe('\x1b<4m\x1b4mAPU\x1bm OIL FILTER CLOGGED');
+    const entry = alert('490800003');
+    expect(entry.simVarIsActive).toBe(fixture.core.apuOilFilterClogged);
+    expect(entry.failure).toBe(1);
+    expect(A380Failure.ApuOilFilterClogging).toBe(49004);
+    expect(A380FailureDefinitions.some((definition) => definition[1] === A380Failure.ApuOilFilterClogging)).toBe(true);
   });
 });

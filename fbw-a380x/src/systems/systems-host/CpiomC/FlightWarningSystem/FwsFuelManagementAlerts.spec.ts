@@ -1,8 +1,6 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { A380Failure } from '@failures';
 import { fuelQuantitySystemFaults } from '@shared/FuelQuantityMeasurement';
@@ -15,28 +13,20 @@ import {
   readFuelManagementInputs,
 } from './FwsFuelManagementAlerts';
 import { TrimTankFeedSelector } from './FwsFuelCgWeightAlerts';
-
-/*
- * The ata28.ts table is read from the source text (importing EcamMessages in a test fails on a circular import).
- */
-const ata28 = readFileSync(
-  resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata28.ts'),
-  'utf-8',
-);
-const index = readFileSync(
-  resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/index.ts'),
-  'utf-8',
-);
-const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
+import {
+  EcamAbnormalProcedures,
+  EcamInfos,
+  EcamInopSys,
+  EcamLimitations,
+} from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { createFws } from './FwsSpecFixture';
 
 /** Title (without the FUEL prefix codes) and item names of an ata28.ts alert */
 function alert(key: number): { title: string; items: string[] } {
-  const start = ata28.indexOf(`\n  ${key}: {`);
-  expect(start).toBeGreaterThan(0);
-  const block = ata28.slice(start, ata28.indexOf('\n  },', start));
-  const title = block.match(/title: '\\x1b<4m\\x1b4mFUEL\\x1bm ([^']*)'/)?.[1] ?? '';
-  const items = Array.from(block.matchAll(/name: '([^']*)'/g)).map((m) => m[1]);
-  return { title, items };
+  const procedure = EcamAbnormalProcedures[key];
+  expect(procedure).toBeDefined();
+  const title = procedure.title.replace('\x1b<4m\x1b4mFUEL\x1bm ', '');
+  return { title, items: procedure.items.map((item) => item.name) };
 }
 
 const FQMS_1 = 1 << 0;
@@ -208,9 +198,10 @@ describe('FUEL MAN XFR PROCEDURE and WINGS MAN BALANCING PROCEDURE', () => {
   });
 
   it('WINGS NOT BALANCED gives way to WINGS MAN BALANCING', () => {
-    const start = abnormalSensed.indexOf('    281800100: {');
-    const block = abnormalSensed.slice(start, abnormalSensed.indexOf('\n    },', start));
-    expect(block).toContain('notActiveWhenItemActive: [FUEL_MANAGEMENT_ALERT_IDS.wingsManBalancing.toString()]');
+    const { core } = createFws();
+    expect(core.abnormalSensed.ewdAbnormalSensed['281800100'].notActiveWhenItemActive).toEqual([
+      FUEL_MANAGEMENT_ALERT_IDS.wingsManBalancing.toString(),
+    ]);
   });
 });
 
@@ -384,7 +375,10 @@ describe('FUEL alert entries and the ata28.ts procedures', () => {
     }
     expect(ids.size).toBeGreaterThan(20);
     for (const id of ids) {
-      expect(index).toMatch(new RegExp(`\\n  ${id}: '`));
+      expect(
+        [EcamInopSys, EcamInfos, EcamLimitations].some((table) => id in table),
+        `message ${id}`,
+      ).toBe(true);
     }
   });
 

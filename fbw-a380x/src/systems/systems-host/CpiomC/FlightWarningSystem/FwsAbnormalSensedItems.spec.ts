@@ -1,186 +1,154 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
+import { EcamAbnormalProcedures } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { ALL_ENG_FLAME_OUT_INHIBITED_PHASES } from './EngineFailAlerts';
+import { createFws, procedureItemNames } from './FwsSpecFixture';
 
-/*
- * Item rules of FwsAbnormalSensed, read from the source text (as FwsCdsDuFault.spec.ts does: importing the EcamMessages
- * tables in a test fails on a circular import).
- */
-const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-
-/** The source of one alert entry, from its id to the end of its object */
-function alertBlock(id: string): string {
-  const start = abnormalSensed.indexOf(`    ${id}: {`);
-  expect(start).toBeGreaterThan(0);
-  return abnormalSensed.slice(start, abnormalSensed.indexOf('\n    },', start));
-}
-
+/* Item rules of FwsAbnormalSensed, checked on the alert tables of the real FwsCore */
+const { core } = createFws();
+const alert = (id: string) => core.abnormalSensed.ewdAbnormalSensed[Number(id)];
 describe('FwsAbnormalSensed item rules', () => {
   it('ALTN LAW: MAX SPEED 310 KT is not shown in ALT 1A (as FwsLimitations.ts)', () => {
-    expect(alertBlock('271800008')).toMatch(/whichItemsToShow: \(\) => \[!this\.fws\.altn1ALawCondition\.get\(\)\]/);
+    core.altn1ALawCondition.set(true);
+    expect(alert('271800008').whichItemsToShow()).toEqual([false]);
+    core.altn1ALawCondition.set(false);
+    expect(alert('271800008').whichItemsToShow()).toEqual([true]);
   });
 
   it.each([
     ['290800021', 'G RSVR LEVEL LO'],
     ['290800031', 'G SYS OVHT'],
   ])('%s %s: the G ELEC PMP A and B OFF item checks the green pumps', (id) => {
-    const checked = alertBlock(id).split('whichItemsChecked')[1];
-    expect(checked).toContain('!this.fws.greenAPumpAuto.get() && !this.fws.greenBPumpAuto.get()');
-    expect(checked).not.toContain('yellowAPumpAuto');
+    const greenPumpsOffItem = 4;
+    for (const [greenA, greenB, yellowA, yellowB, expected] of [
+      [false, false, true, true, true],
+      [true, false, false, false, false],
+      [false, true, false, false, false],
+    ] as [boolean, boolean, boolean, boolean, boolean][]) {
+      core.greenAPumpAuto.set(greenA);
+      core.greenBPumpAuto.set(greenB);
+      core.yellowAPumpAuto.set(yellowA);
+      core.yellowBPumpAuto.set(yellowB);
+      expect(alert(id).whichItemsChecked()[greenPumpsOffItem]).toBe(expected);
+    }
   });
 
   /* HYD G (Y) SYS OVHT: the pumps are disconnected only when turning off G (Y) ENG 1 (3) PMP A or B failed */
   it.each([
-    ['290800031', 'G SYS OVHT', 1, 2],
-    ['290800032', 'Y SYS OVHT', 3, 4],
-  ])('%s %s: the ENG PMP A+B DISC items show only when turning the pumps off failed', (id, _name, a, b) => {
-    const shown = alertBlock(id).split('whichItemsToShow')[1].split('whichItemsChecked')[0];
-    expect(shown).toContain(`this.fws.eng${a}PumpsOffUnsuccessful.get()`);
-    expect(shown).toContain(`this.fws.eng${b}PumpsOffUnsuccessful.get()`);
-    expect(shown).not.toMatch(/^\s+true,\s*$/m);
+    ['290800031', 'G SYS OVHT', core.eng1PumpsOffUnsuccessful, core.eng2PumpsOffUnsuccessful],
+    ['290800032', 'Y SYS OVHT', core.eng3PumpsOffUnsuccessful, core.eng4PumpsOffUnsuccessful],
+  ])('%s %s: the ENG PMP A+B DISC items show only when turning the pumps off failed', (id, _name, first, second) => {
+    first.set(false);
+    second.set(false);
+    expect(alert(id).whichItemsToShow().slice(2, 4)).toEqual([false, false]);
+    first.set(true);
+    expect(alert(id).whichItemsToShow().slice(2, 4)).toEqual([true, false]);
+    second.set(true);
+    expect(alert(id).whichItemsToShow().slice(2, 4)).toEqual([true, true]);
   });
 
   it('Y SYS PRESS LO INFO: TAXI WITH CARE, AVOID MAX TILLER ANGLE, NO BRAKED PIVOT TURN, CAT 3 SINGLE ONLY', () => {
-    expect(alertBlock('290800036')).toContain("info: () => ['800200003', '800200004', '800200005', '220200016']");
+    expect(alert('290800036').info?.([])).toEqual(['800200003', '800200004', '800200005', '220200016']);
   });
 
   it.each(['290800035', '290800036'])('%s SYS PRESS LO: INOP SYS APPR & LDG has BTV and CAT 3 DUAL', (id) => {
-    const apprLdg = alertBlock(id).split('inopSysApprLdg')[1];
-    expect(apprLdg).toContain("'320300007'");
-    expect(apprLdg).toContain("'220300028'");
+    const apprLdg = alert(id).inopSysApprLdg?.([]);
+    expect(apprLdg).toContain('320300007');
+    expect(apprLdg).toContain('220300028');
   });
 
   it.each([
-    ['290800035', 'prim3Healthy'],
-    ['290800036', 'prim2Healthy'],
-  ])('%s SYS PRESS LO: the PRIM-failed items read the PRIM state (%s), not the Subject itself', (id, prim) => {
-    const shown = alertBlock(id).split('whichItemsToShow')[1].split('whichItemsChecked')[0];
-    expect(shown).toContain(`!this.fws.${prim}.get()`);
-    expect(shown).not.toContain(`!this.fws.${prim},`);
-  });
+    ['290800035', core.prim3Healthy, [4, 5]],
+    ['290800036', core.prim2Healthy, [3, 4]],
+  ] as [string, typeof core.prim3Healthy, number[]][])(
+    '%s SYS PRESS LO: the PRIM-failed items read the PRIM state, not the Subject itself',
+    (id, prim, lines) => {
+      const primFailedLines = () => lines.map((line) => alert(id).whichItemsToShow()[line]);
+      prim.set(true);
+      expect(primFailedLines()).toEqual([false, false]);
+      prim.set(false);
+      expect(primFailedLines()).toEqual([true, true]);
+    },
+  );
 
   /* HYD G (Y) SYS PRESS LO: L/G GRVTY EXTN ONLY for both, and a 220 kt max speed for the gravity extension */
   it('Y SYS PRESS LO: L/G GRVTY EXTN ONLY item and the MAX SPEED 220 KT limitation on the ECAM and the PFD', () => {
-    const block = alertBlock('290800036');
-    const shown = block.split('whichItemsToShow')[1].split('whichItemsChecked')[0];
-    const checked = block.split('whichItemsChecked')[1].split('failure')[0];
-    expect(shown).toContain('true, // L/G GRVTY EXTN ONLY');
-    expect(checked.match(/false/g)).toHaveLength(6);
-    expect(block).toContain("limitationsPfd: () => ['320400001']");
-    expect(block).toContain("limitationsApprLdg: () => ['320400001']");
-    const items = readFileSync(
-      resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata29-30.ts'),
-      'utf-8',
-    );
-    const yItems = items.slice(items.indexOf('  290800036: {'), items.indexOf('  290800037: {'));
-    expect(yItems.match(/^ {6}\{/gm)).toHaveLength(6);
-    expect(yItems).toContain("name: 'L/G GRVTY EXTN ONLY'");
+    const entry = alert('290800036');
+    expect(entry.whichItemsToShow()[2]).toBe(true);
+    expect(entry.whichItemsChecked()).toEqual([false, false, false, false, false, false]);
+    expect(entry.limitationsPfd?.([])).toEqual(['320400001']);
+    expect(entry.limitationsApprLdg?.([])).toEqual(['320400001']);
+    expect(procedureItemNames('290800036')).toHaveLength(6);
+    expect(procedureItemNames('290800036')).toContain('L/G GRVTY EXTN ONLY');
   });
 
   it('EXCESS DIFF PRESS is active in flight phases 1, 8 and 9', () => {
-    expect(alertBlock('213800002')).toContain('flightPhaseInhib: [2, 3, 4, 5, 6, 7, 10, 11, 12],');
+    expect(alert('213800002').flightPhaseInhib).toEqual([2, 3, 4, 5, 6, 7, 10, 11, 12]);
   });
 });
 
 describe('ENG ALL ENG FLAME OUT', () => {
-  const ata70 = readFileSync(
-    resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata70.ts'),
-    'utf-8',
-  );
-  /** One procedure of ata70.ts, from its id to the end of its object */
-  const procedure = (id: string) => {
-    const start = ata70.indexOf(`  ${id}: {`);
-    expect(start).toBeGreaterThan(0);
-    return ata70.slice(start, ata70.indexOf('\n  },', start));
-  };
-  const itemNames = (id: string) => [...procedure(id).matchAll(/name: '([^']*)'/g)].map((match) => match[1]);
-  const checkedEntries = (id: string) => {
-    const checked = alertBlock(id).split('whichItemsChecked: () => [')[1];
-    return checked
-      .slice(0, checked.indexOf('\n      ],'))
-      .split('\n')
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0);
-  };
-
   it('"This alert inhibits the ELEC EMER CONFIG alert.", only while it is shown', () => {
     // not with notActiveWhenItemActive: that reads the alert condition without its flight phase inhibition
-    expect(alertBlock('240800055')).toContain('simVarIsActive: this.fws.elecEmerConfigAlert,');
-    expect(alertBlock('240800055')).toContain('notActiveWhenItemActive: [],');
-    expect(alertBlock('701800151')).toContain('flightPhaseInhib: ALL_ENG_FLAME_OUT_INHIBITED_PHASES,');
+    expect(alert('240800055').simVarIsActive).toBe(core.elecEmerConfigAlert);
+    expect(alert('240800055').notActiveWhenItemActive).toEqual([]);
+    expect(alert('701800151').flightPhaseInhib).toEqual(ALL_ENG_FLAME_OUT_INHIBITED_PHASES);
   });
 
   it('has one checked entry per line', () => {
-    expect(checkedEntries('701800151').length).toBe(itemNames('701800151').length);
+    expect(alert('701800151').whichItemsChecked().length).toBe(procedureItemNames('701800151').length);
   });
 
   it('RAT MAN ON ... PRESS is sensed with the RAT out, as in ELEC EMER CONFIG', () => {
-    expect(procedure('701800151')).toContain("{ name: 'RAT MAN ON', sensed: true, labelNotCompleted: 'PRESS' }");
-    expect(itemNames('701800151')[0]).toBe('RAT MAN ON');
-    expect(checkedEntries('701800151')[0]).toContain('this.fws.ratDeployed.get() > 0');
+    expect(EcamAbnormalProcedures[701800151].items[0]).toEqual({
+      name: 'RAT MAN ON',
+      sensed: true,
+      labelNotCompleted: 'PRESS',
+    });
+    core.ratDeployed.set(1);
+    expect(alert('701800151').whichItemsChecked()[0]).toBe(true);
+    core.ratDeployed.set(0);
+    expect(alert('701800151').whichItemsChecked()[0]).toBe(false);
   });
 
   it('both FORCED LDG parts have L/G GRVTY (EXTN 2 MIN) ... DOWN after FOR L/G GRVTY', () => {
-    const names = itemNames('701800151');
-    const gravityLines = names.flatMap((name, index) => (name === 'L/G GRVTY (EXTN 2 MIN)' ? [index] : []));
+    const names = procedureItemNames('701800151');
+    const gravityLines = names.reduce<number[]>(
+      (lines, name, index) => (name === 'L/G GRVTY (EXTN 2 MIN)' ? lines.concat(index) : lines),
+      [],
+    );
     expect(gravityLines.length).toBe(2);
     for (const index of gravityLines) {
       expect(names[index - 1]).toBe('FOR L/G GRVTY : MAX SPEED 220 KT');
-      expect(checkedEntries('701800151')[index]).toMatch(/^false,/);
+      expect(alert('701800151').whichItemsChecked()[index]).toBe(false);
     }
   });
 });
 
 describe('ENG RELIGHT IN FLIGHT', () => {
-  const ata70 = readFileSync(
-    resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata70.ts'),
-    'utf-8',
-  );
-
   it('single engine: 30000 FT and 260 KT; multiple engines: 28000 FT and 250 KT', () => {
-    const start = ata70.indexOf('  700900001: {');
-    const procedure = ata70.slice(start, ata70.indexOf('\n  },', start));
-    const multiple = procedure.indexOf('FOR RELIGHT (MULTIPLE ENGINES)');
-    const single = procedure.slice(0, multiple);
-    expect(single).toContain("'MAX GUARANTEED ALTITUDE : 30000 FT'");
-    expect(single).toContain("'MIN SPEED FOR WINDML RELIGHT : 260 KT'");
-    expect(procedure.slice(multiple)).toContain("'MAX GUARANTEED ALTITUDE : 28000 FT'");
-    expect(procedure.slice(multiple)).toContain("'MIN SPEED FOR WINDML RELIGHT : 250 KT'");
-    expect(procedure).not.toContain('MAX SPEED FOR WINDML RELIGHT');
+    const names = procedureItemNames('700900001');
+    const multiple = names.indexOf('FOR RELIGHT (MULTIPLE ENGINES)');
+    expect(multiple).toBeGreaterThan(0);
+    const single = names.slice(0, multiple);
+    expect(single).toContain('MAX GUARANTEED ALTITUDE : 30000 FT');
+    expect(single).toContain('MIN SPEED FOR WINDML RELIGHT : 260 KT');
+    expect(names.slice(multiple)).toContain('MAX GUARANTEED ALTITUDE : 28000 FT');
+    expect(names.slice(multiple)).toContain('MIN SPEED FOR WINDML RELIGHT : 250 KT');
+    expect(names.some((name) => name.includes('MAX SPEED FOR WINDML RELIGHT'))).toBe(false);
   });
 });
 
 describe('ENG 1(2)(3)(4) SHUT DOWN', () => {
-  const ata70 = readFileSync(
-    resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata70.ts'),
-    'utf-8',
-  );
-  const itemNames = (id: string) => {
-    const start = ata70.indexOf(`  ${id}: {`);
-    expect(start).toBeGreaterThan(0);
-    const procedure = ata70.slice(start, ata70.indexOf('\n  },', start));
-    return [...procedure.matchAll(/name: '([^']*)'/g)].map((match) => match[1]);
-  };
-  /** The entries of one array of an alert, one per line */
-  const arrayEntries = (id: string, field: 'whichItemsToShow' | 'whichItemsChecked') => {
-    const array = alertBlock(id).split(`${field}: () => [`)[1];
-    return array
-      .slice(0, array.indexOf('\n      ],'))
-      .split('\n')
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0);
-  };
-
   it.each([
     ['701800109', 1, false],
     ['701800110', 2, true],
     ['701800111', 3, true],
     ['701800112', 4, false],
   ])('%s ENG %i: the lines, ABNORM BLEED CONFIG PROC APPLY, no FOR GA: TOGA ONLY', (id, engine, inner) => {
-    expect(itemNames(id)).toEqual([
+    expect(procedureItemNames(id)).toEqual([
       'TCAS MODE',
       'L/G LEVER',
       'NO FUEL LEAK',
@@ -196,16 +164,21 @@ describe('ENG 1(2)(3)(4) SHUT DOWN', () => {
   it.each(['701800109', '701800110', '701800111', '701800112'])(
     '%s: one shown and one checked entry per line, the ABNORM BLEED CONFIG line with the AIR ABNORM BLEED CONFIG alert',
     (id) => {
-      const count = itemNames(id).length;
-      const shown = arrayEntries(id, 'whichItemsToShow');
-      const checked = arrayEntries(id, 'whichItemsChecked');
-      expect(shown.length).toBe(count);
-      expect(checked.length).toBe(count);
+      const count = procedureItemNames(id).length;
+      expect(alert(id).whichItemsToShow().length).toBe(count);
+      expect(alert(id).whichItemsChecked().length).toBe(count);
       // ABNORM BLEED CONFIG procedure APPLY: only with an abnormal bleed configuration
-      expect(shown[4]).toMatch(/^this\.fws\.abnormBleedConfig\.get\(\),/);
+      core.abnormBleedConfig.set(false);
+      expect(alert(id).whichItemsToShow()[4]).toBe(false);
+      core.abnormBleedConfig.set(true);
+      expect(alert(id).whichItemsToShow()[4]).toBe(true);
       // the AIR FLOW LO and FWD CARGO TEMP REGUL OFF lines keep their sensed checks
-      expect(checked[6]).toBe('this.fws.flowSelectorKnob.get() === 1,');
-      expect(checked[7]).toBe('this.fws.fwdCargoTempRegulatorOff.get(),');
+      core.flowSelectorKnob.set(1);
+      core.fwdCargoTempRegulatorOff.set(false);
+      expect(alert(id).whichItemsChecked().slice(6, 8)).toEqual([true, false]);
+      core.flowSelectorKnob.set(0);
+      core.fwdCargoTempRegulatorOff.set(true);
+      expect(alert(id).whichItemsChecked().slice(6, 8)).toEqual([false, true]);
     },
   );
 });

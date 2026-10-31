@@ -1348,7 +1348,7 @@ export const A380Failure = Object.freeze({
 
 // Two array literals: a single one of more than about 1 000 failures gives TS2590 (a union type too complex to
 // represent) in every instrument that imports the list.
-const failureDefinitionsAta21To33: FailureDefinition[] = [
+export const failureDefinitionsAta21To33: FailureDefinition[] = [
   [21, A380Failure.RapidDecompression, 'Rapid Decompression'],
   [21, A380Failure.CabinFan1, 'Cabin Fan 1'],
   [21, A380Failure.CabinFan2, 'Cabin Fan 2'],
@@ -1909,7 +1909,7 @@ const failureDefinitionsAta21To33: FailureDefinition[] = [
   [33, A380Failure.CabinEmergencyLighting, 'Cabin emergency lighting system'],
 ];
 
-const failureDefinitionsAta32To80: FailureDefinition[] = [
+export const failureDefinitionsAta32To80: FailureDefinition[] = [
   [32, A380Failure.LgciuPowerSupply1, 'LGCIS 1 power supply'],
   [32, A380Failure.LgciuPowerSupply2, 'LGCIS 2 power supply'],
   [32, A380Failure.LgciuInternalError1, 'LGCIS 1 internal error'],

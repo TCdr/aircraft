@@ -1,8 +1,6 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import {
   APU_BLEED_VALVE_DISAGREE_CONFIRMATION_S,
@@ -11,6 +9,7 @@ import {
   apuBleedFaultItems,
   isApuBleedFault,
 } from './ApuBleedFaultAlerts';
+import { createFws, runFwsCycle, procedureItemNames } from './FwsSpecFixture';
 
 const FRAME_MS = 100;
 
@@ -83,15 +82,8 @@ describe('AIR APU BLEED FAULT lines', () => {
     });
   });
 
-  it('has the six lines in ata21-22-23', () => {
-    const ata = readFileSync(
-      resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata21-22-23.ts'),
-      'utf-8',
-    ).replace(/\r\n/g, '\n');
-    const start = ata.indexOf('  211800051: {');
-    const names = (ata.slice(start, ata.indexOf('\n  },', start)).match(/name: '[^']*'/g) ?? []).map((name) =>
-      name.substring("name: '".length, name.length - 1),
-    );
+  it('has the six lines in the message', () => {
+    const names = procedureItemNames('211800051');
     expect(names).toEqual([
       'APU ISOL VLV NOT CLOSED',
       'APU BLEED VLV NOT CLOSED',
@@ -104,14 +96,21 @@ describe('AIR APU BLEED FAULT lines', () => {
 });
 
 describe('FWS wiring of AIR APU BLEED FAULT', () => {
-  it('reads the ECB command of the valve and uses the new trigger', () => {
-    const core = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
-    const abnormal = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-    expect(core).toContain("'L:A32NX_APU_BLEED_AIR_VALVE_COMMANDED_OPEN'");
-    expect(core).toContain(
-      'this.apuBleedFault.set(isApuBleedFault(this.apuBleedPbOnOver22500ft.get(), this.apuBleedValvePositionMonitor));',
-    );
-    expect(abnormal).toContain('simVarIsActive: this.fws.apuBleedFault,');
-    expect(abnormal).toContain('whichItemsToShow: () => this.apuBleedFaultItems().show,');
+  it('compares the valve with the ECB command, confirms the disagreement and raises the alert', () => {
+    const { core, simVars } = createFws(new Set());
+    const entry = core.abnormalSensed.ewdAbnormalSensed['211800051'];
+    simVars.set('L:A32NX_OVHD_APU_START_PB_IS_AVAILABLE', 1);
+    simVars.set('L:A32NX_APU_BLEED_AIR_VALVE_OPEN', 1);
+    simVars.set('L:A32NX_APU_BLEED_AIR_VALVE_COMMANDED_OPEN', 0);
+    runFwsCycle(core);
+    expect(core.apuBleedFault.get()).toBe(false);
+    for (let second = 0; second < APU_BLEED_VALVE_DISAGREE_CONFIRMATION_S + 1; second++) {
+      runFwsCycle(core);
+    }
+    expect(core.apuBleedValvePositionMonitor.abnormallyOpen).toBe(true);
+    expect(core.apuBleedFault.get()).toBe(true);
+    expect(entry.simVarIsActive).toBe(core.apuBleedFault);
+    expect(entry.flightPhaseInhib).toEqual([3, 4, 5, 6, 7, 9, 10]);
+    expect(entry.whichItemsToShow().length).toBe(6);
   });
 });

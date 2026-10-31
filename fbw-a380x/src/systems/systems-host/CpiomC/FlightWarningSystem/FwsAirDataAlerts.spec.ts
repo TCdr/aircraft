@@ -1,8 +1,6 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { Arinc429SignStatusMatrix, Arinc429Word } from '@flybywiresim/fbw-sdk';
 import { describe, expect, it } from 'vitest';
 import {
@@ -12,6 +10,7 @@ import {
   FwsAirDataAlerts,
   readAirDataAlertInputs,
 } from './FwsAirDataAlerts';
+import { createFws, procedureItemNames } from './FwsSpecFixture';
 
 function inputs(overrides: Partial<AirDataAlertInputs> = {}): AirDataAlertInputs {
   return {
@@ -30,18 +29,6 @@ function alertsWith(overrides: Partial<AirDataAlertInputs>): FwsAirDataAlerts {
   const alerts = new FwsAirDataAlerts();
   alerts.update(inputs(overrides));
   return alerts;
-}
-
-/** The item names of one procedure of ata34.ts, read from the source text (importing EcamMessages in a test fails) */
-function procedureItemNames(id: string): string[] {
-  const source = readFileSync(
-    resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata34.ts'),
-    'utf-8',
-  );
-  const start = source.indexOf(`  ${id}: {`);
-  expect(start).toBeGreaterThan(0);
-  const block = source.slice(start, source.indexOf('\n  },', start));
-  return [...block.matchAll(/\{ name: '([^']+)'/g)].map((match) => match[1]);
 }
 
 describe('NAV AIR DATA DISAGREE / ALL AIR DATA DISAGREE / AOA DISAGREE triggers', () => {
@@ -74,7 +61,7 @@ describe('NAV AIR DATA DISAGREE / ALL AIR DATA DISAGREE / AOA DISAGREE triggers'
 });
 
 describe('NAV AIR DATA DISAGREE lines', () => {
-  it('has one display rule per line of ata34.ts', () => {
+  it('has one display rule per line of the ECAM procedure', () => {
     expect(alertsWith({}).airDataDisagreeItemsToShow()).toHaveLength(procedureItemNames('340800009').length);
   });
 
@@ -108,7 +95,7 @@ describe('NAV ALL AIR DATA DISAGREE lines: "The ECAM displays only the appropria
   const lineIndex = (name: string, occurrence = 0) =>
     names.map((n, i) => (n === name ? i : -1)).filter((i) => i >= 0)[occurrence];
 
-  it('has one display rule per line of ata34.ts', () => {
+  it('has one display rule per line of the ECAM procedure, in the order the constants name', () => {
     expect(alertsWith({ allRejected: true }).allAirDataDisagreeItemsToShow()).toHaveLength(names.length);
     expect(names[ALL_AIR_DATA_ITEM_SPEED_BRAKES]).toBe('SPEED BRAKES');
     expect(names[ALL_AIR_DATA_ITEM_ADR_PBS_OFF]).toBe('ADR 1+2+3 P/Bs');
@@ -193,21 +180,19 @@ describe('readAirDataAlertInputs', () => {
 });
 
 describe('FwsAbnormalSensed entries (flight phase inhibitions)', () => {
-  const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-  const alertBlock = (id: string) => {
-    const start = abnormalSensed.indexOf(`    ${id}: {`);
-    expect(start).toBeGreaterThan(0);
-    return abnormalSensed.slice(start, abnormalSensed.indexOf('\n    },', start));
-  };
+  const { core } = createFws();
 
   it.each([
-    ['340800009', 'airDataDisagree', '[4, 5, 6, 7, 9, 10]', 'failure: 2'],
-    ['340800010', 'allAirDataDisagree', '[4, 5, 10]', 'failure: 3'],
-    ['340800014', 'aoaDisagree', '[4, 5, 6, 7, 9, 10]', 'failure: 2'],
-  ])('%s is raised by %s, inhibited in phases %s, %s', (id, signal, phases, level) => {
-    const block = alertBlock(id);
-    expect(block).toContain(`simVarIsActive: this.fws.airDataAlerts.${signal},`);
-    expect(block).toContain(`flightPhaseInhib: ${phases},`);
-    expect(block).toContain(level);
-  });
+    ['340800009', 'airDataDisagree', [4, 5, 6, 7, 9, 10], 2],
+    ['340800010', 'allAirDataDisagree', [4, 5, 10], 3],
+    ['340800014', 'aoaDisagree', [4, 5, 6, 7, 9, 10], 2],
+  ] as [string, 'airDataDisagree' | 'allAirDataDisagree' | 'aoaDisagree', number[], number][])(
+    '%s is raised by %s, inhibited in phases %j, level %i',
+    (id, signal, phases, level) => {
+      const entry = core.abnormalSensed.ewdAbnormalSensed[Number(id)];
+      expect(entry.simVarIsActive).toBe(core.airDataAlerts[signal]);
+      expect(entry.flightPhaseInhib).toEqual(phases);
+      expect(entry.failure).toBe(level);
+    },
+  );
 });

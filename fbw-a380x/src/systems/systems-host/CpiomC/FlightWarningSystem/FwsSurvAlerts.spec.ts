@@ -1,8 +1,6 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { isTcasInoperative, SurvSystem } from '../../Misc/Communications/TransponderSystem';
 import {
@@ -14,6 +12,7 @@ import {
   xpdrFaultCondition,
   XpdrTcasSwitchLine,
 } from './FwsSurvAlerts';
+import { createFws } from './FwsSpecFixture';
 
 interface SurvInputs {
   selected: SurvSystem;
@@ -193,15 +192,6 @@ describe('XPDR & TCAS ..... SYS 2(1) line', () => {
 });
 
 describe('SURV TAWS 1(2) and GPWS 1(2) FAULT', () => {
-  const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-  const core = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
-  /** The source of one alert entry of FwsAbnormalSensed, from its id to the end of its object */
-  const alertBlock = (id: string) => {
-    const start = abnormalSensed.indexOf(`    ${id}: {`);
-    expect(start).toBeGreaterThan(0);
-    return abnormalSensed.slice(start, abnormalSensed.indexOf('\n    },', start));
-  };
-
   it('GPWS and TERR SYS both failed is the TAWS fault, which replaces the GPWS and TERR SYS faults', () => {
     expect(tawsFunctionFaults(true, true, true)).toEqual({ taws: true, gpws: false, terr: false });
     expect(tawsFunctionFaults(true, false, true)).toEqual({ taws: false, gpws: true, terr: false });
@@ -217,21 +207,41 @@ describe('SURV TAWS 1(2) and GPWS 1(2) FAULT', () => {
   });
 
   it('the TAWS faults are derived from the GPWS and TERR SYS failures, not from never-written L:vars', () => {
-    expect(core).not.toContain('L:A32NX_TAWS_1_FAILED');
-    expect(core).not.toContain('L:A32NX_TAWS_2_FAILED');
-    expect(core).toContain('tawsFunctionFaults(this.gpws1Failed.get(), this.terrSys1Failed.get(), taws1Powered)');
+    const { core, simVars } = createFws();
+    core.startupCompleted.set(true);
+    simVars.set('L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED', 1);
+    simVars.set('L:A32NX_TAWS_1_FAILED', 1);
+    simVars.set('L:A32NX_TAWS_2_FAILED', 1);
+    core.update(1000);
+    expect(core.taws1FaultCond.get()).toBe(false);
+    expect(core.taws2FaultCond.get()).toBe(false);
+
+    simVars.set('L:A32NX_GPWS_1_FAILED', 1);
+    core.update(1000);
+    expect(core.gpws1FaultCond.get()).toBe(true);
+    expect(core.taws1FaultCond.get()).toBe(false);
+    simVars.set('L:A32NX_TERR_1_FAILED', 1);
+    core.update(1000);
+    expect(core.taws1FaultCond.get()).toBe(true);
+    expect(core.gpws1FaultCond.get()).toBe(false);
   });
 
   it.each([
-    ['341800026', 'this.fws.gpws1FaultCond'],
-    ['341800027', 'this.fws.gpws2FaultCond'],
-  ])('GPWS FAULT %s is wired to %s, phases 3-7, 10, 11 inhibited', (id, condition) => {
-    const block = alertBlock(id);
-    expect(block).toContain(`simVarIsActive: ${condition},`);
-    expect(block).toContain('flightPhaseInhib: [3, 4, 5, 6, 7, 10, 11],');
+    ['341800026', 'gpws1FaultCond'],
+    ['341800027', 'gpws2FaultCond'],
+  ] as const)('GPWS FAULT %s is wired to %s, phases 3-7, 10, 11 inhibited', (id, condition) => {
+    const { core } = createFws();
+    const entry = core.abnormalSensed.ewdAbnormalSensed[id];
+    expect(entry.simVarIsActive).toBe(core[condition]);
+    expect(entry.flightPhaseInhib).toEqual([3, 4, 5, 6, 7, 10, 11]);
   });
 
   it('GPWS 1+2 FAULT: [MFD SURV] GPWS ... OFF', () => {
-    expect(alertBlock('341800028')).toContain('whichItemsChecked: () => [this.fws.tawsGpwsOff.get()],');
+    const { core } = createFws();
+    const entry = core.abnormalSensed.ewdAbnormalSensed['341800028'];
+    core.tawsGpwsOff.set(false);
+    expect(entry.whichItemsChecked()).toEqual([false]);
+    core.tawsGpwsOff.set(true);
+    expect(entry.whichItemsChecked()).toEqual([true]);
   });
 });

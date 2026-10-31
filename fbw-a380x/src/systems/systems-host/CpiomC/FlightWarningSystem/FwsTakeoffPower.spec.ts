@@ -1,9 +1,8 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
+import { createFws, runFwsCycle } from './FwsSpecFixture';
 import { engineTakeoffPowerSignal, reducedTakeoffThrustSet, twoEnginesTakeoffPowerSignal } from './FwsTakeoffPower';
 
 const IDLE = 0;
@@ -39,9 +38,32 @@ describe('A380X FWS take-off power signal', () => {
     expect(twoEnginesTakeoffPowerSignal([IDLE, IDLE, IDLE, TOGA], false)).toBe(false);
   });
 
-  it('is what the flight phases use for all four engines', () => {
-    const phases = readFileSync(resolve(__dirname, 'FwsFlightPhases.ts'), 'utf8');
-    expect(phases).toContain('twoEnginesTakeoffPowerSignal([eng1TLA, eng2TLA, eng3TLA, eng4TLA], flexTempSet)');
-    expect(phases).not.toMatch(/eng4TLAFullPwr\s*=\s*eng3TLA/);
+  describe('in the flight phases of the real FWS', () => {
+    /** On the runway with all four engines running (the FWS confirms that for 30 s), the levers as given */
+    function flightPhaseWithLevers(levers: number[], flexTemp: number): number {
+      const { core, simVars } = createFws(new Set());
+      simVars.set('L:A32NX_AIRLINER_TO_FLEX_TEMP', flexTemp);
+      levers.forEach((lever, index) => {
+        simVars.set(`L:A32NX_AUTOTHRUST_TLA:${index + 1}`, lever);
+        simVars.set(`L:A32NX_ENGINE_N1:${index + 1}`, 20);
+        simVars.set(`L:A32NX_ENGINE_STATE:${index + 1}`, 1);
+      });
+      for (let step = 0; step < 60; step++) {
+        runFwsCycle(core);
+      }
+      return core.flightPhase.get();
+    }
+
+    it('enters the take-off phase with the levers 3 and 4 at FLX/MCT', () => {
+      expect(flightPhaseWithLevers([IDLE, IDLE, FLX_MCT, FLX_MCT], 60)).toBe(3);
+    });
+
+    it('stays in phase 2 with the lever 3 alone at TOGA', () => {
+      expect(flightPhaseWithLevers([IDLE, IDLE, TOGA, IDLE], 0)).toBe(2);
+    });
+
+    it('stays in phase 2 with the lever 4 alone at TOGA', () => {
+      expect(flightPhaseWithLevers([IDLE, IDLE, IDLE, TOGA], 0)).toBe(2);
+    });
   });
 });

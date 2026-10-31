@@ -1,10 +1,9 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { isAnyBrakeHot, readReportedBrakeTemperaturesC } from './BrakesHot';
+import { createFws, runFwsCycle } from './FwsSpecFixture';
 
 describe('BRAKES HOT from the reported brake temperatures', () => {
   const temps = (hot: number) => Array.from({ length: 16 }, (_, i) => (i === 7 ? hot : 150));
@@ -32,9 +31,13 @@ describe('BRAKES HOT from the reported brake temperatures', () => {
     expect(names[15]).toBe('L:A32NX_REPORTED_BRAKE_TEMPERATURE_16');
   });
 
-  it('the FWS no longer reads L:A32NX_BRAKES_HOT, which nothing on the A380X writes', () => {
-    const core = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
-    expect(core).not.toContain("'L:A32NX_BRAKES_HOT'");
-    expect(core).toMatch(/isAnyBrakeHot\(\s*readReportedBrakeTemperaturesC\(/);
+  it('the FWS raises BRAKES HOT from the reported temperatures, not from L:A32NX_BRAKES_HOT', () => {
+    const { core, simVars } = createFws(new Set());
+    simVars.set('L:A32NX_BRAKES_HOT', 1);
+    runFwsCycle(core);
+    expect(core.brakesHot.get()).toBe(false);
+    simVars.set('L:A32NX_REPORTED_BRAKE_TEMPERATURE_16', 600);
+    runFwsCycle(core);
+    expect(core.brakesHot.get()).toBe(true);
   });
 });

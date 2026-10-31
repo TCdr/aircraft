@@ -1,8 +1,6 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { Arinc429Register, Arinc429SignStatusMatrix } from '@flybywiresim/fbw-sdk';
 import {
@@ -23,6 +21,9 @@ import {
   lgCtl12Limitations,
   splitLgcisFaults,
 } from './FwsGearAlerts';
+import { EcamAbnormalProcedures } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { SdPages } from '@shared/EcamSystemPages';
+import { createFws } from './FwsSpecFixture';
 
 /** One LGCIU word with the given bits set */
 function word(bits: number[], ssm = Arinc429SignStatusMatrix.NormalOperation): Arinc429Register {
@@ -302,31 +303,25 @@ describe('lever recycle', () => {
 });
 
 describe('FWS wiring of the L/G alerts', () => {
-  const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-  const fwsCore = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
-  const messages = readFileSync(
-    resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata31-32-33.ts'),
-    'utf-8',
-  );
+  it('FwsCore reads the words of both LGCIS and updates the monitor', () => {
+    const { core, simVars } = createFws();
+    core.startupCompleted.set(true);
+    const healthy = (bits: number[]) => word(bits).rawWord;
+    for (const lgciu of [1, 2]) {
+      simVars.set(`L:A32NX_LGCIU_${lgciu}_DISCRETE_WORD_1`, healthy([29]));
+      simVars.set(`L:A32NX_LGCIU_${lgciu}_DISCRETE_WORD_2`, healthy([]));
+      simVars.set(`L:A32NX_LGCIU_${lgciu}_DISCRETE_WORD_3`, healthy([14]));
+      simVars.set(`L:A32NX_LGCIU_${lgciu}_DISCRETE_WORD_4`, healthy([]));
+    }
+    core.update(1000);
+    expect(core.lgciu1DiscreteWord3.bitValueOr(14, false)).toBe(true);
+    expect(core.lgciu2DiscreteWord3.bitValueOr(14, false)).toBe(true);
+    expect(core.gearAlerts.lgCtl12Fault.get()).toBe(false);
 
-  /** The source of one alert entry */
-  function block(id: string): string {
-    const start = abnormalSensed.indexOf(`    ${id}: {`);
-    expect(start).toBeGreaterThan(0);
-    return abnormalSensed.slice(start, abnormalSensed.indexOf('\n    },', start));
-  }
-
-  /** Number of lines of a procedure in ata31-32-33.ts */
-  function itemCount(id: string): number {
-    const start = messages.indexOf(`  ${id}: {`);
-    const end = messages.indexOf('\n  },', start);
-    return (messages.slice(start, end).match(/^ {6}\{/gm) ?? []).length;
-  }
-
-  it('FwsCore reads word 3 of both LGCIS and updates the monitor', () => {
-    expect(fwsCore).toContain("this.lgciu1DiscreteWord3.setFromSimVar('L:A32NX_LGCIU_1_DISCRETE_WORD_3');");
-    expect(fwsCore).toContain("this.lgciu2DiscreteWord3.setFromSimVar('L:A32NX_LGCIU_2_DISCRETE_WORD_3');");
-    expect(fwsCore).toContain('this.gearAlerts.update(');
+    simVars.set('L:A32NX_LGCIU_1_DISCRETE_WORD_4', healthy([29]));
+    simVars.set('L:A32NX_LGCIU_2_DISCRETE_WORD_4', healthy([29]));
+    core.update(1000);
+    expect(core.gearAlerts.lgCtl12Fault.get()).toBe(true);
   });
 
   it.each([
@@ -337,11 +332,12 @@ describe('FWS wiring of the L/G alerts', () => {
     ['320800040', 'gearNotLockedUp', 2],
     ['320800036', 'doorsNotClosed', 2],
     ['320800045', 'systemDisagree', 1],
-  ])('%s is raised by gearAlerts.%s at level %i on the WHEEL page', (id, subject, level) => {
-    const b = block(id);
-    expect(b).toContain(`simVarIsActive: this.fws.gearAlerts.${subject},`);
-    expect(b).toContain(`failure: ${level},`);
-    expect(b).toContain('sysPage: SdPages.Wheel,');
+  ] as const)('%s is raised by gearAlerts.%s at level %i on the WHEEL page', (id, subject, level) => {
+    const { core } = createFws();
+    const entry = core.abnormalSensed.ewdAbnormalSensed[id];
+    expect(entry.simVarIsActive).toBe(core.gearAlerts[subject]);
+    expect(entry.failure).toBe(level);
+    expect(entry.sysPage).toBe(SdPages.Wheel);
   });
 
   it.each([
@@ -350,12 +346,18 @@ describe('FWS wiring of the L/G alerts', () => {
     ['320800040', 7],
     ['320800036', 12],
   ])('%s: the line functions match the %i lines of the procedure', (id, count) => {
-    expect(itemCount(id)).toBe(count);
+    const { core } = createFws();
+    const entry = core.abnormalSensed.ewdAbnormalSensed[id];
+    expect(EcamAbnormalProcedures[id].items).toHaveLength(count);
+    expect(entry.whichItemsToShow()).toHaveLength(count);
+    expect(entry.whichItemsChecked()).toHaveLength(count);
   });
 
   it('STATUS lines: L/G CTL 1+2 and GPWS 1+2; L/G RETRACTION; L/G DOORS', () => {
-    expect(block('320800035')).toContain("inopSysApprLdg: () => ['320300011', '340300003']");
-    expect(block('320800040')).toContain("inopSysAllPhases: () => ['320300013']");
-    expect(block('320800036')).toContain("inopSysApprLdg: () => ['320300012']");
+    const { core } = createFws();
+    const entries = core.abnormalSensed.ewdAbnormalSensed;
+    expect(entries['320800035'].inopSysApprLdg?.([])).toEqual(['320300011', '340300003']);
+    expect(entries['320800040'].inopSysAllPhases?.([])).toEqual(['320300013']);
+    expect(entries['320800036'].inopSysApprLdg?.([])).toEqual(['320300012']);
   });
 });

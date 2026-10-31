@@ -3,6 +3,7 @@
 
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { SdPages } from '@shared/EcamSystemPages';
 import { describe, expect, it } from 'vitest';
 import {
   CTL_SYS_FAULT_LEVEL,
@@ -23,19 +24,12 @@ import {
   hpFuelVlvFaultItems,
   isHpFuelVlvFaultActive,
 } from './EngineMonitoringAlerts';
+import { EcamAbnormalProcedures } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { createFws, runFwsCycle, procedureItemNames } from './FwsSpecFixture';
 
-const ata70 = readFileSync(
-  resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata70.ts'),
-  'utf-8',
-);
-/** One procedure of ata70.ts, from its id to the end of its object */
-const block = (id: number) => {
-  const start = ata70.indexOf(`  ${id}: {`);
-  return ata70.slice(start, ata70.indexOf('\n  },', start));
-};
-/** The item names of one procedure of ata70.ts */
-const itemNames = (id: number) =>
-  (block(id).match(/\{ name: '[^']*'/g) ?? []).map((item) => item.substring("{ name: '".length, item.length - 1));
+const messageTitle = (id: number) => EcamAbnormalProcedures[id].title;
+const { core, simVars } = createFws();
+const sensed = (id: number) => core.abnormalSensed.ewdAbnormalSensed[id];
 
 const notOpenOnGround = {
   fault: HpFuelValveFault.NotOpen,
@@ -81,7 +75,7 @@ describe('ENG n HP FUEL VLV FAULT', () => {
 
   it('has its items in ata70', () => {
     for (const engine of [1, 2, 3, 4]) {
-      expect(itemNames(701800052 + engine)).toEqual([
+      expect(procedureItemNames(701800052 + engine)).toEqual([
         'HP FUEL VALVE NOT OPEN',
         `ENG ${engine} MAN START`,
         `ENG ${engine} MASTER`,
@@ -126,7 +120,7 @@ describe('FADEC fault crew awareness alerts', () => {
         throw new Error(`no alert for ${variable}`);
       }
       for (const engine of [1, 2, 3, 4]) {
-        expect(block(alert.engine1Key + engine - 1)).toContain(`mENG\\x1bm ${engine} ${title}',`);
+        expect(messageTitle(alert.engine1Key + engine - 1)).toContain(`mENG\x1bm ${engine} ${title}`);
       }
     }
   });
@@ -162,30 +156,35 @@ describe('OIL FILTER MONITORING FAULT, LP SHAFT PROT LOST and ENG FUEL LEAK', ()
     ]) {
       const alert = byVariable(variable);
       for (const engine of [1, 2, 3, 4]) {
-        expect(block((alert?.engine1Key ?? 0) + engine - 1)).toContain(`mENG\\x1bm ${engine} ${title}',`);
+        expect(messageTitle((alert?.engine1Key ?? 0) + engine - 1)).toContain(`mENG\x1bm ${engine} ${title}`);
       }
     }
   });
 
   it('gives ENG n FUEL LEAK its procedure: ENG FUEL PARAMETERS CHECK, then thrust lever idle and master off if leaking', () => {
     for (const engine of [1, 2, 3, 4]) {
-      const source = block(701800040 + engine);
-      expect(source).toContain(`mENG\\x1bm ${engine} FUEL LEAK',`);
-      expect(source).toContain("name: 'ENG FUEL PARAMETERS'");
-      expect(source).toContain("name: 'FUEL LEAK', sensed: false, condition: true");
-      expect(source).toContain(`name: 'THR LEVER ${engine}', sensed: true, labelNotCompleted: 'IDLE'`);
-      expect(source).toContain(`name: 'ENG ${engine} MASTER', sensed: true, labelNotCompleted: 'OFF'`);
+      const id = 701800040 + engine;
+      const items = EcamAbnormalProcedures[id].items as unknown as Record<string, unknown>[];
+      expect(messageTitle(id)).toContain(`mENG\x1bm ${engine} FUEL LEAK`);
+      expect(items).toContainEqual(expect.objectContaining({ name: 'ENG FUEL PARAMETERS' }));
+      expect(items).toContainEqual(expect.objectContaining({ name: 'FUEL LEAK', sensed: false, condition: true }));
+      expect(items).toContainEqual(
+        expect.objectContaining({ name: `THR LEVER ${engine}`, sensed: true, labelNotCompleted: 'IDLE' }),
+      );
+      expect(items).toContainEqual(
+        expect.objectContaining({ name: `ENG ${engine} MASTER`, sensed: true, labelNotCompleted: 'OFF' }),
+      );
     }
   });
 
   it('lists the ENG FUEL LEAK alert as a caution with the ENGINE SD page', () => {
-    const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-    expect(abnormalSensed).toContain('alerts[701800041 + index] = {');
-    const start = abnormalSensed.indexOf('alerts[701800041 + index] = {');
-    const source = abnormalSensed.slice(start, abnormalSensed.indexOf('};', start));
-    expect(source).toContain('simVarIsActive: this.fws.engineFuelLeak[index],');
-    expect(source).toContain('failure: 2,');
-    expect(source).toContain('sysPage: SdPages.Eng,');
+    for (const engine of [1, 2, 3, 4]) {
+      const entry = sensed(701800040 + engine);
+      expect(entry.simVarIsActive).toBe(core.engineFuelLeak[engine - 1]);
+      expect(entry.failure).toBe(2);
+      expect(entry.sysPage).toBe(SdPages.Eng);
+      expect(entry.whichItemsToShow()).toEqual([true, true, true, true]);
+    }
   });
 });
 
@@ -242,8 +241,8 @@ describe('CTL VLV FAULT, FADEC IDENT FAULT, FUEL SYS and OIL SYS CONTAMINATION',
       ['OIL_SYS_CONTAMINATION', 'OIL SYS CONTAMINATION'],
     ]) {
       for (const engine of [1, 2, 3, 4]) {
-        expect(block((byVariable(variable)?.engine1Key ?? 0) + engine - 1)).toContain(
-          `mENG\\x1bm ${engine} ${title}',`,
+        expect(messageTitle((byVariable(variable)?.engine1Key ?? 0) + engine - 1)).toContain(
+          `mENG\x1bm ${engine} ${title}`,
         );
       }
     }
@@ -283,7 +282,7 @@ describe('ENG n CTL SYS FAULT', () => {
 
   it('has the THR LEVER and ENG MASTER items in ata70', () => {
     for (const engine of [1, 2, 3, 4]) {
-      expect(itemNames(701800000 + engine)).toEqual([`THR LEVER ${engine}`, `ENG ${engine} MASTER`]);
+      expect(procedureItemNames(701800000 + engine)).toEqual([`THR LEVER ${engine}`, `ENG ${engine} MASTER`]);
     }
   });
 });
@@ -296,39 +295,65 @@ describe('ENG TYPE DISAGREE', () => {
 
   it('is the ata70 alert 701800161, a caution with phases 3 to 12 inhibited', () => {
     expect(ENG_TYPE_DISAGREE_KEY).toBe(701800161);
-    expect(block(ENG_TYPE_DISAGREE_KEY)).toContain("mENG\\x1bm TYPE DISAGREE',");
+    expect(messageTitle(ENG_TYPE_DISAGREE_KEY)).toContain('mENG\x1bm TYPE DISAGREE');
     expect(ENG_TYPE_DISAGREE_LEVEL).toBe(2);
     expect(ENG_TYPE_DISAGREE_PHASE_INHIBITION).toEqual([3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
   });
 });
 
 describe('FWS wiring of the FADEC fault alerts', () => {
-  const abnormal = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-  const core = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
+  const activeFlags = (flags: { get(): boolean }[]) => flags.map((flag) => flag.get());
 
-  it('adds the alerts to the abnormal sensed procedures', () => {
-    expect(abnormal).toContain('    ...this.engineMonitoringAlerts(),');
-    expect(abnormal).toContain('alerts[701800053 + index] = {');
-    expect(abnormal).toContain('alerts[alert.engine1Key + index] = {');
-  });
-
-  it('reads the HP fuel valve fault and the FADEC faults of each engine', () => {
-    expect(core).toContain('`L:A32NX_ENGINE_${engine}_HP_FUEL_VALVE_FAULT`');
-    expect(core).toContain("SimVar.GetSimVarValue(`L:A32NX_ENGINE_${engine}_${alert.variable}`, 'bool') > 0");
+  it('adds an abnormal sensed procedure for each engine of every FADEC fault alert', () => {
+    ENGINE_MONITORING_ALERTS.forEach((alert, alertIndex) => {
+      for (const engineIndex of [0, 1, 2, 3]) {
+        const entry = sensed(alert.engine1Key + engineIndex);
+        expect(entry.simVarIsActive).toBe(core.engineMonitoringAlertActive[alertIndex][engineIndex]);
+        expect(entry.flightPhaseInhib).toEqual(alert.flightPhaseInhibition);
+      }
+    });
+    for (const engineIndex of [0, 1, 2, 3]) {
+      expect(sensed(701800053 + engineIndex).simVarIsActive).toBe(core.engineHpFuelVlvFaultActive[engineIndex]);
+    }
   });
 
   it('gives the cautions their level and the ENGINE SD page', () => {
-    expect(abnormal).toContain('failure: engineMonitoringAlertLevel(alert),');
-    expect(abnormal).toContain('sysPage: alert.caution ? SdPages.Eng : SdPages.None,');
+    ENGINE_MONITORING_ALERTS.forEach((alert) => {
+      const entry = sensed(alert.engine1Key);
+      expect(entry.failure).toBe(engineMonitoringAlertLevel(alert));
+      expect(entry.sysPage).toBe(alert.caution ? SdPages.Eng : SdPages.None);
+    });
+  });
+
+  it('reads the HP fuel valve fault and the FADEC faults of each engine from their simvars', () => {
+    simVars.set('L:A32NX_ENGINE_2_HP_FUEL_VALVE_FAULT', HpFuelValveFault.NotOpen);
+    simVars.set('L:A32NX_ENGINE_3_FUEL_STRAINER_CLOGGED', 1);
+    simVars.set('L:A32NX_ENGINE_4_FUEL_LEAK', 1);
+    runFwsCycle(core);
+    expect(activeFlags(core.engineHpFuelVlvFaultActive)).toEqual([false, true, false, false]);
+    const strainerIndex = ENGINE_MONITORING_ALERTS.findIndex((alert) => alert.variable === 'FUEL_STRAINER_CLOGGED');
+    expect(activeFlags(core.engineMonitoringAlertActive[strainerIndex])).toEqual([false, false, true, false]);
+    expect(activeFlags(core.engineFuelLeak)).toEqual([false, false, false, true]);
   });
 
   it('wires CTL SYS FAULT and TYPE DISAGREE', () => {
-    expect(abnormal).toContain('alerts[701800001 + index] = {');
-    expect(abnormal).toContain('simVarIsActive: this.fws.engineCtlSysFault[index],');
-    expect(abnormal).toContain('alerts[ENG_TYPE_DISAGREE_KEY] = {');
-    expect(core).toContain('`L:A32NX_ENGINE_${engine}_CTL_SYS_FAULT`');
-    expect(core).toContain('`L:A32NX_ENGINE_${engine}_FADEC_SHUTDOWN`');
-    expect(core).toContain('`L:A32NX_ENGINE_${engine}_OVERTHRUST_CUTBACK`');
-    expect(core).toContain('`L:A32NX_ENGINE_${engine}_TYPE_DISAGREE`');
+    for (const engineIndex of [0, 1, 2, 3]) {
+      const entry = sensed(701800001 + engineIndex);
+      expect(entry.simVarIsActive).toBe(core.engineCtlSysFault[engineIndex]);
+      expect(entry.flightPhaseInhib).toEqual(CTL_SYS_FAULT_PHASE_INHIBITION);
+      expect(entry.failure).toBe(CTL_SYS_FAULT_LEVEL);
+    }
+    const typeDisagree = sensed(ENG_TYPE_DISAGREE_KEY);
+    expect(typeDisagree.simVarIsActive).toBe(core.engineTypeDisagree);
+    expect(typeDisagree.flightPhaseInhib).toEqual(ENG_TYPE_DISAGREE_PHASE_INHIBITION);
+    expect(typeDisagree.failure).toBe(ENG_TYPE_DISAGREE_LEVEL);
+
+    simVars.set('L:A32NX_ENGINE_1_CTL_SYS_FAULT', 1);
+    simVars.set('L:A32NX_ENGINE_2_FADEC_SHUTDOWN', FadecShutdownReason.ThrustControlLost);
+    simVars.set('L:A32NX_ENGINE_3_OVERTHRUST_CUTBACK', 1);
+    simVars.set('L:A32NX_ENGINE_4_TYPE_DISAGREE', 1);
+    runFwsCycle(core);
+    expect(activeFlags(core.engineCtlSysFault)).toEqual([true, true, true, false]);
+    expect(core.engineTypeDisagree.get()).toBe(true);
   });
 });

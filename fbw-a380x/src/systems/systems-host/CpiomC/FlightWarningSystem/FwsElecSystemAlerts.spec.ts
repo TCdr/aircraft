@@ -1,10 +1,10 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import {
+  APU_GEN_INOP_SYS,
+  APU_TR_INOP_SYS,
   apuBatFaultInfo,
   apuTrFaultInfo,
   batteryFaultInopSys,
@@ -13,42 +13,41 @@ import {
   elecSystemAlertFlags,
   ElecSystemAlerts,
   ElecSystemInputs,
+  ENG_GEN_INOP_SYS,
   engineGeneratorLostApprLdg,
   engineGeneratorLostInfo,
   EXT_PWR_INOP_SYS,
   PushButtonRecycleMonitor,
   RAT_INOP_SYS,
   readElecSystemInputs,
+  TR_INOP_SYS,
   TR_MONITORING_FAILURES,
 } from './FwsElecSystemAlerts';
+import {
+  EcamAbnormalProcedures,
+  EcamInfos,
+  EcamInopSys,
+} from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { createFws, runFwsCycle } from './FwsSpecFixture';
 
-/*
- * The EcamMessages tables are read from the source text (see FwsElecAlertsStatus.spec.ts: importing EcamMessages in a
- * test fails on a circular import).
- */
-const ecamDir = resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages');
-const ecamMessages = readFileSync(resolve(ecamDir, 'index.ts'), 'utf-8');
-const ata24 = readFileSync(resolve(ecamDir, 'AbnormalSensed/ata24.ts'), 'utf-8');
+const ESCAPE = String.fromCharCode(27);
 
 /** Text of a line of an EcamMessages table, without its ECAM colour code */
 function text(table: 'EcamInopSys' | 'EcamInfos', key: string): string | undefined {
-  const start = ecamMessages.indexOf(`export const ${table}`);
-  const body = ecamMessages.slice(start, ecamMessages.indexOf('\n};', start));
-  const line = body.match(new RegExp(`^\\s*'?${key}'?: '\\\\x1b<\\d+m([^']*)',`, 'm'));
-  return line ? line[1].trim() : undefined;
+  return (table === 'EcamInopSys' ? EcamInopSys : EcamInfos)[key]?.replace(new RegExp(`^${ESCAPE}<\\d+m`), '').trim();
 }
 
-/** Title (without the ELEC prefix codes) and item names of an ata24.ts alert */
+/** Title (without the ELEC prefix codes) and item names of an ECAM procedure */
 function alert(key: number): { title: string; items: string[] } | undefined {
-  const start = ata24.indexOf(`\n  ${key}: {`);
-  if (start < 0) {
+  const procedure = EcamAbnormalProcedures[key];
+  if (!procedure) {
     return undefined;
   }
-  const end = ata24.indexOf('\n  },', start);
-  const block = ata24.slice(start, end);
-  const title = block.match(/title: '\\x1b<4m\\x1b4mELEC\\x1bm ([^']*)'/)?.[1] ?? '';
-  const items = [...block.matchAll(/name: '([^']*)'/g)].map((m) => m[1]);
-  return { title, items };
+  const prefix = '\x1b<4m\x1b4mELEC\x1bm ';
+  return {
+    title: procedure.title.startsWith(prefix) ? procedure.title.slice(prefix.length) : '',
+    items: procedure.items.map((item) => item.name),
+  };
 }
 
 /** Inputs of a normal aircraft: all batteries AUTO, no failure */
@@ -213,7 +212,7 @@ describe('ELEC alert entries (FwsAbnormalSensed)', () => {
     });
   });
 
-  it('has one entry per alert, each with its ata24.ts title and one shown line per item', () => {
+  it('has one entry per alert, each with its ECAM procedure title and one shown line per item', () => {
     const alerts = new ElecSystemAlerts();
     const items = elecSystemAbnormalItems(alerts);
     const expectedTitles: [number, string][] = [
@@ -291,30 +290,37 @@ describe('ELEC alert entries (FwsAbnormalSensed)', () => {
 });
 
 describe('FwsAbnormalSensed and FwsCore wiring', () => {
-  const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-  const core = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
-
-  /** The source of a helper method of FwsAbnormalSensed */
-  const helper = (name: string): string => {
-    const start = abnormalSensed.indexOf(`private ${name}(`);
-    return abnormalSensed.slice(start, abnormalSensed.indexOf('\n  }', start));
-  };
-
   it('adds the entries to the abnormal sensed procedures and updates the alerts every cycle', () => {
-    expect(abnormalSensed).toContain('...elecSystemAbnormalItems(this.fws.elecSystemAlerts),');
-    expect(core).toContain('public readonly elecSystemAlerts = new ElecSystemAlerts();');
-    expect(core).toContain('this.elecSystemAlerts.update(');
+    const { core, simVars } = createFws();
+    const batFault = core.abnormalSensed.ewdAbnormalSensed[240800017];
+    expect(batFault.simVarIsActive).toBe(core.elecSystemAlerts.batFault[0]);
+    expect(batFault.simVarIsActive.get()).toBe(false);
+
+    simVars.set('L:A32NX_OVHD_ELEC_BAT_1_PB_HAS_FAULT', 1);
+    runFwsCycle(core);
+    expect(batFault.simVarIsActive.get()).toBe(true);
   });
 
   it('gives the generator, drive, APU generator and TR alerts their INOP SYS', () => {
-    for (const name of ['elecGenFaultItem', 'elecGenOffItem']) {
-      expect(helper(name)).toContain('inopSysAllPhases: () => [ENG_GEN_INOP_SYS[gen]],');
-      expect(helper(name)).toContain('inopSysApprLdg: () => engineGeneratorLostApprLdg(this.fws.apuAvail.get()),');
-      expect(helper(name)).toContain('info: () => engineGeneratorLostInfo(this.fws.apuAvail.get()),');
+    const { core } = createFws();
+    const alerts = core.abnormalSensed.ewdAbnormalSensed;
+    for (let index = 0; index < 4; index++) {
+      for (const key of [240800061 + index, 240800065 + index]) {
+        expect(alerts[key].inopSysAllPhases?.([])).toEqual([ENG_GEN_INOP_SYS[index]]);
+        core.apuAvail.set(false);
+        expect(alerts[key].inopSysApprLdg?.([])).toEqual(engineGeneratorLostApprLdg(false));
+        expect(alerts[key].info?.([])).toEqual(engineGeneratorLostInfo(false));
+        core.apuAvail.set(true);
+        expect(alerts[key].inopSysApprLdg?.([])).toEqual([]);
+        expect(alerts[key].info?.([])).toEqual([]);
+      }
+      expect(alerts[240800036 + index].inopSysAllPhases?.([])).toEqual([ENG_GEN_INOP_SYS[index]]);
     }
-    expect(helper('elecDriveDisconnectedItem')).toContain('inopSysAllPhases: () => [ENG_GEN_INOP_SYS[drive]],');
-    expect(helper('elecApuGenFaultItem')).toContain('inopSysAllPhases: () => [APU_GEN_INOP_SYS[gen]],');
-    expect(helper('elecTrFaultItem')).toContain('inopSysAllPhases: () => [TR_INOP_SYS[tr]],');
-    expect(abnormalSensed).toContain('inopSysAllPhases: () => [APU_TR_INOP_SYS],');
+    expect(alerts[240800014].inopSysAllPhases?.([])).toEqual([APU_GEN_INOP_SYS[0]]);
+    expect(alerts[240800015].inopSysAllPhases?.([])).toEqual([APU_GEN_INOP_SYS[1]]);
+    for (let tr = 0; tr < 3; tr++) {
+      expect(alerts[240800081 + tr].inopSysAllPhases?.([])).toEqual([TR_INOP_SYS[tr]]);
+    }
+    expect(alerts[240800016].inopSysAllPhases?.([])).toEqual([APU_TR_INOP_SYS]);
   });
 });

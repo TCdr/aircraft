@@ -1,6 +1,6 @@
 ﻿// Copyright (c) 2024-2025 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
-import { AbnormalProcedure, ChecklistLineStyle, DeferredProcedure, DeferredProcedureType } from '..';
+import { AbnormalProcedure, ChecklistLineStyle, DeferredProcedure, DeferredProcedureType } from '../EcamProcedureTypes';
 
 // Convention for IDs:
 // First two digits: ATA chapter

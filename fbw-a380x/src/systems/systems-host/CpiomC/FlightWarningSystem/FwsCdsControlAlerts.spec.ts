@@ -1,9 +1,8 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
+import { A380Failure } from '@failures';
 import {
   afsControlAlerts,
   AfsControlInputs,
@@ -14,29 +13,23 @@ import {
   KCCU_PHASE_INHIBITION,
   kccuAlerts,
 } from './FwsCdsControlAlerts';
+import {
+  EcamAbnormalProcedures,
+  EcamInfos,
+  EcamInopSys,
+} from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { createFws, FwsFixture, runFwsCycle, procedureItemNames } from './FwsSpecFixture';
 
-/*
- * CDS & AUTO FLT FCU SWITCHED OFF, EFIS CP and KCCU alerts. The EcamMessages tables and FwsAbnormalSensed are read
- * from the source text (importing them in a test fails, see FwsCdsDuFault.spec.ts).
- */
-const messagesDir = resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages');
-const ata31Procedures = readFileSync(resolve(messagesDir, 'AbnormalSensed/ata31-32-33.ts'), 'utf-8');
-const ecamMessages = readFileSync(resolve(messagesDir, 'index.ts'), 'utf-8');
-const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-const fwsCore = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
-const ata21Procedures = readFileSync(resolve(messagesDir, 'AbnormalSensed/ata21-22-23.ts'), 'utf-8');
-const inopSys = readFileSync(resolve(__dirname, 'FwsInopSys.ts'), 'utf-8');
-const information = readFileSync(resolve(__dirname, 'FwsInformation.ts'), 'utf-8');
-
-/** The source of one entry (`<indent><id>: {` ... `<indent>},`) of an FWS dictionary (indent 4) or ECAM table (2) */
-function entry(source: string, id: string, indent = '    '): string {
-  const match = source.match(new RegExp(`\\n${indent}${id}: \\{([\\s\\S]*?)\\n${indent}\\},`));
-  if (!match) {
-    throw new Error(`no entry ${id}`);
-  }
-  return match[1];
+/** The FwsCore after one cycle with the given flyPad failures active and the DC ESS and DC 2 buses powered */
+function coreWithFailures(failures: number[]) {
+  const { core, simVars } = createFws(new Set(failures));
+  simVars.set('L:A32NX_ELEC_DC_ESS_BUS_IS_POWERED', 1);
+  simVars.set('L:A32NX_ELEC_DC_2_BUS_IS_POWERED', 1);
+  runFwsCycle(core);
+  return core;
 }
 
+const alertTitle = (id: string) => EcamAbnormalProcedures[id].title;
 const NONE_FAILED: EfisControlInputs = {
   controlPanelFailed: [false, false],
   backupPageFailed: [false, false],
@@ -165,37 +158,55 @@ describe('AFS CP alerts', () => {
   });
 
   it('wires the alerts to the AFS CP and FCU backup AFS page failures of the flyPad', () => {
-    expect(fwsCore).toContain('controlPanelFailed: failureActive(A380Failure.AfsControlPanel),');
-    expect(fwsCore).toContain('failureActive(A380Failure.CaptFcuBackupAfsPage),');
-    expect(fwsCore).toContain('failureActive(A380Failure.FoFcuBackupAfsPage),');
-    expect(fwsCore).toContain('backupPowered: [this.dcESSBusPowered.get(), this.dc2BusPowered.get()],');
+    const afsPanelOnly = coreWithFailures([A380Failure.AfsControlPanel]);
+    expect(afsPanelOnly.afsCtlPnlFault.get()).toBe(true);
+    expect(afsPanelOnly.afsCtlPnlUseBackupLines.map((line) => line.get())).toEqual([true, false, false]);
+    expect(afsPanelOnly.afsBkupCtlFault.map((fault) => fault.get())).toEqual([false, false]);
+
+    const captainBackupAlsoFailed = coreWithFailures([A380Failure.AfsControlPanel, A380Failure.CaptFcuBackupAfsPage]);
+    expect(captainBackupAlsoFailed.afsCtlPnlUseBackupLines.map((line) => line.get())).toEqual([false, false, true]);
+    expect(captainBackupAlsoFailed.afsBkupCtlFault.map((fault) => fault.get())).toEqual([true, false]);
+
+    const firstOfficerBackupAlsoFailed = coreWithFailures([
+      A380Failure.AfsControlPanel,
+      A380Failure.FoFcuBackupAfsPage,
+    ]);
+    expect(firstOfficerBackupAlsoFailed.afsBkupCtlFault.map((fault) => fault.get())).toEqual([false, true]);
+  });
+
+  it('takes the FCU backup of the side as failed when its DC bus is not powered', () => {
+    const { core, simVars } = createFws(new Set([A380Failure.AfsControlPanel]));
+    simVars.set('L:A32NX_ELEC_DC_ESS_BUS_IS_POWERED', 0);
+    simVars.set('L:A32NX_ELEC_DC_2_BUS_IS_POWERED', 1);
+    runFwsCycle(core);
+    expect(core.afsBkupCtlFault.map((fault) => fault.get())).toEqual([true, false]);
   });
 
   it('raises AFS CTL PNL FAULT (SC and MASTER CAUT) with its three lines and INOP SYS AFS CTL PNL', () => {
-    const source = entry(abnormalSensed, '220800005');
-    expect(source).toContain('flightPhaseInhib: [4, 5, 6, 7, 10],');
-    expect(source).toContain('simVarIsActive: this.fws.afsCtlPnlFault,');
-    expect(source).toContain('whichItemsToShow: () => this.fws.afsCtlPnlUseBackupLines.map((line) => line.get()),');
-    expect(source).toContain("inopSysAllPhases: () => ['220300004'],");
-    expect(source).toContain('failure: 2,');
-    const lines = entry(ata21Procedures, '220800005', '  ');
-    expect(lines).toContain("name: 'USE MFD FCU BKUP'");
-    expect(lines).toContain("name: 'Use CAPT MFD FCU BKUP'");
-    expect(lines).toContain("name: 'Use F/O MFD FCU BKUP'");
+    const { core } = createFws();
+    const alert = core.abnormalSensed.ewdAbnormalSensed['220800005'];
+    expect(alert.flightPhaseInhib).toEqual([4, 5, 6, 7, 10]);
+    expect(alert.simVarIsActive).toBe(core.afsCtlPnlFault);
+    expect(alert.inopSysAllPhases?.([])).toEqual(['220300004']);
+    expect(alert.failure).toBe(2);
+    core.afsCtlPnlUseBackupLines[1].set(true);
+    expect(alert.whichItemsToShow()).toEqual([false, true, false]);
+    expect(procedureItemNames('220800005')).toEqual(
+      expect.arrayContaining(['USE MFD FCU BKUP', 'Use CAPT MFD FCU BKUP', 'Use F/O MFD FCU BKUP']),
+    );
   });
 
   it.each([
-    ['220800016', 'CAPT', 'this.fws.afsBkupCtlFault[0]', '220300012'],
-    ['220800017', 'F/O', 'this.fws.afsBkupCtlFault[1]', '220300013'],
-  ])('raises %s %s AFS BKUP CTL FAULT as crew awareness with its INOP SYS', (id, side, condition, inopSysId) => {
-    const source = entry(abnormalSensed, id);
-    expect(source).toContain('flightPhaseInhib: [4, 5, 6, 7, 10],');
-    expect(source).toContain(`simVarIsActive: ${condition},`);
-    expect(source).toContain(`inopSysAllPhases: () => ['${inopSysId}'],`);
-    expect(source).toContain('failure: 1,');
-    expect(entry(ata21Procedures, id, '  ')).toContain(
-      `title: '\\x1b<4m\\x1b4mAUTO FLT\\x1bm ${side} AFS BKUP CTL FAULT',`,
-    );
+    ['220800016', 'CAPT', 0, '220300012'],
+    ['220800017', 'F/O', 1, '220300013'],
+  ])('raises %s %s AFS BKUP CTL FAULT as crew awareness with its INOP SYS', (id, side, index, inopSysId) => {
+    const { core } = createFws();
+    const alert = core.abnormalSensed.ewdAbnormalSensed[id];
+    expect(alert.flightPhaseInhib).toEqual([4, 5, 6, 7, 10]);
+    expect(alert.simVarIsActive).toBe(core.afsBkupCtlFault[index]);
+    expect(alert.inopSysAllPhases?.([])).toEqual([inopSysId]);
+    expect(alert.failure).toBe(1);
+    expect(alertTitle(id)).toBe(`\x1b<4m\x1b4mAUTO FLT\x1bm ${side} AFS BKUP CTL FAULT`);
   });
 });
 
@@ -240,81 +251,93 @@ describe('Flight phase inhibitions of the aircraft', () => {
 });
 
 describe('FWS wiring of the CDS control alerts', () => {
-  const ALERTS: [string, string, string, number][] = [
-    ['311800001', 'FCU_SWITCHED_OFF_PHASE_INHIBITION', 'this.fws.fcuSwitchedOff', 2],
-    ['311800002', 'EFIS_CTL_PHASE_INHIBITION', 'this.fws.efisBkupCtlFault[0]', 2],
-    ['311800003', 'EFIS_CTL_PHASE_INHIBITION', 'this.fws.efisBkupCtlFault[1]', 2],
-    ['311800004', 'EFIS_CTL_PHASE_INHIBITION', 'this.fws.efisCtlPnlFault[0]', 2],
-    ['311800005', 'EFIS_CTL_PHASE_INHIBITION', 'this.fws.efisCtlPnlFault[1]', 2],
-    ['311800006', 'EFIS_CTL_PHASE_INHIBITION', 'this.fws.efisCtlPnlsBothFault', 2],
-    ['313800001', 'KCCU_PHASE_INHIBITION', 'this.fws.kccuCursorCtlFault[0]', 1],
-    ['313800002', 'KCCU_PHASE_INHIBITION', 'this.fws.kccuCursorCtlFault[1]', 1],
-    ['313800003', 'KCCU_PHASE_INHIBITION', 'this.fws.kccuCursorCtlKeyboardFault[0]', 1],
-    ['313800004', 'KCCU_PHASE_INHIBITION', 'this.fws.kccuCursorCtlKeyboardFault[1]', 1],
-    ['313800005', 'KCCU_PHASE_INHIBITION', 'this.fws.kccuKeyboardFault[0]', 1],
-    ['313800006', 'KCCU_PHASE_INHIBITION', 'this.fws.kccuKeyboardFault[1]', 1],
+  const ALERTS: [string, number[], (core: FwsFixture['core']) => unknown, number][] = [
+    ['311800001', FCU_SWITCHED_OFF_PHASE_INHIBITION, (core) => core.fcuSwitchedOff, 2],
+    ['311800002', EFIS_CTL_PHASE_INHIBITION, (core) => core.efisBkupCtlFault[0], 2],
+    ['311800003', EFIS_CTL_PHASE_INHIBITION, (core) => core.efisBkupCtlFault[1], 2],
+    ['311800004', EFIS_CTL_PHASE_INHIBITION, (core) => core.efisCtlPnlFault[0], 2],
+    ['311800005', EFIS_CTL_PHASE_INHIBITION, (core) => core.efisCtlPnlFault[1], 2],
+    ['311800006', EFIS_CTL_PHASE_INHIBITION, (core) => core.efisCtlPnlsBothFault, 2],
+    ['313800001', KCCU_PHASE_INHIBITION, (core) => core.kccuCursorCtlFault[0], 1],
+    ['313800002', KCCU_PHASE_INHIBITION, (core) => core.kccuCursorCtlFault[1], 1],
+    ['313800003', KCCU_PHASE_INHIBITION, (core) => core.kccuCursorCtlKeyboardFault[0], 1],
+    ['313800004', KCCU_PHASE_INHIBITION, (core) => core.kccuCursorCtlKeyboardFault[1], 1],
+    ['313800005', KCCU_PHASE_INHIBITION, (core) => core.kccuKeyboardFault[0], 1],
+    ['313800006', KCCU_PHASE_INHIBITION, (core) => core.kccuKeyboardFault[1], 1],
   ];
 
   it.each(ALERTS)(
     'raises %s with its inhibition, condition and level (SC + MASTER CAUT: 2, none: 1)',
-    (id, inhib, cond, level) => {
-      const source = entry(abnormalSensed, id);
-      expect(source).toContain(`flightPhaseInhib: ${inhib},`);
-      expect(source).toContain(`simVarIsActive: ${cond},`);
-      expect(source).toContain(`failure: ${level},`);
+    (id, inhibition, condition, level) => {
+      const { core } = createFws();
+      const alert = core.abnormalSensed.ewdAbnormalSensed[id];
+      expect(alert.flightPhaseInhib).toEqual(inhibition);
+      expect(alert.simVarIsActive).toBe(condition(core));
+      expect(alert.failure).toBe(level);
     },
   );
 
+  it('raises the EFIS and KCCU alerts of a side from the flyPad failures of that side', () => {
+    const efisPanelCaptain = coreWithFailures([A380Failure.CaptEfisControlPanel]);
+    expect(efisPanelCaptain.efisCtlPnlFault.map((fault) => fault.get())).toEqual([true, false]);
+    expect(efisPanelCaptain.efisCtlPnlInop.map((inop) => inop.get())).toEqual([true, false]);
+
+    const bothEfisPanels = coreWithFailures([A380Failure.CaptEfisControlPanel, A380Failure.FoEfisControlPanel]);
+    expect(bothEfisPanels.efisCtlPnlsBothFault.get()).toBe(true);
+
+    const keyboardFirstOfficer = coreWithFailures([A380Failure.FoKccuKeyboard]);
+    expect(keyboardFirstOfficer.kccuKeyboardFault.map((fault) => fault.get())).toEqual([false, true]);
+    const wholeKccuCaptain = coreWithFailures([A380Failure.CaptKccu]);
+    expect(wholeKccuCaptain.kccuCursorCtlKeyboardFault.map((fault) => fault.get())).toEqual([true, false]);
+  });
+
   it('feeds the STATUS INOP SYS and INFO lines', () => {
-    const lines: [string, string, string][] = [
-      ['310300012', 'CAPT EFIS CTL PNL', 'this.fws.efisCtlPnlInop[0]'],
-      ['310300013', 'F/O EFIS CTL PNL', 'this.fws.efisCtlPnlInop[1]'],
-      ['310300014', 'CAPT EFIS CTL', 'this.fws.efisBkupCtlFault[0]'],
-      ['310300015', 'F/O EFIS CTL', 'this.fws.efisBkupCtlFault[1]'],
-      ['310300016', 'CAPT CCD', 'this.fws.kccuCursorCtlFault[0]'],
-      ['310300017', 'F/O CCD', 'this.fws.kccuCursorCtlFault[1]'],
-      ['310300018', 'CAPT CCD+KBD', 'this.fws.kccuCursorCtlKeyboardFault[0]'],
-      ['310300019', 'F/O CCD+KBD', 'this.fws.kccuCursorCtlKeyboardFault[1]'],
-      ['310300020', 'CAPT KBD', 'this.fws.kccuKeyboardFault[0]'],
-      ['310300021', 'F/O KBD', 'this.fws.kccuKeyboardFault[1]'],
+    const { core } = createFws();
+    const lines: [string, string, () => unknown][] = [
+      ['310300012', 'CAPT EFIS CTL PNL', () => core.efisCtlPnlInop[0]],
+      ['310300013', 'F/O EFIS CTL PNL', () => core.efisCtlPnlInop[1]],
+      ['310300014', 'CAPT EFIS CTL', () => core.efisBkupCtlFault[0]],
+      ['310300015', 'F/O EFIS CTL', () => core.efisBkupCtlFault[1]],
+      ['310300016', 'CAPT CCD', () => core.kccuCursorCtlFault[0]],
+      ['310300017', 'F/O CCD', () => core.kccuCursorCtlFault[1]],
+      ['310300018', 'CAPT CCD+KBD', () => core.kccuCursorCtlKeyboardFault[0]],
+      ['310300019', 'F/O CCD+KBD', () => core.kccuCursorCtlKeyboardFault[1]],
+      ['310300020', 'CAPT KBD', () => core.kccuKeyboardFault[0]],
+      ['310300021', 'F/O KBD', () => core.kccuKeyboardFault[1]],
     ];
-    for (const [id, text, cond] of lines) {
-      expect(ecamMessages).toContain(`${id}: '\\x1b<4m${text}',`);
-      expect(entry(inopSys, id)).toContain(`simVarIsActive: ${cond},`);
+    for (const [id, text, condition] of lines) {
+      expect(EcamInopSys[id]).toBe(`\x1b<4m${text}`);
+      expect(core.inopSys.inopSys[id].simVarIsActive).toBe(condition());
     }
-    const infos: [string, string, string][] = [
-      ['310200001', 'CAPT BARO REF : STD ONLY', 'this.fws.efisBkupCtlFault[0]'],
-      ['310200002', 'F/O BARO REF : STD ONLY', 'this.fws.efisBkupCtlFault[1]'],
-      ['310200003', 'CAPT KEYBOARD CURSOR CTL AVAIL', 'this.fws.kccuCursorCtlFault[0]'],
-      ['310200004', 'F/O KEYBOARD CURSOR CTL AVAIL', 'this.fws.kccuCursorCtlFault[1]'],
-      ['310200005', 'CAPT SOFT KEYBOARD AVAIL', 'this.fws.kccuKeyboardFault[0]'],
-      ['310200006', 'F/O SOFT KEYBOARD AVAIL', 'this.fws.kccuKeyboardFault[1]'],
+    const infos: [string, string, () => unknown][] = [
+      ['310200001', 'CAPT BARO REF : STD ONLY', () => core.efisBkupCtlFault[0]],
+      ['310200002', 'F/O BARO REF : STD ONLY', () => core.efisBkupCtlFault[1]],
+      ['310200003', 'CAPT KEYBOARD CURSOR CTL AVAIL', () => core.kccuCursorCtlFault[0]],
+      ['310200004', 'F/O KEYBOARD CURSOR CTL AVAIL', () => core.kccuCursorCtlFault[1]],
+      ['310200005', 'CAPT SOFT KEYBOARD AVAIL', () => core.kccuKeyboardFault[0]],
+      ['310200006', 'F/O SOFT KEYBOARD AVAIL', () => core.kccuKeyboardFault[1]],
     ];
-    for (const [id, text, cond] of infos) {
-      expect(ecamMessages).toContain(`${id}: '\\x1b<3m${text}',`);
-      expect(entry(information, id)).toContain(`simVarIsActive: ${cond},`);
+    for (const [id, text, condition] of infos) {
+      expect(EcamInfos[id]).toBe(`\x1b<3m${text}`);
+      expect(core.information.info[id].simVarIsActive).toBe(condition());
     }
   });
 
   it('gives the EFIS CTL PNL procedures the FCU backup line', () => {
-    expect(entry(ata31Procedures, '311800004', '  ')).toContain("name: 'USE CAPT MFD FCU BKUP'");
-    expect(entry(ata31Procedures, '311800005', '  ')).toContain("name: 'USE F/O MFD FCU BKUP'");
-    expect(entry(ata31Procedures, '311800006', '  ')).toContain("name: 'USE MFD FCU BKUP'");
+    expect(procedureItemNames('311800004')).toContain('USE CAPT MFD FCU BKUP');
+    expect(procedureItemNames('311800005')).toContain('USE F/O MFD FCU BKUP');
+    expect(procedureItemNames('311800006')).toContain('USE MFD FCU BKUP');
   });
 });
 
 describe('CDS DU NOT MONITORED titles', () => {
   it('names the EWD, F/O PFD and F/O ND alerts without a CAPT prefix', () => {
-    expect(entry(ata31Procedures, '311800009', '  ')).toContain(
-      "title: '\\x1b<4m\\x1b4mCDS\\x1bm EWD DU NOT MONITORED',",
-    );
-    expect(entry(ata31Procedures, '311800010', '  ')).toContain(
-      "title: '\\x1b<4m\\x1b4mCDS\\x1bm F/O PFD DU NOT MONITORED',",
-    );
-    expect(entry(ata31Procedures, '311800011', '  ')).toContain(
-      "title: '\\x1b<4m\\x1b4mCDS\\x1bm F/O ND DU NOT MONITORED',",
-    );
-    expect(ata31Procedures).not.toContain('CAPT EWD DU');
-    expect(ata31Procedures).not.toContain('CAPT F/O');
+    expect(alertTitle('311800009')).toBe('\x1b<4m\x1b4mCDS\x1bm EWD DU NOT MONITORED');
+    expect(alertTitle('311800010')).toBe('\x1b<4m\x1b4mCDS\x1bm F/O PFD DU NOT MONITORED');
+    expect(alertTitle('311800011')).toBe('\x1b<4m\x1b4mCDS\x1bm F/O ND DU NOT MONITORED');
+    for (const procedure of Object.values(EcamAbnormalProcedures)) {
+      expect(procedure.title).not.toContain('CAPT EWD DU');
+      expect(procedure.title).not.toContain('CAPT F/O');
+    }
   });
 });

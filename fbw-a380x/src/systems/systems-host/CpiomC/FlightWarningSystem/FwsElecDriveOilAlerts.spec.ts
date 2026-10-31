@@ -1,8 +1,6 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { SdPages } from '@shared/EcamSystemPages';
 import {
@@ -15,27 +13,19 @@ import {
   elecDriveOilAbnormalItems,
   readDriveOilInputs,
 } from './FwsElecDriveOilAlerts';
+import { EcamAbnormalProcedures } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
 
-/*
- * The ata24.ts table is read from the source text (see FwsElecAlertsStatus.spec.ts: importing EcamMessages in a test
- * fails on a circular import).
- */
-const ata24 = readFileSync(
-  resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata24.ts'),
-  'utf-8',
-);
-
-/** Title (without the ELEC prefix codes) and item names of an ata24.ts alert */
+/** Title (without the ELEC prefix codes) and item names of an ECAM procedure */
 function alert(key: number): { title: string; items: string[] } | undefined {
-  const start = ata24.indexOf(`\n  ${key}: {`);
-  if (start < 0) {
+  const procedure = EcamAbnormalProcedures[key];
+  if (!procedure) {
     return undefined;
   }
-  const end = ata24.indexOf('\n  },', start);
-  const block = ata24.slice(start, end);
-  const title = block.match(/title: '\\x1b<4m\\x1b4mELEC\\x1bm ([^']*)'/)?.[1] ?? '';
-  const items = Array.from(block.matchAll(/name: '([^']*)'/g)).map((m) => m[1]);
-  return { title, items };
+  const prefix = '\x1b<4m\x1b4mELEC\x1bm ';
+  return {
+    title: procedure.title.startsWith(prefix) ? procedure.title.slice(prefix.length) : '',
+    items: procedure.items.map((item) => item.name),
+  };
 }
 
 /** Inputs of a normal aircraft */
@@ -95,7 +85,7 @@ describe('ELEC DRIVE OIL LEVEL LO, OIL OVHT and OIL PRESS LO conditions', () => 
 });
 
 describe('ELEC DRIVE oil alert entries', () => {
-  it('uses the alert keys of ata24.ts with the titles and lines', () => {
+  it('uses the alert keys of the ECAM procedures with the titles and lines', () => {
     for (let drive = 0; drive < 4; drive++) {
       const n = drive + 1;
       expect(alert(DRIVE_OIL_LEVEL_LO_KEYS[drive])).toEqual({ title: `DRIVE ${n} OIL LEVEL LO`, items: [`GEN ${n}`] });
@@ -138,7 +128,7 @@ describe('ELEC DRIVE oil alert entries', () => {
     expect(items[240800044].simVarIsActive.get()).toBe(false);
     expect(items[240800042].simVarIsActive.get()).toBe(true);
 
-    // OIL OVHT: DRIVE 2 ... DISC shown, the GEN 2 line of ata24.ts hidden (not in the aircraft procedure)
+    // OIL OVHT: DRIVE 2 ... DISC shown, the GEN 2 line of the ECAM procedure hidden (not in the aircraft procedure)
     expect(items[240800045].whichItemsToShow()).toEqual([true, false]);
     expect(items[240800045].whichItemsChecked()).toEqual([false, false]);
     // OIL LEVEL LO: GEN 3 ... OFF

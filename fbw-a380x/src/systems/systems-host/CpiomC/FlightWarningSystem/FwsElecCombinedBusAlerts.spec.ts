@@ -1,9 +1,8 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
+import { SdPages } from '@shared/EcamSystemPages';
 import { ElecAlertFlags, ElecAlertLogic, ElecNetworkInputs } from './FwsElecAlerts';
 import {
   AC_BUS_12_DC_1_FAULT_STATUS,
@@ -25,28 +24,13 @@ import {
   ProcedureLines,
   ELEC_COMBINED_BUS_PHASE_INHIBITION,
 } from './FwsElecCombinedBusAlerts';
-
-/* The source texts (importing the EcamMessages tables in a test fails on a circular import, see FwsCdsDuFault.spec) */
-const messagesDir = resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages');
-const ata24 = readFileSync(resolve(messagesDir, 'AbnormalSensed/ata24.ts'), 'utf-8');
-const ecamIndex = readFileSync(resolve(messagesDir, 'index.ts'), 'utf-8');
-const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-const fwsCore = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
-
-/** The number of items of an alert in an ata*.ts text: the lines that open an item, 6 spaces then "{" */
-function itemCount(source: string, id: string): number {
-  const start = source.indexOf(`  ${id}: {`);
-  expect(start).toBeGreaterThan(0);
-  const end = source.indexOf('\n  },', start);
-  return (source.slice(start, end).match(/^ {6}\{/gm) ?? []).length;
-}
-
-/** The source of one FwsAbnormalSensed entry, from its id to the end of its object */
-function alertBlock(id: string): string {
-  const start = abnormalSensed.indexOf(`    ${id}: {`);
-  expect(start).toBeGreaterThan(0);
-  return abnormalSensed.slice(start, abnormalSensed.indexOf('\n    },', start));
-}
+import {
+  EcamAbnormalProcedures,
+  EcamInfos,
+  EcamInopSys,
+  EcamLimitations,
+} from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { createFws, runFwsCycle } from './FwsSpecFixture';
 
 /** A healthy network in flight */
 function normalFlight(): ElecNetworkInputs {
@@ -99,15 +83,9 @@ function procedureInputs(overrides: Partial<ElecProcedureInputs> = {}): ElecProc
   };
 }
 
-/** The names of the shown items of a procedure, from its ata24.ts text */
+/** The names of the shown items of a procedure, from its ECAM procedure */
 function shownNames(id: string, lines: ProcedureLines): string[] {
-  const start = ata24.indexOf(`  ${id}: {`);
-  const block = ata24.slice(start, ata24.indexOf('\n  },', start));
-  const names = block
-    .split(/^ {6}\{/m)
-    .slice(1)
-    .map((item) => (item.match(/name: (['"])(.*?)\1/) ?? [])[2] ?? 'FMS_PRED_UNRELIABLE');
-  return names.filter((_, n) => lines.show[n]);
+  return EcamAbnormalProcedures[id].items.map((item) => item.name).filter((_, n) => lines.show[n]);
 }
 
 describe('combineElecBusFaults (combined busbar alerts)', () => {
@@ -172,7 +150,24 @@ describe('combineElecBusFaults (combined busbar alerts)', () => {
   });
 
   it('FwsCore feeds the single busbar subjects from the combined flags', () => {
-    expect(fwsCore).toContain('const elecFlags = combineElecBusFaults(this.elecAlertLogic.update(elecInputs));');
+    const { core, simVars } = createFws();
+    // A healthy network: every busbar powered, every TR with a normal potential
+    ['AC_1', 'AC_2', 'AC_3', 'AC_4', 'AC_ESS_SHED', 'DC_1', 'DC_2', 'DC_ESS'].forEach((bus) =>
+      simVars.set(`L:A32NX_ELEC_${bus}_BUS_IS_POWERED`, 1),
+    );
+    [1, 2, 3, 4].forEach((tr) => simVars.set(`L:A32NX_ELEC_TR_${tr}_POTENTIAL_NORMAL`, 1));
+    runFwsCycle(core);
+    expect(core.elecAc24Fault.get()).toBe(false);
+    expect(core.elecAcBusFault.map((fault) => fault.get())).toEqual([false, false, false, false]);
+
+    // AC BUS 2 and 4 lost: AC BUS 2+4 FAULT replaces the two single alerts
+    simVars.set('L:A32NX_ELEC_AC_2_BUS_IS_POWERED', 0);
+    simVars.set('L:A32NX_ELEC_AC_4_BUS_IS_POWERED', 0);
+    simVars.set('L:A32NX_ELEC_TR_1_POTENTIAL_NORMAL', 0);
+    simVars.set('L:A32NX_ELEC_TR_4_POTENTIAL_NORMAL', 0);
+    runFwsCycle(core);
+    expect(core.elecAc24Fault.get()).toBe(true);
+    expect(core.elecAcBusFault.map((fault) => fault.get())).toEqual([false, false, false, false]);
   });
 });
 
@@ -184,10 +179,12 @@ describe('ELEC STATIC INV FAULT', () => {
   });
 
   it('is crew awareness, no master light, on the ELEC AC page, inhibited in phases 3 to 10', () => {
-    const block = alertBlock('240800080');
-    expect(block).toContain('failure: 1');
-    expect(block).toContain('SdPages.ElecAc');
-    expect(block).toContain('simVarIsActive: this.fws.elecStaticInvFault');
+    const { core } = createFws();
+    const alert = core.abnormalSensed.ewdAbnormalSensed['240800080'];
+    expect(alert.failure).toBe(1);
+    expect(alert.sysPage).toBe(SdPages.ElecAc);
+    expect(alert.simVarIsActive).toBe(core.elecStaticInvFault);
+    expect(alert.flightPhaseInhib).toEqual([3, 4, 5, 6, 7, 8, 9, 10]);
     expect(ELEC_COMBINED_BUS_PHASE_INHIBITION.staticInvFault).toEqual([3, 4, 5, 6, 7, 8, 9, 10]);
   });
 });
@@ -208,7 +205,7 @@ describe('FlightTimeAboveFl300', () => {
   });
 });
 
-describe('Combined busbar alert procedures match their ata24.ts items', () => {
+describe('Combined busbar alert procedures match their ECAM procedure items', () => {
   const inputs = procedureInputs();
   it.each([
     ['240800003', acBus12Dc1FaultLines()],
@@ -218,24 +215,35 @@ describe('Combined busbar alert procedures match their ata24.ts items', () => {
     ['240800027', dcBus12FaultLines(inputs)],
     ['240800028', dcBus1EssFaultLines(inputs)],
   ])('%s: one shown and one checked flag per item', (id, lines) => {
-    expect(lines.show).toHaveLength(itemCount(ata24, id));
-    expect(lines.checked).toHaveLength(itemCount(ata24, id));
+    expect(lines.show).toHaveLength(EcamAbnormalProcedures[id].items.length);
+    expect(lines.checked).toHaveLength(EcamAbnormalProcedures[id].items.length);
   });
 
   it.each([
-    ['240800003', 'elecAc12Dc1Fault', 'acBus12Dc1FaultLines', 'ElecAc'],
-    ['240800005', 'elecAc23Dc12Fault', 'acBus23Dc12FaultLines', 'ElecAc'],
-    ['240800006', 'elecAc24Fault', 'acBus24FaultLines', 'ElecAc'],
-    ['240800008', 'elecAc34Dc2Fault', 'acBus34Dc2FaultLines', 'ElecDc'],
-    ['240800027', 'elecDc12Fault', 'dcBus12FaultLines', 'ElecDc'],
-    ['240800028', 'elecDc1EssFault', 'dcBus1EssFaultLines', 'ElecDc'],
-  ])('%s is a master caution on its SD page, inhibited in phases 4, 5, 10', (id, subject, lines, page) => {
-    const block = alertBlock(id);
-    expect(block).toContain(`simVarIsActive: this.fws.${subject}`);
-    expect(block).toContain(`whichItemsToShow: () => ${lines}(`);
-    expect(block).toContain('failure: 2');
-    expect(block).toContain(`sysPage: SdPages.${page}`);
-    expect(block).toContain('ELEC_COMBINED_BUS_PHASE_INHIBITION.combinedBusFault');
+    ['240800003', 'elecAc12Dc1Fault', acBus12Dc1FaultLines, SdPages.ElecAc],
+    ['240800005', 'elecAc23Dc12Fault', acBus23Dc12FaultLines, SdPages.ElecAc],
+    ['240800006', 'elecAc24Fault', acBus24FaultLines, SdPages.ElecAc],
+    ['240800008', 'elecAc34Dc2Fault', acBus34Dc2FaultLines, SdPages.ElecDc],
+    ['240800027', 'elecDc12Fault', dcBus12FaultLines, SdPages.ElecDc],
+    ['240800028', 'elecDc1EssFault', dcBus1EssFaultLines, SdPages.ElecDc],
+  ] as const)('%s is a master caution on its SD page, inhibited in phases 4, 5, 10', (id, subject, linesOf, page) => {
+    const { core } = createFws();
+    const alert = core.abnormalSensed.ewdAbnormalSensed[id];
+    expect(alert.simVarIsActive).toBe(core[subject]);
+    const lines = linesOf(core.elecCombinedBusInputs);
+    expect(alert.whichItemsToShow()).toEqual(lines.show);
+    expect(alert.whichItemsChecked()).toEqual(lines.checked);
+    expect(alert.failure).toBe(2);
+    expect(alert.sysPage).toBe(page);
+    expect(alert.flightPhaseInhib).toBe(ELEC_COMBINED_BUS_PHASE_INHIBITION.combinedBusFault);
+  });
+
+  it('lists the lines of the procedure from the live procedure inputs of the core', () => {
+    const { core } = createFws();
+    core.elecCombinedBusInputs = procedureInputs({ onGround: true, gearDownLocked: true });
+    const shown = core.abnormalSensed.ewdAbnormalSensed['240800005'].whichItemsToShow();
+    expect(shown).toEqual(acBus23Dc12FaultLines(core.elecCombinedBusInputs).show);
+    expect(shown).not.toEqual(acBus23Dc12FaultLines(procedureInputs()).show);
   });
 
   it('the combined alerts are inhibited in phases 4, 5 and 10', () => {
@@ -307,7 +315,10 @@ describe('Combined busbar alert procedures match their ata24.ts items', () => {
     expect(lines.checked[1]).toBe(true);
     expect(lines.checked[2]).toBe(true);
     expect(shownNames('240800008', lines)).not.toContain('FUEL CONSUMPT INCRSD');
-    expect(ata24).toMatch(/name: 'VENT AVNCS EXTRACT',\r?\n\s+sensed: true,\r?\n\s+labelNotCompleted: 'OVRD'/);
+    const ventAvncsExtract = EcamAbnormalProcedures['240800008'].items.find(
+      (item) => item.name === 'VENT AVNCS EXTRACT',
+    );
+    expect(ventAvncsExtract).toMatchObject({ sensed: true, labelNotCompleted: 'OVRD' });
   });
 
   it('DC BUS 1+2 FAULT: EMER OUTR TK XFR lines only with low feed tanks 1 and 4', () => {
@@ -333,19 +344,10 @@ describe('Combined busbar alert procedures match their ata24.ts items', () => {
 });
 
 describe('STATUS of the combined busbar alerts', () => {
-  const keys = (table: string): Set<string> => {
-    const start = ecamIndex.indexOf(`export const ${table}`);
-    const end = ecamIndex.indexOf('\n};', start);
-    return new Set(
-      ecamIndex
-        .slice(start, end)
-        .match(/^ {2}(\d+):/gm)
-        ?.map((k) => k.trim().slice(0, -1)),
-    );
-  };
-  const limitations = keys('EcamLimitations');
-  const inopSys = keys('EcamInopSys');
-  const infos = keys('EcamInfos');
+  const keys = (table: { [n: string]: string }): Set<string> => new Set(Object.keys(table));
+  const limitations = keys(EcamLimitations);
+  const inopSys = keys(EcamInopSys);
+  const infos = keys(EcamInfos);
 
   it.each([
     ['AC BUS 1+2 & DC BUS 1', AC_BUS_12_DC_1_FAULT_STATUS],

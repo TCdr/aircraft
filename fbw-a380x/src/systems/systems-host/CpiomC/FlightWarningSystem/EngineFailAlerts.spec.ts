@@ -1,8 +1,6 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import {
   allEngFlameOutInhibitsElecEmerConfig,
@@ -34,6 +32,12 @@ import {
   twoEnginesOut,
 } from './EngineFailAlerts';
 import { FadecShutdownReason } from './EngineMonitoringAlerts';
+import {
+  EcamAbnormalProcedures,
+  EcamDeferredProcedures,
+} from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { DeferredProcedureType } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/EcamProcedureTypes';
+import { createFws, FwsFixture, runFwsCycle, procedureItemNames } from './FwsSpecFixture';
 
 const FRAME_MS = 100;
 
@@ -106,24 +110,54 @@ describe('ENG 1(2)(3)(4) FAIL memory', () => {
   });
 });
 
-describe('FwsCore wiring of the engine failure logic', () => {
-  const fwsCore = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
+/**
+ * Runs the four engines for 10 s, then flames out the given ones (the FADEC reports them shutting down, N3 below 50 %)
+ * @param fixture the FWS on mocked simvars
+ * @param failedEngines the engine numbers (1 to 4) that flame out
+ */
+function failEngines(fixture: FwsFixture, failedEngines: number[]) {
+  const { core, simVars } = fixture;
+  [1, 2, 3, 4].forEach((engine) => {
+    core.bus.getPublisher<any>().pub(`engine_master_${engine}`, true, true);
+    simVars.set(`L:A32NX_ENGINE_STATE:${engine}`, FadecEngineState.On);
+    simVars.set(`L:A32NX_ENGINE_N3:${engine}`, 70);
+  });
+  for (let second = 0; second < 10; second++) {
+    runFwsCycle(core);
+  }
+  failedEngines.forEach((engine) => {
+    simVars.set(`L:A32NX_ENGINE_STATE:${engine}`, FadecEngineState.Shutting);
+    simVars.set(`L:A32NX_ENGINE_N3:${engine}`, 12);
+  });
+  for (let second = 0; second < 3; second++) {
+    runFwsCycle(core);
+  }
+}
 
+describe('FwsCore wiring of the engine failure logic', () => {
   it('feeds the four engines to the same ENG FAIL logic', () => {
-    expect(fwsCore).toContain('private readonly engineFailMonitors = [1, 2, 3, 4].map(() => new EngineFailMonitor());');
     for (const engine of [1, 2, 3, 4]) {
-      expect(fwsCore).toContain(
-        `[this.engine${engine}Master, this.fireButtonEng${engine}, this.engine${engine}State, this.HPNEng${engine}],`,
-      );
+      const fixture = createFws(new Set());
+      failEngines(fixture, [engine]);
+      const fails = [fixture.core.eng1Fail, fixture.core.eng2Fail, fixture.core.eng3Fail, fixture.core.eng4Fail];
+      expect(
+        fails.map((fail) => fail.get()),
+        `engine ${engine}`,
+      ).toEqual([1, 2, 3, 4].map((other) => other === engine));
     }
-    expect(fwsCore).not.toMatch(
-      /engine[34]Master\.get\(\) && this\.engine[34]State\.get\(\) !== engineState\.STARTING/,
-    );
   });
 
   it('reads the thrust lever of engines 3 and 4 for their THR LEVER IDLE lines', () => {
-    expect(fwsCore).toContain('thrustLever3Idle = this.throttle3Position.map');
-    expect(fwsCore).toContain('thrustLever4Idle = this.throttle4Position.map');
+    const { core, simVars } = createFws(new Set());
+    for (const engine of [3, 4]) {
+      const entry = core.abnormalSensed.ewdAbnormalSensed[701800028 + engine];
+      simVars.set(`L:A32NX_AUTOTHRUST_TLA:${engine}`, 0);
+      runFwsCycle(core);
+      expect(entry.whichItemsChecked()[2]).toBe(true);
+      simVars.set(`L:A32NX_AUTOTHRUST_TLA:${engine}`, 25);
+      runFwsCycle(core);
+      expect(entry.whichItemsChecked()[2]).toBe(false);
+    }
   });
 });
 
@@ -134,46 +168,35 @@ describe('ENG FAIL: RELIGHT PROC CONSIDER or APPLY', () => {
     expect(relightProcMustBeApplied([true, true, false, true])).toBe(true);
   });
 
-  const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-  const ata70 = readFileSync(
-    resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata70.ts'),
-    'utf-8',
-  );
-  /** One procedure of ata70.ts, from its id to the end of its object */
-  const block = (source: string, id: number) => {
-    const start = source.indexOf(`  ${id}: {`);
-    return source.slice(start, source.indexOf('\n  },', start));
-  };
-
   it.each([701800029, 701800030, 701800031, 701800032])(
     '%s has the APPLY line after the CONSIDER line, and one show / checked entry per item',
     (id) => {
-      const items = block(ata70, id).match(/\{ name: /g) ?? [];
+      const items = EcamAbnormalProcedures[id].items;
       expect(items.length).toBe(ENG_FAIL_ITEM_COUNT);
-      expect(block(ata70, id)).toMatch(
-        /RELIGHT PROC', sensed: false, labelNotCompleted: 'CONSIDER', level: 1 \},\s*\{ name: 'ENG \d RELIGHT PROC', sensed: false, labelNotCompleted: 'APPLY'/,
-      );
+      const consider = items.findIndex((item) => 'labelNotCompleted' in item && item.labelNotCompleted === 'CONSIDER');
+      expect(items[consider]).toMatchObject({ name: expect.stringMatching(/RELIGHT PROC$/), sensed: false, level: 1 });
+      expect(items[consider + 1]).toMatchObject({
+        name: expect.stringMatching(/^ENG \d RELIGHT PROC$/),
+        sensed: false,
+        labelNotCompleted: 'APPLY',
+      });
 
       // The 24 lines of the branches where the FADEC does not identify the failure, wrapped by engineFailItemsShown
       // and engineFailItemsChecked
-      const entry = abnormalSensed.slice(abnormalSensed.indexOf(`    ${id}: {`)).replace(/\r\n/g, '\n');
-      const list = (head: string, end: string) => {
-        const start = entry.indexOf(head);
-        return entry
-          .slice(start, entry.indexOf(end, start))
-          .split('\n')
-          .slice(1)
-          .filter((line) => line.trim().endsWith(','));
-      };
-      const shown = list('engineFailItemsShown(', '\n        ]),');
-      const checked = list('engineFailItemsChecked(\n          [', '\n          ],');
-      expect(shown.length).toBe(ENG_FAIL_NOT_IDENTIFIED_ITEM_COUNT);
-      expect(checked.length).toBe(ENG_FAIL_NOT_IDENTIFIED_ITEM_COUNT);
-      expect(shown[12]).toContain('!this.fws.engineRelightProcApply.get()');
-      expect(shown[13]).toContain('&& this.fws.engineRelightProcApply.get()');
-      expect(entry.slice(0, entry.indexOf('\n    },'))).toContain(
-        `engineFailItemsShown(this.fws.engineCtlSysFaultInputs[${id - 701800029}].fadecShutdownReason, [`,
-      );
+      const { core } = createFws(new Set());
+      const entry = core.abnormalSensed.ewdAbnormalSensed[id];
+      core.aircraftOnGround.set(false);
+      core.engineRelightProcApply.set(false);
+      expect(entry.whichItemsToShow()).toHaveLength(ENG_FAIL_ITEM_COUNT);
+      expect(entry.whichItemsChecked()).toHaveLength(ENG_FAIL_ITEM_COUNT);
+      expect(entry.whichItemsToShow().slice(12, 14)).toEqual([true, false]);
+      core.engineRelightProcApply.set(true);
+      expect(entry.whichItemsToShow().slice(12, 14)).toEqual([false, true]);
+      expect(ENG_FAIL_NOT_IDENTIFIED_ITEM_COUNT).toBe(24);
+
+      // The shutdown reason of the FADEC of the engine selects the FADEC OVHT branch
+      core.engineCtlSysFaultInputs[id - 701800029].fadecShutdownReason = FadecShutdownReason.FadecOverheat;
+      expect(entry.whichItemsToShow()[24]).toBe(true);
     },
   );
 });
@@ -217,16 +240,8 @@ describe('ENG FAIL with a FADEC shutdown reason', () => {
   });
 
   it('has the four lines at the end of ata70 ENG n FAIL', () => {
-    const ata70 = readFileSync(
-      resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata70.ts'),
-      'utf-8',
-    );
     for (const engine of [1, 2, 3, 4]) {
-      const start = ata70.indexOf(`  ${701800028 + engine}: {`);
-      const procedure = ata70.slice(start, ata70.indexOf('\n  },', start));
-      const names = (procedure.match(/\{ name: '[^']*'/g) ?? []).map((item: string) =>
-        item.substring("{ name: '".length, item.length - 1),
-      );
+      const names = procedureItemNames(701800028 + engine);
       expect(names.slice(24)).toEqual(['FADEC OVHT', 'THRUST CTL LOST', `THR LEVER ${engine}`, `ENG ${engine} MASTER`]);
     }
   });
@@ -276,16 +291,6 @@ describe('ENG SHUT DOWN STATUS', () => {
 describe('ENG TWO ENGS OUT STATUS', () => {
   const out = (...engines: number[]): EnginesOut =>
     [1, 2, 3, 4].map((engine) => engines.includes(engine)) as unknown as EnginesOut;
-  const fwsCore = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
-  const inopSys = readFileSync(resolve(__dirname, 'FwsInopSys.ts'), 'utf-8');
-  const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-  /** One entry of a FWS dictionary, from its key to the end of its object */
-  const entry = (source: string, key: number) => {
-    const start = source.indexOf(`    ${key}: {`);
-    expect(start).toBeGreaterThan(0);
-    return source.slice(start, source.indexOf('\n    },', start));
-  };
-
   it('the two engines of a side out lose the hydraulic system of that side', () => {
     expect(hydraulicSystemsLostByEnginesOut(out(1, 2))).toEqual({ green: true, yellow: false });
     expect(hydraulicSystemsLostByEnginesOut(out(3, 4))).toEqual({ green: false, yellow: true });
@@ -294,30 +299,36 @@ describe('ENG TWO ENGS OUT STATUS', () => {
   });
 
   it('same side: G(Y) HYD SYS and PART SPLRs, no ENG PMP A+B line of the lost system', () => {
-    expect(fwsCore).toContain('const hydraulicSystemsLost = hydraulicSystemsLostByEnginesOut(enginesOut);');
-    expect(entry(inopSys, 290300021)).toContain('simVarIsActive: this.fws.greenHydSysInop,');
-    expect(entry(inopSys, 290300022)).toContain('simVarIsActive: this.fws.yellowHydSysInop,');
-    expect(inopSys).toMatch(
-      /partSplrs = MappedSubject\.create\(\s*SubscribableMapFunctions\.or\(\),\s*this\.fws\.greenHydSysInop,\s*this\.fws\.yellowHydSysInop,/,
-    );
-    for (const [engine, system] of [
-      [1, 'green'],
-      [2, 'green'],
-      [3, 'yellow'],
-      [4, 'yellow'],
-    ]) {
-      expect(fwsCore).toMatch(
-        new RegExp(
-          `eng${engine}HydraulicInop = MappedSubject\\.create\\(\\s*\\(\\[genInop, systemLost\\]\\) => genInop && !systemLost,\\s*this\\.gen${engine}Inop,\\s*this\\.${system}HydSysLostByEnginesOut,`,
-        ),
-      );
-    }
+    const fixture = createFws(new Set());
+    const { core, simVars } = fixture;
+    const inopSys = core.inopSys.inopSys;
+    // Both hydraulic systems pressurised: only the engines out can make a system inoperative
+    simVars.set('L:A32NX_HYD_GREEN_SYSTEM_1_SECTION_PRESSURE_SWITCH', 1);
+    simVars.set('L:A32NX_HYD_YELLOW_SYSTEM_1_SECTION_PRESSURE_SWITCH', 1);
+    expect(inopSys['290300021'].simVarIsActive).toBe(core.greenHydSysInop);
+    expect(inopSys['290300022'].simVarIsActive).toBe(core.yellowHydSysInop);
+    runFwsCycle(core);
+    expect(core.greenHydSysInop.get()).toBe(false);
+    expect(core.yellowHydSysInop.get()).toBe(false);
+    expect(core.inopSys.partSplrs.get()).toBe(false);
+
+    failEngines(fixture, [1, 2]);
+    expect(core.greenHydSysInop.get()).toBe(true);
+    expect(core.yellowHydSysInop.get()).toBe(false);
+    expect(core.inopSys.partSplrs.get()).toBe(true);
+    // GEN 1 and 2 are inoperative with their engines out, yet their ENG PMP A+B lines give way to G HYD SYS
+    expect(core.eng1HydraulicInop.get()).toBe(false);
+    expect(core.eng2HydraulicInop.get()).toBe(false);
+    expect(core.eng3HydraulicInop.get()).toBe(false);
   });
 
   it('same side: PART L/G RETRACTION and the PACK of the failed side', () => {
-    expect(entry(abnormalSensed, 701800159)).toContain(
-      "inopSysAllPhases: () => ['320300023', this.fws.twoEnginesOutLeftSide.get() ? '210300009' : '210300010'],",
-    );
+    const { core } = createFws(new Set());
+    const entry = core.abnormalSensed.ewdAbnormalSensed['701800159'];
+    core.twoEnginesOutLeftSide.set(true);
+    expect(entry.inopSysAllPhases?.([])).toEqual(['320300023', '210300009']);
+    core.twoEnginesOutLeftSide.set(false);
+    expect(entry.inopSysAllPhases?.([])).toEqual(['320300023', '210300010']);
   });
 
   it('opposite side: one GEN line for the two generators lost', () => {
@@ -331,17 +342,15 @@ describe('ENG TWO ENGS OUT STATUS', () => {
     expect(oppositeSideGeneratorPair([true, false, false, false])).toBeNull();
     expect(oppositeSideGeneratorPair([true, true, true, false])).toBeNull();
 
-    for (const [key, pair] of [
-      [240300039, '13'],
-      [240300040, '14'],
-      [240300041, '23'],
-      [240300042, '24'],
-    ] as const) {
-      expect(entry(inopSys, key)).toContain(`simVarIsActive: this.gen${pair}Inop,`);
-    }
+    const { core } = createFws(new Set());
+    const inopSys = core.inopSys.inopSys;
+    expect(inopSys['240300039'].simVarIsActive).toBe(core.inopSys.gen13Inop);
+    expect(inopSys['240300040'].simVarIsActive).toBe(core.inopSys.gen14Inop);
+    expect(inopSys['240300041'].simVarIsActive).toBe(core.inopSys.gen23Inop);
+    expect(inopSys['240300042'].simVarIsActive).toBe(core.inopSys.gen24Inop);
     // GEN 1 is not shown with GEN 1+2, 1+3 or 1+4
-    expect(entry(inopSys, 240300010)).toContain("notActiveWhenItemActive: ['240300037', '240300039', '240300040'],");
-    expect(entry(inopSys, 240300013)).toContain("notActiveWhenItemActive: ['240300038', '240300040', '240300042'],");
+    expect(inopSys['240300010'].notActiveWhenItemActive).toEqual(['240300037', '240300039', '240300040']);
+    expect(inopSys['240300013'].notActiveWhenItemActive).toEqual(['240300038', '240300040', '240300042']);
   });
 });
 
@@ -365,17 +374,13 @@ describe('ENG ALL ENG FLAME OUT inhibits ELEC EMER CONFIG while it is shown', ()
 });
 
 describe('ENG FAIL inhibition and AUTO RELIGHT IN PROGRESS', () => {
-  const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-  const engFailEntry = (engine: number) => {
-    const start = abnormalSensed.search(new RegExp(` {6}// ENG ${engine} FAIL\\r?\\n`));
-    expect(start).toBeGreaterThan(0);
-    return abnormalSensed.slice(start, abnormalSensed.indexOf('\n    },', start));
-  };
-
   it('ENG FAIL is not inhibited in any flight phase', () => {
     expect(ENG_FAIL_FLIGHT_PHASE_INHIBITION).toEqual([]);
+    const { core } = createFws(new Set());
     for (let engine = 1; engine <= 4; engine++) {
-      expect(engFailEntry(engine)).toContain('flightPhaseInhib: ENG_FAIL_FLIGHT_PHASE_INHIBITION,');
+      expect(core.abnormalSensed.ewdAbnormalSensed[701800028 + engine].flightPhaseInhib).toBe(
+        ENG_FAIL_FLIGHT_PHASE_INHIBITION,
+      );
     }
   });
 
@@ -407,34 +412,21 @@ describe('ENG FAIL inhibition and AUTO RELIGHT IN PROGRESS', () => {
   it.each([1, 2, 3, 4])(
     'ENG %d FAIL shows the line from the FADEC auto relight state, not from "in flight"',
     (engine) => {
-      const entry = engFailEntry(engine);
-      const shown = entry
-        // the lines inside engineFailItemsShown(reason, [...])
-        .slice(entry.indexOf('engineFailItemsShown('), entry.indexOf('whichItemsChecked'))
-        .split('\n')
-        .slice(1)
-        .filter((line) => line.trim().endsWith(','));
-      expect(shown[1]).toContain(`this.fws.engineAutoRelightInProgress[${engine - 1}].get(),`);
+      const { core } = createFws(new Set());
+      const entry = core.abnormalSensed.ewdAbnormalSensed[701800028 + engine];
+      core.aircraftOnGround.set(false);
+      core.engineAutoRelightInProgress[engine - 1].set(false);
+      expect(entry.whichItemsToShow()[1]).toBe(false);
+      core.engineAutoRelightInProgress[engine - 1].set(true);
+      expect(entry.whichItemsToShow()[1]).toBe(true);
     },
   );
 });
 
 describe('ENG TWO ENGS OUT deferred procedures', () => {
-  const ata70 = readFileSync(
-    resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata70.ts'),
-    'utf-8',
-  );
-  const index = readFileSync(
-    resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/index.ts'),
-    'utf-8',
-  );
-  const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-  const deferred = (id: number) => {
-    const start = ata70.indexOf(`  ${id}: {`);
-    expect(start).toBeGreaterThan(0);
-    return ata70.slice(start, ata70.indexOf('\n  },', start));
-  };
-  const itemCount = (id: number) => (deferred(id).match(/\{ name: /g) ?? []).length;
+  const deferred = (id: number) => EcamDeferredProcedures[id];
+  const itemNames = (id: number) => deferred(id).items.map((item) => item.name);
+  const itemCount = (id: number) => deferred(id).items.length;
 
   const cruise: TwoEnginesOutDeferredInputs = {
     jettisonArmPbOn: false,
@@ -448,13 +440,13 @@ describe('ENG TWO ENGS OUT deferred procedures', () => {
   };
 
   it('the deferred procedures are registered and come from the two alerts', () => {
-    expect(index).toContain('...EcamDeferredProcAta70,');
-    expect(deferred(700700002)).toContain("fromAbnormalProcs: ['701800159', '701800160'],");
-    expect(deferred(700700002)).toContain('type: DeferredProcedureType.ALL_PHASES,');
-    expect(deferred(700700003)).toContain("fromAbnormalProcs: ['701800159'],");
-    expect(deferred(700700004)).toContain("fromAbnormalProcs: ['701800160'],");
+    expect(deferred(700700002).fromAbnormalProcs).toEqual(['701800159', '701800160']);
+    expect(deferred(700700002).type).toBe(DeferredProcedureType.ALL_PHASES);
+    expect(deferred(700700003).fromAbnormalProcs).toEqual(['701800159']);
+    expect(deferred(700700004).fromAbnormalProcs).toEqual(['701800160']);
+    const { core } = createFws(new Set());
     for (const id of [700700001, 700700002, 700700003, 700700004]) {
-      expect(abnormalSensed).toContain(`    ${id}: {`);
+      expect(core.abnormalSensed.ewdDeferredProcs[id], String(id)).toBeDefined();
     }
   });
 
@@ -483,7 +475,8 @@ describe('ENG TWO ENGS OUT deferred procedures', () => {
   it('SAME SIDE: SLATS SLOW only with ENG 1+2 lost', () => {
     expect(sameSideApproachItems(cruise).show[7]).toBe(true);
     expect(sameSideApproachItems({ ...cruise, engines1And2Out: false }).show[7]).toBe(false);
-    expect(deferred(700700003)).toMatch(/'FLAPS SLOW'[^\n]*\n[^\n]*'SLATS SLOW'/);
+    const names = itemNames(700700003);
+    expect(names[names.indexOf('FLAPS SLOW') + 1]).toBe('SLATS SLOW');
   });
 
   it('SAME SIDE: the sensed lines follow the jettison, the flap lever, the gear, the A/THR and the ground spoilers', () => {
@@ -504,8 +497,7 @@ describe('ENG TWO ENGS OUT deferred procedures', () => {
   });
 
   it('OPPOSITE SIDE: L/G LEVER DOWN at INITIAL APPROACH, no gravity extension, no A/THR line', () => {
-    expect(deferred(700700004)).not.toContain('GRVTY');
-    expect(deferred(700700004)).not.toContain('A/THR');
+    expect(itemNames(700700004).filter((name) => name.includes('GRVTY') || name.includes('A/THR'))).toEqual([]);
     const done = oppositeSideApproachItems({ ...cruise, flapsHandleIndex: 2, gearLeverDown: true }).checked;
     expect([done[11], done[12], done[14], done[17]]).toEqual([true, true, true, false]);
   });

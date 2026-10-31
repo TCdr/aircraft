@@ -4,7 +4,7 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
-import { A380Failure, A380FailureDefinitions } from './a380';
+import { A380Failure, A380FailureDefinitions, failureDefinitionsAta21To33, failureDefinitionsAta32To80 } from './a380';
 
 // The flyPad failures page lists exactly A380FailureDefinitions; a definition is [ATA chapter, id, name].
 const listedIds = A380FailureDefinitions.map(([, id]) => id);
@@ -40,11 +40,7 @@ describe('A380X flyPad failure definitions', () => {
   });
 
   it('keeps every definition list literal under 1 000 failures, which tsc can still type (TS2590 above)', () => {
-    const source = readFileSync(resolve(__dirname, 'a380.ts'), 'utf8');
-    const literals = source.split(': FailureDefinition[] = [').slice(1);
-    const sizes = literals.map(
-      (literal) => (literal.split('\n];')[0].match(/^\s*\[\d+, A380Failure\./gm) ?? []).length,
-    );
+    const sizes = [failureDefinitionsAta21To33.length, failureDefinitionsAta32To80.length];
     expect(sizes.reduce((sum, size) => sum + size, 0)).toBe(listedIds.length);
     expect(sizes.filter((size) => size >= 1000)).toEqual([]);
   });

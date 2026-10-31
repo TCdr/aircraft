@@ -1,8 +1,6 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { Arinc429SignStatusMatrix, Arinc429Word } from '@flybywiresim/fbw-sdk';
 import { A380Failure } from '@failures';
@@ -21,29 +19,26 @@ import {
   staticProbeLines,
   StaticProbes,
 } from './FwsNavSensorAlerts';
-
-/*
- * The EcamMessages tables are read from the source text: importing EcamMessages/index.ts in a test fails (circular
- * import, see FwsElecAlertsStatus.spec.ts).
- */
-const ecamMessagesDir = resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages');
-const ecamIndex = readFileSync(resolve(ecamMessagesDir, 'index.ts'), 'utf-8');
-const ata34 = readFileSync(resolve(ecamMessagesDir, 'AbnormalSensed/ata34.ts'), 'utf-8');
+import {
+  EcamAbnormalProcedures,
+  EcamInfos,
+  EcamInopSys,
+} from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { createFws } from './FwsSpecFixture';
 
 /** The text of a line of an EcamMessages table, without its colour code */
 function tableText(table: 'EcamInopSys' | 'EcamInfos', key: string): string | undefined {
-  const start = ecamIndex.indexOf(`export const ${table}`);
-  const body = ecamIndex.slice(start, ecamIndex.indexOf('\n};', start));
-  const line = body.match(new RegExp(`^\\s*'?${key}'?: '\\\\x1b<\\d+m([^']*)',`, 'm'));
-  return line ? line[1] : undefined;
+  const text = (table === 'EcamInopSys' ? EcamInopSys : EcamInfos)[key];
+  // eslint-disable-next-line no-control-regex
+  return text?.replace(/^\x1b<\d+m/, '');
 }
 
-/** The source text of a procedure of ata34.ts, up to the next procedure */
-function procedure(code: number): string {
-  const start = ata34.indexOf(`  ${code}: {`);
-  expect(start).toBeGreaterThan(0);
-  const next = ata34.slice(start + 1).search(/\n {2}\d{9}: \{/);
-  return next < 0 ? ata34.slice(start) : ata34.slice(start, start + 1 + next);
+/** The names of the lines of a procedure of ata34.ts, and its title without colour and system codes */
+function procedure(code: number): { title: string; items: string[] } {
+  const message = EcamAbnormalProcedures[code];
+  expect(message).toBeDefined();
+  // eslint-disable-next-line no-control-regex
+  return { title: message.title.replace(/^\x1b<\d+m\x1b4m/, ''), items: message.items.map((item) => item.name) };
 }
 
 const clear: StaticProbes = { left: false, right: false };
@@ -97,23 +92,21 @@ describe('NAV FLS and GLS FAULT', () => {
   });
 
   it('lists FLS and GLS FAULT with their STATUS and crew awareness level', () => {
-    const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-    const alerts: [string, string, string, string][] = [
-      ['340800075', 'fls1Fault', "['340300077']", 'FLS 1 FAULT'],
-      ['340800076', 'fls2Fault', "['340300078']", 'FLS 2 FAULT'],
-      ['340800077', 'fls1And2Fault', "['340300079']", 'FLS 1+2 FAULT'],
-      ['340800030', 'gls1Fault', "['220300010', '340300080']", 'GLS 1 FAULT'],
-      ['340800031', 'gls2Fault', "['220300010', '340300081']", 'GLS 2 FAULT'],
-      ['340800032', 'gls1And2Fault', "['340300082']", 'GLS 1+2 FAULT'],
-    ];
+    const { core } = createFws();
+    const alerts: [string, 'fls1Fault', string[], string][] = [
+      ['340800075', 'fls1Fault', ['340300077'], 'FLS 1 FAULT'],
+      ['340800076', 'fls2Fault', ['340300078'], 'FLS 2 FAULT'],
+      ['340800077', 'fls1And2Fault', ['340300079'], 'FLS 1+2 FAULT'],
+      ['340800030', 'gls1Fault', ['220300010', '340300080'], 'GLS 1 FAULT'],
+      ['340800031', 'gls2Fault', ['220300010', '340300081'], 'GLS 2 FAULT'],
+      ['340800032', 'gls1And2Fault', ['340300082'], 'GLS 1+2 FAULT'],
+    ] as any;
     for (const [key, subject, inop, title] of alerts) {
-      const start = abnormalSensed.indexOf(`    ${key}: {`);
-      expect(start).toBeGreaterThan(0);
-      const source = abnormalSensed.slice(start, abnormalSensed.indexOf('\n    },', start));
-      expect(source).toContain(`simVarIsActive: this.fws.navSensorAlerts.${subject},`);
-      expect(source).toContain(`inopSysApprLdg: () => ${inop},`);
-      expect(source).toContain('failure: 1,');
-      expect(procedure(Number(key))).toContain(`NAV\\x1bm ${title}'`);
+      const entry = core.abnormalSensed.ewdAbnormalSensed[key];
+      expect(entry.simVarIsActive).toBe(core.navSensorAlerts[subject]);
+      expect(entry.inopSysApprLdg?.([])).toEqual(inop);
+      expect(entry.failure).toBe(1);
+      expect(procedure(Number(key)).title).toBe('NAV\x1bm ' + title);
     }
     for (const [key, text] of [
       ['340300077', 'FLS 1'],
@@ -230,13 +223,13 @@ describe('NAV RESIDUAL AIR SPEED ON ADR', () => {
 
 describe('the NAV landing system and probe alert texts', () => {
   it('has the procedures and the STATUS lines', () => {
-    expect(procedure(340800063)).toContain('RESIDUAL AIR SPEED ON ADR 1');
-    expect(procedure(340800073)).toContain('RESIDUAL AIR SPEED ON ADR 2');
-    expect(procedure(340800074)).toContain('RESIDUAL AIR SPEED ON ADR 3');
+    expect(procedure(340800063).title).toContain('RESIDUAL AIR SPEED ON ADR 1');
+    expect(procedure(340800073).title).toContain('RESIDUAL AIR SPEED ON ADR 2');
+    expect(procedure(340800074).title).toContain('RESIDUAL AIR SPEED ON ADR 3');
     // 9 probe lines and IAS/ALT MAYBE NOT RELIABLE
     const staticProbe = procedure(340800067);
-    expect(staticProbe.match(/name: '/g)).toHaveLength(10);
-    expect(staticProbe).toContain("name: 'L+R ADR 3 STAT PROBE'");
+    expect(staticProbe.items).toHaveLength(10);
+    expect(staticProbe.items).toContain('L+R ADR 3 STAT PROBE');
     const inopSys = [
       ...LS_FAULT_INOP_SYS_APPR_LDG.ls1,
       ...LS_FAULT_INOP_SYS_APPR_LDG.ls2,

@@ -1,10 +1,9 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { Arinc429SignStatusMatrix, Arinc429Word } from '@flybywiresim/fbw-sdk';
+import { createFws, runFwsCycle } from './FwsSpecFixture';
 import { selectSfccPositionWord } from './SfccWordSelection';
 
 const word = (value: number, ssm = Arinc429SignStatusMatrix.NormalOperation) =>
@@ -35,12 +34,31 @@ describe('A380X FWS slat/flap position source', () => {
     );
   });
 
-  it('is the source of the FwsCore flap and slat CONFIG signals (no SFCC 1 only read left)', () => {
-    const fwsCore = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
-    expect(fwsCore).not.toMatch(/const (flaps|slats)Pos = Arinc429Word\.fromSimVarValue\('L:A32NX_SFCC_1/);
-    expect(fwsCore).toMatch(/const flapsPos = selectSfccPositionWord\(/);
-    expect(fwsCore).toMatch(/const slatsPos = selectSfccPositionWord\(/);
-    expect(fwsCore).toContain("Arinc429Word.fromSimVarValue('L:A32NX_SFCC_2_FLAP_ACTUAL_POSITION_WORD')");
-    expect(fwsCore).toContain("Arinc429Word.fromSimVarValue('L:A32NX_SFCC_2_SLAT_ACTUAL_POSITION_WORD')");
+  describe('in the FWS flap and slat CONFIG signals', () => {
+    const normal = Arinc429SignStatusMatrix.NormalOperation;
+    const failed = Arinc429SignStatusMatrix.FailureWarning;
+
+    /** The FWS signals "flaps above 17 deg" and "slats below 20 deg" for the given SFCC position words */
+    function configSignals(
+      sfcc1: { flaps: number; slats: number; ssm: Arinc429SignStatusMatrix },
+      sfcc2Flaps: number,
+      sfcc2Slats: number,
+    ) {
+      const { core, simVars } = createFws(new Set());
+      simVars.set('L:A32NX_SFCC_1_FLAP_ACTUAL_POSITION_WORD', Arinc429Word.getRawWord(sfcc1.flaps, sfcc1.ssm));
+      simVars.set('L:A32NX_SFCC_1_SLAT_ACTUAL_POSITION_WORD', Arinc429Word.getRawWord(sfcc1.slats, sfcc1.ssm));
+      simVars.set('L:A32NX_SFCC_2_FLAP_ACTUAL_POSITION_WORD', Arinc429Word.getRawWord(sfcc2Flaps, normal));
+      simVars.set('L:A32NX_SFCC_2_SLAT_ACTUAL_POSITION_WORD', Arinc429Word.getRawWord(sfcc2Slats, normal));
+      runFwsCycle(core);
+      return [core.flapsSuperiorTo17Deg.get(), core.slatsInferiorTo20Deg.get()];
+    }
+
+    it('reads SFCC 2 while SFCC 1 gives no valid position', () => {
+      expect(configSignals({ flaps: 100, slats: 400, ssm: failed }, 300, 200)).toEqual([true, true]);
+    });
+
+    it('reads SFCC 1 while it gives the position', () => {
+      expect(configSignals({ flaps: 100, slats: 400, ssm: normal }, 300, 200)).toEqual([false, false]);
+    });
   });
 });
