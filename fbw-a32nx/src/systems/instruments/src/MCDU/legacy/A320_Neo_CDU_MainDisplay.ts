@@ -23,6 +23,7 @@ import { McduMessage, NXFictionalMessages, NXSystemMessages, TypeIIMessage } fro
 import { McduServerClient } from '@simbridge/index';
 import { ScratchpadDataLink, ScratchpadDisplay } from './A320_Neo_CDU_Scratchpad';
 import { A32NX_MessageQueue } from './A32NX_MessageQueue';
+import { PendingPositionUpdate } from '../legacy_pages/PositionMonitorFields';
 import { CDUMenuPage } from '../legacy_pages/A320_Neo_CDU_MenuPage';
 import { CDUFuelPredPage } from '../legacy_pages/A320_Neo_CDU_FuelPredPage';
 import { FmgcFlightPhase } from '@shared/flightphase';
@@ -147,6 +148,10 @@ export class A320_Neo_CDU_MainDisplay
     Slow: 3000,
   };
   public returnPageCallback: typeof EmptyCallback.Void | null = null;
+  /** Whether this screen's IRS STATUS page is frozen */
+  public irsStatusFrozen = false;
+  /** The position this screen entered in PROG POSITION UPDATE AT, waiting for its CONFIRM UPDATE AT */
+  public pendingPositionUpdate: PendingPositionUpdate | null = null;
 
   public SelfPtr: ReturnType<typeof setTimeout> | false = false;
 
@@ -428,6 +433,9 @@ export class A320_Neo_CDU_MainDisplay
     'onDown',
     'onUnload',
     'onAirport',
+    // the state of pages that is only about what this screen shows
+    'irsStatusFrozen',
+    'pendingPositionUpdate',
     // scratchpad, messages and keys
     '_keypad',
     'scratchpadDisplay',
@@ -502,6 +510,8 @@ export class A320_Neo_CDU_MainDisplay
     state.leftInputDelay = [];
     state.rightInputDelay = [];
     state.returnPageCallback = null;
+    state.irsStatusFrozen = false;
+    state.pendingPositionUpdate = null;
     state.SelfPtr = false;
     state.pageRedrawCallback = undefined;
     state.pageUpdate = undefined;

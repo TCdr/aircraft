@@ -44,6 +44,15 @@ interface RequestForm {
   qnh: number | null;
   windDirection: number | null;
   windSpeed: number | null;
+  /** The origin airport the form was started for: another airport starts a new form */
+  originAirport: string | null;
+  /** The origin runway the page 1 defaults were taken from, to refill them when the F-PLN runway changes */
+  defaultsRunway: string | null;
+  /** Set when the pilot entered anything on page 1: the F-PLN runway no longer refills it */
+  firstRunwayEdited: boolean;
+  /** Set when the pilot entered the QNH or the wind: they are no longer sampled again */
+  qnhModified: boolean;
+  windModified: boolean;
 }
 
 const emptyRunway = (): RunwayRequest => ({
@@ -75,14 +84,12 @@ function formatTemperature(t: number): string {
 export class CDUUplinkTakeoffDataPages {
   private static form: RequestForm | null = null;
 
-  /** The pages refresh every 50 MCDU updates, like the PERF pages */
-  private static timer = 0;
-
+  /** The pages refresh every 50 MCDU updates, like the PERF pages; the count is per screen */
   private static refreshEvery50Updates(mcdu: LegacyFmsPageInterface, pageId: number, refresh: () => void): void {
-    CDUUplinkTakeoffDataPages.timer = 0;
+    let updatesSinceDraw = 0;
     mcdu.pageUpdate = () => {
-      CDUUplinkTakeoffDataPages.timer++;
-      if (CDUUplinkTakeoffDataPages.timer >= 50 && mcdu.page.Current === pageId) {
+      updatesSinceDraw++;
+      if (updatesSinceDraw >= 50 && mcdu.page.Current === pageId) {
         refresh();
       }
     };
@@ -91,24 +98,50 @@ export class CDUUplinkTakeoffDataPages {
   /** The request form, with its defaults */
   private static getForm(mcdu: LegacyFmsPageInterface): RequestForm {
     const plan = mcdu.getFlightPlan(FlightPlanIndex.Active);
+    const originAirport = plan.originAirport?.ident ?? null;
+    // A plan without origin for a moment (F-PLN being rebuilt) must not end the form
+    if (
+      CDUUplinkTakeoffDataPages.form !== null &&
+      originAirport !== null &&
+      CDUUplinkTakeoffDataPages.form.originAirport !== originAirport
+    ) {
+      CDUUplinkTakeoffDataPages.form = null;
+    }
     if (CDUUplinkTakeoffDataPages.form === null) {
-      const lat = SimVar.GetSimVarValue('PLANE LATITUDE', 'degree latitude');
-      const long = SimVar.GetSimVarValue('PLANE LONGITUDE', 'degree longitude');
-      const magVar = MagVar.get(lat, long) ?? 0;
       CDUUplinkTakeoffDataPages.form = {
         runways: [emptyRunway(), emptyRunway()],
-        // BARO: the FCU selection; WIND: the wind at the origin
-        qnh: Math.round(SimVar.GetSimVarValue('KOHLSMAN SETTING MB:1', 'millibars')),
-        windDirection: Math.round((SimVar.GetSimVarValue('AMBIENT WIND DIRECTION', 'degrees') - magVar + 360) % 360),
-        windSpeed: Math.round(SimVar.GetSimVarValue('AMBIENT WIND VELOCITY', 'knots')),
+        qnh: null,
+        windDirection: null,
+        windSpeed: null,
+        originAirport,
+        defaultsRunway: null,
+        firstRunwayEdited: false,
+        qnhModified: false,
+        windModified: false,
       };
     }
     const form = CDUUplinkTakeoffDataPages.form;
-    const first = form.runways[0];
-    // Page 1: the F-PLN departure runway with the PERF TAKE OFF values, as long as the pilot did not modify them
-    if (first.runway === null && plan.originRunway) {
-      first.runway = RunwayUtils.runwayString(plan.originRunway.ident);
-      CDUUplinkTakeoffDataPages.setPerfDefaults(mcdu, first);
+    // BARO: the FCU selection; WIND: the wind at the origin; both follow the sim until the pilot enters them
+    if (!form.qnhModified) {
+      form.qnh = Math.round(SimVar.GetSimVarValue('KOHLSMAN SETTING MB:1', 'millibars'));
+    }
+    if (!form.windModified) {
+      const lat = SimVar.GetSimVarValue('PLANE LATITUDE', 'degree latitude');
+      const long = SimVar.GetSimVarValue('PLANE LONGITUDE', 'degree longitude');
+      const magVar = MagVar.get(lat, long) ?? 0;
+      form.windDirection = Math.round(
+        (SimVar.GetSimVarValue('AMBIENT WIND DIRECTION', 'degrees') - magVar + 360) % 360,
+      );
+      form.windSpeed = Math.round(SimVar.GetSimVarValue('AMBIENT WIND VELOCITY', 'knots'));
+    }
+    // Page 1: the F-PLN departure runway with the PERF TAKE OFF values, refilled when the F-PLN runway changes, as
+    // long as the pilot did not enter anything on the page
+    const originRunway = plan.originRunway ? RunwayUtils.runwayString(plan.originRunway.ident) : null;
+    if (originRunway !== null && originRunway !== form.defaultsRunway && !form.firstRunwayEdited) {
+      // The whole entry, so that TO LIMIT and CONTAM of the previous runway do not stay
+      form.runways[0] = { ...emptyRunway(), runway: originRunway };
+      form.defaultsRunway = originRunway;
+      CDUUplinkTakeoffDataPages.setPerfDefaults(mcdu, form.runways[0]);
     }
     return form;
   }
@@ -155,6 +188,11 @@ export class CDUUplinkTakeoffDataPages {
     const form = CDUUplinkTakeoffDataPages.getForm(mcdu);
     const rwy = form.runways[index];
     const defined = rwy.runway !== null;
+    const markEdited = () => {
+      if (index === 0) {
+        form.firstRunwayEdited = true;
+      }
+    };
     const refresh = () => CDUUplinkTakeoffDataPages.ShowRequestPage(mcdu, index);
     const data = mcdu.uplinkTakeoffData;
 
@@ -207,6 +245,7 @@ export class CDUUplinkTakeoffDataPages {
         scratchpadCallback();
         return;
       }
+      markEdited();
       if (runwayMatch) {
         if (rwy.runway === null) {
           CDUUplinkTakeoffDataPages.setPerfDefaults(mcdu, rwy);
@@ -230,6 +269,7 @@ export class CDUUplinkTakeoffDataPages {
           return;
         }
         form.qnh = Math.round(hpa);
+        form.qnhModified = true;
         refresh();
       };
       mcdu.onLeftInput[2] = (value, scratchpadCallback) => {
@@ -241,6 +281,7 @@ export class CDUUplinkTakeoffDataPages {
         }
         form.windDirection = parseInt(match[1]) % 360;
         form.windSpeed = parseInt(match[2]);
+        form.windModified = true;
         refresh();
       };
       mcdu.onRightInput[1] = (value, scratchpadCallback) => {
@@ -254,6 +295,7 @@ export class CDUUplinkTakeoffDataPages {
           scratchpadCallback();
           return;
         }
+        markEdited();
         refresh();
       };
       mcdu.onRightInput[2] = (value, scratchpadCallback) => {
@@ -263,6 +305,7 @@ export class CDUUplinkTakeoffDataPages {
           scratchpadCallback();
           return;
         }
+        markEdited();
         if (match[1] !== undefined) {
           rwy.flaps = parseInt(match[1]);
         }
@@ -283,14 +326,17 @@ export class CDUUplinkTakeoffDataPages {
           scratchpadCallback();
           return;
         }
+        markEdited();
         refresh();
       };
       // [4L] CONTAM: the scroll keys change the runway contamination
       mcdu.onUp = () => {
+        markEdited();
         rwy.contamination = (rwy.contamination + 1) % UPLINK_CONTAMINATIONS.length;
         refresh();
       };
       mcdu.onDown = () => {
+        markEdited();
         rwy.contamination = (rwy.contamination + UPLINK_CONTAMINATIONS.length - 1) % UPLINK_CONTAMINATIONS.length;
         refresh();
       };
