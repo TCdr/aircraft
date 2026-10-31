@@ -19,18 +19,20 @@ const NO_SEATS: PaxStationInfo[] = [];
  * is open, and GSX resets it to 0 when it restarts. Runs while the Services page is shown (the boarding is requested
  * there), with the same rule as the Payload page (announceGsxPassengers).
  * @param ready the Services page is linked to GSX and GSX runs
- * @returns the passenger counts, and `announce` to give GSX the number at once (before a boarding request)
+ * @returns the passenger counts, `loaded` once they have been read (until then they are all 0, which must not be taken
+ * for an empty cabin), and `announce` to give GSX the number at once (before a boarding request)
  */
-export function useGsxPassengers(ready: boolean): { counts: GsxPaxCounts; announce: () => void } {
+export function useGsxPassengers(ready: boolean): { counts: GsxPaxCounts; loaded: boolean; announce: () => void } {
   const seatMap = useAppSelector((state) => state.config.cabinInfo?.seatMap) ?? NO_SEATS;
-  const [counts, setCounts] = useState<GsxPaxCounts>(NO_PAX);
+  const [readCounts, setReadCounts] = useState<GsxPaxCounts | null>(null);
   const readyRef = useRef(ready);
   readyRef.current = ready;
 
   useEffect(() => {
     const update = () => {
       const now = readGsxPaxCounts(seatMap);
-      setCounts((old) =>
+      setReadCounts((old) =>
+        old !== null &&
         old.onBoard === now.onBoard &&
         old.planned === now.planned &&
         old.gsxBoarded === now.gsxBoarded &&
@@ -45,5 +47,9 @@ export function useGsxPassengers(ready: boolean): { counts: GsxPaxCounts; announ
     return () => clearInterval(timer);
   }, [seatMap, ready]);
 
-  return { counts, announce: () => announceGsxPassengers(seatMap, readyRef.current) };
+  return {
+    counts: readCounts ?? NO_PAX,
+    loaded: readCounts !== null,
+    announce: () => announceGsxPassengers(seatMap, readyRef.current),
+  };
 }

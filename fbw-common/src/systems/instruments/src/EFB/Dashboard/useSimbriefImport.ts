@@ -23,12 +23,22 @@ import {
   setSimbriefDataPending,
 } from '@flybywiresim/flypad';
 import { useNavigraphAuthInfo } from '../Apis/Navigraph/Components/Authentication';
-import { loadsPayloadAtOnce } from './logic/instantPayload';
+import {
+  GSX_PAYLOAD_SYNC_DEFAULT,
+  INSTANT_LOAD_START_VALUES,
+  importBlockedByBoarding,
+  instantLoadRestoreValues,
+  isGsxPayloadSyncOn,
+  loadsPayloadAtOnce,
+} from './logic/instantPayload';
 
 /** Time for the payload page to write the imported targets before the load is started */
 const TARGETS_WRITTEN_DELAY_MS = 1_000;
-const GSX_SYNC_RESTORE_POLL_MS = 500;
-const GSX_SYNC_RESTORE_TIMEOUT_MS = 30_000;
+const INSTANT_LOAD_RESTORE_POLL_MS = 500;
+const INSTANT_LOAD_RESTORE_TIMEOUT_MS = 30000;
+
+/** Module level so a remount of the dashboard during the load does not lose it. */
+let instantLoadInProgress = false;
 
 /**
  * The SimBrief import of the dashboard: the import itself, the toast once fuel and payload took the OFP, and the
@@ -45,7 +55,7 @@ export const useSimbriefImport = (): { importOfp: () => void; pending: boolean }
   const [autoSimbriefImport] = usePersistentProperty('CONFIG_AUTO_SIMBRIEF_IMPORT');
   const airframeInfo = useAppSelector((state) => state.config.airframeInfo);
 
-  const [gsxPayloadSyncEnabled] = usePersistentNumberProperty('GSX_PAYLOAD_SYNC', 248);
+  const [gsxPayloadSyncEnabled] = usePersistentNumberProperty('GSX_PAYLOAD_SYNC', GSX_PAYLOAD_SYNC_DEFAULT);
   const [gsxBoardingState] = useSimVar('L:FSDT_GSX_BOARDING_STATE', 'Number', 227);
   const [gsxDeBoardingState] = useSimVar('L:FSDT_GSX_DEBOARDING_STATE', 'Number', 229);
   const [boardingStarted] = useSimVar('L:A32NX_BOARDING_STARTED_BY_USR', 'Bool', 208);
@@ -63,39 +73,46 @@ export const useSimbriefImport = (): { importOfp: () => void; pending: boolean }
   const history = useHistory();
 
   /**
-   * The payload page has just written the OFP targets; an instant boarding takes them into the aircraft. With GSX
-   * payload sync the payload system only follows GSX, which cannot board an aircraft off the gate, so the sync is
-   * switched off for the load and back on once the boarding is over.
+   * The payload page has just written the OFP targets; an instant boarding takes them into the aircraft. The sync and
+   * the rate are switched in the session only and handed back once the boarding is over, so the settings of the user
+   * survive the import.
    */
   const loadPayloadAtOnce = () => {
-    NXDataStore.setLegacy('CONFIG_BOARDING_RATE', 'INSTANT');
-    if (gsxPayloadSyncEnabled) {
-      SimVar.SetSimVarValue('L:A32NX_GSX_PAYLOAD_SYNC_ENABLED', 'number', 0);
-    }
+    instantLoadInProgress = true;
+    SimVar.SetSimVarValue('L:A32NX_GSX_PAYLOAD_SYNC_ENABLED', 'number', INSTANT_LOAD_START_VALUES.gsxPayloadSync);
+    SimVar.SetSimVarValue('L:A32NX_BOARDING_RATE', 'enum', INSTANT_LOAD_START_VALUES.boardingRate);
     window.setTimeout(() => {
       SimVar.SetSimVarValue('L:A32NX_BOARDING_STARTED_BY_USR', 'Bool', true);
-      if (!gsxPayloadSyncEnabled) {
-        return;
-      }
-      const loadDeadline = Date.now() + GSX_SYNC_RESTORE_TIMEOUT_MS;
-      const restoreGsxSync = window.setInterval(() => {
+      const loadDeadline = Date.now() + INSTANT_LOAD_RESTORE_TIMEOUT_MS;
+      const restoreSettings = window.setInterval(() => {
         const boardingOver = !SimVar.GetSimVarValue('L:A32NX_BOARDING_STARTED_BY_USR', 'Bool');
         if (boardingOver || Date.now() > loadDeadline) {
-          window.clearInterval(restoreGsxSync);
-          SimVar.SetSimVarValue('L:A32NX_GSX_PAYLOAD_SYNC_ENABLED', 'number', 1);
+          window.clearInterval(restoreSettings);
+          const restore = instantLoadRestoreValues(
+            NXDataStore.getLegacy('GSX_PAYLOAD_SYNC', String(GSX_PAYLOAD_SYNC_DEFAULT)),
+            NXDataStore.getLegacy('CONFIG_BOARDING_RATE', 'REAL'),
+          );
+          SimVar.SetSimVarValue('L:A32NX_GSX_PAYLOAD_SYNC_ENABLED', 'number', restore.gsxPayloadSync);
+          SimVar.SetSimVarValue('L:A32NX_BOARDING_RATE', 'enum', restore.boardingRate);
+          instantLoadInProgress = false;
         }
-      }, GSX_SYNC_RESTORE_POLL_MS);
+      }, INSTANT_LOAD_RESTORE_POLL_MS);
     }, TARGETS_WRITTEN_DELAY_MS);
   };
 
   const fetchData = async () => {
     dispatch(setSimbriefDataPending(true));
 
-    const gsxInProgress =
-      (gsxDeBoardingState >= 4 && gsxDeBoardingState < 6) || (gsxBoardingState >= 4 && gsxBoardingState < 6);
-    const generalBoardingInProgress = gsxPayloadSyncEnabled ? gsxInProgress : boardingStarted;
-
-    if (generalBoardingInProgress || refuelStartedByUser) {
+    if (
+      importBlockedByBoarding({
+        gsxSyncOn: isGsxPayloadSyncOn(gsxPayloadSyncEnabled),
+        boardingStarted,
+        gsxBoardingState,
+        gsxDeBoardingState,
+        refuelStarted: refuelStartedByUser,
+        instantLoadInProgress,
+      })
+    ) {
       toast.error(t('Dashboard.YourFlight.NoImportDueToBoardingOrRefuel'));
     } else {
       try {

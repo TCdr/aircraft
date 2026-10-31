@@ -12,6 +12,7 @@ import {
   inView,
   MIN_REDRAW_INTERVAL_MS,
   pictureChanged,
+  PushbackAirportIndex,
   PushbackMapPicture,
   viewBox,
 } from './pushbackAirportDraw';
@@ -96,8 +97,13 @@ export const PushbackAirportLayer: FC<PushbackAirportLayerProps> = ({ center, he
   const drawn = useRef<PushbackMapPicture | null>(null);
   const drawnAt = useRef(0);
   const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // The latest picture to draw (read by a pending drawing)
-  const latest = useRef<{ picture: PushbackMapPicture; airport: TaxiAirport | null } | null>(null);
+  // The latest picture to draw (read by a pending drawing, which would otherwise draw what its own render knew: an
+  // airport that finished loading meanwhile would stay blank)
+  const latest = useRef<{
+    picture: PushbackMapPicture;
+    airport: TaxiAirport | null;
+    index: PushbackAirportIndex | null;
+  } | null>(null);
 
   const draw = () => {
     pending.current = null;
@@ -106,12 +112,12 @@ export const PushbackAirportLayer: FC<PushbackAirportLayerProps> = ({ center, he
     if (!ctx || !next) {
       return;
     }
-    const { picture } = next;
+    const { picture, index: airportIndex } = next;
     const { width, height, cx, cy } = picture;
     drawn.current = picture;
     drawnAt.current = Date.now();
     ctx.clearRect(0, 0, width, height);
-    if (!next.airport || !index || width === 0 || height === 0) {
+    if (!next.airport || !airportIndex || width === 0 || height === 0) {
       return;
     }
     const view = viewBox(cx, cy, width, height, picture.pxPerMetre);
@@ -131,23 +137,23 @@ export const PushbackAirportLayer: FC<PushbackAirportLayerProps> = ({ center, he
       }
     };
 
-    trace(index.aprons, true);
+    trace(airportIndex.aprons, true);
     ctx.fillStyle = COLOURS.apron;
     ctx.fill();
-    trace(index.taxiways, true);
+    trace(airportIndex.taxiways, true);
     ctx.fillStyle = COLOURS.taxiway;
     ctx.fill();
-    trace(index.runways, true);
+    trace(airportIndex.runways, true);
     ctx.fillStyle = COLOURS.runway;
     ctx.fill();
     ctx.strokeStyle = COLOURS.runwayEdge;
     ctx.lineWidth = 1;
     ctx.stroke();
 
-    trace(index.standLines, false);
+    trace(airportIndex.standLines, false);
     ctx.strokeStyle = COLOURS.standLine;
     ctx.stroke();
-    trace(index.guidanceLines, false);
+    trace(airportIndex.guidanceLines, false);
     ctx.strokeStyle = COLOURS.guidance;
     ctx.stroke();
 
@@ -193,7 +199,7 @@ export const PushbackAirportLayer: FC<PushbackAirportLayerProps> = ({ center, he
       width: size.width,
       height: size.height,
     };
-    latest.current = { picture, airport };
+    latest.current = { picture, airport, index };
     if (!pictureChanged(drawn.current, picture) || pending.current !== null) {
       return;
     }

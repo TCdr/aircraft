@@ -29,6 +29,7 @@ import {
   gsxTurnaroundAction,
 } from './GsxRemote';
 import { GsxPaxProgress, gsxPaxProgress } from './gsxPassengers';
+import { FLIGHT_PHASE_DONE, isGsxArrival } from './gsxPassengerSync';
 import { useGsxPassengers } from './useGsxPassengers';
 import {
   GSX_BAGGAGE_CARRIER,
@@ -60,9 +61,6 @@ const BAGGAGE_IDLE_TEXT: Record<GsxBaggageId, string> = {
 
 /** How often the panel reads the baggage L:vars */
 const BAGGAGE_READ_MS = 500;
-
-/** The FMGC flight phase after landing (FmgcFlightPhase.Done) */
-const FLIGHT_PHASE_DONE = 7;
 
 /** The other GSX services, as chips */
 const EXTRA_SERVICES: GsxServiceId[] = [
@@ -281,10 +279,16 @@ export const GsxServicesPanel: FC<GsxServicesPanelProps> = ({ linked, onLinkChan
   const found = gsx.connected && gsx.gsxRunning;
   const ready = linked && found;
   const [flightPhase] = useSimVar('L:A32NX_FMGC_FLIGHT_PHASE', 'enum', 1000);
-  const turnaround = flightPhase === FLIGHT_PHASE_DONE ? ARRIVAL_TURNAROUND : DEPARTURE_TURNAROUND;
+  const [boardingState] = useSimVar('L:FSDT_GSX_BOARDING_STATE', 'number', 1000);
+  const [deboardingState] = useSimVar('L:FSDT_GSX_DEBOARDING_STATE', 'number', 1000);
   // The flyPad's passengers: given to GSX (planned before a departure, on board after landing) and counted on the
   // boarding and deboarding steps
-  const { counts: paxCounts, announce: announcePax } = useGsxPassengers(ready);
+  const { counts: paxCounts, loaded: paxLoaded, announce: announcePax } = useGsxPassengers(ready);
+  // Until the passengers are read, 0 on board would look like a deboarded aircraft and flash the departure list
+  const arrival = paxLoaded
+    ? isGsxArrival(flightPhase, paxCounts.onBoard, boardingState, deboardingState)
+    : flightPhase === FLIGHT_PHASE_DONE;
+  const turnaround = arrival ? ARRIVAL_TURNAROUND : DEPARTURE_TURNAROUND;
 
   // GSX under remote control while linked
   useEffect(() => {
