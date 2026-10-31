@@ -511,7 +511,7 @@ const EgtGauge = ({ x, y }: ComponentPositionProps) => {
   );
 };
 
-const ApuMemos = ({ x, y }: ComponentPositionProps) => {
+export const ApuMemos = ({ x, y }: ComponentPositionProps) => {
   const lowFuelPressure = useArinc429Var('L:A32NX_APU_LOW_FUEL_PRESSURE_FAULT', 1000);
 
   const [apuFlapOpenPercentage] = useSimVar('L:A32NX_APU_FLAP_OPEN_PERCENTAGE', 'Percent', 1000);

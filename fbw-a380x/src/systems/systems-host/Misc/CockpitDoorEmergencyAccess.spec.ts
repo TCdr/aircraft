@@ -4,6 +4,7 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
+import { runRpn } from '../../../../../fbw-a32nx/src/behavior/RpnTestInterpreter';
 import { A380Failure, A380FailureDefinitions } from '@failures';
 import {
   AUTO_UNLOCK_DELAY_S,
@@ -97,8 +98,18 @@ describe('cockpit door emergency access', () => {
       ),
       'utf-8',
     );
-    const counter = '(L:A32NX_COCKPIT_DOOR_SW_SELECTIONS) 1 + (&gt;L:A32NX_COCKPIT_DOOR_SW_SELECTIONS)';
-    expect(template).toContain(`<CODE_POS_0>0 (&gt;L:A32NX_COCKPIT_DOOR_LOCKED) ${counter}</CODE_POS_0>`);
-    expect(template).toContain(`<CODE_POS_2>1 (&gt;L:A32NX_COCKPIT_DOOR_LOCKED) ${counter}</CODE_POS_2>`);
+    // the CKPT DOOR sw positions 0 (UNLOCK) and 2 (LOCK) run these codes: run them from a switch count of 3
+    const codeOfPosition = (position: number) =>
+      new RegExp(`<CODE_POS_${position}>([^<]*COCKPIT_DOOR_LOCKED[^<]*)</CODE_POS_${position}>`).exec(template)?.[1] ??
+      '';
+    const finalValue = (position: number, target: string) =>
+      runRpn(codeOfPosition(position), { 'L:A32NX_COCKPIT_DOOR_SW_SELECTIONS': 3 })
+        .writes.filter((write) => write.target.includes(target))
+        .map((write) => write.value)
+        .pop();
+    expect(finalValue(0, 'COCKPIT_DOOR_LOCKED')).toBe(0);
+    expect(finalValue(2, 'COCKPIT_DOOR_LOCKED')).toBe(1);
+    expect(finalValue(0, 'COCKPIT_DOOR_SW_SELECTIONS')).toBe(4);
+    expect(finalValue(2, 'COCKPIT_DOOR_SW_SELECTIONS')).toBe(4);
   });
 });

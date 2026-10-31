@@ -4,6 +4,7 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
+import { runRpn } from '../../../../../fbw-a32nx/src/behavior/RpnTestInterpreter';
 import { ATC_MSG_LIGHT_VAR, isAtcMsgLightLit } from './AtcMsgLights';
 
 const COCKPIT_MODEL =
@@ -46,17 +47,36 @@ describe('ATC MSG lights (flashes at 2 Hz)', () => {
     }
   });
 
+  // The lamp codes are run through the RPN interpreter: the XML is data the systems host drives, not a unit under test
+  const lampCodes = (xml: string) => {
+    const codes: string[] = [];
+    const seq1Code = /<SEQ1_CODE>([^<]*ATC_MSG[^<]*)<\/SEQ1_CODE>/g;
+    let match: RegExpExecArray | null;
+    while ((match = seq1Code.exec(xml)) !== null) {
+      codes.push(match[1]);
+    }
+    return codes;
+  };
+
   it('is what the glareshield ATC MSG pbs show, not the steady waiting flag', () => {
     const glareshield = readFileSync(resolve(__dirname, COCKPIT_MODEL, 'behaviour/glareshield.xml'), 'utf-8');
-    const lamps = glareshield.match(/<SEQ1_CODE>\(L:A3[^)]*ATC_MSG[^)]*\)<\/SEQ1_CODE>/g) ?? [];
+    const lamps = lampCodes(glareshield);
     expect(lamps).toHaveLength(2);
     for (const lamp of lamps) {
-      expect(lamp).toContain(ATC_MSG_LIGHT_VAR);
+      expect(runRpn(lamp, { [ATC_MSG_LIGHT_VAR]: 1 }).value).toBe(1);
+      expect(runRpn(lamp, { [ATC_MSG_LIGHT_VAR]: 0, 'L:A32NX_DCDU_ATC_MSG_WAITING': 1 }).value).toBe(0);
     }
+  });
+
+  it('no lamp of the shared legacy cockpit template follows the steady waiting flag', () => {
     const legacy = readFileSync(
       resolve(__dirname, COCKPIT_MODEL, 'behaviour/legacy/generated/A32NX_Interior_Misc.xml'),
       'utf-8',
     );
-    expect(legacy).not.toContain('<SEQ1_CODE>(L:A32NX_DCDU_ATC_MSG_WAITING');
+    const lamps = lampCodes(legacy);
+    expect(lamps.length).toBeGreaterThan(0);
+    for (const lamp of lamps) {
+      expect(runRpn(lamp, { [ATC_MSG_LIGHT_VAR]: 0, 'L:A32NX_DCDU_ATC_MSG_WAITING': 1 }).value).toBe(0);
+    }
   });
 });

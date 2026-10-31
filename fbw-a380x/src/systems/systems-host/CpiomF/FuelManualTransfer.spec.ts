@@ -4,6 +4,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { beforeEach, describe, expect, it } from 'vitest';
+import { runRpn } from '../../../../../fbw-a32nx/src/behavior/RpnTestInterpreter';
 import {
   ALL_TRANSFER_PUMPS,
   ALL_TRANSFER_VALVES,
@@ -172,8 +173,12 @@ describe('A380 fuel transfer pb-sws in the cockpit (A380_Cockpit_Behavior.xml)',
       const start = cockpitBehavior.indexOf(`<TOGGLE_SIMVAR>${pbVar}</TOGGLE_SIMVAR>`);
       expect(start).toBeGreaterThan(0);
       const template = cockpitBehavior.slice(start, cockpitBehavior.indexOf('</UseTemplate>', start));
-      expect(template).toContain(`<DOWN_CODE>(${pbVar}, Bool) !</DOWN_CODE>`);
-      expect(template).toContain(`<SEQ2_CODE>(${pbVar}, Bool) !</SEQ2_CODE>`);
+      // AUTO (1) is released: the pb is not down and its light is off; MAN / FWD (0) is pressed in with its light
+      for (const codeTag of ['DOWN_CODE', 'SEQ2_CODE']) {
+        const code = new RegExp(`<${codeTag}>([^<]*)</${codeTag}>`).exec(template)?.[1] ?? '';
+        expect(runRpn(code, { [pbVar]: 1 }).value, `${pbVar} ${codeTag} AUTO`).toBe(0);
+        expect(runRpn(code, { [pbVar]: 0 }).value, `${pbVar} ${codeTag} MAN`).toBe(1);
+      }
     }
   });
 
@@ -183,7 +188,9 @@ describe('A380 fuel transfer pb-sws in the cockpit (A380_Cockpit_Behavior.xml)',
     const template = cockpitBehavior.slice(start, cockpitBehavior.indexOf('</UseTemplate>', start));
     expect(template).not.toContain('<INOP>');
     expect(template).toContain('<TOGGLE_SIMVAR>L:A380X_OVHD_FUEL_AUTO_GND_XFR_PB_IS_ON</TOGGLE_SIMVAR>');
-    expect(template).toContain('<SEQ2_CODE>(L:A380X_OVHD_FUEL_AUTO_GND_XFR_PB_LIGHT_ON, Bool)</SEQ2_CODE>');
+    const lightCode = /<SEQ2_CODE>([^<]*)<\/SEQ2_CODE>/.exec(template)?.[1] ?? '';
+    expect(runRpn(lightCode, { 'L:A380X_OVHD_FUEL_AUTO_GND_XFR_PB_LIGHT_ON': 1 }).value).toBe(1);
+    expect(runRpn(lightCode, { 'L:A380X_OVHD_FUEL_AUTO_GND_XFR_PB_LIGHT_ON': 0 }).value).toBe(0);
   });
 });
 

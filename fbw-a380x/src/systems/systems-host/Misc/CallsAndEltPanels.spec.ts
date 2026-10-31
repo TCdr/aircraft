@@ -4,6 +4,7 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
+import { runRpn } from '../../../../../fbw-a32nx/src/behavior/RpnTestInterpreter';
 import { isCabinCalledFromCockpit } from '../CpiomC/FlightWarningSystem/CommunicationAlerts';
 
 // The CALLS panel and the ELT selector of the overhead panel (A380_Cockpit_Behavior.xml) and the call chimes (sound.xml)
@@ -38,34 +39,16 @@ function parameter(block: string, tag: string): string | undefined {
 }
 
 /**
- * Runs the small RPN subset of these codes: numbers, (L:NAME, unit) reads, (&gt;L:NAME) writes, ! and `and`.
- * @returns the writes and the value left on the stack
+ * Runs the code of the XML through the RPN test interpreter.
+ * @returns the writes (the last value of each variable) and the value left on the stack
  */
 function run(code: string, variables: Record<string, number>): { value: number; writes: Record<string, number> } {
+  const result = runRpn(code, variables);
   const writes: Record<string, number> = {};
-  const stack: number[] = [];
-  const tokens = code.replace(/&gt;/g, '>').match(/\([^)]*\)|\S+/g) ?? [];
-  for (const token of tokens) {
-    const write = /^\(>(L:[^,)]+)\)$/.exec(token);
-    const read = /^\((L:[^,)]+)(,[^)]*)?\)$/.exec(token);
-    if (write) {
-      writes[write[1].trim()] = stack.pop() ?? 0;
-    } else if (read) {
-      const name = read[1].trim();
-      stack.push(writes[name] ?? variables[name] ?? 0);
-    } else if (token === '!') {
-      stack.push((stack.pop() ?? 0) > 0 ? 0 : 1);
-    } else if (token === 'and') {
-      const b = stack.pop() ?? 0;
-      const a = stack.pop() ?? 0;
-      stack.push(a > 0 && b > 0 ? 1 : 0);
-    } else if (/^-?\d+(\.\d+)?$/.test(token)) {
-      stack.push(Number(token));
-    } else {
-      throw new Error(`unsupported token ${token}`);
-    }
+  for (const write of result.writes) {
+    writes[write.target] = write.value;
   }
-  return { value: stack.pop() ?? 0, writes };
+  return { value: result.value ?? 0, writes };
 }
 
 /*
