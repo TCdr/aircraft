@@ -25,6 +25,7 @@ import {
 } from '@shared/NdInteractive';
 import { InternalKccuKeyEvent } from '../MFD/shared/MFDSimvarPublisher';
 import { formatUtc } from '../MFD/FMC/DirectToEta';
+import { ndInteractiveButtonsKey, ndInteractivePageKey } from './NdInteractiveRenderKey';
 
 interface NdInteractiveProps extends ComponentProps {
   bus: EventBus;
@@ -153,6 +154,11 @@ export class NdInteractive extends DisplayComponent<NdInteractiveProps> {
   private readonly subs: Subscription[] = [];
 
   private readonly state = ConsumerSubject.create<NdInteractiveState>(null, NO_STATE);
+
+  /** Keys of the state as last drawn: the 500 ms republishes that change nothing displayed must not rebuild the DOM */
+  private drawnPageKey: string | null = null;
+
+  private drawnButtonsKey: string | null = null;
 
   private page: Page | null = null;
 
@@ -790,9 +796,17 @@ export class NdInteractive extends DisplayComponent<NdInteractiveProps> {
           this.onKccuKey(key);
         }
       }),
-      this.state.sub(() => {
-        this.renderButtons();
-        this.renderPage();
+      this.state.sub((state) => {
+        const buttonsKey = ndInteractiveButtonsKey(state);
+        if (buttonsKey !== this.drawnButtonsKey) {
+          this.drawnButtonsKey = buttonsKey;
+          this.renderButtons();
+        }
+        const pageKey = ndInteractivePageKey(state);
+        if (pageKey !== this.drawnPageKey) {
+          this.drawnPageKey = pageKey;
+          this.renderPage();
+        }
       }, true),
       this.props.cursorInNd.sub(() => this.renderButtons(), true),
       this.props.mapShown.sub((shown) => {

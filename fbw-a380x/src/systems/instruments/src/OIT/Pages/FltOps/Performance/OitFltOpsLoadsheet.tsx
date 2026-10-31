@@ -83,7 +83,9 @@ import {
   FUEL_MODE_LABELS,
   FUEL_MODE_MANUAL,
   FUEL_MODE_TRIM_ADJUSTMENT,
+  displayedTankTotal,
   manualDistribution,
+  fitManualDistributionToFob,
   manualDistributionMatchesFob,
   trimAdjustmentDistribution,
 } from '../../../System/Performance/LoadsheetFuelModes';
@@ -158,6 +160,9 @@ export class OitFltOpsLoadsheet extends OitPerfPageBase<OitFltOpsLoadsheetProps,
 
   /** The predicted fuel of each tank after the refuel with the CG targeting, kg */
   private readonly distribution = Subject.create<number[]>(LOADSHEET_FUEL_TANKS.map(() => 0));
+
+  /** The manual distribution the last computation ran on (rounding remainder placed), null in the other modes */
+  private fittedDistribution: number[] | null = null;
 
   private readonly weightFormat = (maxWeight: number) =>
     new OitPerfEntryFormat<number>(
@@ -459,15 +464,24 @@ export class OitFltOpsLoadsheet extends OitPerfPageBase<OitFltOpsLoadsheetProps,
       return;
     }
     this.updateFuelDistribution();
-    if (
-      s.fuelMode.get() === FUEL_MODE_MANUAL &&
-      !manualDistributionMatchesFob(this.distribution.get(), loading.fob ?? 0)
-    ) {
-      fail(['FUEL DISTR FOB differs from the FOB of the loading']);
-      return;
+    this.fittedDistribution = null;
+    let distribution = this.distribution.get();
+    if (s.fuelMode.get() === FUEL_MODE_MANUAL) {
+      const fob = loading.fob ?? 0;
+      if (!manualDistributionMatchesFob(distribution, fob, this.metric)) {
+        fail(['FUEL DISTR FOB differs from the FOB of the loading']);
+        return;
+      }
+      const fitted = fitManualDistributionToFob(distribution, fob, this.density());
+      if (fitted === null) {
+        fail(['FUEL DISTR FOB differs from the FOB of the loading']);
+        return;
+      }
+      distribution = fitted;
+      this.fittedDistribution = fitted;
     }
     this.session.onLoadsheetComputed(
-      computeLoadsheet(this.configuration(), loading, this.distribution.get(), this.perPaxWeight(), (cg, weight) =>
+      computeLoadsheet(this.configuration(), loading, distribution, this.perPaxWeight(), (cg, weight) =>
         A380_TAKEOFF_CALCULATOR.isCgWithinLimits(cg, weight),
       ),
     );
@@ -559,7 +573,7 @@ export class OitFltOpsLoadsheet extends OitPerfPageBase<OitFltOpsLoadsheetProps,
     }
     const advice = groundTransferAdvice(
       { zfw: results.zfw, zfcg: results.zfcg },
-      this.distribution.get(),
+      this.fittedDistribution ?? this.distribution.get(),
       results.tow,
       results.towCg,
       takeoffCgLimits(results.tow, (cg, weight) => A380_TAKEOFF_CALCULATOR.isCgWithinLimits(cg, weight)),
@@ -974,14 +988,7 @@ export class OitFltOpsLoadsheet extends OitPerfPageBase<OitFltOpsLoadsheetProps,
     const notMode = (wanted: number) => this.tracked(mode.map((m) => m !== wanted));
     const notTrimEntry = notMode(FUEL_MODE_TRIM_ADJUSTMENT);
     const notManual = notMode(FUEL_MODE_MANUAL);
-    const distributionFob = this.tracked(
-      this.distribution.map((d) =>
-        formatWeight(
-          d.reduce((sum, kg) => sum + kg, 0),
-          this.metric,
-        ),
-      ),
-    );
+    const distributionFob = this.tracked(this.distribution.map((d) => displayedTankTotal(d, this.metric).toFixed(1)));
     return (
       <div class={{ fc: true, hidden: this.tracked(this.tab.map((t) => t !== 'fuel')) }} style="padding: 8px;">
         <div class="oit-perf-row">
