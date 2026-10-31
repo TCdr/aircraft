@@ -1,9 +1,10 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PaxStationInfo } from '@flybywiresim/fbw-sdk-react';
-import { announceGsxPassengers, GSX_NUM_PASSENGERS_VAR } from './gsxPassengerSync';
+import { announceGsxPassengers, GSX_NUM_PASSENGERS_VAR, isGsxArrival } from './gsxPassengerSync';
+import { gsxTurnaround } from './gsxTurnaround';
 
 // the real seat flags, without the whole flyPad SDK
 vi.mock('@flybywiresim/fbw-sdk-react', async () => {
@@ -34,6 +35,8 @@ describe('GSX passenger number written by the Services and Payload pages', () =>
     set(GSX_NUM_PASSENGERS_VAR, 0);
   });
 
+  afterEach(() => gsxTurnaround.clear());
+
   it('gives GSX the 38 passengers on board, not the 0 of the Payload target, when GSX deboarding is requested', () => {
     set('L:FSDT_GSX_DEBOARDING_STATE', 4);
 
@@ -54,6 +57,20 @@ describe('GSX passenger number written by the Services and Payload pages', () =>
     expect(SimVar.GetSimVarValue(GSX_NUM_PASSENGERS_VAR, 'number')).toBe(30);
   });
 
+  it('gives GSX the planned passengers after landing once nobody is on board and no boarding has started', () => {
+    set('L:A32NX_FMGC_FLIGHT_PHASE', 7);
+    set('L:A32NX_PAX_A', 0);
+    set('L:A32NX_PAX_B', 0);
+    set('L:A32NX_PAX_A_DESIRED', seats(20));
+    set('L:A32NX_PAX_B_DESIRED', seats(10));
+    set('L:FSDT_GSX_BOARDING_STATE', 1);
+    set(GSX_NUM_PASSENGERS_VAR, 38);
+
+    announceGsxPassengers(SEAT_MAP, true);
+
+    expect(SimVar.GetSimVarValue(GSX_NUM_PASSENGERS_VAR, 'number')).toBe(30);
+  });
+
   it('leaves the number while GSX deboards, and when the page may not write it', () => {
     set(GSX_NUM_PASSENGERS_VAR, 38);
     set('L:A32NX_PAX_A', seats(5));
@@ -64,5 +81,29 @@ describe('GSX passenger number written by the Services and Payload pages', () =>
     set('L:FSDT_GSX_DEBOARDING_STATE', 4);
     announceGsxPassengers(SEAT_MAP, false);
     expect(SimVar.GetSimVarValue(GSX_NUM_PASSENGERS_VAR, 'number')).toBe(38);
+  });
+});
+
+describe('arrival or departure from the flight phase, the cabin and the GSX services', () => {
+  const FLIGHT_PHASE_DONE = 7;
+  const GSX_AVAILABLE = 1;
+  const GSX_REQUESTED = 4;
+  const GSX_COMPLETED = 6;
+
+  afterEach(() => gsxTurnaround.clear());
+
+  it('is an arrival after landing while GSX requests the deboarding', () => {
+    expect(isGsxArrival(FLIGHT_PHASE_DONE, 38, GSX_AVAILABLE, GSX_REQUESTED)).toBe(true);
+  });
+
+  it('is a departure once GSX has completed the boarding, whatever the deboarding state reads', () => {
+    expect(isGsxArrival(FLIGHT_PHASE_DONE, 38, GSX_COMPLETED, GSX_REQUESTED)).toBe(false);
+  });
+
+  it('is a departure while the flyPad remembers the boarding as done, although GSX shows it available again', () => {
+    gsxTurnaround.update({ states: { Boarding: GSX_COMPLETED }, departureState: 0, enginesRunning: false });
+    gsxTurnaround.update({ states: { Boarding: GSX_AVAILABLE }, departureState: 0, enginesRunning: false });
+
+    expect(isGsxArrival(FLIGHT_PHASE_DONE, 38, GSX_AVAILABLE, GSX_REQUESTED)).toBe(false);
   });
 });

@@ -2,10 +2,40 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { PaxStationInfo, SeatFlags } from '@flybywiresim/fbw-sdk-react';
-import { GsxPaxCounts, gsxPaxToAnnounce } from './gsxPassengers';
+import {
+  GSX_STATE_COMPLETED,
+  GSX_STATE_PERFORMING,
+  GSX_STATE_REQUESTED,
+  GsxPaxCounts,
+  gsxIsArrival,
+  gsxPaxToAnnounce,
+} from './gsxPassengers';
+import { gsxTurnaround } from './gsxTurnaround';
 
 /** The FMGC flight phase after landing (FmgcFlightPhase.Done) */
-const FLIGHT_PHASE_DONE = 7;
+export const FLIGHT_PHASE_DONE = 7;
+
+/**
+ * Whether the turnaround is an arrival (deboarding) now, from the FMGC flight phase, the passengers on board and the
+ * GSX services of this turnaround (see gsxIsArrival).
+ */
+export function isGsxArrival(
+  flightPhase: number,
+  onBoard: number,
+  boardingState: number,
+  deboardingState: number,
+): boolean {
+  return gsxIsArrival({
+    flightPhaseDone: flightPhase === FLIGHT_PHASE_DONE,
+    onBoard,
+    deboardingActive: deboardingState === GSX_STATE_REQUESTED || deboardingState === GSX_STATE_PERFORMING,
+    boardingStarted:
+      boardingState === GSX_STATE_REQUESTED ||
+      boardingState === GSX_STATE_PERFORMING ||
+      boardingState === GSX_STATE_COMPLETED ||
+      gsxTurnaround.isDone('Boarding'),
+  });
+}
 
 /** L:FSDT_GSX_NUMPASSENGERS: the passenger number GSX uses in place of its own */
 export const GSX_NUM_PASSENGERS_VAR = 'L:FSDT_GSX_NUMPASSENGERS';
@@ -43,11 +73,14 @@ export function announceGsxPassengers(
   ready: boolean,
   counts: GsxPaxCounts = readGsxPaxCounts(seatMap),
 ): void {
+  const boardingState = SimVar.GetSimVarValue('L:FSDT_GSX_BOARDING_STATE', 'number');
+  const deboardingState = SimVar.GetSimVarValue('L:FSDT_GSX_DEBOARDING_STATE', 'number');
+  const flightPhase = SimVar.GetSimVarValue('L:A32NX_FMGC_FLIGHT_PHASE', 'enum');
   const pax = gsxPaxToAnnounce({
     ready,
-    boardingState: SimVar.GetSimVarValue('L:FSDT_GSX_BOARDING_STATE', 'number'),
-    deboardingState: SimVar.GetSimVarValue('L:FSDT_GSX_DEBOARDING_STATE', 'number'),
-    arrival: SimVar.GetSimVarValue('L:A32NX_FMGC_FLIGHT_PHASE', 'enum') === FLIGHT_PHASE_DONE,
+    boardingState,
+    deboardingState,
+    arrival: isGsxArrival(flightPhase, counts.onBoard, boardingState, deboardingState),
     counts,
     announced: SimVar.GetSimVarValue(GSX_NUM_PASSENGERS_VAR, 'number'),
   });

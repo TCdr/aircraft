@@ -12,6 +12,9 @@ import { fetchRawMetarBySource } from '../../Service/WeatherService';
 import { getAirportMagVar, getRunways, Runway } from '../Data/Runways';
 import { isValidIcao } from '../Data/Utils';
 import { LandingWindLimits, RankedRunway, rankRunwaysByWind } from '../Data/landingWind';
+import { parseMetarWind } from '../../Dashboard/logic/metarTokens';
+import { landingWindForCheck } from '../Data/landingWindEntry';
+import { landingDistanceAvailable } from '../Data/runwayLda';
 import { PERF_INPUT } from './PerformanceKit';
 import { CONFIG_WEATHER_SOURCE_LABELS } from '../../Settings/Pages/AtsuAocPage';
 
@@ -31,6 +34,10 @@ interface LandingWindCheckProps {
   /** The wind of the calculator, magnetic (undefined direction: a headwind or tailwind entered without one) */
   windDirection: number | undefined;
   windSpeed: number | undefined;
+  /** The gust speed, when the wind gusts; the limits are checked with it */
+  windGust: number | undefined;
+  /** The wind of a METAR with a variable direction: ranked as the worst case */
+  windVariable: boolean;
   windEntry: string;
   /** The crosswind maximum of the runway condition at an OAT, and the tailwind limit */
   crosswindLimit: (oat: number) => number;
@@ -67,6 +74,8 @@ export const LandingWindCheck = ({
   selectedRunwayIndex,
   windDirection,
   windSpeed,
+  windGust,
+  windVariable,
   windEntry,
   crosswindLimit,
   oat,
@@ -170,7 +179,9 @@ export const LandingWindCheck = ({
     return (
       <div key={r.runway.ident} className={`${COLUMNS} h-10 rounded-sm ${selected ? 'bg-m3-tile' : 'bg-m3-card'}`}>
         <span className={`${cell('w-16')} font-bold text-m3-text`}>{r.runway.ident}</span>
-        <span className={`${cell('w-24')} text-m3-text`}>{`${formatDistance(r.runway.length)} ${distanceUnit}`}</span>
+        <span
+          className={`${cell('w-24')} text-m3-text`}
+        >{`${formatDistance(landingDistanceAvailable(r.runway))} ${distanceUnit}`}</span>
         <span className={`${cell('w-20')} text-m3-text`}>{`${headwind >= 0 ? 'H' : 'T'} ${Math.abs(headwind)}`}</span>
         <span className={`${cell('w-28')} text-m3-text`}>
           {`${r.wind.side} ${Math.round(r.wind.crosswind)}${gustCross > Math.round(r.wind.crosswind) ? ` (G ${gustCross})` : ''}`}
@@ -195,13 +206,14 @@ export const LandingWindCheck = ({
 
   // ------------------------------------------------------------------------------------------- destination
   const destinationLimits = limitsAt(oat);
+  const checkWind = landingWindForCheck(windDirection, windSpeed, windGust, windVariable);
   let destination: React.ReactNode;
   if (runways.length === 0) {
     destination = <span className="text-sm text-m3-muted">{t('Performance.Landing.Calc.WindCheck.NoRunways')}</span>;
-  } else if (windSpeed === undefined || windDirection === undefined) {
+  } else if (checkWind === undefined) {
     destination = <span className="text-sm text-m3-muted">{t('Performance.Landing.Calc.WindCheck.NoDirection')}</span>;
   } else {
-    const ranked = rankRunwaysByWind(runways, windDirection, windSpeed, windSpeed, destinationLimits);
+    const ranked = rankRunwaysByWind(runways, checkWind.direction, checkWind.speed, checkWind.gust, destinationLimits);
     let shown = ranked.slice(0, DESTINATION_ROWS);
     const selected = ranked.find((r) => r.index === selectedRunwayIndex);
     if (selected !== undefined && !shown.includes(selected)) {
@@ -246,7 +258,7 @@ export const LandingWindCheck = ({
     );
   } else {
     const { metar, magvar, runways: altRunways } = alternate.alternate;
-    const variable = /\bVRB\d/.test(alternate.raw);
+    const variable = parseMetarWind(alternate.raw)?.dirDeg === null;
     const direction = variable ? 'VRB' : Math.round(MathUtils.normalise360(metar.wind.degrees - (magvar ?? 0)));
     const limits = limitsAt(metar.temperature.celsius);
     const best = rankRunwaysByWind(altRunways, direction, metar.wind.speed_kts, metar.wind.gust_kts, limits)[0];

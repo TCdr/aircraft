@@ -72,6 +72,7 @@ import { TroubleshootingContextProvider } from './TroubleshootingContext';
 import { checkFileHashes } from './Utils/fileHashes';
 import { efbEvent, efbSetting, efbSimVar, isCaptainEfb } from './Utils/efbIndex';
 import { setFileHashMismatches } from './Store/features/fileHashes';
+import { exitsToCloseOnMovement } from './Ground/Pages/Services/doorClosing';
 import { startGsxTurnaroundTracker } from './Ground/Pages/Services/gsxTurnaround';
 
 // './Assets/Efb.scss' is imported by the aircraft EFB instrument the wraps this file
@@ -454,14 +455,15 @@ export const Efb: React.FC<EfbProps> = ({ aircraftChecklistsProp }) => {
   const closedDoorsState = !simOnGround || !aircraftIsStationary || pushBackAttached;
   const numberOfInteractivePoints = 20;
   useEffect(() => {
-    // by the captain's flyPad only: the doors are toggled, two flyPads would open them again
-    if (closedDoorsState && isCaptainEfb()) {
-      console.log('Closing all doors due to tug, aircraft movement or aircraft not on ground');
+    // The only place that closes the doors (the Services pages do not): the exits are toggled, so a second closer in
+    // the same frame, or the other flyPad, would open a door again
+    if (closedDoorsState) {
+      const openPositions: number[] = [];
       for (let i = 0; i <= numberOfInteractivePoints; i++) {
-        const doorOpen = SimVar.GetSimVarValue(`A:INTERACTIVE POINT OPEN:${i}`, 'percent over 100');
-        if (doorOpen >= 0.99) {
-          SimVar.SetSimVarValue('K:TOGGLE_AIRCRAFT_EXIT', 'enum', i + 1);
-        }
+        openPositions.push(SimVar.GetSimVarValue(`A:INTERACTIVE POINT OPEN:${i}`, 'percent over 100'));
+      }
+      for (const exit of exitsToCloseOnMovement(openPositions, isCaptainEfb())) {
+        SimVar.SetSimVarValue('K:TOGGLE_AIRCRAFT_EXIT', 'enum', exit);
       }
     }
   }, [closedDoorsState]);
