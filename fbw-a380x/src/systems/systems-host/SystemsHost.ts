@@ -16,28 +16,8 @@ import {
 } from '@microsoft/msfs-sdk';
 import { LegacyGpws } from './Misc/LegacyGpws';
 import { LegacyFuel } from './CpiomF/LegacyFuel';
-import { FuelPumpsAndValves } from './CpiomF/FuelPumpsAndValves';
-import { FuelJettison } from './CpiomF/FuelJettison';
-import { FuelEmerOuterTransfer } from './CpiomF/FuelEmerOuterTransfer';
-import { FuelLeak } from './CpiomF/FuelLeak';
-import { FuelAutomaticTransfers } from './CpiomF/FuelAutomaticTransfers';
 import { FuelTransferFaults } from './CpiomF/FuelTransferFaults';
-import { FuelCollectorCells } from './CpiomF/FuelCollectorCells';
-import { FuelTemperatures } from './CpiomF/FuelTankTemperatures';
-import { WeightBalanceBackup } from './CpiomF/WeightBalanceBackup';
-import { FuelApuFeed } from './CpiomF/FuelApuFeed';
-import { FuelOverflow } from './CpiomF/FuelOverflow';
-import { FuelRefuelFaults } from './CpiomF/FuelRefuelFaults';
-import { AutolandLights } from './Misc/AutolandLights';
-import { WxPbAutoDeselect } from './Misc/WxPbAutoDeselect';
-import { WxrSurvKnobs } from './Misc/WxrSurvKnobs';
-import { AtcMsgLights } from './Misc/AtcMsgLights';
-import { CabinOxygenMasks } from './Misc/CabinOxygenMasks';
-import { CabinSigns } from './Misc/CabinSigns';
-import { Tpis } from './Misc/Tpis';
-import { DoorsAndSlidesManagementSystem } from './Misc/DoorsAndSlidesManagement';
-import { CockpitDoorEmergencyAccess } from './Misc/CockpitDoorEmergencyAccess';
-import { CdsReconfiguration } from './Misc/CdsReconfiguration';
+import { createHostedSystems } from './HostedSystems';
 import { LegacySoundManager } from './Misc/LegacySoundManager';
 import { LegacyTcasComputer } from './Misc/tcas/components/LegacyTcasComputer';
 import { VhfRadio } from './Misc/Communications/VhfRadio';
@@ -217,52 +197,7 @@ class SystemsHost extends BaseInstrument {
   //FIXME add some deltatime functionality to backplane instruments so we dont have to pass SystemHost
   private readonly legacyFuel = new LegacyFuel(this.bus, this, this.fuelTransferFaults);
 
-  private readonly fuelJettison = new FuelJettison(this.bus, this, this.failuresConsumer);
-
-  private readonly autolandLights = new AutolandLights();
-
-  private readonly wxPbAutoDeselect = new WxPbAutoDeselect();
-
-  /** The ELEVN and GAIN knobs of the SURV panel */
-  private readonly wxrSurvKnobs = new WxrSurvKnobs(this.bus);
-
-  private readonly atcMsgLights = new AtcMsgLights();
-
-  private readonly cabinOxygenMasks = new CabinOxygenMasks();
-
-  private readonly cabinSigns = new CabinSigns();
-
-  private readonly tpis = new Tpis(this, this.failuresConsumer);
-
-  private readonly dsms = new DoorsAndSlidesManagementSystem(this, this.failuresConsumer);
-
-  private readonly cockpitDoorEmergencyAccess = new CockpitDoorEmergencyAccess(this, this.failuresConsumer);
-
-  private readonly cdsReconfiguration = new CdsReconfiguration(this.bus, this.failuresConsumer);
-  private readonly fuelPumpsAndValves = new FuelPumpsAndValves(this, this.failuresConsumer);
-
-  private readonly fuelEmerOuterTransfer = new FuelEmerOuterTransfer(this);
-
-  private readonly fuelLeak = new FuelLeak(this, this.failuresConsumer);
-
-  private readonly fuelAutomaticTransfers = new FuelAutomaticTransfers(
-    this,
-    this.failuresConsumer,
-    this.fuelPumpsAndValves,
-    this.fuelTransferFaults,
-  );
-
-  private readonly fuelCollectorCells = new FuelCollectorCells(this);
-
-  private readonly fuelTemperatures = new FuelTemperatures(this);
-
-  private readonly weightBalanceBackup = new WeightBalanceBackup(this.failuresConsumer);
-
-  private readonly fuelApuFeed = new FuelApuFeed(this, this.failuresConsumer);
-
-  private readonly fuelOverflow = new FuelOverflow(this, this.failuresConsumer);
-
-  private readonly fuelRefuelFaults = new FuelRefuelFaults(this.failuresConsumer);
+  private readonly hostedSystems = createHostedSystems(this, this.bus, this.failuresConsumer, this.fuelTransferFaults);
 
   /**
    * "mainmenu" = 0
@@ -285,27 +220,9 @@ class SystemsHost extends BaseInstrument {
     this.backplane.addInstrument('Xpndr', this.xpdr, true);
     this.backplane.addInstrument('FuelTransferFaults', this.fuelTransferFaults);
     this.backplane.addInstrument('LegacyFuel', this.legacyFuel);
-    this.backplane.addInstrument('FuelJettison', this.fuelJettison);
-    this.backplane.addInstrument('AutolandLights', this.autolandLights);
-    this.backplane.addInstrument('WxPbAutoDeselect', this.wxPbAutoDeselect);
-    this.backplane.addInstrument('WxrSurvKnobs', this.wxrSurvKnobs);
-    this.backplane.addInstrument('AtcMsgLights', this.atcMsgLights);
-    this.backplane.addInstrument('CabinOxygenMasks', this.cabinOxygenMasks);
-    this.backplane.addInstrument('CabinSigns', this.cabinSigns);
-    this.backplane.addInstrument('Tpis', this.tpis);
-    this.backplane.addInstrument('Dsms', this.dsms);
-    this.backplane.addInstrument('CockpitDoorEmergencyAccess', this.cockpitDoorEmergencyAccess);
-    this.backplane.addInstrument('CdsReconfiguration', this.cdsReconfiguration);
-    this.backplane.addInstrument('FuelPumpsAndValves', this.fuelPumpsAndValves);
-    this.backplane.addInstrument('FuelEmerOuterTransfer', this.fuelEmerOuterTransfer);
-    this.backplane.addInstrument('FuelLeak', this.fuelLeak);
-    this.backplane.addInstrument('FuelAutomaticTransfers', this.fuelAutomaticTransfers);
-    this.backplane.addInstrument('FuelCollectorCells', this.fuelCollectorCells);
-    this.backplane.addInstrument('FuelTemperatures', this.fuelTemperatures);
-    this.backplane.addInstrument('WeightBalanceBackup', this.weightBalanceBackup);
-    this.backplane.addInstrument('FuelApuFeed', this.fuelApuFeed);
-    this.backplane.addInstrument('FuelOverflow', this.fuelOverflow);
-    this.backplane.addInstrument('FuelRefuelFaults', this.fuelRefuelFaults);
+    for (const [name, instrument] of this.hostedSystems) {
+      this.backplane.addInstrument(name, instrument);
+    }
     this.backplane.addInstrument('BtvDistanceUpdater', this.btv);
     this.backplane.addInstrument('EfisTawsBridge', this.efisTawsBridge);
     this.backplane.addInstrument('PrimReactiveWindshear', new PrimReactiveWindshear(this.failuresConsumer));

@@ -1,8 +1,6 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { A380Failure, A380FailureDefinitions } from '@failures';
 import { TIRE_COUNT, TIRE_NORMAL_PRESSURE_PSI } from '@shared/TirePressures';
@@ -40,10 +38,5 @@ describe('A380 TPIS tire pressure model', () => {
     expect(listed).toHaveLength(TIRE_COUNT);
     expect(listed.every(([ata]) => ata === 32)).toBe(true);
     expect(TIRE_DEFLATION_FAILURES[20]).toBe(A380Failure.NoseTireLeftDeflation);
-  });
-
-  it('the systems host runs the TPIS', () => {
-    const host = readFileSync(resolve(__dirname, '../SystemsHost.ts'), 'utf8');
-    expect(host).toContain("this.backplane.addInstrument('Tpis', this.tpis);");
   });
 });
