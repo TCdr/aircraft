@@ -28,16 +28,7 @@ import { FwsManager } from './systems/FWC/FwsManager';
 import { DmcSdPageLogic } from './systems/DmcSdPageLogic/DmcSdPageLogic';
 import { DmcDisplayReconfiguration } from './systems/DmcDisplayReconfiguration/DmcDisplayReconfiguration';
 import { A32NXFacBusPublisher } from '../shared/src/publishers/A32NXFacBusPublisher';
-import { TawsStatusBridge } from './systems/TawsStatusBridge';
-import { RaasSystem } from './systems/Raas/RaasSystem';
-import { Transponder } from './systems/Transponder/Transponder';
-import { RadioCommunicationFailures } from './systems/Communications/RadioCommunicationFailures';
-import { NavigationReceiverFailures } from './systems/Navigation/NavigationReceiverFailures';
-import { FuelPumpsAndValves } from './systems/Fuel/FuelPumpsAndValves';
-import { PaxOxygenMasks } from './systems/Oxygen/PaxOxygenMasks';
-import { DoorFailures } from './systems/Doors/DoorFailures';
-import { CockpitVoiceRecorder } from './systems/Recorders/CockpitVoiceRecorder';
-import { FacReactiveWindshear } from './systems/Fac/FacReactiveWindshear';
+import { createHostedSystems } from './HostedSystems';
 
 class SystemsHost extends BaseInstrument {
   private readonly bus = new EventBus();
@@ -79,16 +70,9 @@ class SystemsHost extends BaseInstrument {
     this.backplane.addInstrument('AtsuSystem', this.atsu);
     this.backplane.addInstrument('Ecp', new Ecp(this.bus));
     this.backplane.addInstrument('FakeDmc', new FakeDmc(this.bus));
-    this.backplane.addInstrument('TawsStatusBridge', new TawsStatusBridge());
-    this.backplane.addInstrument('Raas', new RaasSystem(this.bus));
-    this.backplane.addInstrument('Transponder', new Transponder());
-    this.backplane.addInstrument('RadioCommunicationFailures', new RadioCommunicationFailures());
-    this.backplane.addInstrument('NavigationReceiverFailures', new NavigationReceiverFailures());
-    this.backplane.addInstrument('FuelPumpsAndValves', new FuelPumpsAndValves());
-    this.backplane.addInstrument('PaxOxygenMasks', new PaxOxygenMasks());
-    this.backplane.addInstrument('DoorFailures', new DoorFailures());
-    this.backplane.addInstrument('CockpitVoiceRecorder', new CockpitVoiceRecorder());
-    this.backplane.addInstrument('FacReactiveWindshear', new FacReactiveWindshear());
+    for (const [name, instrument] of createHostedSystems(this.bus)) {
+      this.backplane.addInstrument(name, instrument);
+    }
 
     this.backplane.addPublisher('HEvent', this.hEventPublisher);
     this.backplane.addPublisher('FuelSystem', this.fuelSystemPublisher);
