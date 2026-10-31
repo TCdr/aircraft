@@ -1,9 +1,21 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { autoPilotOffInvoluntaryStatus, autoThrustOffInvoluntaryStatus } from './AutoFlightStatus';
-import { ewdTexts, pseudoFwcItem, statusLines } from './FwcAlertSpecHelpers';
+import { ewdTexts, statusLines } from './FwcAlertSpecHelpers';
+import { startCruiseFwc } from '../FwcAlertProbe';
+import { createFwc, installFwcSimVarMocks, normalWord, runFwc, setHealthyCruise } from '../PseudoFwcTestBed';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
+
+/** The simvar values the real PseudoFWC reads (by name) */
+let simvars: Map<string, number>;
+
+beforeEach(() => {
+  ({ simvars } = installFwcSimVarMocks());
+});
 
 describe('AUTO FLT A/THR OFF (involuntary) STATUS', () => {
   it('CAT 2 ONLY; INOP SYS A/THR and CAT 3', () => {
@@ -13,8 +25,11 @@ describe('AUTO FLT A/THR OFF (involuntary) STATUS', () => {
     });
   });
 
-  it('is the STATUS of the PseudoFWC involuntary A/THR OFF', () => {
-    expect(pseudoFwcItem('2200022')).toContain('...alertStatus(autoThrustOffInvoluntaryStatus)');
+  it('is the STATUS of the real PseudoFWC involuntary A/THR OFF', () => {
+    const item = startCruiseFwc(simvars, undefined, 1).fwc.ewdMessageFailures['2200022'];
+    expect(statusLines({ left: item.statusInfo!(), inopSys: item.inopSys!() })).toEqual(
+      statusLines(autoThrustOffInvoluntaryStatus()),
+    );
   });
 });
 
@@ -44,10 +59,27 @@ describe('AUTO FLT AP OFF (involuntary) STATUS', () => {
     expect(autoPilotOffInvoluntaryStatus(false, false)).toEqual({ left: [], inopSys: [] });
   });
 
-  it('is the STATUS of the PseudoFWC involuntary AP OFF, from the FMGC AP Inop bits', () => {
-    const item = pseudoFwcItem('2200005');
-    expect(item).toContain('autoPilotOffInvoluntaryStatus(');
-    expect(item).toContain('this.fmgc1DiscreteWord4.get().bitValueOr(19, true)');
-    expect(item).toContain('this.fmgc2DiscreteWord4.get().bitValueOr(19, true)');
+  it('is the STATUS of the real PseudoFWC involuntary AP OFF, from the FMGC AP Inop bits', () => {
+    const { fwc, bus } = createFwc();
+    setHealthyCruise(bus, simvars);
+    const item = fwc.ewdMessageFailures['2200005'];
+    const status = () => statusLines({ left: item.statusInfo!(), inopSys: item.inopSys!() });
+    const AP_INOP_BIT = 19;
+    const apInopWord = normalWord(1 << (AP_INOP_BIT - 1));
+    const publisher = bus.getPublisher<any>();
+
+    // an FMGC that sends no word counts as a lost AP
+    runFwc(fwc, 1);
+    expect(status()).toEqual(statusLines(autoPilotOffInvoluntaryStatus(true, true)));
+
+    publisher.pub('fmgc1DiscreteWord4', normalWord(), false, true);
+    publisher.pub('fmgc2DiscreteWord4', apInopWord, false, true);
+    runFwc(fwc, 1);
+    expect(status()).toEqual(statusLines(autoPilotOffInvoluntaryStatus(false, true)));
+
+    publisher.pub('fmgc1DiscreteWord4', apInopWord, false, true);
+    publisher.pub('fmgc2DiscreteWord4', normalWord(), false, true);
+    runFwc(fwc, 1);
+    expect(status()).toEqual(statusLines(autoPilotOffInvoluntaryStatus(true, false)));
   });
 });

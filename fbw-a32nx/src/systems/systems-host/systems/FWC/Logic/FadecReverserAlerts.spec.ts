@@ -1,9 +1,9 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { SdPages as EcamSysPage } from '@shared/SdPages';
+import { probedFailure, probedMemo, startCruiseFwc } from '../FwcControlsAlertProbe';
 import { EwdMessageCodeOrder, formatEwdMessages } from '../../../../shared/src/EwdMessages';
 import { formatStatusPage } from '../../../../shared/src/StatusMessages';
 import {
@@ -21,6 +21,9 @@ import {
   thrustLeverFaultLines,
   thrustLeverStatus,
 } from './FadecReverserAlerts';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
 
 const TAXI = 2;
 const TAKEOFF_ROLL_ABOVE_80_KT = 4;
@@ -105,9 +108,9 @@ describe('ENG THR LEVER FAULT', () => {
     // line 8 of the codes of ENG 1 and ENG 2 THR LEVER FAULT
     expect(formatEwdMessages(['770053109'])[0]).toContain('ENG 1 IDLE POWER ONLY');
     expect(formatEwdMessages(['770053209'])[0]).toContain('ENG 2 IDLE POWER ONLY');
-    const pseudoFwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
-    expect(pseudoFwc).toContain("'770053109'");
-    expect(pseudoFwc).toContain("'770053209'");
+    const { fwc } = startCruiseFwc();
+    expect(probedFailure(fwc, '7700531').codesToReturn).toContain('770053109');
+    expect(probedFailure(fwc, '7700532').codesToReturn).toContain('770053209');
   });
 
   it('puts WHEN SLATS OUT: ENG AT IDLE, REVERSER and ENG THR on the STATUS', () => {
@@ -196,12 +199,6 @@ describe('ENG REVERSER FAULT and REV PRESSURIZED', () => {
 });
 
 describe('PseudoFWC wiring of the FADEC, thrust lever and reverser alerts', () => {
-  const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8').replace(/\r\n/g, '\n');
-  const block = (key: string) => {
-    const start = fwc.indexOf(`    ${key}: {`);
-    expect(start, key).toBeGreaterThan(0);
-    return fwc.slice(start, fwc.indexOf('\n    },', start));
-  };
   const alertKeys = [
     '7700501',
     '7700502',
@@ -224,27 +221,41 @@ describe('PseudoFWC wiring of the FADEC, thrust lever and reverser alerts', () =
   ];
 
   it('has amber cautions on the ENG page, every line of which has a message', () => {
+    const { fwc } = startCruiseFwc();
     for (const key of alertKeys) {
-      const alert = block(key);
-      expect(alert, key).toContain('failure: 2,');
-      expect(alert, key).toContain('sysPage: EcamSysPage.ENG,');
-      for (const code of alert.match(/'7700\d{5}'/g) ?? []) {
-        expect(EwdMessageCodeOrder.has(code.slice(1, -1)), code).toBe(true);
+      const alert = probedFailure(fwc, key);
+      expect(alert.failure, key).toBe(2);
+      expect(alert.sysPage, key).toBe(EcamSysPage.ENG);
+      for (const code of alert.codesToReturn) {
+        expect(EwdMessageCodeOrder.has(code), code).toBe(true);
       }
     }
   });
 
   it('uses the aircraft flight phase inhibitions', () => {
-    expect(block('7700501')).toContain('flightPhaseInhib: [3, 4, 5, 7, 8],');
-    expect(block('7700511')).toContain('flightPhaseInhib: [4, 5, 7, 8],');
-    expect(block('7700521')).toContain('flightPhaseInhib: [3, 4, 5, 7, 8],');
-    expect(block('7700551')).toContain('flightPhaseInhib: [8],');
-    expect(block('7700571')).toContain('flightPhaseInhib: [4, 5, 8],');
+    const { fwc } = startCruiseFwc();
+    expect(probedFailure(fwc, '7700501').flightPhaseInhib).toEqual([3, 4, 5, 7, 8]);
+    expect(probedFailure(fwc, '7700511').flightPhaseInhib).toEqual([4, 5, 7, 8]);
+    expect(probedFailure(fwc, '7700521').flightPhaseInhib).toEqual([3, 4, 5, 7, 8]);
+    expect(probedFailure(fwc, '7700551').flightPhaseInhib).toEqual([8]);
+    expect(probedFailure(fwc, '7700571').flightPhaseInhib).toEqual([4, 5, 8]);
   });
 
   it('calls LAND ASAP (amber) with THR LEVER FAULT and REVERSE UNLOCKED', () => {
-    const landAsap = block("'0000360'");
-    expect(landAsap).toContain('this.thrLeverFaultShown[0],');
-    expect(landAsap).toContain('this.reverseUnlockedShown[1],');
+    const { fwc } = startCruiseFwc();
+    const landAsap = probedMemo(fwc, '0000360');
+    const internals = fwc as any;
+    expect(landAsap.simVarIsActive.get()).toBe(false);
+    for (const shown of [
+      internals.thrLeverFaultShown[0],
+      internals.thrLeverFaultShown[1],
+      internals.reverseUnlockedShown[0],
+      internals.reverseUnlockedShown[1],
+    ]) {
+      shown.set(true);
+      expect(landAsap.simVarIsActive.get()).toBe(true);
+      shown.set(false);
+      expect(landAsap.simVarIsActive.get()).toBe(false);
+    }
   });
 });

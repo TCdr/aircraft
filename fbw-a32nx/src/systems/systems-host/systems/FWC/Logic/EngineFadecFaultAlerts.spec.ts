@@ -3,7 +3,7 @@
 
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { formatEwdMessages } from '@shared/EwdMessages';
 import { formatStatusPage } from '@shared/StatusMessages';
 import { A320Failure } from '@failures';
@@ -25,6 +25,17 @@ import {
   fuelReturnValveLines,
   throttleIdleFaultLines,
 } from './EngineFadecFaultAlerts';
+import { installFwcSimVarMocks, runFwc } from '../PseudoFwcTestBed';
+import { isAlertTriggered, startCruiseFwc } from '../FwcAlertProbe';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
+
+let simvars: Map<string, number>;
+
+beforeEach(() => {
+  ({ simvars } = installFwcSimVarMocks());
+});
 
 /** A failures consumer double: the registered failures and the active ones */
 class TestFailures implements EngineFadecFaultFailuresSource {
@@ -305,10 +316,18 @@ describe('ENG FADEC fault alerts', () => {
     }
   });
 
-  it('the PseudoFWC reads the faults, updates the alerts and adds them to its alerts', () => {
-    const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
-    expect(fwc).toContain('this.engineFadecFaultAlerts.init();');
-    expect(fwc).toContain('faults: [readEngineFadecFaults(1), readEngineFadecFaults(2)],');
-    expect(fwc).toContain('...this.engineFadecFaultAlerts.ewdFailures,');
+  it.each([
+    [1, 0],
+    [2, 1],
+  ])('the real FWC raises the alerts of engine %i from the variables of its FADEC', (engine, index) => {
+    const { fwc } = startCruiseFwc(simvars);
+    const fuelCtlFaultKey = FADEC_FAULT_KEYS.fuelCtlFault[index];
+    const otherEngineKey = FADEC_FAULT_KEYS.fuelCtlFault[1 - index];
+    expect(isAlertTriggered(fwc, fuelCtlFaultKey)).toBe(false);
+
+    simvars.set(`L:A32NX_ENGINE_${engine}_${FADEC_FAULT_VARIABLES.fuelMeteringValve}`, 1);
+    runFwc(fwc, 1);
+    expect(isAlertTriggered(fwc, fuelCtlFaultKey)).toBe(true);
+    expect(isAlertTriggered(fwc, otherEngineKey)).toBe(false);
   });
 });

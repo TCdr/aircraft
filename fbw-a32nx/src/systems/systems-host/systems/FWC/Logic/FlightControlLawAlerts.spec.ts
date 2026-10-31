@@ -1,9 +1,8 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { discreteWordWithBits, probedFailure, startCruiseFwc } from '../FwcControlsAlertProbe';
 import { altnLawLines, directLawLines, elacFaultLines } from './FlightControlLawAlerts';
 import { formatEwdMessages } from '../../../../shared/src/EwdMessages';
 
@@ -15,6 +14,9 @@ const shownText = (prefix: string, count: number, lines: (number | null)[]) =>
       .map((line) => `${prefix}${(line + 1).toString().padStart(2, '0')}`)
       .slice(0, count),
   ).join(' | ');
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
 
 /* F/CTL ALTN LAW: MAX SPEED 320 KT (320/.77 with a dual hydraulic low pressure), SPD BRK DO NOT USE only with a
    left or right elevator fault. */
@@ -74,11 +76,40 @@ describe('F/CTL ELAC 1(2) FAULT lines', () => {
   });
 
   it('PseudoFWC uses the rules for both ELACs, both ALTN LAW alerts and DIRECT LAW', () => {
-    const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
-    expect(fwc.match(/whichCodeToReturn: \(\) => elacFaultLines\(/g)).toHaveLength(2);
-    expect(fwc.match(/whichCodeToReturn: \(\) => altnLawLines\(/g)).toHaveLength(2);
-    expect(fwc).toMatch(
-      /whichCodeToReturn: \(\) =>\s+directLawLines\(\s*this\.greenSysAbnormalLowPressure\.get\(\) && this\.yellowSysAbnormalLowPressure\.get\(\),?\s*\)/,
-    );
+    const rig = startCruiseFwc();
+    const shownLines = (key: string) => probedFailure(rig.fwc, key).whichCodeToReturn();
+    const ELAC_1_INVALID_BIT = 23;
+    const ELAC_2_INVALID_BIT = 24;
+    const ELAC_1_SIDESTICK_ONLY_BIT = 19;
+    const bothFcdcs = (word: number, bits: number[]) => {
+      for (const fcdc of [1, 2]) {
+        rig.simvars.set(`L:A32NX_FCDC_${fcdc}_DISCRETE_WORD_${word}`, discreteWordWithBits(...bits));
+      }
+    };
+
+    // ELAC 1 and ELAC 2 failed: both give the full procedure; with the word 3 bit 19 only the title for ELAC 1
+    bothFcdcs(1, [ELAC_1_INVALID_BIT, ELAC_2_INVALID_BIT]);
+    rig.run(3);
+    expect(shownLines('2700110')).toEqual(elacFaultLines(true));
+    expect(shownLines('2700120')).toEqual(elacFaultLines(true));
+    // all servojacks available (bits 11 to 18), so that no elevator is lost
+    bothFcdcs(3, [11, 12, 13, 14, 15, 16, 17, 18, ELAC_1_SIDESTICK_ONLY_BIT]);
+    rig.run(1);
+    expect(shownLines('2700110')).toEqual(elacFaultLines(false));
+    expect(shownLines('2700120')).toEqual(elacFaultLines(true));
+
+    // ALTN LAW and DIRECT LAW follow the green and yellow low pressure
+    const altnAndDirectLines = () => [shownLines('2700375'), shownLines('2700390'), shownLines('2700365')];
+    expect(altnAndDirectLines()).toEqual([
+      altnLawLines(false, false),
+      altnLawLines(false, false),
+      directLawLines(false),
+    ]);
+    rig.simvars.set('L:A32NX_HYD_GREEN_SYSTEM_1_SECTION_PRESSURE_SWITCH', 0);
+    rig.simvars.set('L:A32NX_HYD_YELLOW_SYSTEM_1_SECTION_PRESSURE_SWITCH', 0);
+    rig.run(3);
+    expect(altnAndDirectLines()).toEqual([altnLawLines(true, false), altnLawLines(true, false), directLawLines(true)]);
+    expect(directLawLines(true)).not.toEqual(directLawLines(false));
+    expect(altnLawLines(true, false)).not.toEqual(altnLawLines(false, false));
   });
 });

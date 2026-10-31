@@ -1,9 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { formatEwdMessages } from '@shared/EwdMessages';
 import { formatStatusPage } from '@shared/StatusMessages';
 import { A320Failure } from '@failures';
@@ -15,6 +13,18 @@ import {
   predWsDetFaultAlert,
   predWsDetFaultStatus,
 } from './PredictiveWindshearAlerts';
+import { fwcModule, isAlertTriggered, setActiveFailures, startCruiseFwc } from '../FwcAlertProbe';
+import { installFwcSimVarMocks, runFwc } from '../PseudoFwcTestBed';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
+
+/** The simvar values the real PseudoFWC reads (by name) */
+let simvars: Map<string, number>;
+
+beforeEach(() => {
+  ({ simvars } = installFwcSimVarMocks());
+});
 
 /** A failures consumer double: the registered failures and the active ones */
 class TestFailures implements PredictiveWindshearFailuresSource {
@@ -80,10 +90,12 @@ describe('NAV PRED W/S DET FAULT', () => {
     expect(visible(formatStatusPage(status.left, status.inopSys).right)).toContain('PRED W/S DET');
   });
 
-  it('the PseudoFWC updates it and adds it to its alerts', () => {
-    const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
-    expect(fwc).toContain('this.predictiveWindshearAlerts.init();');
-    expect(fwc).toContain('this.predictiveWindshearAlerts.update();');
-    expect(fwc).toContain('...this.predictiveWindshearAlerts.ewdFailures,');
+  it('the real PseudoFWC raises it from the flyPad failure of the predictive windshear function', () => {
+    const fwc = startCruiseFwc(simvars).fwc;
+    expect(isAlertTriggered(fwc, PRED_WS_DET_FAULT_KEY)).toBe(false);
+    setActiveFailures(fwcModule(fwc, 'predictiveWindshearAlerts'), [A320Failure.WxrPredictiveWindshear]);
+    runFwc(fwc, 1);
+    expect(isAlertTriggered(fwc, PRED_WS_DET_FAULT_KEY)).toBe(true);
+    expect(fwc.ewdMessageFailures[PRED_WS_DET_FAULT_KEY].flightPhaseInhib).toEqual(PRED_WS_DET_FAULT_PHASE_INHIBITION);
   });
 });

@@ -1,15 +1,14 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   BAT_FAULT_PHASE_INHIBITION,
   BCL_FAULT_PHASE_INHIBITION,
   ElecSystemAlertMonitor,
   ElecSystemInputs,
   GEN_OVERLOAD_PHASE_INHIBITION,
+  IDG_OIL_OVERHEAT_CELSIUS,
   IDG_OIL_PHASE_INHIBITION,
   STATIC_INV_FAULT_PHASE_INHIBITION,
   batFaultStatus,
@@ -20,7 +19,21 @@ import {
   idgOilLines,
   idgOilStatus,
 } from './ElecSystemAlerts';
-import { orderStatusCodes } from '../../../../shared/src/StatusMessages';
+import { formatStatusPage, orderStatusCodes } from '../../../../shared/src/StatusMessages';
+import { formatEwdMessages } from '../../../../shared/src/EwdMessages';
+import { SdPages as EcamSysPage } from '../../../../shared/src/SdPages';
+import { isAlertTriggered, startCruiseFwc } from '../FwcAlertProbe';
+import { installFwcSimVarMocks, runFwc } from '../PseudoFwcTestBed';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
+
+/** The simvar values the real PseudoFWC reads (by name) */
+let simvars: Map<string, number>;
+
+beforeEach(() => {
+  ({ simvars } = installFwcSimVarMocks());
+});
 
 const normal: ElecSystemInputs = {
   bclBatteryFault: [false, false],
@@ -153,75 +166,161 @@ describe('ELEC system alert procedures and STATUS', () => {
   });
 });
 
-describe('PseudoFWC ELEC system alerts', () => {
-  const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
-  const messages = readFileSync(resolve(__dirname, '../../../../shared/src/EwdMessages.ts'), 'utf-8');
-  const statusMessages = readFileSync(resolve(__dirname, '../../../../shared/src/StatusMessages.ts'), 'utf-8');
+// eslint-disable-next-line no-control-regex
+const plain = (text: string) => text.replace(/[^m]*m/g, '');
 
-  function alert(code: string): string {
-    const start = fwc.indexOf(`    ${code}: {`);
-    expect(start, `alert ${code}`).toBeGreaterThan(0);
-    return fwc.substring(start, fwc.indexOf('\n    },', start));
-  }
+describe('the real PseudoFWC ELEC system alerts', () => {
+  /** Each alert with the simvars the Rust electrical system sets to raise it */
+  const ALERT_CASES: {
+    key: string;
+    inhibition: number[];
+    codes: string[];
+    title: string;
+    raiseWith: [string, number][];
+  }[] = [
+    {
+      key: '2400201',
+      inhibition: BAT_FAULT_PHASE_INHIBITION,
+      codes: ['240020101'],
+      title: ' BAT 1 FAULT',
+      raiseWith: [['L:A32NX_ELEC_BCL_1_BAT_FAULT', 1]],
+    },
+    {
+      key: '2400202',
+      inhibition: BAT_FAULT_PHASE_INHIBITION,
+      codes: ['240020201'],
+      title: ' BAT 2 FAULT',
+      raiseWith: [['L:A32NX_ELEC_BCL_2_BAT_FAULT', 1]],
+    },
+    {
+      key: '2400203',
+      inhibition: BCL_FAULT_PHASE_INHIBITION,
+      codes: ['240020301'],
+      title: ' BCL 1 FAULT',
+      raiseWith: [['L:A32NX_ELEC_BCL_1_FAULT', 1]],
+    },
+    {
+      key: '2400204',
+      inhibition: BCL_FAULT_PHASE_INHIBITION,
+      codes: ['240020401'],
+      title: ' BCL 2 FAULT',
+      raiseWith: [['L:A32NX_ELEC_BCL_2_FAULT', 1]],
+    },
+    {
+      key: '2400205',
+      inhibition: IDG_OIL_PHASE_INHIBITION,
+      codes: ['240020501', '240020502'],
+      title: ' IDG 1 OIL LO PR',
+      raiseWith: [['L:A32NX_ELEC_ENG_GEN_1_IDG_OIL_LOW_PRESSURE', 1]],
+    },
+    {
+      key: '2400206',
+      inhibition: IDG_OIL_PHASE_INHIBITION,
+      codes: ['240020601', '240020602'],
+      title: ' IDG 2 OIL LO PR',
+      raiseWith: [['L:A32NX_ELEC_ENG_GEN_2_IDG_OIL_LOW_PRESSURE', 1]],
+    },
+    {
+      key: '2400207',
+      inhibition: IDG_OIL_PHASE_INHIBITION,
+      codes: ['240020701', '240020702'],
+      title: ' IDG 1 OIL OVHT',
+      raiseWith: [['L:A32NX_ELEC_ENG_GEN_1_IDG_OIL_OUTLET_TEMPERATURE', IDG_OIL_OVERHEAT_CELSIUS + 10]],
+    },
+    {
+      key: '2400208',
+      inhibition: IDG_OIL_PHASE_INHIBITION,
+      codes: ['240020801', '240020802'],
+      title: ' IDG 2 OIL OVHT',
+      raiseWith: [['L:A32NX_ELEC_ENG_GEN_2_IDG_OIL_OUTLET_TEMPERATURE', IDG_OIL_OVERHEAT_CELSIUS + 10]],
+    },
+    {
+      key: '2400209',
+      inhibition: GEN_OVERLOAD_PHASE_INHIBITION,
+      codes: ['240020901', '240020902'],
+      title: ' GEN 1 OVERLOAD',
+      raiseWith: [['L:A32NX_ELEC_ENG_GEN_1_LOAD_NORMAL', 0]],
+    },
+    {
+      key: '2400210',
+      inhibition: GEN_OVERLOAD_PHASE_INHIBITION,
+      codes: ['240021001', '240021002'],
+      title: ' GEN 2 OVERLOAD',
+      raiseWith: [['L:A32NX_ELEC_ENG_GEN_2_LOAD_NORMAL', 0]],
+    },
+    {
+      key: '2400211',
+      inhibition: GEN_OVERLOAD_PHASE_INHIBITION,
+      codes: ['240021101', '240021102'],
+      title: ' APU GEN OVERLOAD',
+      raiseWith: [
+        ['L:A32NX_ELEC_CONTACTOR_3XS_IS_CLOSED', 1],
+        ['L:A32NX_ELEC_APU_GEN_1_LOAD_NORMAL', 0],
+      ],
+    },
+    {
+      key: '2400212',
+      inhibition: STATIC_INV_FAULT_PHASE_INHIBITION,
+      codes: ['240021201'],
+      title: ' STATIC INV FAULT',
+      raiseWith: [['L:A32NX_ELEC_STAT_INV_FAULT', 1]],
+    },
+  ];
 
-  it.each([
-    ['2400201', 'batFault[0]', 'BAT_FAULT_PHASE_INHIBITION', "['240020101']", ' BAT 1 FAULT'],
-    ['2400202', 'batFault[1]', 'BAT_FAULT_PHASE_INHIBITION', "['240020201']", ' BAT 2 FAULT'],
-    ['2400203', 'bclFault[0]', 'BCL_FAULT_PHASE_INHIBITION', "['240020301']", ' BCL 1 FAULT'],
-    ['2400204', 'bclFault[1]', 'BCL_FAULT_PHASE_INHIBITION', "['240020401']", ' BCL 2 FAULT'],
-    ['2400205', 'idgOilLowPressure[0]', 'IDG_OIL_PHASE_INHIBITION', "['240020501', '240020502']", ' IDG 1 OIL LO PR'],
-    ['2400206', 'idgOilLowPressure[1]', 'IDG_OIL_PHASE_INHIBITION', "['240020601', '240020602']", ' IDG 2 OIL LO PR'],
-    ['2400207', 'idgOilOverheat[0]', 'IDG_OIL_PHASE_INHIBITION', "['240020701', '240020702']", ' IDG 1 OIL OVHT'],
-    ['2400208', 'idgOilOverheat[1]', 'IDG_OIL_PHASE_INHIBITION', "['240020801', '240020802']", ' IDG 2 OIL OVHT'],
-    ['2400209', 'genOverload[0]', 'GEN_OVERLOAD_PHASE_INHIBITION', "['240020901', '240020902']", ' GEN 1 OVERLOAD'],
-    ['2400210', 'genOverload[1]', 'GEN_OVERLOAD_PHASE_INHIBITION', "['240021001', '240021002']", ' GEN 2 OVERLOAD'],
-    ['2400211', 'apuGenOverload', 'GEN_OVERLOAD_PHASE_INHIBITION', "['240021101', '240021102']", ' APU GEN OVERLOAD'],
-    ['2400212', 'staticInverterFault', 'STATIC_INV_FAULT_PHASE_INHIBITION', "['240021201']", ' STATIC INV FAULT'],
-  ])('%s is an amber ELEC caution on %s', (code, subject, inhibition, codes, title) => {
-    const item = alert(code);
-    expect(item).toContain(`simVarIsActive: this.elecSystemAlerts.${subject},`);
-    expect(item).toContain(`flightPhaseInhib: ${inhibition},`);
-    expect(item).toContain('failure: 2,');
-    expect(item).toContain('sysPage: EcamSysPage.ELEC,');
-    expect(item).toContain(`codesToReturn: ${codes},`);
-    const titleCode = codes.substring(2, 11);
-    expect(messages).toContain(`['${titleCode}', { group: 'ELEC$3', text: '${title}' }],`);
+  it('raises each alert from the electrical system simvars, as an amber caution of the ELEC page', () => {
+    const fwc = startCruiseFwc(simvars).fwc;
+    // the APU generator works normally, its line contactor is open
+    simvars.set('L:A32NX_ELEC_APU_GEN_1_LOAD_NORMAL', 1);
+    runFwc(fwc, 1);
+    for (const alertCase of ALERT_CASES) {
+      const item = fwc.ewdMessageFailures[alertCase.key];
+      expect(item.simVarIsActive.get(), `${alertCase.key} before`).toBe(false);
+      const normalValues = alertCase.raiseWith.map(([name]) => simvars.get(name) ?? 0);
+      alertCase.raiseWith.forEach(([name, value]) => simvars.set(name, value));
+      runFwc(fwc, 2);
+      expect(item.simVarIsActive.get(), `${alertCase.key} raised`).toBe(true);
+      alertCase.raiseWith.forEach(([name], index) => simvars.set(name, normalValues[index]));
+      runFwc(fwc, 2);
+      expect(item.simVarIsActive.get(), `${alertCase.key} cleared`).toBe(false);
+
+      expect(item.flightPhaseInhib, alertCase.key).toEqual(alertCase.inhibition);
+      expect(item.failure, alertCase.key).toBe(2);
+      expect(item.sysPage, alertCase.key).toBe(EcamSysPage.ELEC);
+      expect(item.codesToReturn, alertCase.key).toEqual(alertCase.codes);
+      expect(plain(formatEwdMessages(alertCase.codes)[0]), alertCase.key).toContain(alertCase.title.trim());
+    }
   });
 
-  it('has the procedure lines', () => {
-    expect(messages).toContain("['240020502', { text: '\\x1b<5m -IDG 1..............OFF' }],");
-    expect(messages).toContain("['240020802', { text: '\\x1b<5m -IDG 2..............OFF' }],");
-    expect(messages).toContain("['240021102', { text: '\\x1b<5m -GALY/CAB...........OFF' }],");
+  it('does not raise the IDG alerts of a disconnected IDG, nor an overload with the line contactor open', () => {
+    const fwc = startCruiseFwc(simvars).fwc;
+    simvars.set('L:A32NX_ELEC_ENG_GEN_1_IDG_IS_CONNECTED', 0);
+    simvars.set('L:A32NX_ELEC_ENG_GEN_1_IDG_OIL_LOW_PRESSURE', 1);
+    simvars.set('L:A32NX_ELEC_ENG_GEN_1_IDG_OIL_OUTLET_TEMPERATURE', IDG_OIL_OVERHEAT_CELSIUS + 10);
+    simvars.set('L:A32NX_ELEC_CONTACTOR_9XU2_IS_CLOSED', 0);
+    simvars.set('L:A32NX_ELEC_ENG_GEN_2_LOAD_NORMAL', 0);
+    runFwc(fwc, 2);
+    for (const key of ['2400205', '2400207', '2400210']) {
+      expect(isAlertTriggered(fwc, key), key).toBe(false);
+    }
+  });
+
+  it('shows the procedure lines of the IDG and APU GEN alerts, and the GALY & CAB line while the pb-sw is AUTO', () => {
+    expect(plain(formatEwdMessages(['240020502'])[0])).toContain('-IDG 1..............OFF');
+    expect(plain(formatEwdMessages(['240020802'])[0])).toContain('-IDG 2..............OFF');
+    expect(plain(formatEwdMessages(['240021102'])[0])).toContain('-GALY/CAB...........OFF');
+
+    const fwc = startCruiseFwc(simvars).fwc;
+    const overload = fwc.ewdMessageFailures['2400209'];
+    simvars.set('L:A32NX_OVHD_ELEC_GALY_AND_CAB_PB_IS_AUTO', 1);
+    runFwc(fwc, 1);
+    expect(overload.whichCodeToReturn()).toEqual(genOverloadLines(false));
+    simvars.set('L:A32NX_OVHD_ELEC_GALY_AND_CAB_PB_IS_AUTO', 0);
+    runFwc(fwc, 1);
+    expect(overload.whichCodeToReturn()).toEqual(genOverloadLines(true));
   });
 
   it('has the STATUS texts', () => {
-    expect(statusMessages).toContain(
-      "['240200201', { part: StatusPart.Information, text: 'APU BAT START NOT AVAIL' }],",
-    );
-    expect(statusMessages).toContain("['240300205', { part: StatusPart.InopSys, text: 'GALY/CAB' }],");
-  });
-
-  it('reads the GALY & CAB push button and updates the monitor each cycle', () => {
-    expect(fwc).toContain("RegisteredSimVar.createBoolean('L:A32NX_OVHD_ELEC_GALY_AND_CAB_PB_IS_AUTO')");
-    expect(fwc).toContain('this.elecSystemAlerts.update(this.elecSystem.read());');
-  });
-});
-
-describe('ELEC system acquisition', () => {
-  const acquisition = readFileSync(resolve(__dirname, '../Acquisition/ElecSystemAcquisition.ts'), 'utf-8');
-
-  it.each([
-    'ELEC_BCL_${n}_BAT_FAULT',
-    'ELEC_BCL_${n}_FAULT',
-    'ELEC_ENG_GEN_${n}_IDG_IS_CONNECTED',
-    'ELEC_ENG_GEN_${n}_IDG_OIL_LOW_PRESSURE',
-    'L:A32NX_ELEC_ENG_GEN_${n}_IDG_OIL_OUTLET_TEMPERATURE',
-    'ELEC_ENG_GEN_${n}_LOAD_NORMAL',
-    'ELEC_CONTACTOR_9XU${n}_IS_CLOSED',
-    "'ELEC_APU_GEN_1_LOAD_NORMAL'",
-    "'ELEC_CONTACTOR_3XS_IS_CLOSED'",
-    "'ELEC_STAT_INV_FAULT'",
-  ])('reads %s from the Rust electrical system', (name) => {
-    expect(acquisition).toContain(name);
+    expect(formatStatusPage(['240200201'], []).left).toContain('APU BAT START NOT AVAIL');
+    expect(formatStatusPage([], ['240300205']).right).toContain('GALY/CAB');
   });
 });

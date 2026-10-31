@@ -1,10 +1,22 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { A320Failure } from '@failures';
 import { IdgCoolingAlertKeys, IdgCoolingAlerts, IdgCoolingFailuresSource } from './IdgCoolingAlerts';
-import { ewdLines, pseudoFwcSource } from './FwcAlertSpecHelpers';
+import { ewdLines } from './FwcAlertSpecHelpers';
+import { fwcModule, isAlertTriggered, setActiveFailures, startCruiseFwc } from '../FwcAlertProbe';
+import { installFwcSimVarMocks, runFwc } from '../PseudoFwcTestBed';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
+
+/** The simvar values the real PseudoFWC reads (by name) */
+let simvars: Map<string, number>;
+
+beforeEach(() => {
+  ({ simvars } = installFwcSimVarMocks());
+});
 
 class TestFailures implements IdgCoolingFailuresSource {
   public readonly registered: number[] = [];
@@ -51,10 +63,12 @@ describe('FUEL IDG 1(2) COOL FAULT', () => {
     expect(idg2.simVarIsActive.get()).toBe(false);
   });
 
-  it('the PseudoFWC registers, updates and shows the alerts', () => {
-    const fwc = pseudoFwcSource();
-    expect(fwc).toContain('this.idgCoolingAlerts.init();');
-    expect(fwc).toContain('this.idgCoolingAlerts.update();');
-    expect(fwc).toContain('...this.idgCoolingAlerts.ewdFailures,');
+  it('the real PseudoFWC raises the alert of the IDG whose cooling failure is active', () => {
+    const fwc = startCruiseFwc(simvars).fwc;
+    const [idg1, idg2] = IdgCoolingAlertKeys.coolFault;
+    expect([isAlertTriggered(fwc, idg1), isAlertTriggered(fwc, idg2)]).toEqual([false, false]);
+    setActiveFailures(fwcModule(fwc, 'idgCoolingAlerts'), [A320Failure.Idg2FuelCoolingCommand]);
+    runFwc(fwc, 1);
+    expect([isAlertTriggered(fwc, idg1), isAlertTriggered(fwc, idg2)]).toEqual([false, true]);
   });
 });

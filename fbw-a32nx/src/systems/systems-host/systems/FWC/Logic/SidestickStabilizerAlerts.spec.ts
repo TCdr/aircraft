@@ -1,7 +1,8 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { FwcRig, discreteWordWithBits, startCruiseFwc, triggeredAmong } from '../FwcControlsAlertProbe';
 import { A320Failure } from '@failures';
 import { FcdcDiscreteWord } from './FlightControlSurfaceAlerts';
 import {
@@ -12,7 +13,7 @@ import {
   SidestickStabilizerFailuresSource,
   SidestickStabilizerKeys,
 } from './SidestickStabilizerAlerts';
-import { ewdLines, pseudoFwcSource, statusLines } from './FwcAlertSpecHelpers';
+import { ewdLines, statusLines } from './FwcAlertSpecHelpers';
 
 /** A failures consumer double: the registered failures and the active ones */
 class TestFailures implements SidestickStabilizerFailuresSource {
@@ -30,6 +31,9 @@ class TestFailures implements SidestickStabilizerFailuresSource {
     return this.active.has(identifier);
   }
 }
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
 
 const ELAC_1_INVALID = 23;
 const ELAC_2_INVALID = 24;
@@ -156,13 +160,33 @@ describe('F/CTL sidestick and stabilizer cautions', () => {
   });
 });
 
-describe('PseudoFWC wiring of the sidestick and stabilizer cautions', () => {
-  it('adds the items, registers the failures and updates them from the FCDC discrete words 1', () => {
-    const fwc = pseudoFwcSource();
-    expect(fwc).toContain('...this.sidestickStabilizerAlerts.ewdFailures,');
-    expect(fwc).toContain('this.sidestickStabilizerAlerts.init();');
-    expect(fwc).toContain(
-      'this.sidestickStabilizerAlerts.update({ fcdc1Word1: fcdc1DiscreteWord1, fcdc2Word1: fcdc2DiscreteWord1 });',
-    );
+describe('PseudoFWC with the sidestick and stabilizer cautions', () => {
+  const ALERT_KEYS = Object.values(SidestickStabilizerKeys);
+  const ALL_COMPUTERS_INVALID = [ELAC_1_INVALID, ELAC_2_INVALID, SEC_1_INVALID, SEC_2_INVALID, SEC_3_INVALID];
+
+  /** The FWC in cruise with the flyPad failures active; the failures reach it through its failures consumer */
+  function startWithFailures(failures: number[]): FwcRig {
+    const rig = startCruiseFwc();
+    const consumer = (rig.fwc as any).sidestickStabilizerAlerts.failuresConsumer;
+    vi.spyOn(consumer, 'isActive').mockImplementation((identifier: unknown) => failures.includes(identifier as number));
+    return rig;
+  }
+
+  it('updates the alerts from the discrete words 1 of both FCDCs', () => {
+    const rig = startWithFailures([A320Failure.CaptSidestick, A320Failure.StabilizerElecControl]);
+    // FCDC 1 and 2 send word 1 with all computers valid
+    rig.simvars.set('L:A32NX_FCDC_1_DISCRETE_WORD_1', discreteWordWithBits());
+    rig.simvars.set('L:A32NX_FCDC_2_DISCRETE_WORD_1', discreteWordWithBits());
+    rig.run(1);
+    expect(triggeredAmong(rig.fwc, ALERT_KEYS)).toEqual([
+      SidestickStabilizerKeys.leftSidestickFault,
+      SidestickStabilizerKeys.stabilizerJam,
+    ]);
+
+    // both FCDCs report every flight control computer invalid: nothing can detect the failures
+    rig.simvars.set('L:A32NX_FCDC_1_DISCRETE_WORD_1', discreteWordWithBits(...ALL_COMPUTERS_INVALID));
+    rig.simvars.set('L:A32NX_FCDC_2_DISCRETE_WORD_1', discreteWordWithBits(...ALL_COMPUTERS_INVALID));
+    rig.run(1);
+    expect(triggeredAmong(rig.fwc, ALERT_KEYS)).toEqual([]);
   });
 });

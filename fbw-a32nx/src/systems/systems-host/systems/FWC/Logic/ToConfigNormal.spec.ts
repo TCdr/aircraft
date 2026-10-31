@@ -1,10 +1,13 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { isToConfigSystemStatusNormal, ToConfigSystemStatusInputs } from './ToConfigNormal';
+import { installFwcSimVarMocks, normalWord, runFwc } from '../PseudoFwcTestBed';
+import { startCruiseFwc } from '../FwcAlertProbe';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
 
 const normal: ToConfigSystemStatusInputs = {
   gen12NotOperating: false,
@@ -35,10 +38,34 @@ describe('T.O CONFIG NORMAL system conditions', () => {
     expect(isToConfigSystemStatusNormal({ ...normal, blueLowPressure: true })).toBe(false);
     expect(isToConfigSystemStatusNormal({ ...normal, eng2PumpPbAuto: false })).toBe(false);
   });
+  describe('in the real FWC', () => {
+    const TO_CONFIG_BUTTON_BIT = 1 << 17;
+    const TAKEOFF_PREPARATION_PHASE = 2;
+    let simvars: Map<string, number>;
+    let writes: Map<string, unknown>;
 
-  it('PseudoFWC feeds both wing tank pump alerts to the T.O CONFIG check', () => {
-    const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf-8');
-    expect(fwc).toContain('leftTankPumps1And2LoPr: this.leftTankPumps1And2LoPr.get()');
-    expect(fwc).toContain('rightTankPumps1And2LoPr: this.rightTankPumps1And2LoPr.get()');
+    beforeEach(() => {
+      ({ simvars, writes } = installFwcSimVarMocks());
+    });
+
+    it.each([
+      ['left', [2, 5]],
+      ['right', [3, 6]],
+    ])('the %s wing tank pumps 1+2 LO PR take T.O CONFIG NORMAL away', (_side, pumps) => {
+      const { fwc, bus } = startCruiseFwc(simvars, () => {
+        simvars.set('L:A32NX_FWC_FLIGHT_PHASE', TAKEOFF_PREPARATION_PHASE);
+        simvars.set('L:A32NX_OVHD_HYD_ENG_1_PUMP_PB_IS_AUTO', 1);
+        simvars.set('L:A32NX_OVHD_HYD_ENG_2_PUMP_PB_IS_AUTO', 1);
+      });
+      bus.getPublisher<any>().pub('a32nx_ecp_warning_switch_word', normalWord(TO_CONFIG_BUTTON_BIT), false, true);
+      runFwc(fwc, 1);
+      expect(writes.get('L:A32NX_TO_CONFIG_NORMAL')).toBe(true);
+
+      for (const pump of pumps) {
+        simvars.set(`L:A32NX_FUEL_PUMP_${pump}_LO_PR`, 1);
+      }
+      runFwc(fwc, 3);
+      expect(writes.get('L:A32NX_TO_CONFIG_NORMAL')).toBe(false);
+    });
   });
 });

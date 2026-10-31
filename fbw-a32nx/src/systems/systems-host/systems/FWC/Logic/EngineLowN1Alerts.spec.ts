@@ -1,9 +1,11 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { SdPages as EcamSysPage } from '@shared/SdPages';
+import { formatEwdMessages } from '../../../../shared/src/EwdMessages';
+import { installFwcSimVarMocks, runFwc } from '../PseudoFwcTestBed';
+import { failureItem, isAlertTriggered, plainText, setOnGround, shownText, startCruiseFwc } from '../FwcAlertProbe';
 import {
   EngineLowN1Inputs,
   EngineLowN1Monitor,
@@ -11,6 +13,15 @@ import {
   LOW_N1_PHASE_INHIBITION,
   lowN1Lines,
 } from './EngineLowN1Alerts';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
+
+let simvars: Map<string, number>;
+
+beforeEach(() => {
+  ({ simvars } = installFwcSimVarMocks());
+});
 
 /** A ground start with the core at 40 % N2 and the fan not turning */
 const noN1Rotation: EngineLowN1Inputs = {
@@ -73,18 +84,39 @@ describe('ENG 1(2) LOW N1', () => {
     expect(LOW_N1_PHASE_INHIBITION).toEqual([4, 5, 6, 7, 8, 9]);
   });
 
-  it('is wired in the FWC for both engines, amber, with its E/WD lines', () => {
-    const fwc = readFileSync(resolve(__dirname, '../PseudoFWC.ts'), 'utf8');
-    expect(fwc).toContain('7700921: this.engineLowN1Alert(1)');
-    expect(fwc).toContain('7700922: this.engineLowN1Alert(2)');
-    const messages = readFileSync(resolve(__dirname, '../../../../shared/src/EwdMessages.ts'), 'utf8');
-    // the E/WD escape sequence as written in EwdMessages.ts (backslash x1b)
-    const ESC = String.raw`\x1b`;
-    for (const engine of [1, 2]) {
-      expect(messages).toContain(`['77009${engine + 20}01', { group: 'ENG$5', text: ' ${engine} LOW N1' }]`);
-      expect(messages).toContain(`['77009${engine + 20}02', { text: '${ESC}<7m .IF CONFIRMED:' }]`);
-      expect(messages).toContain(`['77009${engine + 20}03', { text: '${ESC}<5m -THR LEVER ${engine}.......IDLE' }]`);
-      expect(messages).toContain(`['77009${engine + 20}04', { text: '${ESC}<5m -ENG MASTER ${engine}.......OFF' }]`);
-    }
-  });
+  it.each([
+    ['7700921', 1],
+    ['7700922', 2],
+  ])(
+    '%s is the amber ENG caution of engine %i with its E/WD lines, raised by no N1 rotation in a ground start',
+    (key, engine) => {
+      const { fwc } = startCruiseFwc(simvars, () => {
+        setOnGround(simvars);
+        simvars.set(`L:A32NX_ENGINE_STATE:${engine}`, 2);
+        simvars.set(`L:A32NX_ENGINE_N1:${engine}`, 0);
+        simvars.set(`L:A32NX_ENGINE_N2:${engine}`, 40);
+      });
+      const item = failureItem(fwc, key);
+      expect(item.failure).toBe(2);
+      expect(item.sysPage).toBe(EcamSysPage.ENG);
+      expect(item.flightPhaseInhib).toEqual(LOW_N1_PHASE_INHIBITION);
+      expect(isAlertTriggered(fwc, key)).toBe(false);
+
+      runFwc(fwc, LOW_N1_CONFIRM_SECONDS + 1);
+      expect(isAlertTriggered(fwc, key)).toBe(true);
+      expect(isAlertTriggered(fwc, engine === 1 ? '7700922' : '7700921')).toBe(false);
+      // the lever is at idle in the test: THR LEVER IDLE is not asked for
+      expect(formatEwdMessages(item.codesToReturn).map(plainText)).toEqual([
+        `ENG ${engine} LOW N1`,
+        '.IF CONFIRMED:',
+        `-THR LEVER ${engine}.......IDLE`,
+        `-ENG MASTER ${engine}.......OFF`,
+      ]);
+      expect(shownText(fwc, key)).toEqual([
+        `ENG ${engine} LOW N1`,
+        '.IF CONFIRMED:',
+        `-ENG MASTER ${engine}.......OFF`,
+      ]);
+    },
+  );
 });

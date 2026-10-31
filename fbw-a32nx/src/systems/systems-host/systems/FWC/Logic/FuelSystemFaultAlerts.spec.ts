@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { A320Failure } from '@failures';
 import {
   FUEL_SYSTEM_FAULT_PHASE_INHIBITION,
@@ -17,7 +17,12 @@ import {
   WingOverflowProcedureInputs,
   wingOverflowLines,
 } from './FuelSystemFaultAlerts';
-import { ewdLines, pseudoFwcSource, statusLines } from './FwcAlertSpecHelpers';
+import { ewdLines, statusLines } from './FwcAlertSpecHelpers';
+import { installFwcSimVarMocks, runFwc } from '../PseudoFwcTestBed';
+import { failureItem, isAlertTriggered, shownCodes, shownText, startCruiseFwc } from '../FwcAlertProbe';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
 
 /** A failures consumer double: the registered failures and the active ones */
 class TestFailures implements FuelSystemFaultFailuresSource {
@@ -220,12 +225,41 @@ describe('FUEL INERTING SYS FAULT', () => {
   });
 });
 
-describe('PseudoFWC fuel system fault alerts', () => {
-  it('is wired in the PseudoFWC', () => {
-    const fwc = pseudoFwcSource();
-    expect(fwc).toContain('...this.fuelSystemFaultAlerts.ewdFailures');
-    expect(fwc).toContain('this.fuelSystemFaultAlerts.init();');
-    expect(fwc).toContain('this.fuelSystemFaultAlerts.update(');
-    expect(fwc).toContain('readFuelSystemFaultInputs(this.aircraftOnGround.get()');
+describe('the real FWC: fuel system fault alerts', () => {
+  let simvars: Map<string, number>;
+
+  beforeEach(() => {
+    ({ simvars } = installFwcSimVarMocks());
+  });
+
+  it('offers the alerts in the E/WD list and raises FUEL APU LP VALVE FAULT from the systems variable', () => {
+    const { fwc } = startCruiseFwc(simvars);
+    expect(isAlertTriggered(fwc, FuelSystemFaultKeys.apuLpValveFault)).toBe(false);
+    expect(failureItem(fwc, FuelSystemFaultKeys.apuLpValveFault).flightPhaseInhib).toEqual(
+      FUEL_SYSTEM_FAULT_PHASE_INHIBITION,
+    );
+
+    simvars.set('L:A32NX_FUEL_APU_LP_VALVE_FAULT', 1);
+    runFwc(fwc, 1);
+    expect(isAlertTriggered(fwc, FuelSystemFaultKeys.apuLpValveFault)).toBe(true);
+    expect(shownText(fwc, FuelSystemFaultKeys.apuLpValveFault)).toEqual(['FUEL APU LP VALVE FAULT']);
+  });
+
+  it('gives each wing overflow procedure the CTR TK XFR pb-sw of its own side', () => {
+    const { fwc } = startCruiseFwc(simvars);
+    simvars.set('L:A32NX_FUEL_L_WING_TK_OVERFLOW', 1);
+    simvars.set('L:A32NX_FUEL_R_WING_TK_OVERFLOW', 1);
+    runFwc(fwc, 1);
+    const [leftKey, rightKey] = FuelSystemFaultKeys.wingTankOverflow;
+    expect(isAlertTriggered(fwc, leftKey)).toBe(true);
+    expect(isAlertTriggered(fwc, rightKey)).toBe(true);
+    // both CTR TK XFR pb-sw ON: the procedure asks for -CTR TK XFR OFF
+    expect(shownCodes(fwc, leftKey)).toEqual(['280024001', '280024002']);
+    expect(shownCodes(fwc, rightKey)).toEqual(['280024101', '280024102']);
+
+    simvars.set('L:A32NX_OVHD_FUEL_CTR_TK_L_XFR_PB_IS_ON', 0);
+    runFwc(fwc, 1);
+    expect(shownCodes(fwc, leftKey)).not.toEqual(['280024001', '280024002']);
+    expect(shownCodes(fwc, rightKey)).toEqual(['280024101', '280024102']);
   });
 });

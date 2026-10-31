@@ -1,7 +1,8 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { discreteWordWithBits, probedFailure, startCruiseFwc } from '../FwcControlsAlertProbe';
 import {
   DOORS_NOT_CLOSED_CONFIRM_SECONDS,
   DOORS_NOT_CLOSED_PHASE_INHIBITION,
@@ -17,7 +18,10 @@ import {
   lgciu1And2FaultStatus,
   lgciuFaultStatus,
 } from './LandingGearAlerts';
-import { ewdLines, pseudoFwcItem, pseudoFwcSource, statusLines } from './FwcAlertSpecHelpers';
+import { ewdLines, statusLines } from './FwcAlertSpecHelpers';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
 
 /** A gear up and locked, doors closed, lever up */
 const gearUp: LgciuGearPosition = {
@@ -116,11 +120,31 @@ describe('L/G SYS DISAGREE', () => {
     expect(SYS_DISAGREE_PHASE_INHIBITION).toEqual([3, 4, 5, 6, 7, 8]);
   });
 
-  it('the L/G alerts are wired in the PseudoFWC', () => {
-    const fwc = pseudoFwcSource();
-    expect(fwc).toContain('...this.landingGearAlerts.ewdFailures');
-    expect(fwc).toContain('const landingGearInputs = readLandingGearInputs(this.gearNotUplockedWarning.get());');
-    expect(fwc).toContain('this.landingGearAlerts.update(landingGearInputs,');
+  it('the L/G alerts are wired in the PseudoFWC: fed by the LGCIU words, updated every cycle', () => {
+    const rig = startCruiseFwc();
+    const disagree = probedFailure(rig.fwc, LandingGearAlertKeys.sysDisagree);
+    const doorsNotClosed = probedFailure(rig.fwc, LandingGearAlertKeys.doorsNotClosed);
+    expect(disagree.simVarIsActive.get()).toBe(false);
+    expect(doorsNotClosed.simVarIsActive.get()).toBe(false);
+
+    // LGCIU discrete word 3 bit 11: LH gear not locked up, seen by LGCIU 1 only
+    rig.simvars.set('L:A32NX_LGCIU_1_DISCRETE_WORD_3', discreteWordWithBits(11));
+    rig.run(5);
+    expect(disagree.simVarIsActive.get()).toBe(true);
+    expect(disagree.flightPhaseInhib).toEqual(SYS_DISAGREE_PHASE_INHIBITION);
+    rig.simvars.set('L:A32NX_LGCIU_1_DISCRETE_WORD_3', discreteWordWithBits());
+    rig.run(5);
+    expect(disagree.simVarIsActive.get()).toBe(false);
+
+    // LGCIU discrete word 1 bit 17: LH gear door not closed, on both LGCIUs, for the time of a gear sequence
+    for (const lgciu of [1, 2]) {
+      rig.simvars.set(`L:A32NX_LGCIU_${lgciu}_DISCRETE_WORD_1`, discreteWordWithBits(17));
+    }
+    rig.run(DOORS_NOT_CLOSED_CONFIRM_SECONDS - 5);
+    expect(doorsNotClosed.simVarIsActive.get()).toBe(false);
+    rig.run(10);
+    expect(doorsNotClosed.simVarIsActive.get()).toBe(true);
+    expect(doorsNotClosed.flightPhaseInhib).toEqual(DOORS_NOT_CLOSED_PHASE_INHIBITION);
   });
 });
 
@@ -167,12 +191,27 @@ describe('ATA 32 STATUS', () => {
   });
 
   it.each([
-    ['3200130', 'gearNotUplockedStatus(this.lgDownlocked.get())'],
-    ['3200180', 'lgciuFaultStatus(1)'],
-    ['3200190', 'lgciuFaultStatus(2)'],
-    ['3200195', 'lgciu1And2FaultStatus()'],
-    ['3200070', 'antiSkidOffStatus(readYellowSystemLowPressure())'],
+    ['3200130', gearNotUplockedStatus(false)],
+    ['3200180', lgciuFaultStatus(1)],
+    ['3200190', lgciuFaultStatus(2)],
+    ['3200195', lgciu1And2FaultStatus()],
+    ['3200070', antiSkidOffStatus(false)],
   ])('PseudoFWC gives %s its STATUS', (key, status) => {
-    expect(pseudoFwcItem(key)).toContain(`...alertStatus(() => ${status})`);
+    const alert = probedFailure(startCruiseFwc().fwc, key);
+    expect(alert.statusInfo?.()).toEqual(status.left);
+    expect(alert.inopSys?.()).toEqual(status.inopSys);
+  });
+
+  it('PseudoFWC gives the A/SKID N/WS OFF STATUS the yellow system low pressure and GEAR NOT UPLOCKED the gear state', () => {
+    const rig = startCruiseFwc();
+    rig.simvars.set('L:A32NX_HYD_YELLOW_SYSTEM_1_SECTION_PRESSURE_SWITCH', 0);
+    rig.run(1);
+    expect(probedFailure(rig.fwc, '3200070').statusInfo?.()).toEqual(antiSkidOffStatus(true).left);
+
+    for (const lgciu of [1, 2]) {
+      rig.simvars.set(`L:A32NX_LGCIU_${lgciu}_DISCRETE_WORD_1`, discreteWordWithBits(23, 24, 25));
+    }
+    rig.run(1);
+    expect(probedFailure(rig.fwc, '3200130').statusInfo?.()).toEqual(gearNotUplockedStatus(true).left);
   });
 });

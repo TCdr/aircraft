@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   BrakeGearFaultInputs,
   BrakeGearFaultAlerts,
@@ -9,7 +9,11 @@ import {
   isGearUplockFault,
 } from './BrakeGearFaultAlerts';
 import { LgciuGearPosition } from './LandingGearAlerts';
-import { ewdLines, pseudoFwcSource, statusLines } from './FwcAlertSpecHelpers';
+import { ewdLines, statusLines } from './FwcAlertSpecHelpers';
+import { discreteWordWithBits, probedFailure, shownLineText, startCruiseFwc } from '../FwcControlsAlertProbe';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
 
 const gearDown: LgciuGearPosition = {
   downlocked: [true, true, true],
@@ -102,9 +106,33 @@ describe('L/G GEAR UPLOCK FAULT', () => {
     });
   });
 
-  it('the PseudoFWC updates and shows the alerts', () => {
-    const fwc = pseudoFwcSource();
-    expect(fwc).toContain('this.brakeGearFaultAlerts.update(readBrakeGearFaultInputs(landingGearInputs.lgcius));');
-    expect(fwc).toContain('...this.brakeGearFaultAlerts.ewdFailures,');
+  it('the PseudoFWC raises the alerts from the park brake simvars and the LGCIU words', () => {
+    const rig = startCruiseFwc();
+    const parkBrakeFault = probedFailure(rig.fwc, BrakeGearFaultKeys.parkBrakeFault);
+    const gearUplockFault = probedFailure(rig.fwc, BrakeGearFaultKeys.gearUplockFault);
+    expect(parkBrakeFault.simVarIsActive.get()).toBe(false);
+    expect(gearUplockFault.simVarIsActive.get()).toBe(false);
+
+    // park brake handle OFF with pressure applied
+    rig.simvars.set('L:A32NX_PARK_BRAKE_FAULT', 1);
+    rig.run(1);
+    expect(parkBrakeFault.simVarIsActive.get()).toBe(true);
+    expect(shownLineText(parkBrakeFault)[1]).toBe('BRK PRESS STILL APPLIED');
+    rig.simvars.set('L:A32NX_PARK_BRAKE_LEVER_POS', 1);
+    rig.run(1);
+    expect(shownLineText(parkBrakeFault)[1]).toBe('BRK PRESS RELEASED');
+
+    // both LGCIUs: all gears downlocked (word 1 bits 23-25), the LH gear locked up again (word 3 bit 11 clear)
+    for (const lgciu of [1, 2]) {
+      rig.simvars.set(`L:A32NX_LGCIU_${lgciu}_DISCRETE_WORD_1`, discreteWordWithBits(23, 24, 25));
+      rig.simvars.set(`L:A32NX_LGCIU_${lgciu}_DISCRETE_WORD_3`, discreteWordWithBits(12, 13));
+    }
+    rig.run(1);
+    expect(gearUplockFault.simVarIsActive.get()).toBe(true);
+    for (const lgciu of [1, 2]) {
+      rig.simvars.set(`L:A32NX_LGCIU_${lgciu}_DISCRETE_WORD_3`, discreteWordWithBits(11, 12, 13));
+    }
+    rig.run(1);
+    expect(gearUplockFault.simVarIsActive.get()).toBe(false);
   });
 });

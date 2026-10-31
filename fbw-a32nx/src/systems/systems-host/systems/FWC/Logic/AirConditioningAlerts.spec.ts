@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Arinc429SignStatusMatrix, Arinc429Word } from '@flybywiresim/fbw-sdk';
 import {
   CabinPressureAlerts,
@@ -19,8 +19,20 @@ import {
   safetyValveOpenLines,
   safetyValveOpenStatus,
 } from './AirConditioningAlerts';
-import { ewdLines, ewdTexts, pseudoFwcItem, pseudoFwcSource, statusLines } from './FwcAlertSpecHelpers';
+import { ewdLines, ewdTexts, statusLines } from './FwcAlertSpecHelpers';
+import { fwcModule, isAlertTriggered, isMemoActive, startCruiseFwc } from '../FwcAlertProbe';
 import { formatStatusPage } from '../../../../shared/src/StatusMessages';
+import { installFwcSimVarMocks, runFwc } from '../PseudoFwcTestBed';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
+
+/** The simvar values the real PseudoFWC reads (by name) */
+let simvars: Map<string, number>;
+
+beforeEach(() => {
+  ({ simvars } = installFwcSimVarMocks());
+});
 
 describe('RAM AIR ON memo', () => {
   it('is shown with the RAM AIR pb-sw ON only', () => {
@@ -32,10 +44,16 @@ describe('RAM AIR ON memo', () => {
     expect(ewdTexts([RAM_AIR_ON_MEMO_CODE])).toEqual(['\x1b<3mRAM AIR ON']);
   });
 
-  it('is in the PseudoFWC memos, on the RAM AIR pb-sw', () => {
-    const memo = pseudoFwcItem('0000240');
-    expect(memo).toContain('isRamAirOnMemoShown');
-    expect(memo).toContain(`'${RAM_AIR_ON_MEMO_CODE}'`);
+  it('is raised by the real PseudoFWC from the RAM AIR pb-sw', () => {
+    const fwc = startCruiseFwc(simvars).fwc;
+    expect(isMemoActive(fwc, '0000240')).toBe(false);
+    simvars.set('L:A32NX_AIRCOND_RAMAIR_TOGGLE', 1);
+    runFwc(fwc, 1);
+    expect(isMemoActive(fwc, '0000240')).toBe(true);
+    expect(fwc.ewdMessageMemos['0000240'].codesToReturn).toEqual([RAM_AIR_ON_MEMO_CODE]);
+    simvars.set('L:A32NX_AIRCOND_RAMAIR_TOGGLE', 0);
+    runFwc(fwc, 1);
+    expect(isMemoActive(fwc, '0000240')).toBe(false);
   });
 });
 
@@ -145,10 +163,16 @@ describe('CAB PR LDG ELEV FAULT', () => {
     expect(LDG_ELEV_FAULT_PHASE_INHIBITION).toEqual([3, 4, 5, 7, 8, 9, 10]);
   });
 
-  it('is in the PseudoFWC alerts', () => {
-    const fwc = pseudoFwcSource();
-    expect(fwc).toContain('...this.cabinPressureAlerts.ewdFailures');
-    expect(fwc).toContain('this.cabinPressureAlerts.update(');
+  it('is raised by the real PseudoFWC when the FMGCs send no landing elevation, after the confirm time', () => {
+    const fwc = startCruiseFwc(simvars).fwc;
+    expect(fwcModule(fwc, 'cabinPressureAlerts')).toBeInstanceOf(CabinPressureAlerts);
+    expect(isAlertTriggered(fwc, LDG_ELEV_FAULT_KEY)).toBe(false);
+    simvars.set('L:A32NX_FM1_LANDING_ELEVATION', FMGC_NOT_STARTED);
+    runFwc(fwc, LDG_ELEV_FAULT_FMGC_CONFIRM_SECONDS - 2);
+    expect(isAlertTriggered(fwc, LDG_ELEV_FAULT_KEY)).toBe(false);
+    runFwc(fwc, 3);
+    expect(isAlertTriggered(fwc, LDG_ELEV_FAULT_KEY)).toBe(true);
+    expect(fwc.ewdMessageFailures[LDG_ELEV_FAULT_KEY].failure).toBe(2);
   });
 });
 
@@ -195,13 +219,14 @@ describe('CAB PR STATUS', () => {
   });
 
   it.each([
-    ['2131221', 'excessCabinAltitudeStatus()'],
-    ['2131222', 'cpcFaultStatus(1)'],
-    ['2131223', 'cpcFaultStatus(2)'],
-    ['2131224', 'cpc1And2FaultStatus()'],
-    ['2131233', 'safetyValveOpenStatus()'],
-  ])('PseudoFWC gives %s its STATUS', (key, status) => {
-    expect(pseudoFwcItem(key)).toContain(`...alertStatus(() => ${status})`);
+    ['2131221', excessCabinAltitudeStatus],
+    ['2131222', () => cpcFaultStatus(1)],
+    ['2131223', () => cpcFaultStatus(2)],
+    ['2131224', cpc1And2FaultStatus],
+    ['2131233', safetyValveOpenStatus],
+  ])('the real PseudoFWC gives %s its STATUS', (key, expectedStatus) => {
+    const item = startCruiseFwc(simvars, undefined, 1).fwc.ewdMessageFailures[key];
+    expect(statusLines({ left: item.statusInfo!(), inopSys: item.inopSys!() })).toEqual(statusLines(expectedStatus()));
   });
 });
 
@@ -235,7 +260,20 @@ describe('CAB PR SAFETY VALVE OPEN lines', () => {
     ]);
   });
 
-  it('is the PseudoFWC SAFETY VALVE OPEN lines', () => {
-    expect(pseudoFwcItem('2131233')).toContain('safetyValveOpenLines(');
+  it('the real PseudoFWC shows the lines for its cabin delta pressure, excess pressure and MODE SEL', () => {
+    const fwc = startCruiseFwc(simvars, undefined, 1).fwc;
+    const item = fwc.ewdMessageFailures['2131233'];
+    const members = fwc as any;
+    for (const [deltaPressure, excessPressure, auto] of [
+      [8.2, false, true],
+      [8.2, false, false],
+      [-0.2, true, true],
+      [-0.2, false, false],
+    ] as const) {
+      members.cabinDeltaPressure.set(deltaPressure);
+      members.excessPressure.set(excessPressure);
+      members.pressurizationAuto.set(auto);
+      expect(item.whichCodeToReturn()).toEqual(safetyValveOpenLines(deltaPressure, excessPressure, auto));
+    }
   });
 });

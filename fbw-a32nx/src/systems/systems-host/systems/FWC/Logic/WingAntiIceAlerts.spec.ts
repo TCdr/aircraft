@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   WING_ANTI_ICE_CONFIRM_SECONDS,
   WING_ANTI_ICE_PHASE_INHIBITION,
@@ -10,7 +10,12 @@ import {
   WingAntiIceInputs,
   WingAntiIceSideInputs,
 } from './WingAntiIceAlerts';
-import { ewdLines, pseudoFwcSource, statusLines } from './FwcAlertSpecHelpers';
+import { ewdLines, statusLines } from './FwcAlertSpecHelpers';
+import { installFwcSimVarMocks, runFwc } from '../PseudoFwcTestBed';
+import { failureItem, isAlertTriggered, shownText, startCruiseFwc } from '../FwcAlertProbe';
+
+// Building the whole PseudoFWC takes a few seconds in the dev-env container
+vi.setConfig({ testTimeout: 60_000 });
 
 const openWing: WingAntiIceSideInputs = {
   valveClosed: false,
@@ -114,9 +119,45 @@ describe('WING A.ICE L(R) HI PR', () => {
     expect(page.right).toEqual(['INOP SYS', 'WAI REGUL']);
   });
 
-  it('is wired in the PseudoFWC', () => {
-    const fwc = pseudoFwcSource();
-    expect(fwc).toContain('...this.wingAntiIceAlerts.ewdFailures');
-    expect(fwc).toContain('this.wingAntiIceAlerts.update(readWingAntiIceInputs()');
+  describe('in the real FWC', () => {
+    let simvars: Map<string, number>;
+
+    beforeEach(() => {
+      ({ simvars } = installFwcSimVarMocks());
+    });
+
+    const startWithWingAntiIceOn = () =>
+      startCruiseFwc(simvars, () => {
+        simvars.set('L:A32NX_PNEU_WING_ANTI_ICE_SYSTEM_SELECTED', 1);
+        simvars.set('L:A32NX_PNEU_WING_ANTI_ICE_SYSTEM_ON', 1);
+        simvars.set('L:A32NX_PNEU_ENG_1_PR_VALVE_OPEN', 1);
+        simvars.set('L:A32NX_PNEU_ENG_2_PR_VALVE_OPEN', 1);
+      });
+
+    it('raises WING A.ICE R HI PR from the duct pressure of the right wing only, with its STATUS', () => {
+      const { fwc } = startWithWingAntiIceOn();
+      const key = WingAntiIceAlertKeys.rightHighPressure;
+      expect(failureItem(fwc, key).flightPhaseInhib).toEqual(WING_ANTI_ICE_PHASE_INHIBITION);
+      expect(isAlertTriggered(fwc, key)).toBe(false);
+
+      simvars.set('L:A32NX_PNEU_WING_ANTI_ICE_2_HIGH_PRESSURE', 1);
+      runFwc(fwc, WING_ANTI_ICE_CONFIRM_SECONDS + 1);
+      expect(isAlertTriggered(fwc, key)).toBe(true);
+      expect(isAlertTriggered(fwc, WingAntiIceAlertKeys.leftHighPressure)).toBe(false);
+      expect(shownText(fwc, key)).toEqual(['WING A.ICE R HI PR', 'THRUST LIM PENALTY']);
+      const item = failureItem(fwc, key);
+      const page = statusLines({ left: item.statusInfo?.() ?? [], inopSys: item.inopSys?.() ?? [] });
+      expect(page.left).toEqual(['THRUST LIM PENALTY']);
+      expect(page.right).toEqual(['INOP SYS', 'WAI REGUL']);
+    });
+
+    it('raises WING A.ICE SYS FAULT while a wing anti ice valve of the commanded system stays closed', () => {
+      const { fwc } = startWithWingAntiIceOn();
+      expect(isAlertTriggered(fwc, WingAntiIceAlertKeys.sysFault)).toBe(false);
+
+      simvars.set('L:A32NX_PNEU_WING_ANTI_ICE_1_VALVE_CLOSED', 1);
+      runFwc(fwc, WING_ANTI_ICE_CONFIRM_SECONDS + 1);
+      expect(isAlertTriggered(fwc, WingAntiIceAlertKeys.sysFault)).toBe(true);
+    });
   });
 });
