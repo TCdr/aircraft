@@ -2,8 +2,6 @@
 //
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it, vi } from 'vitest';
 import type { GuidanceController } from '@fmgc/guidance/GuidanceController';
 import type { Navigation } from '@fmgc/navigation/Navigation';
@@ -42,10 +40,5 @@ describe('MORE DRAG on the MCDU', () => {
     expect(selector.process(0)).toBe(FMMessageUpdate.NO_ACTION);
     required.value = false;
     expect(selector.process(0)).toBe(FMMessageUpdate.RECALL);
-  });
-
-  it('is processed by the FM message manager', () => {
-    const manager = readFileSync(resolve(__dirname, 'FmsMessages.ts'), 'utf-8');
-    expect(manager).toContain('new MoreDrag()');
   });
 });

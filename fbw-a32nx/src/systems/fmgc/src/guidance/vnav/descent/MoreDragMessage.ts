@@ -1,7 +1,8 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { SpeedbrakeDecelerationSegment } from '@fmgc/guidance/vnav/profile/BaseGeometryProfile';
+import { AutoThrustMode, VerticalMode } from '@shared/autopilot';
+import { BaseGeometryProfile, SpeedbrakeDecelerationSegment } from '@fmgc/guidance/vnav/profile/BaseGeometryProfile';
 import {
   DescentAltitudeConstraint,
   VerticalCheckpoint,
@@ -36,6 +37,45 @@ export interface MoreDragInputs {
   /** Managed speed */
   speedAuto: boolean;
   inSpeedbrakeDecelerationSegment: boolean;
+}
+
+/** What the VNAV driver reads from the guidance to decide on the MORE DRAG message */
+export interface MoreDragSources {
+  fcuVerticalMode: VerticalMode;
+  autoThrustMode: AutoThrustMode;
+  /** The linear deviation from the descent profile, positive above it; undefined without a descent profile */
+  linearDeviation: number | undefined;
+  fcuSpeedManaged: boolean | undefined;
+  ndProfile:
+    | Pick<BaseGeometryProfile, 'checkpoints' | 'descentAltitudeConstraints' | 'distanceToPresentPosition'>
+    | undefined;
+  descentProfile: Pick<BaseGeometryProfile, 'speedbrakeDecelerationSegments'> | undefined;
+  /** The aircraft position along the descent profile */
+  aircraftToDescentProfileRelation: { isValid: boolean; distanceFromStart: number };
+}
+
+export function moreDragInputsFromSources(sources: MoreDragSources): MoreDragInputs {
+  const { ndProfile, descentProfile, aircraftToDescentProfileRelation } = sources;
+  return {
+    desModeEngaged: sources.fcuVerticalMode === VerticalMode.DES,
+    thrustIdle: sources.autoThrustMode === AutoThrustMode.THR_IDLE,
+    aboveProfile: sources.linearDeviation !== undefined && sources.linearDeviation > 0,
+    interceptMarginToNextAltitudeConstraintNm: ndProfile
+      ? interceptMarginToNextAltitudeConstraintNm(
+          ndProfile.checkpoints,
+          ndProfile.descentAltitudeConstraints,
+          ndProfile.distanceToPresentPosition,
+        )
+      : null,
+    speedAuto: !!sources.fcuSpeedManaged,
+    inSpeedbrakeDecelerationSegment:
+      !!descentProfile &&
+      aircraftToDescentProfileRelation.isValid &&
+      isInSpeedbrakeDecelerationSegment(
+        descentProfile.speedbrakeDecelerationSegments,
+        aircraftToDescentProfileRelation.distanceFromStart,
+      ),
+  };
 }
 
 export function isMoreDragMessageActive(inputs: MoreDragInputs): boolean {

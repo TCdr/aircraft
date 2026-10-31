@@ -5,7 +5,7 @@
 import { engineOutAwareConfig } from '@fmgc/guidance/vnav/engineout/EngineOutAwareConfig';
 import { GuidanceController } from '@fmgc/guidance/GuidanceController';
 import { AtmosphericConditions } from '@fmgc/guidance/vnav/AtmosphericConditions';
-import { VerticalMode, LateralMode, isArmed, ArmedLateralMode, AutoThrustMode } from '@shared/autopilot';
+import { VerticalMode, LateralMode, isArmed, ArmedLateralMode } from '@shared/autopilot';
 import {
   VerticalProfileComputationParameters,
   VerticalProfileComputationParametersObserver,
@@ -38,11 +38,7 @@ import { VnavConfig } from './VnavConfig';
 import { isLeg } from '../../flightplanning/legs/FlightPlanLeg';
 import { isStepDescentInitiation } from './StepDescentWindow';
 import { isConstantMachSpeedChange } from './cruise/ConstantMachSpeedProfile';
-import {
-  interceptMarginToNextAltitudeConstraintNm,
-  isInSpeedbrakeDecelerationSegment,
-  isMoreDragMessageActive,
-} from './descent/MoreDragMessage';
+import { isMoreDragMessageActive, moreDragInputsFromSources } from './descent/MoreDragMessage';
 import { EnergyCirclePublisher } from './descent/EnergyCircle';
 import {
   displayedDescentCabinRate,
@@ -300,26 +296,17 @@ export class VnavDriver implements GuidanceComponent {
     const ndProfile = this.ndProfile;
     const descentProfile = this.descentProfile;
 
-    const active = isMoreDragMessageActive({
-      desModeEngaged: fcuVerticalMode === VerticalMode.DES,
-      thrustIdle: SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_MODE', 'Enum') === AutoThrustMode.THR_IDLE,
-      aboveProfile: linearDeviation !== undefined && linearDeviation > 0,
-      interceptMarginToNextAltitudeConstraintNm: ndProfile
-        ? interceptMarginToNextAltitudeConstraintNm(
-            ndProfile.checkpoints,
-            ndProfile.descentAltitudeConstraints,
-            ndProfile.distanceToPresentPosition,
-          )
-        : null,
-      speedAuto: !!fcuSpeedManaged,
-      inSpeedbrakeDecelerationSegment:
-        !!descentProfile &&
-        this.aircraftToDescentProfileRelation.isValid &&
-        isInSpeedbrakeDecelerationSegment(
-          descentProfile.speedbrakeDecelerationSegments,
-          this.aircraftToDescentProfileRelation.distanceFromStart,
-        ),
-    });
+    const active = isMoreDragMessageActive(
+      moreDragInputsFromSources({
+        fcuVerticalMode,
+        autoThrustMode: SimVar.GetSimVarValue('L:A32NX_AUTOTHRUST_MODE', 'Enum'),
+        linearDeviation,
+        fcuSpeedManaged,
+        ndProfile,
+        descentProfile,
+        aircraftToDescentProfileRelation: this.aircraftToDescentProfileRelation,
+      }),
+    );
 
     if (active !== this.moreDragMessageActive) {
       this.moreDragMessageActive = active;
