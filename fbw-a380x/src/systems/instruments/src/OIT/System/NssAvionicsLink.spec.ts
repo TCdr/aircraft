@@ -238,19 +238,13 @@ describe('FMS data on the FLT OPS STS page', () => {
     expect(laptop.data.fltNumber.get()).toBe('AIB456');
   });
 
-  it('does not reload the flight plan of the EFB overlay without the avionics data', () => {
+  it('SYNCHRO AVIONICS writes no L:var for a gauge over the OIT, with or without the avionics data', () => {
     const { laptop, loseBothScis } = setUp();
     loseBothScis(true);
     laptop.synchroAvionics();
-    expect(SimVar.SetSimVarValue).not.toHaveBeenCalledWith(
-      'L:A32NX_OIS_SYNCHRO_AVIONICS',
-      expect.anything(),
-      expect.anything(),
-    );
-
     loseBothScis(false);
     laptop.synchroAvionics();
-    expect(SimVar.SetSimVarValue).toHaveBeenCalledWith(
+    expect(SimVar.SetSimVarValue).not.toHaveBeenCalledWith(
       'L:A32NX_OIS_SYNCHRO_AVIONICS',
       expect.anything(),
       expect.anything(),
@@ -264,11 +258,6 @@ describe('FMS data on the FLT OPS STS page', () => {
     simvars.pub('nssAnsu1Healthy', false);
     laptop.synchroAvionics();
     expect(laptop.data.fltNumber.get()).toBe('XX999');
-    expect(SimVar.SetSimVarValue).not.toHaveBeenCalledWith(
-      'L:A32NX_OIS_SYNCHRO_AVIONICS',
-      expect.anything(),
-      expect.anything(),
-    );
   });
 });
 
