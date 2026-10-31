@@ -453,6 +453,96 @@ describe('home', () => {
   });
 });
 
+describe('new charts from the other laptop', () => {
+  const offer = { sender: 2 as const, charts: [{ icao: 'LFBO', guid: 'g', name: 'n' }] };
+
+  it('marks the PREPARED tab until the crew opens it', () => {
+    const { session } = setup();
+    session.setPageOpen(true);
+    session.clipboard.receive(offer);
+    expect(session.preparedTabIsNew.get()).toBe(true);
+    session.selectTab('APPR');
+    expect(session.preparedTabIsNew.get()).toBe(true);
+    session.selectTab(CLIPBOARD_TAB);
+    expect(session.preparedTabIsNew.get()).toBe(false);
+  });
+
+  it('stays unmarked after the crew leaves the PREPARED tab', () => {
+    const { session } = setup();
+    session.setPageOpen(true);
+    session.selectTab(CLIPBOARD_TAB);
+    session.clipboard.receive(offer);
+    expect(session.preparedTabIsNew.get()).toBe(false);
+    session.selectTab('APPR');
+    expect(session.preparedTabIsNew.get()).toBe(false);
+    // the charts still wait for IMPORT
+    expect(session.clipboard.canImport()).toBe(true);
+  });
+
+  it('marks the tab again for a later send', () => {
+    const { session } = setup();
+    session.setPageOpen(true);
+    session.clipboard.receive(offer);
+    session.selectTab(CLIPBOARD_TAB);
+    session.selectTab('APPR');
+    session.clipboard.receive(offer);
+    expect(session.preparedTabIsNew.get()).toBe(true);
+  });
+
+  it('stays unmarked when HOME leaves the PREPARED tab', () => {
+    const { session } = setup();
+    session.setPageOpen(true);
+    session.selectTab(CLIPBOARD_TAB);
+    session.clipboard.receive(offer);
+    session.home();
+    expect(session.preparedTabIsNew.get()).toBe(false);
+  });
+
+  it('never announces a mark for charts that arrive while the PREPARED tab is shown', () => {
+    const { session } = setup();
+    session.setPageOpen(true);
+    session.selectTab(CLIPBOARD_TAB);
+    const seen: boolean[] = [];
+    session.preparedTabIsNew.sub((isNew) => seen.push(isNew));
+    session.clipboard.receive(offer);
+    expect(seen).not.toContain(true);
+  });
+
+  it('marks charts that arrive while the page is closed, although the PREPARED tab is the remembered one', () => {
+    const { session } = setup();
+    session.setPageOpen(true);
+    session.selectTab(CLIPBOARD_TAB);
+    session.setPageOpen(false);
+    session.clipboard.receive(offer);
+    expect(session.preparedTabIsNew.get()).toBe(true);
+  });
+
+  it('clears the mark when the page opens on the PREPARED tab', () => {
+    const { session } = setup();
+    session.setPageOpen(true);
+    session.selectTab(CLIPBOARD_TAB);
+    session.setPageOpen(false);
+    session.clipboard.receive(offer);
+    session.setPageOpen(true);
+    expect(session.preparedTabIsNew.get()).toBe(false);
+    expect(session.clipboard.offerIsNew.get()).toBe(false);
+  });
+
+  it('keeps the mark when the page opens on another tab', () => {
+    const { session } = setup();
+    session.clipboard.receive(offer);
+    session.setPageOpen(true);
+    expect(session.preparedTabIsNew.get()).toBe(true);
+  });
+
+  it('is cleared by a laptop restart', () => {
+    const { session } = setup();
+    session.clipboard.receive(offer);
+    session.reset();
+    expect(session.preparedTabIsNew.get()).toBe(false);
+  });
+});
+
 describe('laptop restart', () => {
   it('clears what the crew did and the validity, and reads again at the next start', async () => {
     const { source, session } = setup();

@@ -41,6 +41,13 @@ export class ChartsClipboard {
   /** The charts the other laptop sent and this one has not imported yet */
   public readonly offered = this._offered as Subscribable<ChartRef[]>;
 
+  private readonly _offerIsNew = Subject.create(false);
+  /**
+   * Charts arrived that the crew has not looked at yet. The other laptop's SEND is the only sign that something came, so
+   * the PREPARED tab shows it until the crew opens that tab; a later SEND shows it again.
+   */
+  public readonly offerIsNew = this._offerIsNew as Subscribable<boolean>;
+
   /**
    * @param index the laptop
    * @param network the way to the other laptop
@@ -97,7 +104,13 @@ export class ChartsClipboard {
   public receive(message: ChartsClipboardMessage): void {
     if (message.sender !== this.index && this.onNetwork.get()) {
       this._offered.set(message.charts.slice());
+      this._offerIsNew.set(message.charts.length > 0);
     }
+  }
+
+  /** The crew has looked at what the other laptop sent: it still waits for IMPORT, but it is no longer new */
+  public markOfferSeen(): void {
+    this._offerIsNew.set(false);
   }
 
   /** IMPORT: the charts the other laptop sent join the prepared ones, those already prepared stay where they are */
@@ -109,11 +122,13 @@ export class ChartsClipboard {
     const added = this._offered.get().filter((chart) => !this.contains(chart.guid));
     this._charts.set(known.concat(added));
     this._offered.set([]);
+    this._offerIsNew.set(false);
   }
 
   /** The laptop stops: nothing is kept */
   public reset(): void {
     this._charts.set([]);
     this._offered.set([]);
+    this._offerIsNew.set(false);
   }
 }
