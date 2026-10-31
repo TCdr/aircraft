@@ -1,12 +1,30 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { EventBus } from '@microsoft/msfs-sdk';
+import { FailuresConsumer, FrequencyMode } from '@flybywiresim/fbw-sdk';
+import { VhfRadioInterface } from '@datalink/router';
+import { A380Failure } from '@failures';
 import { A380xVhfProvider } from './A380xVhfProvider';
+import { Acr } from './Acr';
 
-const acr = readFileSync(resolve(__dirname, 'Acr.ts'), 'utf-8');
+/** The VHF providers the ACR gave to its router */
+const routerVhfProviders = vi.hoisted(() => [] as unknown[]);
+
+vi.mock('@datalink/router', () => ({
+  Router: class {
+    constructor(_bus: unknown, _isEfb: boolean, _isFmc: boolean, vhfProvider: unknown) {
+      routerVhfProviders.push(vhfProvider);
+    }
+
+    powerUp() {}
+
+    powerDown() {}
+
+    initialize() {}
+  },
+}));
 
 describe('A380X ACR VHF 3 data mode (COM VHF 3 DATALINK FAULT)', () => {
   it('carries the datalink when VHF 3 is in DATA mode on the RMP and not failed', () => {
@@ -33,8 +51,21 @@ describe('A380X ACR VHF 3 data mode (COM VHF 3 DATALINK FAULT)', () => {
     ).toBe(false);
   });
 
-  it('the ACR feeds the VHF 3 flyPad failure to the router', () => {
-    expect(acr).toContain('new A380xVhfProvider(');
-    expect(acr).toContain('this.failuresConsumer.isActive(A380Failure.Vhf3)');
+  it('the ACR gives its router the RMP VHF 3 mode and the VHF 3 flyPad failure', () => {
+    let rmpMode: FrequencyMode = FrequencyMode.Data;
+    // the ACR registers the RMP mode L:var once, at import
+    (SimVar as any).GetSimVarValueFastReg = () => rmpMode;
+    const activeFailures = new Set<number>();
+    new Acr(new EventBus(), { isActive: (failure: number) => activeFailures.has(failure) } as FailuresConsumer);
+    const vhfProvider = routerVhfProviders[routerVhfProviders.length - 1] as VhfRadioInterface;
+
+    expect(vhfProvider.isDataModeActive()).toBe(true);
+
+    activeFailures.add(A380Failure.Vhf3);
+    expect(vhfProvider.isDataModeActive()).toBe(false);
+
+    activeFailures.clear();
+    rmpMode = FrequencyMode.Frequency;
+    expect(vhfProvider.isDataModeActive()).toBe(false);
   });
 });
