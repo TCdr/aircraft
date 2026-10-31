@@ -15,6 +15,7 @@ import {
 } from '@microsoft/msfs-sdk';
 import { OisDomain } from './OIT';
 import { OitUiService, OitUriInformation } from './OitUiService';
+import { isPageOfRenderedApplication } from './Pages/NssAvncs/NssAvncsApplications';
 import { OitDisplayUnit } from './OitDisplayUnit';
 import { avncsPageForUrl } from './OitPageDirectory';
 import { OitNotFound } from './Pages/OitNotFound';
@@ -115,14 +116,8 @@ export abstract class OitAvncsContainer extends DisplayComponent<OitAvncsContain
   }
 
   private activeUriChanged(uri: OitUriInformation) {
-    if (
-      (uri.uri.match(/nss-avncs\/company-com\/\S*/gm) &&
-        this.renderedUri.get()?.uri.match(/nss-avncs\/company-com/gm)) ||
-      (uri.uri.match(/nss-avncs\/a380x-systems\/\S*/gm) &&
-        this.renderedUri.get()?.uri.match(/nss-avncs\/a380x-systems/gm)) ||
-      (uri.uri.match(/nss-avncs\/logbook\/\S*/gm) && this.renderedUri.get()?.uri.match(/nss-avncs\/logbook/gm))
-    ) {
-      // Handle special case for company-com, where the sub-navigation is handled by the component with their own navigator and we're already on the right parent page.
+    if (isPageOfRenderedApplication(uri.uri, this.renderedUri.get()?.uri)) {
+      // These applications handle their sub-navigation with their own navigator and the parent page is already drawn.
       return;
     }
 

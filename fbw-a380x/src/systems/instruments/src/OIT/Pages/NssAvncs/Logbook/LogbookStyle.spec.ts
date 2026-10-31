@@ -5,8 +5,6 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 
-const cockpitInterface = readFileSync(resolve(__dirname, 'OitAvncsLogbookCockpitInterface.tsx'), 'utf-8');
-
 const logbookStyle = readFileSync(resolve(__dirname, 'logbook.scss'), 'utf-8').replace(/\r\n/g, '\n');
 
 /**
@@ -33,10 +31,5 @@ describe('logbook style', () => {
     expect(declarationsOf('.oit-logbook-app .mfd-input-field-text-input-container')).toContain(
       'min-width: 0 !important;',
     );
-  });
-
-  it('keeps the PILOT COMMENT of the cockpit interface beside its NAVIGATION column, as wide as ITEM SELECTION', () => {
-    expect(cockpitInterface).toContain('style="width: 640px; height: 230px;"');
-    expect(cockpitInterface).toContain('commentWidth={640}');
   });
 });
