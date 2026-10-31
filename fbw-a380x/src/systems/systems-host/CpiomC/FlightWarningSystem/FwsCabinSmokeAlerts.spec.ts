@@ -1,8 +1,6 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { SdPages } from '@shared/EcamSystemPages';
 import {
@@ -15,30 +13,25 @@ import {
   cargoBottlesFaults,
   readCabinSmokeInputs,
 } from './FwsCabinSmokeAlerts';
+import { EcamAbnormalProcedures, EcamInopSys } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { createFws, runFwsCycle } from './FwsSpecFixture';
 
-/*
- * The EcamMessages tables are read from the source text (see FwsElecAlertsStatus.spec.ts: importing EcamMessages in a
- * test fails on a circular import).
- */
-const ecamMessages = resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages');
-const ata26 = readFileSync(resolve(ecamMessages, 'AbnormalSensed/ata26.ts'), 'utf-8').replace(/\r\n/g, '\n');
-const inopSysTable = readFileSync(resolve(ecamMessages, 'index.ts'), 'utf-8');
+const ESCAPE = String.fromCharCode(27);
+const COLOR_CODES = new RegExp(`${ESCAPE}(<\\dm|4m|m)`, 'g');
 
-/** Title (without the color codes), title color and item names of an ata26.ts alert */
+/** Title (without the color codes), title color and item names of an alert of the ECAM table */
 function alertText(key: number): { title: string; color: string; items: string[] } {
-  const start = ata26.indexOf(`\n  ${key}: {`);
-  expect(start).toBeGreaterThan(0);
-  const block = ata26.slice(start, ata26.indexOf('\n  },', start));
-  const titleCode = block.match(/title: '([^']*)'/)?.[1] ?? '';
+  const procedure = EcamAbnormalProcedures[String(key)];
+  expect(procedure).toBeDefined();
   return {
-    title: titleCode.replace(/\\x1b(<\dm|4m|m)/g, ''),
-    color: titleCode.match(/^\\x1b<(\d)m/)?.[1] ?? '',
-    items: Array.from(block.matchAll(/name: '([^']*)'/g)).map((m) => m[1]),
+    title: procedure.title.replace(COLOR_CODES, ''),
+    color: procedure.title.charAt(2),
+    items: procedure.items.map((item) => item.name),
   };
 }
 
 function inopSysText(id: string): string {
-  return inopSysTable.match(new RegExp(`  ${id}: '\\\\x1b<4m([^']*)'`))?.[1] ?? '';
+  return (EcamInopSys[id] ?? '').replace(`${ESCAPE}<4m`, '');
 }
 
 function normal(): CabinSmokeInputs {
@@ -161,14 +154,14 @@ describe('SMOKE cabin areas alerts: titles, lines, levels, phases and STATUS', (
     [keys.aftLowerRestBottleFault[1], 'SMOKE AFT LWR CAB REST BTL 2 FAULT'],
     [keys.aftLowerRestDetFault, 'SMOKE AFT LWR CAB REST DET FAULT'],
     [keys.aftLowerRestSmoke, 'SMOKE AFT LWR CAB REST SMOKE'],
-  ])('%d is %s, with one shown/checked flag per ata26.ts line', (key, title) => {
+  ])('%d is %s, with one shown/checked flag per line of the procedure', (key, title) => {
     const text = alertText(key);
     expect(text.title).toBe(title);
     expect(items[key].whichItemsToShow()).toHaveLength(text.items.length);
     expect(items[key].whichItemsChecked()).toHaveLength(text.items.length);
   });
 
-  it('shows only the CKPT / CABIN COM line where the ata26.ts entry has more lines than the procedure', () => {
+  it('shows only the CKPT / CABIN COM line where the procedure has more lines than the alert shows', () => {
     const shownNames = (key: number) => alertText(key).items.filter((_, index) => items[key].whichItemsToShow()[index]);
     const ckptCabinComOnly = [
       keys.facilitiesDetFault,
@@ -260,12 +253,27 @@ describe('SMOKE cabin areas alerts: titles, lines, levels, phases and STATUS', (
 });
 
 describe('FWS wiring of the cabin smoke alerts', () => {
-  const fwsCore = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
-  const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
+  it('lists the alerts of the cabin smoke state of the core in the abnormal sensed table', () => {
+    const { core } = createFws();
+    const tableItems = cabinSmokeAbnormalItems(core.cabinSmokeAlerts);
+    for (const key of Object.keys(tableItems).map(Number)) {
+      const listed = core.abnormalSensed.ewdAbnormalSensed[key];
+      expect(listed, String(key)).toBeDefined();
+      expect(listed.simVarIsActive, String(key)).toBe(tableItems[key].simVarIsActive);
+    }
+  });
 
-  it('refreshes the alert state every FWS cycle and lists the alerts', () => {
-    expect(fwsCore).toContain('public readonly cabinSmokeAlerts = new CabinSmokeAlerts();');
-    expect(fwsCore).toMatch(/this\.cabinSmokeAlerts\.update\(readCabinSmokeInputs\(/);
-    expect(abnormalSensed).toContain('...cabinSmokeAbnormalItems(this.fws.cabinSmokeAlerts),');
+  it('refreshes the alert state every FWS cycle from the SDF L:vars', () => {
+    const { core, simVars } = createFws();
+    const lavatorySmoke = core.abnormalSensed.ewdAbnormalSensed[keys.lavatorySmoke[1]];
+    expect(lavatorySmoke.simVarIsActive.get()).toBe(false);
+
+    simVars.set('L:A32NX_SMOKE_UPPER_DECK_LAV_DETECTED', 1);
+    runFwsCycle(core);
+    expect(lavatorySmoke.simVarIsActive.get()).toBe(true);
+
+    simVars.set('L:A32NX_SMOKE_UPPER_DECK_LAV_DETECTED', 0);
+    runFwsCycle(core);
+    expect(lavatorySmoke.simVarIsActive.get()).toBe(false);
   });
 });

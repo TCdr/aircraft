@@ -1,10 +1,10 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { A380Failure } from '@failures';
+import { EcamAbnormalProcedures } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { createFws } from './FwsSpecFixture';
 import {
   FwsGearSteeringAlerts,
   GEAR_STEERING_PHASE_INHIBITION,
@@ -16,23 +16,13 @@ import {
   retractionFaultItems,
 } from './FwsGearSteeringAlerts';
 
-/*
- * The ata31-32-33.ts table is read from the source text (importing EcamMessages in a test fails on a circular
- * import, see FwsElecAlertsStatus.spec.ts).
- */
-const ata32 = readFileSync(
-  resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata31-32-33.ts'),
-  'utf-8',
-).replace(/\r\n/g, '\n');
-
-/** Title and item names of an ata31-32-33.ts alert */
+/** Title (without the colour and system prefix codes) and item names of an ata31-32-33.ts alert */
 function procedure(key: number): { title: string; items: string[] } {
-  const start = ata32.indexOf(`\n  ${key}: {`);
-  const end = ata32.indexOf('\n  },', start);
-  const block = ata32.slice(start, end);
-  const title = block.match(/title: '\\x1b<4m\\x1b4m(?:L\/G|STEER)\\x1bm ([^']*)'/)?.[1] ?? '';
-  const items = Array.from(block.matchAll(/name: '([^']*)'/g)).map((m) => m[1]);
-  return { title, items };
+  const message = EcamAbnormalProcedures[key];
+  expect(message).toBeDefined();
+  // eslint-disable-next-line no-control-regex
+  const title = message.title.replace(/^\x1b<\dm\x1b4m(?:L\/G|STEER)\x1bm /, '');
+  return { title, items: message.items.map((item) => item.name) };
 }
 
 function normalSystems(): GearSteeringSystemInputs {
@@ -331,9 +321,22 @@ describe('L/G and STEER procedure lines', () => {
 });
 
 describe('L/G and STEER alert wiring', () => {
-  it('adds these alerts to the FWS abnormal sensed procedures and updates them every FWS frame', () => {
-    const source = (file: string) => readFileSync(resolve(__dirname, file), 'utf-8');
-    expect(source('FwsAbnormalSensed.ts')).toContain('...gearSteeringAbnormalItems(this.fws.gearSteeringAlerts)');
-    expect(source('FwsCore.ts')).toContain('this.gearSteeringAlerts.update(');
+  it('adds these alerts to the FWS abnormal sensed procedures', () => {
+    const { core } = createFws();
+    const items = gearSteeringAbnormalItems(core.gearSteeringAlerts);
+    for (const key of Object.keys(items)) {
+      expect(core.abnormalSensed.ewdAbnormalSensed[key].simVarIsActive).toBe(items[Number(key)].simVarIsActive);
+    }
+  });
+
+  it('updates them every FWS frame from the systems signals', () => {
+    const { core, simVars } = createFws();
+    core.startupCompleted.set(true);
+    simVars.set('L:A32NX_LG_UPLOCK_FAULT', 1);
+    core.update(1000);
+    expect(gearSteeringAbnormalItems(core.gearSteeringAlerts)[320800041].simVarIsActive.get()).toBe(true);
+    simVars.set('L:A32NX_LG_UPLOCK_FAULT', 0);
+    core.update(1000);
+    expect(gearSteeringAbnormalItems(core.gearSteeringAlerts)[320800041].simVarIsActive.get()).toBe(false);
   });
 });

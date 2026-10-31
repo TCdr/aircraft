@@ -1,9 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import {
   AbnormBleedConfigInputs,
   abnormBleedConfigItems,
@@ -11,13 +9,9 @@ import {
   inoperativeBleeds,
   isAbnormBleedConfig,
 } from './AbnormBleedConfig';
-
-/* The wiring is read from the source text, as FwsAbnormalSensedItems.spec.ts does (EcamMessages import cycle). */
-const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-const ata21 = readFileSync(
-  resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata21-22-23.ts'),
-  'utf-8',
-);
+import { EcamAbnormalProcedures } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { FwcAuralWarning } from './FwsCore';
+import { createFws, FwsFixture, runFwsCycle } from './FwsSpecFixture';
 
 const normal: AbnormBleedConfigInputs = {
   engineShutDown: [false, false, false, false],
@@ -92,18 +86,31 @@ describe('AIR ABNORM BLEED CONFIG', () => {
     expect(shownLines(eng1BleedFault)).toEqual([0, 1, 7, 8, 9, 10]);
   });
 
-  it('the BLEED FAULT trigger is wired from the AIR ENG BLEED FAULT alerts', () => {
-    const fwsCore = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
-    expect(fwsCore).toContain('bleedFault: this.engineBleedFault.map((fault) => fault.get()),');
-  });
+  describe('in the FWS', () => {
+    let fixture: FwsFixture;
+    beforeAll(() => {
+      fixture = createFws(new Set());
+    });
 
-  it('the message has the 16 lines and the alert is wired', () => {
-    const start = ata21.indexOf('  211800056: {');
-    const procedure = ata21.slice(start, ata21.indexOf('\n  },', start));
-    expect(procedure.match(/name: '/g)).toHaveLength(abnormBleedConfigItems(normal).show.length);
-    expect(procedure).toContain("name: 'ENGs A-ICE',");
-    const entry = abnormalSensed.slice(abnormalSensed.indexOf('    211800056: {'));
-    expect(entry).toContain('simVarIsActive: this.fws.abnormBleedConfig,');
-    expect(entry).toContain('auralWarning: Subject.create(FwcAuralWarning.None),');
+    it('the BLEED FAULT trigger is driven by the AIR ENG BLEED FAULT alerts', () => {
+      const { core, simVars } = fixture;
+      runFwsCycle(core);
+      expect(core.abnormBleedConfig.get()).toBe(false);
+      simVars.set('L:A32NX_PNEU_ENG_3_OVERHEAT', 1);
+      runFwsCycle(core);
+      expect(core.engineBleedFault[2].get()).toBe(true);
+      expect(core.abnormBleedConfigInputs.bleedFault).toEqual([false, false, true, false]);
+      expect(core.abnormBleedConfig.get()).toBe(true);
+    });
+
+    it('the message has the 16 lines and the alert is wired without an aural of its own', () => {
+      const { core } = fixture;
+      const procedure = EcamAbnormalProcedures['211800056'];
+      expect(procedure.items).toHaveLength(abnormBleedConfigItems(normal).show.length);
+      expect(procedure.items.some((item) => item.name === 'ENGs A-ICE')).toBe(true);
+      const entry = core.abnormalSensed.ewdAbnormalSensed['211800056'];
+      expect(entry.simVarIsActive).toBe(core.abnormBleedConfig);
+      expect(entry.auralWarning?.get()).toBe(FwcAuralWarning.None);
+    });
   });
 });

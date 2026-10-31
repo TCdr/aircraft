@@ -1,8 +1,6 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { A380Failure } from '@failures';
 import {
@@ -12,29 +10,16 @@ import {
   SURV_INOP_SYS,
   SurvSystemAlertInputs,
 } from './FwsSurvSystemAlerts';
+import { EcamAbnormalProcedures, EcamInopSys } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { createFws, withoutEcamCodes } from './FwsSpecFixture';
 
-/*
- * The EcamMessages tables and FwsAbnormalSensed are read from the source text: importing EcamMessages/index.ts in a
- * test fails (circular import, see FwsElecAlertsStatus.spec.ts).
- */
-const ecamMessagesDir = resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages');
-const ecamIndex = readFileSync(resolve(ecamMessagesDir, 'index.ts'), 'utf-8');
-const ata34 = readFileSync(resolve(ecamMessagesDir, 'AbnormalSensed/ata34.ts'), 'utf-8');
-const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
+const { core } = createFws();
+const alert = (code: number) => core.abnormalSensed.ewdAbnormalSensed[String(code)];
 
+/** Text of an EcamInopSys line, without its ECAM colour code */
 function inopSysText(key: string): string | undefined {
-  const start = ecamIndex.indexOf('export const EcamInopSys');
-  const body = ecamIndex.slice(start, ecamIndex.indexOf('\n};', start));
-  const line = body.match(new RegExp(`^\\s*'?${key}'?: '\\\\x1b<\\d+m([^']*)',`, 'm'));
-  return line ? line[1] : undefined;
-}
-
-/** The source text of an alert entry of FwsAbnormalSensed, up to the next one */
-function alertEntry(code: number): string {
-  const start = abnormalSensed.indexOf(`\n    ${code}: {`);
-  expect(start).toBeGreaterThan(0);
-  const next = abnormalSensed.slice(start + 1).search(/\n {4}\d{9}: \{/);
-  return abnormalSensed.slice(start, start + 1 + next);
+  const line = EcamInopSys[key];
+  return line === undefined ? undefined : withoutEcamCodes(line);
 }
 
 const nominal: SurvSystemAlertInputs = {
@@ -139,16 +124,26 @@ describe('SURV REACTIVE W/S DET FAULT', () => {
 });
 
 describe('the SURV system alert texts and wiring', () => {
-  const codes = [
-    341800029, 341800030, 341800031, 341800032, 341800033, 341800034, 341800035, 341800036, 341800038, 341800039,
-    341800040, 341800041, 341800042, 341800043,
+  const alertSignals: [number, () => unknown][] = [
+    [341800029, () => core.survSystemAlerts.survSys1Fault],
+    [341800030, () => core.survSystemAlerts.survSys2Fault],
+    [341800031, () => core.survSystemAlerts.survSys1And2Fault],
+    [341800032, () => core.survSystemAlerts.survSysDegraded],
+    [341800033, () => core.survSystemAlerts.wxr1Fault],
+    [341800034, () => core.survSystemAlerts.wxr2Fault],
+    [341800035, () => core.survSystemAlerts.wxr1And2Fault],
+    [341800036, () => core.survSystemAlerts.turb1Fault],
+    [341800038, () => core.survSystemAlerts.turb2Fault],
+    [341800039, () => core.survSystemAlerts.turb1And2Fault],
+    [341800040, () => core.survSystemAlerts.predWs1Fault],
+    [341800041, () => core.survSystemAlerts.predWs2Fault],
+    [341800042, () => core.survSystemAlerts.predWs1And2Fault],
+    [341800043, () => core.survSystemAlerts.reactiveWsDetFault],
   ];
 
-  it('has a procedure and an FWS entry for every alert', () => {
-    for (const code of codes) {
-      expect(ata34).toContain(`  ${code}: {`);
-      expect(alertEntry(code)).toContain('this.fws.survSystemAlerts.');
-    }
+  it.each(alertSignals)('%i has a procedure and is driven by its FwsSurvSystemAlerts signal', (code, signal) => {
+    expect(EcamAbnormalProcedures[String(code)]).toBeDefined();
+    expect(alert(code).simVarIsActive).toBe(signal());
   });
 
   it('has the STATUS lines', () => {
@@ -171,11 +166,11 @@ describe('the SURV system alert texts and wiring', () => {
   it('lets SURV SYS 1 FAULT replace the other SURV alerts of SYS 1', () => {
     // TCAS 1, XPDR 1, TERR SYS 1, TAWS 1, GPWS 1 FAULT
     for (const code of [341800016, 341800061, 341800020, 341800023, 341800026]) {
-      expect(alertEntry(code)).toMatch(/notActiveWhenItemActive: \[[^\]]*'341800029', '341800031'\]/);
+      expect(alert(code).notActiveWhenItemActive).toEqual(expect.arrayContaining(['341800029', '341800031']));
     }
   });
 
   it('gives no aural and no master light for REACTIVE W/S DET FAULT', () => {
-    expect(alertEntry(341800043)).toContain('failure: 1,');
+    expect(alert(341800043).failure).toBe(1);
   });
 });

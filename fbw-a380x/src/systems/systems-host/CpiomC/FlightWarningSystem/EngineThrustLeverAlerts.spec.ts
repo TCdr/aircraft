@@ -1,9 +1,8 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { EcamAbnormalProcedures } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
 import {
   DUAL_RETARD_INTERVAL_SECONDS,
   DualRetardCallout,
@@ -11,7 +10,10 @@ import {
   THR_LEVER_ABOVE_IDLE_PHASE_INHIBITION,
   ThrustLeverAboveIdleInputs,
   ThrustLeverAboveIdleMonitor,
+  isThrLeverAboveIdleShown,
 } from './EngineThrustLeverAlerts';
+import { FwcAuralWarning } from './FwsCore';
+import { createFws, runFwsCycle } from './FwsSpecFixture';
 
 const IDLE = 0;
 const CLIMB = 25;
@@ -113,39 +115,57 @@ describe('A380X ENG THR LEVER ABOVE IDLE', () => {
   });
 });
 
+describe('A380X ENG THR LEVER ABOVE IDLE shown', () => {
+  it('is shown with a lever above idle, except in the inhibited flight phases', () => {
+    expect(isThrLeverAboveIdleShown(true, 8)).toBe(true);
+    expect(isThrLeverAboveIdleShown(false, 8)).toBe(false);
+    for (const phase of THR_LEVER_ABOVE_IDLE_PHASE_INHIBITION) {
+      expect(isThrLeverAboveIdleShown(true, phase)).toBe(false);
+    }
+  });
+});
+
 describe('A380X ENG THR LEVER ABOVE IDLE wiring', () => {
-  const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-  const ata70 = readFileSync(
-    resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata70.ts'),
-    'utf-8',
-  );
-  const fwsCore = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
+  const { core, simVars } = createFws();
+  const sensed = (id: number) => core.abnormalSensed.ewdAbnormalSensed[id];
 
   it.each([1, 2, 3, 4])('ENG %i: red title and THR LEVER n ... IDLE', (engine) => {
     const id = 701800161 + engine;
-    const start = ata70.indexOf(`  ${id}: {`);
-    expect(start).toBeGreaterThan(0);
-    const procedure = ata70.slice(start, ata70.indexOf('\n  },', start));
-    expect(procedure).toContain(`title: '\\x1b<2m\\x1b4mENG\\x1bm ${engine} THR LEVER ABOVE IDLE',`);
-    expect(procedure).toContain(`{ name: 'THR LEVER ${engine}', sensed: true, labelNotCompleted: 'IDLE' }`);
+    const procedure = EcamAbnormalProcedures[id];
+    expect(procedure.title).toBe(`\x1b<2m\x1b4mENG\x1bm ${engine} THR LEVER ABOVE IDLE`);
+    expect(procedure.items).toContainEqual({ name: `THR LEVER ${engine}`, sensed: true, labelNotCompleted: 'IDLE' });
 
-    const alertStart = abnormalSensed.indexOf(`    ${id}: {`);
-    expect(alertStart).toBeGreaterThan(0);
-    const alert = abnormalSensed.slice(alertStart, abnormalSensed.indexOf('\n    },', alertStart));
-    expect(alert).toContain('flightPhaseInhib: THR_LEVER_ABOVE_IDLE_PHASE_INHIBITION,');
-    expect(alert).toContain(`simVarIsActive: this.fws.thrLeverAboveIdle[${engine - 1}],`);
-    expect(alert).toContain('failure: THR_LEVER_ABOVE_IDLE_LEVEL,');
+    const entry = sensed(id);
+    expect(entry.flightPhaseInhib).toEqual(THR_LEVER_ABOVE_IDLE_PHASE_INHIBITION);
+    expect(entry.simVarIsActive).toBe(core.thrLeverAboveIdle[engine - 1]);
+    expect(entry.failure).toBe(THR_LEVER_ABOVE_IDLE_LEVEL);
     // the dual RETARD replaces the CRC of a level 3 alert
-    expect(alert).toContain('auralWarning: Subject.create(FwcAuralWarning.None),');
-    expect(alert).toContain(`this.fws.thrustLever${engine}Idle.get()`);
+    expect(entry.auralWarning?.get()).toBe(FwcAuralWarning.None);
+    const atIdle = [core.thrustLever1Idle, core.thrustLever2Idle, core.thrustLever3Idle, core.thrustLever4Idle];
+    expect(entry.whichItemsChecked()).toEqual([atIdle[engine - 1].get()]);
   });
 
-  it('sounds RETARD from the DualRetardCallout', () => {
-    expect(fwsCore).toContain("this.soundManager.enqueueSound('retard');");
-    // only while the alert is shown: not in its inhibited flight phases
-    expect(fwsCore).toMatch(
-      /thrLeverAboveIdleShown =\s+this\.thrustLeverAboveIdleMonitor\.isAnyActive\(\) &&\s+!THR_LEVER_ABOVE_IDLE_PHASE_INHIBITION\.includes\(this\.flightPhase\.get\(\)\);/,
-    );
-    expect(fwsCore).toContain('this.dualRetardCallout.update(thrLeverAboveIdleShown, deltaTime / 1000)');
+  it('raises the alert for a lever above idle with a reverser lever in the reverse detent', () => {
+    simVars.set('L:A32NX_AUTOTHRUST_TLA:1', 25);
+    simVars.set('L:A32NX_AUTOTHRUST_TLA:2', -10);
+    simVars.set('L:A32NX_AUTOTHRUST_TLA:3', -10);
+    runFwsCycle(core);
+    expect(core.thrLeverAboveIdle.map((alert) => alert.get())).toEqual([true, false, false, false]);
+  });
+
+  it('sounds no RETARD in an inhibited flight phase', () => {
+    const retard = vi.spyOn(core.soundManager, 'enqueueSound');
+    // on the ground in phase 1 the alert is inhibited
+    expect(core.flightPhase.get()).toBe(1);
+    runFwsCycle(core);
+    expect(retard).not.toHaveBeenCalledWith('retard');
+  });
+
+  it('sounds RETARD when a lever is above idle in a flight phase that does not inhibit the alert', () => {
+    const retard = vi.spyOn(core.soundManager, 'enqueueSound');
+    const flightPhase = vi.spyOn(core.flightPhase, 'get').mockReturnValue(8);
+    runFwsCycle(core);
+    flightPhase.mockRestore();
+    expect(retard).toHaveBeenCalledWith('retard');
   });
 });

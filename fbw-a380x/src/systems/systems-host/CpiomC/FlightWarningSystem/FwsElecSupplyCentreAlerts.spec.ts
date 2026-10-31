@@ -1,8 +1,6 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { Subject } from '@microsoft/msfs-sdk';
 import { describe, expect, it } from 'vitest';
 import { SdPages } from '@shared/EcamSystemPages';
@@ -21,38 +19,35 @@ import {
   primarySupplyCentreFaultInopSys,
   readElecSupplyCentreInputs,
 } from './FwsElecSupplyCentreAlerts';
+import {
+  EcamAbnormalProcedures,
+  EcamDeferredProcedures,
+  EcamInfos,
+  EcamInopSys,
+  EcamLimitations,
+} from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { DeferredProcedureType } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/EcamProcedureTypes';
+import { createFws, runFwsCycle } from './FwsSpecFixture';
 
-/*
- * The EcamMessages tables are read from the source text (see FwsElecAlertsStatus.spec.ts: importing EcamMessages in a
- * test fails on a circular import).
- */
-const ecamDir = resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages');
-const ecamMessages = readFileSync(resolve(ecamDir, 'index.ts'), 'utf-8');
-const ata24 = readFileSync(resolve(ecamDir, 'AbnormalSensed/ata24.ts'), 'utf-8');
+const ESCAPE = String.fromCharCode(27);
+const COLOR_CODE = new RegExp(`${ESCAPE}(<\\dm|4m|'m|m)`, 'g');
 
 /** Text of a line of an EcamMessages table, without its ECAM colour code */
 function text(table: 'EcamInopSys' | 'EcamInfos' | 'EcamLimitations', key: string): string | undefined {
-  const start = ecamMessages.indexOf(`export const ${table}`);
-  const body = ecamMessages.slice(start, ecamMessages.indexOf('\n};', start));
-  const line = body.match(new RegExp(`^\\s*'?${key}'?: '\\\\x1b<\\d+m([^']*)',`, 'm'));
-  return line ? line[1].trim() : undefined;
+  const lines = { EcamInopSys, EcamInfos, EcamLimitations }[table];
+  return lines[key]?.replace(new RegExp(`^${ESCAPE}<\\d+m`), '').trim();
 }
 
-/** Title (without the ELEC prefix and colour codes) and item names of an ata24.ts procedure */
+/** Title (without the ELEC prefix and colour codes) and item names of an ECAM procedure */
 function procedure(key: number): { title: string; items: string[] } | undefined {
-  const start = ata24.indexOf(`\n  ${key}: {`);
-  if (start < 0) {
+  const found = EcamAbnormalProcedures[key];
+  if (!found) {
     return undefined;
   }
-  const end = ata24.indexOf('\n  },', start);
-  const block = ata24.slice(start, end);
-  const rawTitle = block.match(/title: ["']([^\n]*)["'],/)?.[1] ?? '';
-  const title = rawTitle
-    .replace(/\\x1b<\dm\\x1b4mELEC\\x1bm /, '')
-    .replace(/\\x1b'm/g, '')
-    .replace(/\\x1bm/g, '');
-  const items = [...block.matchAll(/name: '([^']*)'/g)].map((m) => m[1]);
-  return { title, items };
+  return {
+    title: found.title.replace(new RegExp(`^${ESCAPE}<\\dm${ESCAPE}4mELEC${ESCAPE}m `), '').replace(COLOR_CODE, ''),
+    items: found.items.map((item) => item.name),
+  };
 }
 
 /** Inputs of a normal aircraft in flight: no failure, AC and DC network supplied, ELMU, COMMERCIAL and remote C/B normal */
@@ -287,9 +282,7 @@ describe('STATUS of the ELEC supply centre alerts', () => {
     ]);
     // AUTO REFUEL and FUEL AUTO GND XFR are the fuel alerts' STATUS lines: one line when both alerts are active
     for (const inopSys of ['AUTO REFUEL', 'FUEL AUTO GND XFR']) {
-      const keys = [...ecamMessages.matchAll(/^[ \t]*'?(\d{9})'?: '\\x1b<4m([^']*)',/gm)]
-        .filter((line) => line[2] === inopSys)
-        .map((line) => line[1]);
+      const keys = Object.keys(EcamInopSys).filter((id) => EcamInopSys[id] === `${ESCAPE}<4m${inopSys}`);
       expect(keys).toHaveLength(1);
       expect(DC_ESS_BUS_PART_FAULT_STATUS.inopSysAllPhases).toContain(keys[0]);
     }
@@ -330,7 +323,7 @@ describe('ELEC supply centre alert entries (FwsAbnormalSensed)', () => {
     });
   });
 
-  it('has one entry per alert, each with its ata24.ts title, level, SD page and one shown line per item', () => {
+  it('has one entry per alert, each with its ECAM procedure title, level, SD page and one shown line per item', () => {
     const items = elecSupplyCentreAbnormalItems(new ElecSupplyCentreAlerts(), dcEssPartContext());
     const expected: [number, string, number, SdPages][] = [
       [240800001, 'ABNORMAL FLIGHT OPS SUPPLY', 1, SdPages.None],
@@ -463,29 +456,31 @@ describe('ELEC supply centre alert entries (FwsAbnormalSensed)', () => {
   it('has the FOR APPROACH deferred procedure of DC ESS BUS PART FAULT', () => {
     const deferred = elecSupplyCentreDeferredItems()[DC_ESS_BUS_PART_FAULT_DEFERRED_KEY];
     expect(deferred.whichItemsToShow()).toEqual([true]);
-    const start = ata24.indexOf(`  ${DC_ESS_BUS_PART_FAULT_DEFERRED_KEY}: {`);
-    const block = ata24.slice(start, ata24.indexOf('\n  },', start));
-    expect(block).toContain("fromAbnormalProcs: ['240800031'],");
-    expect(block).toContain('type: DeferredProcedureType.FOR_APPROACH,');
-    expect(block).toContain("name: 'LDG DIST COMPUTATION',");
-    expect(ecamMessages).toContain('...EcamDeferredProcAta24,');
+    const procedureOfAlert = EcamDeferredProcedures[DC_ESS_BUS_PART_FAULT_DEFERRED_KEY];
+    expect(procedureOfAlert.fromAbnormalProcs).toEqual(['240800031']);
+    expect(procedureOfAlert.type).toBe(DeferredProcedureType.FOR_APPROACH);
+    expect(procedureOfAlert.items.map((item) => item.name)).toContain('LDG DIST COMPUTATION');
   });
 });
 
 describe('FwsAbnormalSensed and FwsCore wiring', () => {
-  const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-  const core = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
-
-  it('adds the entries and the deferred procedure, and updates the alerts every cycle', () => {
-    expect(abnormalSensed).toContain('...elecSupplyCentreAbnormalItems(this.fws.elecSupplyCentreAlerts, this.fws),');
-    expect(abnormalSensed).toContain('...elecSupplyCentreDeferredItems(),');
-    expect(core).toContain('public readonly elecSupplyCentreAlerts = new ElecSupplyCentreAlerts();');
-    expect(core).toContain('this.elecSupplyCentreAlerts.update(');
+  it('adds the entries and the deferred procedure', () => {
+    const { core } = createFws();
+    const listed = elecSupplyCentreAbnormalItems(core.elecSupplyCentreAlerts, core);
+    for (const key of Object.keys(listed).map(Number)) {
+      // The same alert state, so no other entry shadows the key
+      expect(core.abnormalSensed.ewdAbnormalSensed[key].simVarIsActive, `${key}`).toBe(listed[key].simVarIsActive);
+    }
+    expect(core.abnormalSensed.ewdDeferredProcs[DC_ESS_BUS_PART_FAULT_DEFERRED_KEY]).toBeDefined();
   });
 
-  it('keeps no other entry with the keys of these alerts', () => {
-    for (const key of Object.values(keys).flat()) {
-      expect(abnormalSensed).not.toMatch(new RegExp(`^\\s*${key}: \\{`, 'm'));
-    }
+  it('updates the alerts every cycle', () => {
+    const { core, simVars } = createFws(new Set());
+    const remoteCbControl = core.abnormalSensed.ewdAbnormalSensed[keys.remoteCbControlActive];
+    expect(remoteCbControl.simVarIsActive.get()).toBe(false);
+
+    simVars.set('L:A380X_REMOTE_CB_CTRL', 1);
+    runFwsCycle(core);
+    expect(remoteCbControl.simVarIsActive.get()).toBe(true);
   });
 });

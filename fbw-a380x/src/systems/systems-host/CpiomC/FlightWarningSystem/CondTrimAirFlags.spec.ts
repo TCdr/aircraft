@@ -15,27 +15,18 @@ import {
   readTrimAirMonitoringFlags,
   TrimAirMonitoringFlags,
 } from './CondTrimAirFlags';
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import {
+  EcamAbnormalProcedures,
+  EcamDeferredProcedures,
+} from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
 
-// The EcamMessages modules cannot be imported in a test (circular imports with their enums): read the source instead
-const ata21Procedures = readFileSync(
-  resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata21-22-23.ts'),
-  'utf-8',
-);
-
-/** The lines (item names, in order) and the abnormal procedures it comes from, of one procedure in ata21-22-23.ts */
+/** The lines (item names, in order) and the abnormal procedures it comes from, of one procedure of the ECAM tables */
 function procedure(id: number): { items: { name: string }[]; fromAbnormalProcs?: string[] } {
-  const start = ata21Procedures.indexOf(`  ${id}: {`);
-  expect(start).toBeGreaterThanOrEqual(0);
-  const rest = ata21Procedures.slice(start);
-  // The procedure ends at the first closing brace at its own indentation
-  const block = rest.slice(0, /\r?\n {2}\},/.exec(rest)?.index ?? rest.length);
-  const itemsBlock = block.slice(block.indexOf('items: ['));
-  const from = /fromAbnormalProcs: \[([^\]]*)\]/.exec(block);
+  const found = EcamAbnormalProcedures[String(id)] ?? EcamDeferredProcedures[String(id)];
+  expect(found).toBeDefined();
   return {
-    items: [...itemsBlock.matchAll(/name: '([^']*)'/g)].map((match) => ({ name: match[1] })),
-    fromAbnormalProcs: from ? [...from[1].matchAll(/'(\d+)'/g)].map((match) => match[1]) : undefined,
+    items: found.items.map((item) => ({ name: item.name })),
+    fromAbnormalProcs: EcamDeferredProcedures[String(id)]?.fromAbnormalProcs,
   };
 }
 

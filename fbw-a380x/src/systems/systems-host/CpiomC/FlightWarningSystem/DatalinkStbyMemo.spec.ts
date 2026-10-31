@@ -1,28 +1,15 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Subject } from '@microsoft/msfs-sdk';
 import type { FwsCore } from './FwsCore';
 import { FwsMemos } from './FwsMemos';
 import { DATALINK_STBY_MEMO, isDatalinkStby } from './DatalinkStbyMemo';
-
-/* The EcamMemos table and the FwsCore wiring are read from the source text (EcamMessages/index.ts import cycle) */
-const ecamMessages = readFileSync(
-  resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/index.ts'),
-  'utf-8',
-);
-const fwsCore = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
-
-/** Text of an EcamMemos line, with its ECAM colour code */
-function memoLine(key: string): string | undefined {
-  const start = ecamMessages.indexOf('export const EcamMemos');
-  const body = ecamMessages.slice(start, ecamMessages.indexOf('\n};', start));
-  const line = body.match(new RegExp(`^\\s*'${key}': '([^']*)',`, 'm'));
-  return line ? line[1] : undefined;
-}
+import { AcarsConnector } from '@datalink/router';
+import { EcamMemos } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { A380Failure } from '../../../failures/src/a380';
+import { createFws, runFwsCycle } from './FwsSpecFixture';
 
 type DatalinkFws = FwsCore & { datalinkStby: Subject<boolean> };
 
@@ -52,7 +39,7 @@ describe('A380X DATALINK STBY memo', () => {
   });
 
   it('is a green DATALINK STBY memo of the EWD memo table', () => {
-    expect(memoLine(DATALINK_STBY_MEMO)).toBe('\\x1b<3mDATALINK STBY');
+    expect(EcamMemos[DATALINK_STBY_MEMO]).toBe('\x1b<3mDATALINK STBY');
   });
 
   it('FwsMemos shows it while FwsCore sets the datalink standby state, in all flight phases', () => {
@@ -67,8 +54,25 @@ describe('A380X DATALINK STBY memo', () => {
   });
 
   it('FwsCore: data mode = no COM DATALINK FAULT (VHF 3 working, in data mode), link lost = the ACARS provider lost', () => {
-    expect(fwsCore).toMatch(/dataModeAvailable: !this\.comDatalinkFault\.get\(\)/);
-    expect(fwsCore).toMatch(/linkTemporarilyLost: AcarsConnector\.isLinkTemporarilyLost\(\)/);
-    expect(fwsCore).toContain('this.datalinkStby.set(');
+    const linkLost = vi.spyOn(AcarsConnector, 'isLinkTemporarilyLost');
+    linkLost.mockReturnValue(true);
+    const working = createFws(new Set()).core;
+    // The memo reads the datalink fault of the previous update
+    runFwsCycle(working);
+    runFwsCycle(working);
+    expect(working.comDatalinkFault.get()).toBe(false);
+    expect(working.datalinkStby.get()).toBe(true);
+
+    linkLost.mockReturnValue(false);
+    runFwsCycle(working);
+    expect(working.datalinkStby.get()).toBe(false);
+
+    linkLost.mockReturnValue(true);
+    const vhf3Failed = createFws(new Set([A380Failure.Vhf3])).core;
+    runFwsCycle(vhf3Failed);
+    runFwsCycle(vhf3Failed);
+    expect(vhf3Failed.comDatalinkFault.get()).toBe(true);
+    expect(vhf3Failed.datalinkStby.get()).toBe(false);
+    linkLost.mockRestore();
   });
 });

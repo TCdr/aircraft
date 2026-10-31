@@ -1,9 +1,9 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
+import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
 import { A380Failure, A380FailureDefinitions } from '@failures';
 import {
   ConfigSidestickMonitor,
@@ -17,32 +17,32 @@ import {
   lostSpoilerCount,
   SidestickTakeoverLock,
 } from './FwsFctlSensorAlerts';
+import {
+  EcamAbnormalProcedures,
+  EcamDeferredProcedures,
+  EcamInopSys,
+  EcamLimitations,
+} from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { createFws, runFwsCycle } from './FwsSpecFixture';
 
-/*
- * The EcamMessages tables are read from the source text (importing EcamMessages in a test fails on a circular import).
- */
-const ecamDir = resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages');
-const ecamMessages = readFileSync(resolve(ecamDir, 'index.ts'), 'utf-8');
-const ata27 = readFileSync(resolve(ecamDir, 'AbnormalSensed/ata27.ts'), 'utf-8');
+const ESCAPE = String.fromCharCode(27);
 
 /** Text of a line of an EcamMessages table, without its ECAM colour code */
 function text(table: 'EcamInopSys' | 'EcamLimitations', key: string): string | undefined {
-  const start = ecamMessages.indexOf(`export const ${table}`);
-  const body = ecamMessages.slice(start, ecamMessages.indexOf('\n};', start));
-  const line = body.match(new RegExp(`^\\s*'?${key}'?: '\\\\x1b<\\d+m([^']*)',`, 'm'));
-  return line ? line[1].trim() : undefined;
+  const lines = table === 'EcamInopSys' ? EcamInopSys : EcamLimitations;
+  return lines[key]?.replace(new RegExp(`^${ESCAPE}<\\d+m`), '').trim();
 }
 
-/** Title (without the colour and underline codes) and item names of an ata27.ts procedure */
+/** Title (without the colour and underline codes) and item names of an ECAM procedure */
 function procedure(key: number): { title: string; items: string[] } | undefined {
-  const start = ata27.indexOf(`\n  ${key}: {`);
-  if (start < 0) {
+  const found = EcamAbnormalProcedures[key] ?? EcamDeferredProcedures[key];
+  if (!found) {
     return undefined;
   }
-  const block = ata27.slice(start, ata27.indexOf('\n  },', start));
-  const title = (block.match(/title: '([^']*)'/)?.[1] ?? '').replace(/\\x1b<?\d*m/g, '').replace('\\x1b', '');
-  const items = [...block.matchAll(/name: '([^']*)'/g)].map((m) => m[1]);
-  return { title, items };
+  return {
+    title: (found.title ?? '').replace(new RegExp(`${ESCAPE}<?\\d*m`, 'g'), ''),
+    items: found.items.map((item) => item.name),
+  };
 }
 
 /** Inputs of a normal aircraft on the ground: all computers healthy, no failure */
@@ -285,7 +285,7 @@ describe('F/CTL sensor alert entries (FwsAbnormalSensed)', () => {
     });
   });
 
-  it('has one entry per alert, each with its ata27.ts title, level and one shown line per item', () => {
+  it('has one entry per alert, each with its ECAM procedure title, level and one shown line per item', () => {
     const items = fctlSensorAbnormalItems(new FctlSensorAlerts());
     const expected: [number, string, number][] = [
       [271800001, 'CONFIG L SIDESTICK FAULT (BY TAKE-OVER)', 3],
@@ -383,13 +383,9 @@ describe('F/CTL sensor alert entries (FwsAbnormalSensed)', () => {
 
   it('has the deferred procedures of GND SPLRs, MOST SPLRs and RUDDER PEDAL FAULT', () => {
     const deferred = fctlSensorDeferredItems();
-    const deferredBlock = (key: number) => {
-      const start = ata27.indexOf(`\n  ${key}: {`);
-      return start < 0 ? '' : ata27.slice(start, ata27.indexOf('\n  },', start));
-    };
-    expect(deferredBlock(270700002)).toContain("fromAbnormalProcs: ['271800016']");
-    expect(deferredBlock(270700004)).toContain("fromAbnormalProcs: ['271800031']");
-    expect(deferredBlock(270700003)).toContain("fromAbnormalProcs: ['271800050']");
+    expect(EcamDeferredProcedures[270700002].fromAbnormalProcs).toEqual(['271800016']);
+    expect(EcamDeferredProcedures[270700004].fromAbnormalProcs).toEqual(['271800031']);
+    expect(EcamDeferredProcedures[270700003].fromAbnormalProcs).toEqual(['271800050']);
     for (const key of [270700002, 270700003, 270700004]) {
       expect(deferred[key].whichItemsToShow().length).toBe(procedure(key)?.items.length);
     }
@@ -438,13 +434,32 @@ describe('flyPad failures and wiring', () => {
   });
 
   it('adds the entries to the abnormal sensed procedures and updates the alerts every cycle', () => {
-    const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-    const core = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
-    expect(abnormalSensed).toContain('...fctlSensorAbnormalItems(this.fws.fctlSensorAlerts),');
-    expect(abnormalSensed).toContain('...fctlSensorDeferredItems(),');
-    expect(core).toContain('public readonly fctlSensorAlerts = new FctlSensorAlerts();');
-    expect(core).toContain('this.fctlSensorAlerts.update({');
-    expect(core).toContain('this.fctlSensorAlerts.btvInop,');
-    expect(core).toContain('sidestickDeactivatedByTakeover: this.fctlSensorAlerts.sidestickDeactivatedByTakeover(),');
+    const { core } = createFws(new Set());
+    const listed = fctlSensorAbnormalItems(core.fctlSensorAlerts);
+    for (const key of Object.keys(listed).map(Number)) {
+      expect(core.abnormalSensed.ewdAbnormalSensed[key].simVarIsActive, `${key}`).toBe(listed[key].simVarIsActive);
+    }
+    for (const key of Object.keys(fctlSensorDeferredItems())) {
+      expect(core.abnormalSensed.ewdDeferredProcs[key], key).toBeDefined();
+    }
+
+    const leftSidestickFault = core.abnormalSensed.ewdAbnormalSensed[FCTL_SENSOR_ALERT_KEYS.sidestickFault[0]];
+    runFwsCycle(core);
+    expect(leftSidestickFault.simVarIsActive.get()).toBe(false);
+
+    const failed = createFws(new Set([A380Failure.CaptSidestick]));
+    // The sidestick alert needs a healthy PRIM
+    failed.simVars.set('L:A32NX_PRIM_1_HEALTHY', 1);
+    runFwsCycle(failed.core);
+    expect(
+      failed.core.abnormalSensed.ewdAbnormalSensed[FCTL_SENSOR_ALERT_KEYS.sidestickFault[0]].simVarIsActive.get(),
+    ).toBe(true);
+  });
+
+  it('shares the BTV INOP state of the alerts with the landing performance', () => {
+    const { core } = createFws();
+    expect(core.btvInopByAlert.get()).toBe(false);
+    core.fctlSensorAlerts.btvInop.set(true);
+    expect(core.btvInopByAlert.get()).toBe(true);
   });
 });

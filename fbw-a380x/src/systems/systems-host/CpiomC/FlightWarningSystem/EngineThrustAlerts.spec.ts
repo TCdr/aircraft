@@ -1,8 +1,6 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import {
   THRUST_LOSS_PHASE_INHIBITION,
@@ -12,6 +10,8 @@ import {
   isThrustLoss,
   thrustLossItemsChecked,
 } from './EngineThrustAlerts';
+import { EcamAbnormalProcedures } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { createFws, runFwsCycle } from './FwsSpecFixture';
 
 describe('ENG 1(2)(3)(4) THRUST LOSS', () => {
   it('triggers on the engine whose max THR is 10 % lower than at least two other engines', () => {
@@ -73,33 +73,44 @@ describe('ENG T.O THRUST DISAGREE', () => {
 });
 
 describe('FWS wiring of the engine thrust alerts', () => {
-  const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf8');
-  const core = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf8');
-  const ata70 = readFileSync(
-    resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata70.ts'),
-    'utf8',
-  );
+  const { core, simVars } = createFws();
+  const sensed = (id: number) => core.abnormalSensed.ewdAbnormalSensed[id];
 
   it('reads the max THR and the take-off mode of the four FADECs', () => {
-    expect(core).toContain('L:A32NX_ENGINE_${engineNumber}_FADEC_MAX_THR');
-    expect(core).toContain('L:A32NX_ENGINE_${engineNumber}_FADEC_TAKEOFF_MODE');
+    [100, 100, 100, 100].forEach((maxThr, index) => simVars.set(`L:A32NX_ENGINE_${index + 1}_FADEC_MAX_THR`, maxThr));
+    simVars.set('L:A32NX_ENGINE_2_FADEC_MAX_THR', 50);
+    simVars.set('L:A32NX_ENGINE_4_FADEC_TAKEOFF_MODE', 1);
+    runFwsCycle(core);
+    expect(core.engineThrustLoss.map((alert) => alert.get())).toEqual([false, true, false, false]);
+    expect(core.takeoffThrustDisagree.get()).toBe(true);
   });
 
   it('raises ENG 1(2)(3)(4) THRUST LOSS (701800133-136) and ENG T.O THRUST DISAGREE (701800155)', () => {
-    for (const code of [701800133, 701800134, 701800135, 701800136, 701800155]) {
-      expect(abnormalSensed).toMatch(new RegExp(`${code}: \\{\\s*// ENG [1-4T]`));
+    for (const engineIndex of [0, 1, 2, 3]) {
+      const entry = sensed(701800133 + engineIndex);
+      expect(entry.simVarIsActive).toBe(core.engineThrustLoss[engineIndex]);
+      expect(entry.flightPhaseInhib).toEqual(THRUST_LOSS_PHASE_INHIBITION);
     }
-    expect(abnormalSensed.match(/simVarIsActive: this\.fws\.engineThrustLoss\[[0-3]\]/g)).toHaveLength(4);
-    expect(abnormalSensed).toContain('simVarIsActive: this.fws.takeoffThrustDisagree');
+    const disagree = sensed(701800155);
+    expect(disagree.simVarIsActive).toBe(core.takeoffThrustDisagree);
+    expect(disagree.flightPhaseInhib).toEqual(TO_THRUST_DISAGREE_PHASE_INHIBITION);
   });
 
   it('shows the THRUST LOSS lines of the aircraft', () => {
     for (const engine of [1, 2, 3, 4]) {
       const code = 701800132 + engine;
-      const procedure = ata70.slice(ata70.indexOf(`${code}: {`), ata70.indexOf(`${code + 1}: {`));
-      expect(procedure).toContain(` ${engine} THRUST LOSS',`);
-      expect(procedure).toContain(`{ name: 'THR LEVER ${engine}', sensed: true, labelNotCompleted: 'IDLE' }`);
-      expect(procedure).toContain(`{ name: 'ENG ${engine} MASTER', sensed: true, labelNotCompleted: 'OFF' }`);
+      const procedure = EcamAbnormalProcedures[code];
+      expect(procedure.title).toContain(` ${engine} THRUST LOSS`);
+      expect(procedure.items).toContainEqual({ name: `THR LEVER ${engine}`, sensed: true, labelNotCompleted: 'IDLE' });
+      expect(procedure.items).toContainEqual({ name: `ENG ${engine} MASTER`, sensed: true, labelNotCompleted: 'OFF' });
+      const entry = sensed(code);
+      expect(entry.whichItemsToShow()).toEqual([true, true]);
+      expect(entry.whichItemsChecked()).toEqual(
+        thrustLossItemsChecked(
+          (core as any)[`thrustLever${engine}Idle`].get(),
+          !!(core as any)[`engine${engine}Master`].get(),
+        ),
+      );
     }
   });
 });

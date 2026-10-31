@@ -1,9 +1,8 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
+import type { FwsCore } from './FwsCore';
 import { A380Failure } from '@failures';
 import { Arinc429SignStatusMatrix, Arinc429Word } from '@flybywiresim/fbw-sdk';
 import {
@@ -20,6 +19,16 @@ import {
   slatFlapAlerts,
   surfacesLockedStatus,
 } from './FwsSlatFlapAlerts';
+import {
+  EcamAbnormalProcedures,
+  EcamDeferredProcedures,
+  EcamInfos,
+  EcamInopSys,
+  EcamLimitations,
+} from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { DeferredProcedureType } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/EcamProcedureTypes';
+import { SdPages } from '@shared/EcamSystemPages';
+import { createFws, procedureItemNames } from './FwsSpecFixture';
 
 /** A discrete word with these bits set */
 const word = (bits: number[], ssm = Arinc429SignStatusMatrix.NormalOperation) =>
@@ -157,94 +166,86 @@ describe('A380X FWS slat and flap control alerts: phase inhibitions and STATUS',
   });
 });
 
-/*
- * Wiring, read from the source text (importing the EcamMessages tables in a test fails on a circular import, see
- * FwsAbnormalSensedItems.spec.ts).
- */
-const readSource = (path: string) => readFileSync(resolve(__dirname, path), 'utf-8').replace(/\r\n/g, '\n');
-const abnormalSensed = readSource('FwsAbnormalSensed.ts');
-const ata27 = readSource('../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata27.ts');
-const ecamMessages = readSource('../../../instruments/src/MsfsAvionicsCommon/EcamMessages/index.ts');
-
-/** A procedure of ata27.ts, from its id to the end of its object */
-function block(source: string, id: string): string {
-  const start = source.indexOf(`\n  ${id}: {`);
-  expect(start).toBeGreaterThan(0);
-  return source.slice(start, source.indexOf('\n  },', start));
-}
-
-function alertBlock(id: string): string {
-  const start = abnormalSensed.indexOf(`    ${id}: {`);
-  expect(start).toBeGreaterThan(0);
-  return abnormalSensed.slice(start, abnormalSensed.indexOf('\n    },', start));
-}
-
-function procedureItemCount(id: string): number {
-  return (block(ata27, id).match(/\{ name: /g) ?? []).length;
-}
-
-function shownItemCount(id: string): number {
-  const shown = alertBlock(id).match(/whichItemsToShow: \(\) => \[([^\]]*)\]/);
-  expect(shown).not.toBeNull();
-  return shown![1].trim() === '' ? 0 : shown![1].split(',').length;
+/** The monitor state of the core named like 'flapCtlFault[0]' or 'flapsLocked' */
+function monitorState(slatFlapControl: SlatFlapAlertMonitor, name: string): unknown {
+  const indexed = name.match(/^(\w+)\[(\d)\]$/);
+  const state = (slatFlapControl as unknown as Record<string, unknown>)[indexed ? indexed[1] : name];
+  return indexed ? (state as unknown[])[Number(indexed[2])] : state;
 }
 
 describe('A380X FWS slat and flap control alerts: wiring', () => {
-  it.each([
-    ['272800004', 'flapCtlFault[0]', 'FLAP_SLAT_CTL_FAULT_PHASE_INHIBITION', 1, 'Fctl'],
-    ['272800005', 'flapCtlFault[1]', 'FLAP_SLAT_CTL_FAULT_PHASE_INHIBITION', 1, 'Fctl'],
-    ['272800019', 'slatCtlFault[0]', 'FLAP_SLAT_CTL_FAULT_PHASE_INHIBITION', 1, 'Fctl'],
-    ['272800020', 'slatCtlFault[1]', 'FLAP_SLAT_CTL_FAULT_PHASE_INHIBITION', 1, 'Fctl'],
-    ['272800009', 'flapSafetyTestRequired[0]', 'SLAT_FLAP_MAINTENANCE_TEST_PHASE_INHIBITION', 1, 'None'],
-    ['272800010', 'flapSafetyTestRequired[1]', 'SLAT_FLAP_MAINTENANCE_TEST_PHASE_INHIBITION', 1, 'None'],
-    ['272800011', 'slatSafetyTestRequired[0]', 'SLAT_FLAP_MAINTENANCE_TEST_PHASE_INHIBITION', 1, 'None'],
-    ['272800012', 'slatSafetyTestRequired[1]', 'SLAT_FLAP_MAINTENANCE_TEST_PHASE_INHIBITION', 1, 'None'],
-    ['272800013', 'flapsLeverOutOfDetent', 'FLAPS_LEVER_OUT_OF_DETENT_PHASE_INHIBITION', 2, 'None'],
-    ['272800014', 'flapsLeverSysFault[0]', 'FLAPS_LEVER_SYS_FAULT_PHASE_INHIBITION', 2, 'Fctl'],
-    ['272800015', 'flapsLeverSysFault[1]', 'FLAPS_LEVER_SYS_FAULT_PHASE_INHIBITION', 2, 'Fctl'],
-    ['272800016', 'flapsLocked', 'FLAPS_SLATS_LOCKED_PHASE_INHIBITION', 2, 'Fctl'],
-    ['272800024', 'slatsLocked', 'FLAPS_SLATS_LOCKED_PHASE_INHIBITION', 2, 'Fctl'],
-    ['272800025', 'slatsTipBrakeTestRequired', 'SLAT_FLAP_MAINTENANCE_TEST_PHASE_INHIBITION', 1, 'None'],
-    ['272800027', 'flapsTipBrakeTestRequired', 'SLAT_FLAP_MAINTENANCE_TEST_PHASE_INHIBITION', 1, 'None'],
-  ])('%s is raised by slatFlapControl.%s with %s, level %i, SD page %s', (id, state, inhibition, level, page) => {
-    const entry = alertBlock(id);
-    expect(entry).toContain(`simVarIsActive: this.fws.slatFlapControl.${state},`);
-    expect(entry).toContain(`flightPhaseInhib: ${inhibition},`);
-    expect(entry).toContain(`failure: ${level},`);
-    expect(entry).toContain(`sysPage: SdPages.${page},`);
-    expect(shownItemCount(id)).toBe(procedureItemCount(id));
+  let core: FwsCore;
+  beforeAll(() => {
+    ({ core } = createFws());
   });
+  const alert = (id: string) => core.abnormalSensed.ewdAbnormalSensed[id];
+
+  it.each([
+    ['272800004', 'flapCtlFault[0]', FLAP_SLAT_CTL_FAULT_PHASE_INHIBITION, 1, SdPages.Fctl],
+    ['272800005', 'flapCtlFault[1]', FLAP_SLAT_CTL_FAULT_PHASE_INHIBITION, 1, SdPages.Fctl],
+    ['272800019', 'slatCtlFault[0]', FLAP_SLAT_CTL_FAULT_PHASE_INHIBITION, 1, SdPages.Fctl],
+    ['272800020', 'slatCtlFault[1]', FLAP_SLAT_CTL_FAULT_PHASE_INHIBITION, 1, SdPages.Fctl],
+    ['272800009', 'flapSafetyTestRequired[0]', SLAT_FLAP_MAINTENANCE_TEST_PHASE_INHIBITION, 1, SdPages.None],
+    ['272800010', 'flapSafetyTestRequired[1]', SLAT_FLAP_MAINTENANCE_TEST_PHASE_INHIBITION, 1, SdPages.None],
+    ['272800011', 'slatSafetyTestRequired[0]', SLAT_FLAP_MAINTENANCE_TEST_PHASE_INHIBITION, 1, SdPages.None],
+    ['272800012', 'slatSafetyTestRequired[1]', SLAT_FLAP_MAINTENANCE_TEST_PHASE_INHIBITION, 1, SdPages.None],
+    ['272800013', 'flapsLeverOutOfDetent', FLAPS_LEVER_OUT_OF_DETENT_PHASE_INHIBITION, 2, SdPages.None],
+    ['272800014', 'flapsLeverSysFault[0]', FLAPS_LEVER_SYS_FAULT_PHASE_INHIBITION, 2, SdPages.Fctl],
+    ['272800015', 'flapsLeverSysFault[1]', FLAPS_LEVER_SYS_FAULT_PHASE_INHIBITION, 2, SdPages.Fctl],
+    ['272800016', 'flapsLocked', FLAPS_SLATS_LOCKED_PHASE_INHIBITION, 2, SdPages.Fctl],
+    ['272800024', 'slatsLocked', FLAPS_SLATS_LOCKED_PHASE_INHIBITION, 2, SdPages.Fctl],
+    ['272800025', 'slatsTipBrakeTestRequired', SLAT_FLAP_MAINTENANCE_TEST_PHASE_INHIBITION, 1, SdPages.None],
+    ['272800027', 'flapsTipBrakeTestRequired', SLAT_FLAP_MAINTENANCE_TEST_PHASE_INHIBITION, 1, SdPages.None],
+  ])(
+    '%s is raised by slatFlapControl.%s with its phase inhibition, level %i, SD page %i',
+    (id, state, inhibition, level, page) => {
+      const entry = alert(id);
+      expect(entry.simVarIsActive).toBe(monitorState(core.slatFlapControl, state));
+      expect(entry.flightPhaseInhib).toEqual(inhibition);
+      expect(entry.failure).toBe(level);
+      expect(entry.sysPage).toBe(page);
+      expect(entry.whichItemsToShow()).toHaveLength(EcamAbnormalProcedures[id].items.length);
+    },
+  );
 
   it('shows the procedure lines of FLAPS LEVER SYS FAULT and FLAPS (SLATS) LOCKED', () => {
-    expect(block(ata27, '272800014')).toContain("{ name: 'SLATS SLOW', sensed: false },\n      { name: 'FLAPS SLOW'");
+    expect(EcamAbnormalProcedures['272800014'].items.slice(0, 2).map((item) => item.name)).toEqual([
+      'SLATS SLOW',
+      'FLAPS SLOW',
+    ]);
     for (const id of ['272800016', '272800024']) {
-      expect(block(ata27, id)).toMatch(
-        /FOR VFE : USE PFD', sensed: false \},\n\s+\{ name: 'USE SELECTED SPEED', sensed: false \},\n\s+\{ name: 'LDG PERF AFFECTED'/,
-      );
+      expect(procedureItemNames(id)).toEqual(['FOR VFE : USE PFD', 'USE SELECTED SPEED', 'LDG PERF AFFECTED']);
     }
   });
 
   it('a control unit fault gives way to SYS 1+2 FAULT when both control units are failed', () => {
-    expect(alertBlock('272800004')).toContain("notActiveWhenItemActive: ['272800008']");
-    expect(alertBlock('272800020')).toContain("notActiveWhenItemActive: ['272800023']");
+    expect(alert('272800004').notActiveWhenItemActive).toEqual(['272800008']);
+    expect(alert('272800020').notActiveWhenItemActive).toEqual(['272800023']);
   });
 
   it('FLAPS (SLATS) LOCKED have their FOR APPROACH deferred procedure', () => {
-    expect(block(ata27, '270700301')).toContain("fromAbnormalProcs: ['272800016']");
-    expect(block(ata27, '270700302')).toContain("fromAbnormalProcs: ['272800024']");
-    expect(block(ata27, '270700301')).toContain('DeferredProcedureType.FOR_APPROACH');
-    const flapsLockedApproach = abnormalSensed.slice(abnormalSensed.indexOf('    270700301: {'));
-    expect(flapsLockedApproach).toMatch(
-      /whichItemsToShow: \(\) => \[!this\.fws\.flapsSuperiorTo17Deg\.get\(\), true, true, true, true\]/,
-    );
-    expect(flapsLockedApproach).toMatch(/whichItemsChecked: \(\) => \[this\.fws\.tawsFlapModeOff\.get\(\)/);
-    expect(abnormalSensed).toContain('    270700302: {');
+    expect(EcamDeferredProcedures['270700301'].fromAbnormalProcs).toEqual(['272800016']);
+    expect(EcamDeferredProcedures['270700302'].fromAbnormalProcs).toEqual(['272800024']);
+    expect(EcamDeferredProcedures['270700301'].type).toBe(DeferredProcedureType.FOR_APPROACH);
+    const flapsLockedApproach = core.abnormalSensed.ewdDeferredProcs['270700301'];
+    core.flapsSuperiorTo17Deg.set(false);
+    core.tawsFlapModeOff.set(true);
+    expect(flapsLockedApproach.whichItemsToShow()).toEqual([true, true, true, true, true]);
+    expect(flapsLockedApproach.whichItemsChecked()[0]).toBe(true);
+    core.flapsSuperiorTo17Deg.set(true);
+    core.tawsFlapModeOff.set(false);
+    expect(flapsLockedApproach.whichItemsToShow()[0]).toBe(false);
+    expect(flapsLockedApproach.whichItemsChecked()[0]).toBe(false);
+    expect(core.abnormalSensed.ewdDeferredProcs['270700302']).toBeDefined();
   });
 
   it('defines every STATUS key the alerts use', () => {
     for (const key of ['270200301', '270300301', '270300302', '270300303', '270300304']) {
-      expect(ecamMessages).toMatch(new RegExp(`\\n  ${key}: '`));
+      expect(
+        [EcamInfos, EcamInopSys, EcamLimitations].some((table) => key in table),
+        key,
+      ).toBe(true);
     }
-    expect(ecamMessages).toContain("270200301: '\\x1b<3mFOR GA : MAINTAIN S/F CONF'");
+    expect(EcamInfos['270200301']).toBe('\x1b<3mFOR GA : MAINTAIN S/F CONF');
   });
 });

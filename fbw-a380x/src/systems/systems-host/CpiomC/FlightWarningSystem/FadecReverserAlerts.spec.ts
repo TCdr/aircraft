@@ -1,10 +1,13 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
+import { EcamAbnormalProcedures } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
 import {
+  FADEC_FAULT_PHASE_INHIBITION,
+  THR_LEVER_FAULT_PHASE_INHIBITION,
+  REVERSER_UNLOCKED_PHASE_INHIBITION,
+  REVERSER_SELECTED_PHASE_INHIBITION,
   fadecFaultItemsChecked,
   fadecFaultItemsShown,
   isReverserInoperative,
@@ -21,17 +24,9 @@ import {
   thrLeverFaultItemsChecked,
   thrLeverFaultItemsShown,
 } from './FadecReverserAlerts';
+import { createFws, runFwsCycle } from './FwsSpecFixture';
 
-// The EcamMessages modules cannot be imported in a test (circular imports with their enums): read the source instead
-const ata70 = readFileSync(
-  resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata70.ts'),
-  'utf-8',
-).replace(/\r\n/g, '\n');
-const itemCount = (key: number) => {
-  const start = ata70.indexOf(`  ${key}: {`);
-  expect(start, `${key}`).toBeGreaterThan(0);
-  return (ata70.slice(start, ata70.indexOf('\n  },', start)).match(/\{ name: /g) ?? []).length;
-};
+const itemCount = (key: number) => EcamAbnormalProcedures[key].items.length;
 
 describe('ENG FADEC FAULT', () => {
   it('asks to adjust the thrust lever by hand only with the A/THR engaged', () => {
@@ -124,12 +119,8 @@ describe('ENG 2(3) reverser alerts', () => {
 });
 
 describe('FwsAbnormalSensed wiring of the FADEC, thrust lever and reverser alerts', () => {
-  const fws = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8').replace(/\r\n/g, '\n');
-  const block = (key: number) => {
-    const start = fws.indexOf(`    ${key}: {`);
-    expect(start, `${key}`).toBeGreaterThan(0);
-    return fws.slice(start, fws.indexOf('\n    },', start));
-  };
+  const { core, simVars } = createFws();
+  const sensed = (key: number) => core.abnormalSensed.ewdAbnormalSensed[key];
 
   it('wires every alert as an amber caution', () => {
     const keys = [
@@ -139,29 +130,31 @@ describe('FwsAbnormalSensed wiring of the FADEC, thrust lever and reverser alert
       [701800129, 701800130, 701800131, 701800132],
       [701800137, 701800138, 701800139, 701800140, 701800141, 701800142],
       [701800145, 701800146, 701800149, 701800150, 701800154],
-    ].flat();
+    ].reduce((all, group) => all.concat(group), []);
     for (const key of keys) {
-      expect(block(key), `${key}`).toContain('failure: 2,');
+      expect(sensed(key).failure, `${key}`).toBe(2);
     }
   });
 
   it('wires REVERSER INHIBITED and REVERSER MINOR FAULT from the reverser variables', () => {
-    expect(fws).toContain('alerts[701800143 + reverserIndex] = {');
-    expect(fws).toContain('simVarIsActive: this.fws.reverserInhibited[reverserIndex],');
-    expect(fws).toContain('alerts[701800147 + reverserIndex] = {');
-    expect(fws).toContain('simVarIsActive: this.fws.reverserMinorFault[reverserIndex],');
-    const core = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
-    expect(core).toContain("const inhibited = read('INHIBITED');");
-    expect(core).toContain("this.reverserMinorFault[reverserIndex].set(read('MINOR_FAULT'));");
-    expect(core).toContain(
-      'isReverserInoperative(fault, ctlFault, locked, this.thrLeverFault[engine - 1].get(), inhibited)',
-    );
+    for (const reverserIndex of [0, 1]) {
+      expect(sensed(701800143 + reverserIndex).simVarIsActive).toBe(core.reverserInhibited[reverserIndex]);
+      expect(sensed(701800147 + reverserIndex).simVarIsActive).toBe(core.reverserMinorFault[reverserIndex]);
+    }
+    simVars.set('L:A32NX_REVERSER_2_INHIBITED', 1);
+    simVars.set('L:A32NX_REVERSER_3_MINOR_FAULT', 1);
+    runFwsCycle(core);
+    expect(core.reverserInhibited.map((alert) => alert.get())).toEqual([true, false]);
+    expect(core.reverserMinorFault.map((alert) => alert.get())).toEqual([false, true]);
+    // an inhibited reverser is inoperative
+    expect(core.reverserFailureInop[0].get()).toBe(true);
+    expect(core.reverserFailureInop[1].get()).toBe(false);
   });
 
   it('uses the flight phase inhibitions', () => {
-    expect(block(701800013)).toContain('flightPhaseInhib: FADEC_FAULT_PHASE_INHIBITION,');
-    expect(block(701800130)).toContain('flightPhaseInhib: THR_LEVER_FAULT_PHASE_INHIBITION,');
-    expect(block(701800149)).toContain('flightPhaseInhib: REVERSER_UNLOCKED_PHASE_INHIBITION,');
-    expect(block(701800154)).toContain('flightPhaseInhib: REVERSER_SELECTED_PHASE_INHIBITION,');
+    expect(sensed(701800013).flightPhaseInhib).toEqual(FADEC_FAULT_PHASE_INHIBITION);
+    expect(sensed(701800130).flightPhaseInhib).toEqual(THR_LEVER_FAULT_PHASE_INHIBITION);
+    expect(sensed(701800149).flightPhaseInhib).toEqual(REVERSER_UNLOCKED_PHASE_INHIBITION);
+    expect(sensed(701800154).flightPhaseInhib).toEqual(REVERSER_SELECTED_PHASE_INHIBITION);
   });
 });

@@ -5,6 +5,7 @@ import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { EcamClearHistory, FlightPhaseInhibitOverride, recallAll } from './FwsRecall';
+import { createFws } from './FwsSpecFixture';
 
 /*
  * RCL LAST pb cancels the last CLEAR pb action on an alert. RCL pb brings back on the EWD every alert already performed
@@ -54,28 +55,73 @@ describe('RCL LAST pb', () => {
 });
 
 describe('RCL / RCL LAST wiring', () => {
-  const read = (path: string) => readFileSync(resolve(__dirname, path), 'utf-8');
-
   it('the RCL LAST key of the ECP writes its own L:var', () => {
-    const xml = read(
-      '../../../../base/flybywire-aircraft-a380-842/SimObjects/AirPlanes/FlyByWire_A380X/attachments/flybywire/Part_Interior_Cockpit/model/behaviour/ecam-cp.xml',
+    // ecam-cp.xml cannot be loaded by vitest, so its source text is read
+    const xml = readFileSync(
+      resolve(
+        __dirname,
+        '../../../../base/flybywire-aircraft-a380-842/SimObjects/AirPlanes/FlyByWire_A380X/attachments/flybywire/Part_Interior_Cockpit/model/behaviour/ecam-cp.xml',
+      ),
+      'utf-8',
     );
     const rclLast = xml.slice(xml.indexOf('<PART_ID>ECAM_RCLLAST</PART_ID>'), xml.indexOf('<!-- ECAM RCL -->'));
     expect(rclLast).toContain('<SIMVAR>A32NX_BTN_RCL_LAST</SIMVAR>');
   });
 
-  it('the FWS reads RCL LAST, records the CLEAR actions and shows NORMAL', () => {
-    expect(read('FwsCore.ts')).toContain("'L:A32NX_BTN_RCL_LAST'");
-    expect(read('FwsAbnormalSensed.ts')).toContain('this.fws.clearHistory.onCleared(activeProcedureId)');
-    expect(read('FwsMemos.ts')).toMatch(/'000000001': \{[^}]*recallNormalMemo/);
+  /** Presses and releases a pb of the ECAM control panel, one FWS frame each */
+  function pressAndRelease(core: ReturnType<typeof createFws>['core'], simVars: Map<string, any>, name: string): void {
+    // The ECP is reachable on the AFDX network
+    simVars.set('L:A32NX_AFDX_3_3_REACHABLE', 1);
+    simVars.set(name, 1);
+    core.update(1000);
+    simVars.set(name, 0);
+    core.update(1000);
+  }
+
+  it('the FWS brings back the alert of the last CLEAR action on RCL LAST', () => {
+    const { core, simVars } = createFws(new Set());
+    core.startupCompleted.set(true);
+    core.recallFailures = ['A', 'B'];
+    core.clearHistory.onCleared('A');
+    core.clearHistory.onCleared('B');
+    pressAndRelease(core, simVars, 'L:A32NX_BTN_RCL_LAST');
+    expect(core.recallFailures).toEqual(['A']);
+    expect(core.presentedFailures).toContain('B');
+  });
+
+  it('the FWS records the CLEAR actions', () => {
+    const { core } = createFws(new Set());
+    core.presentedFailures.push('X');
+    core.abnormalSensed.activeProcedureId.set('X');
+    core.abnormalSensed.clearActiveProcedure();
+    expect(core.clearHistory.lastCleared(['X'])).toBe('X');
+  });
+
+  it('the FWS shows NORMAL for 3 s on RCL with nothing to recall', () => {
+    const { core, simVars } = createFws(new Set());
+    core.startupCompleted.set(true);
+    const memo = core.memos.ewdMemos['000000001'];
+    expect(memo.simVarIsActive).toBe(core.recallNormalMemo);
+    pressAndRelease(core, simVars, 'L:A32NX_BTN_RCL');
+    expect(core.recallNormalMemo.get()).toBe(true);
+    core.update(1000);
+    core.update(1000);
+    core.update(1000);
+    core.update(1000);
+    expect(core.recallNormalMemo.get()).toBe(false);
   });
 
   it('only the long RCL press overrides the flight phase inhibition, for the alerts too', () => {
-    const core = read('FwsCore.ts');
-    expect(core).toMatch(/flightPhaseInhibitOverride\.update\(recallLongPressStarted, flightPhase\)/);
-    expect(core).toMatch(
-      /value\.flightPhaseInhib\.some\(\(e\) => e === flightPhase\) &&\s*!this\.flightPhaseInhibitOverride\.active/,
-    );
+    const { core, simVars } = createFws(new Set());
+    core.startupCompleted.set(true);
+    simVars.set('L:A32NX_AFDX_3_3_REACHABLE', 1);
+    simVars.set('L:A32NX_BTN_RCL', 1);
+    core.update(1000);
+    core.update(1000);
+    expect(core.flightPhaseInhibitOverride.active).toBe(false);
+    core.update(1000);
+    core.update(1000);
+    expect(core.flightPhaseInhibitOverride.active).toBe(true);
   });
 });
 

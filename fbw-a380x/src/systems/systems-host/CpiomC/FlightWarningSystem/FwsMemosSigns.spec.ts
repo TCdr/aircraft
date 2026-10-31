@@ -1,12 +1,12 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { Subject } from '@microsoft/msfs-sdk';
 import { describe, expect, it } from 'vitest';
 import type { FwsCore } from './FwsCore';
 import { FwsMemos } from './FwsMemos';
+import { EcamMemos } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { createFws } from './FwsSpecFixture';
 
 type SignsFws = FwsCore & { seatBeltsSwitchOn: Subject<boolean>; noSmokingSwitchOn: Subject<boolean> };
 
@@ -72,14 +72,22 @@ describe('A380X SEAT BELTS, NO SMOKING and SIGNS ON memos', () => {
   });
 
   it('has the NO SMOKING and SIGNS ON texts, and no NO MOBILE memo (not on this aircraft)', () => {
-    // read from the source: importing EcamMessages/index.ts in a test fails (circular import, FwsCdsDuFault.spec.ts)
-    const ecamMessages = readFileSync(
-      resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/index.ts'),
-      'utf-8',
-    );
-    expect(ecamMessages).toMatch(/'335000002': '.*NO SMOKING',/);
-    expect(ecamMessages).toMatch(/'335000004': '.*SIGNS ON',/);
-    expect(ecamMessages).not.toContain('NO MOBILE');
+    expect(EcamMemos['335000002']).toMatch(/NO SMOKING$/);
+    expect(EcamMemos['335000004']).toMatch(/SIGNS ON$/);
+    expect(Object.values(EcamMemos).some((text) => text.includes('NO MOBILE'))).toBe(false);
     expect(new FwsMemos(fakeFws()).ewdMemos['335000003']).toBeUndefined();
+  });
+  it('the FWS takes the switch positions from the cockpit L:vars (position 0 = ON)', () => {
+    const { core, simVars } = createFws();
+    core.startupCompleted.set(true);
+    simVars.set('L:XMLVAR_SWITCH_OVHD_INTLT_SEATBELT_Position', 1);
+    simVars.set('L:XMLVAR_SWITCH_OVHD_INTLT_NOSMOKING_Position', 1);
+    core.update(1000);
+    expect(core.seatBeltsSwitchOn.get()).toBe(false);
+    expect(core.noSmokingSwitchOn.get()).toBe(false);
+    simVars.set('L:XMLVAR_SWITCH_OVHD_INTLT_SEATBELT_Position', 0);
+    core.update(1000);
+    expect(core.seatBeltsSwitchOn.get()).toBe(true);
+    expect(core.noSmokingSwitchOn.get()).toBe(false);
   });
 });

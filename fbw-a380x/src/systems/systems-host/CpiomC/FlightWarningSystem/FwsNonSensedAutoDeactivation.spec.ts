@@ -1,14 +1,13 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import {
   DEACTIVATION_AFTER_LAST_ENGINE_SHUTDOWN_MS,
   DEACTIVATION_AFTER_POWER_UP_MS,
   NonSensedProcAutoDeactivation,
 } from './FwsNonSensedAutoDeactivation';
+import { createFws } from './FwsSpecFixture';
 
 const MINUTE = 60 * 1000;
 const STEP = 500;
@@ -83,11 +82,24 @@ describe('Automatic deactivation of the not-sensed ABN PROCs', () => {
     expect(run(deactivation, 11 * MINUTE, false)).toBe(1);
   });
 
-  it('clears the active not-sensed procedures in FwsCore and resets at the FWS power-up', () => {
-    const core = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
-    expect(core).toMatch(
-      /this\.nonSensedProcAutoDeactivation\.update\([\s\S]{0,300}\)\s*\)\s*\{\s*this\.activeAbnormalNonSensedKeys\.clear\(\);/,
-    );
-    expect(core).toContain('this.nonSensedProcAutoDeactivation.reset();');
+  it('clears the active not-sensed procedures in FwsCore 10 minutes after the power-up on ground', () => {
+    const { core, simVars } = createFws();
+    core.startupCompleted.set(true);
+    // On ground: both LGCIUs report the left gear compressed, the radio altimeters are invalid
+    simVars.set('L:A32NX_ELEC_DC_ESS_BUS_IS_POWERED', 1);
+    simVars.set('L:A32NX_ELEC_DC_2_BUS_IS_POWERED', 1);
+    simVars.set('L:A32NX_LGCIU_1_LEFT_GEAR_COMPRESSED', 1);
+    simVars.set('L:A32NX_LGCIU_2_LEFT_GEAR_COMPRESSED', 1);
+    core.update(1000);
+    core.activeAbnormalNonSensedKeys.add(1);
+    const SECONDS_BEFORE_DEACTIVATION = 9 * 60;
+    for (let second = 0; second < SECONDS_BEFORE_DEACTIVATION; second++) {
+      core.update(1000);
+    }
+    expect(core.activeAbnormalNonSensedKeys.has(1)).toBe(true);
+    for (let second = 0; second < 2 * 60; second++) {
+      core.update(1000);
+    }
+    expect(core.activeAbnormalNonSensedKeys.has(1)).toBe(false);
   });
 });

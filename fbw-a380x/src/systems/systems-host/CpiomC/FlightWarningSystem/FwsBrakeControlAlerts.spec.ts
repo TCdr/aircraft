@@ -1,8 +1,6 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import {
   BrakeControlInputs,
@@ -16,6 +14,7 @@ import {
   sysRedundancyLostItems,
 } from './FwsBrakeControlAlerts';
 import { A380Failure } from '@failures';
+import { createFws, procedureItemNames } from './FwsSpecFixture';
 
 /** RDC channel fault bits: bit 0 RDC 1 A, bit 1 RDC 1 B, bit 2 RDC 2 A ... bit 5 RDC 3 B */
 const RDC_1_A = 1;
@@ -195,25 +194,9 @@ describe('FwsBrakeControlAlerts', () => {
   });
 });
 
-/*
- * Wiring in FwsAbnormalSensed and the EcamMessages tables, read from the source text (importing the EcamMessages
- * tables in a test fails on a circular import).
- */
-const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-const ata32 = readFileSync(
-  resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata31-32-33.ts'),
-  'utf-8',
-);
-
-/** The source of one object entry, from its key to its closing brace at the same indent */
-function block(source: string, id: string, indent: string): string {
-  const normalised = source.replace(/\r\n/g, '\n');
-  const start = normalised.indexOf(`\n${indent}${id}: {`);
-  expect(start).toBeGreaterThan(0);
-  return normalised.slice(start, normalised.indexOf(`\n${indent}},`, start + 1));
-}
-
 describe('BCS alerts in FwsAbnormalSensed', () => {
+  const { core } = createFws();
+
   it.each([
     ['320800002', 'aSkidFaultOnLeftAndRightBodyLg', '[4, 5, 6, 7]', 2],
     ['320800003', 'aSkidFaultOnLeftBodyLg', '[4, 5, 6, 7]', 2],
@@ -232,16 +215,15 @@ describe('BCS alerts in FwsAbnormalSensed', () => {
     ['320800028', 'sysRedundancyLost', '[3, 4, 5, 6, 7, 8, 9, 10, 11]', 1],
     ['320800029', 'sysSafetyTestRequired', '[2, 3, 4, 5, 6, 7, 8, 9, 10, 11]', 1],
   ])('%s follows brakeControlAlerts.%s, inhibited in phases %s, level %i', (id, subject, phases, level) => {
-    const entry = block(abnormalSensed, id, '    ');
-    expect(entry).toContain(`simVarIsActive: this.fws.brakeControlAlerts.${subject},`);
-    expect(entry).toContain(`flightPhaseInhib: ${phases},`);
-    expect(entry).toContain(`failure: ${level},`);
+    const entry = core.abnormalSensed.ewdAbnormalSensed[Number(id)];
+    expect(entry.simVarIsActive).toBe((core.brakeControlAlerts as unknown as { [subject: string]: unknown })[subject]);
+    expect(entry.flightPhaseInhib).toEqual(JSON.parse(phases));
+    expect(entry.failure).toBe(level);
   });
 
   it('BRAKES RELEASED has the 16 BRK NORM/ALTN RELEASED lines and LDG DIST AFFECTED', () => {
-    const entry = block(ata32, '320800025', '  ');
     const pairs = ['1/2', '3/4', '5/6', '7/8', '9/10', '11/12', '13/14', '15/16'];
-    const names = [...entry.matchAll(/name: '([^']+)'/g)].map(([, name]) => name);
+    const names = procedureItemNames('320800025');
     expect(names).toEqual([
       ...pairs.map((pair) => `BRK ${pair} NORM RELEASED`),
       ...pairs.map((pair) => `BRK ${pair} ALTN RELEASED`),
@@ -250,7 +232,7 @@ describe('BCS alerts in FwsAbnormalSensed', () => {
   });
 
   it('BRAKES SYS REDUNDANCY LOST names channel A for the L + R BODY line', () => {
-    const names = [...block(ata32, '320800028', '  ').matchAll(/name: '([^']+)'/g)].map(([, name]) => name.trim());
+    const names = procedureItemNames('320800028').map((name) => name.trim());
     expect(names).toEqual([
       'SYS B REDUNDANCY LOST',
       'SYS A REDUNDANCY LOST ON L BODY',

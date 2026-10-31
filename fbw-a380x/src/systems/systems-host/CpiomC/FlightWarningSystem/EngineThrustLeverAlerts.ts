@@ -22,6 +22,11 @@ export const THR_LEVER_ABOVE_IDLE_PHASE_INHIBITION = [1, 6, 7, 12];
 /** The alert level: red, MASTER WARN */
 export const THR_LEVER_ABOVE_IDLE_LEVEL = 3;
 
+/** The alert is shown, and called out by RETARD, when a lever is above idle in a flight phase that does not inhibit it */
+export function isThrLeverAboveIdleShown(anyLeverAboveIdle: boolean, flightPhase: number): boolean {
+  return anyLeverAboveIdle && !THR_LEVER_ABOVE_IDLE_PHASE_INHIBITION.includes(flightPhase);
+}
+
 /*
  * Thrust lever angle ranges, in degrees (L:A32NX_AUTOTHRUST_TLA:n). Above idle from 2.6, the threshold the FWS already
  * uses for "at idle" (FwsCore thrustLever1Idle: TLA <= 2.6). Design choice: in the reverse detent below -4.3, the boundary

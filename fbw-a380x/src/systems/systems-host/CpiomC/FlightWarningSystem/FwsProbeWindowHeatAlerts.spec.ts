@@ -1,8 +1,6 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import {
   controlSystemFaultInopSys,
@@ -13,20 +11,18 @@ import {
   ProbeWindowHeatInputs,
   probeWindowHeatAlerts,
 } from './FwsProbeWindowHeatAlerts';
-
-/*
- * The EcamMessages tables are read from the source text (importing EcamMessages in a test fails on a circular import).
- */
-const ecamMessagesDir = resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages');
-const ata30 = readFileSync(resolve(ecamMessagesDir, 'AbnormalSensed/ata29-30.ts'), 'utf-8');
-const messages = readFileSync(resolve(ecamMessagesDir, 'index.ts'), 'utf-8');
+import {
+  EcamAbnormalProcedures,
+  EcamInfos,
+  EcamInopSys,
+  EcamLimitations,
+} from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
 
 /** The number of items of a procedure of ata29-30.ts */
 function procedureItemCount(id: string): number {
-  const start = ata30.indexOf(`  ${id}: {`);
-  expect(start, `procedure ${id}`).toBeGreaterThan(0);
-  const block = ata30.slice(start, ata30.indexOf('\n  },', start));
-  return (block.match(/\{ name: /g) ?? []).length;
+  const procedure = EcamAbnormalProcedures[id];
+  expect(procedure, `procedure ${id}`).toBeDefined();
+  return procedure.items.length;
 }
 
 function noFault(): ProbeWindowHeatInputs {
@@ -269,7 +265,7 @@ describe('the FWS entries of the probe and window heat alerts', () => {
       return all.concat(...lists.map((list) => (list ? (list([]).filter((key) => key !== null) as string[]) : [])));
     }, []);
     expect(keys.length).toBeGreaterThan(0);
-    expect(keys.filter((key) => !messages.includes(`  ${key}: '`))).toEqual([]);
+    expect(keys.filter((key) => ![EcamInopSys, EcamInfos, EcamLimitations].some((table) => key in table))).toEqual([]);
   });
 
   it('give the side window and drain mast alerts no master caution (crew awareness)', () => {

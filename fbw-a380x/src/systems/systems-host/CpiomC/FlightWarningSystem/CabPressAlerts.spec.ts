@@ -1,8 +1,6 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import {
   areRamAirInletsOpen,
@@ -15,20 +13,16 @@ import {
   ldgElevnFaultItemsToShow,
   ramAirMemoIndex,
 } from './CabPressAlerts';
+import {
+  EcamAbnormalProcedures,
+  EcamDeferredProcedures,
+  EcamMemos,
+} from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { createFws } from './FwsSpecFixture';
 
-/* The wiring is read from the source text, as FwsAbnormalSensedItems.spec.ts does (EcamMessages import cycle). */
-const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-const memos = readFileSync(resolve(__dirname, 'FwsMemos.ts'), 'utf-8');
-const messagesDir = '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
-const ata21 = readFileSync(resolve(__dirname, messagesDir, 'AbnormalSensed/ata21-22-23.ts'), 'utf-8');
-const messageIndex = readFileSync(resolve(__dirname, messagesDir, 'index.ts'), 'utf-8');
-
-/** The source of one alert entry of FwsAbnormalSensed, from its id to the end of its object */
-function alertBlock(id: string): string {
-  const start = abnormalSensed.indexOf(`    ${id}: {`);
-  expect(start).toBeGreaterThan(0);
-  return abnormalSensed.slice(start, abnormalSensed.indexOf('\n    },', start));
-}
+const fixture = createFws();
+const { core } = fixture;
+const alert = (id: string) => core.abnormalSensed.ewdAbnormalSensed[id];
 
 describe('CAB PRESS EXCESS NEGATIVE DIFF PRESS', () => {
   it('triggers with the CPCS bit (< -0.72 PSI) and ends only above -0.32 PSI', () => {
@@ -49,11 +43,11 @@ describe('CAB PRESS EXCESS NEGATIVE DIFF PRESS', () => {
   });
 
   it('is a red master warning, active in flight phases 8 and 9', () => {
-    const block = alertBlock('213800003');
-    expect(block).toContain('flightPhaseInhib: [1, 2, 3, 4, 5, 6, 7, 10, 11, 12],');
-    expect(block).toContain('simVarIsActive: this.fws.excessNegativeDiffPressure,');
-    expect(block).toContain('failure: 3,');
-    expect(ata21).toContain("title: '\\x1b<2m\\x1b4mCAB PRESS\\x1bm EXCESS NEGATIVE DIFF PRESS',");
+    const entry = alert('213800003');
+    expect(entry.flightPhaseInhib).toEqual([1, 2, 3, 4, 5, 6, 7, 10, 11, 12]);
+    expect(entry.simVarIsActive).toBe(core.excessNegativeDiffPressure);
+    expect(entry.failure).toBe(3);
+    expect(EcamAbnormalProcedures['213800003'].title).toBe('\x1b<2m\x1b4mCAB PRESS\x1bm EXCESS NEGATIVE DIFF PRESS');
   });
 });
 
@@ -70,19 +64,19 @@ describe('CAB PRESS DIFF PRESS HI', () => {
   });
 
   it('is wired, master caution, active in flight phase 8 only', () => {
-    const block = alertBlock('213800007');
-    expect(block).toContain('flightPhaseInhib: [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12],');
-    expect(block).toContain('simVarIsActive: this.fws.diffPressHi,');
-    expect(block).toContain('failure: 2,');
+    const entry = alert('213800007');
+    expect(entry.flightPhaseInhib).toEqual([1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12]);
+    expect(entry.simVarIsActive).toBe(core.diffPressHi);
+    expect(entry.failure).toBe(2);
   });
 });
 
 describe('CAB PRESS DIFF PRESS LO', () => {
   it('is wired, master caution, active in flight phases 8 and 9', () => {
-    const block = alertBlock('213800008');
-    expect(block).toContain('flightPhaseInhib: [1, 2, 3, 4, 5, 6, 7, 10, 11, 12],');
-    expect(block).toContain('simVarIsActive: this.fws.diffPressLo,');
-    expect(block).toContain('failure: 2,');
+    const entry = alert('213800008');
+    expect(entry.flightPhaseInhib).toEqual([1, 2, 3, 4, 5, 6, 7, 10, 11, 12]);
+    expect(entry.simVarIsActive).toBe(core.diffPressLo);
+    expect(entry.failure).toBe(2);
   });
 });
 
@@ -99,11 +93,11 @@ describe('CAB PRESS LDG ELEVN FAULT', () => {
   });
 
   it('has a message, is wired in phase 8 only and has the LDG ELEVN deferred procedure', () => {
-    expect(ata21).toContain("title: '\\x1b<4m\\x1b4mCAB PRESS\\x1bm LDG ELEVN FAULT',");
-    const block = alertBlock('213800043');
-    expect(block).toContain('flightPhaseInhib: [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12],');
-    expect(block).toContain('simVarIsActive: this.fws.ldgElevnFault,');
-    expect(ata21).toMatch(/221700001: \{[^}]*fromAbnormalProcs: \['221800006', '213800007', '213800043'\],/);
+    expect(EcamAbnormalProcedures['213800043'].title).toBe('\x1b<4m\x1b4mCAB PRESS\x1bm LDG ELEVN FAULT');
+    const entry = alert('213800043');
+    expect(entry.flightPhaseInhib).toEqual([1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12]);
+    expect(entry.simVarIsActive).toBe(core.ldgElevnFault);
+    expect(EcamDeferredProcedures['221700001'].fromAbnormalProcs).toEqual(['221800006', '213800007', '213800043']);
   });
 });
 
@@ -122,10 +116,11 @@ describe('RAM AIR memo', () => {
   });
 
   it('is defined and wired', () => {
-    expect(messageIndex).toContain("'210000002': '\\x1b<3mRAM AIR',");
-    expect(messageIndex).toContain("'210000003': '\\x1b<4mRAM AIR',");
-    expect(memos).toContain('simVarIsActive: this.fws.ramAirInletsOpen,');
-    expect(memos).toContain("codesToReturn: ['210000002', '210000003'],");
+    expect(EcamMemos['210000002']).toBe('\x1b<3mRAM AIR');
+    expect(EcamMemos['210000003']).toBe('\x1b<4mRAM AIR');
+    const memo = core.memos.ewdMemos['210000002'];
+    expect(memo.simVarIsActive).toBe(core.ramAirInletsOpen);
+    expect(memo.codesToReturn).toEqual(['210000002', '210000003']);
   });
 });
 

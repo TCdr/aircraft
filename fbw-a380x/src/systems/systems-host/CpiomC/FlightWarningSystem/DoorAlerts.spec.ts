@@ -15,24 +15,31 @@ import {
   isCabinDoorNotClosed,
   isCargoDoorNotClosed,
 } from './DoorAlerts';
+import { EcamAbnormalProcedures } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import type { FwsCore } from './FwsCore';
+import { createFws, runFwsCycle } from './FwsSpecFixture';
 
 /*
- * Sources read as text (as FwsAbnormalSensedItems.spec.ts does: importing the EcamMessages tables in a test fails on a
- * circular import).
+ * flight_model.cfg is an aircraft configuration file, not importable code: it is read as text.
  */
-const fromHere = (path: string) => readFileSync(resolve(__dirname, path), 'utf-8');
-const flightModel = fromHere(
-  '../../../../base/flybywire-aircraft-a380-842/SimObjects/AirPlanes/FlyByWire_A380X/common/config/flight_model.cfg',
+const flightModel = readFileSync(
+  resolve(
+    __dirname,
+    '../../../../base/flybywire-aircraft-a380-842/SimObjects/AirPlanes/FlyByWire_A380X/common/config/flight_model.cfg',
+  ),
+  'utf-8',
 );
-const doorTexts = fromHere('../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata46-49-52-56.ts');
-const abnormalSensed = fromHere('FwsAbnormalSensed.ts');
-const fwsCore = fromHere('FwsCore.ts');
 
-/** The source of one ECAM text, from its id to the end of its object */
-function textBlock(id: string): string {
-  const start = doorTexts.indexOf(`  ${id}: {`);
-  expect(start, `text ${id}`).toBeGreaterThan(0);
-  return doorTexts.slice(start, doorTexts.indexOf('\n  },', start));
+/** The CAB PRESS door condition reads the door signals of the previous cycle, so it needs two cycles to follow */
+function cycleTwice(core: FwsCore) {
+  runFwsCycle(core);
+  runFwsCycle(core);
+}
+
+/** The simvars that put every cabin door closed and both cargo doors closed and locked */
+function closeAllDoors(simVars: Map<string, number | boolean | string>) {
+  CABIN_DOORS.forEach((_, point) => simVars.set(`INTERACTIVE POINT OPEN:${point}`, 0));
+  CARGO_DOORS.forEach((door) => simVars.set(cargoDoorLockedVariable(door), 1));
 }
 
 describe('A380X doors and their sim interactive points', () => {
@@ -103,11 +110,25 @@ describe('CAB PRESS INHIBITED BY DOORS door input', () => {
   });
 
   it('FwsCore feeds every passenger and cargo door to the CAB PRESS INHIBITED BY DOORS condition', () => {
-    expect(fwsCore).toMatch(
-      /this\.anyDoorNotClosed\.set\(\s*isAnyDoorNotClosed\(\s*this\.cabinDoorNotClosed\.map\([^)]*\)[^,]*,\s*this\.cargoDoorNotClosed\.map/,
-    );
-    expect(fwsCore).toMatch(/this\.inhibitedByDoors\.set\(\s*this\.anyDoorNotClosed\.get\(\)/);
-    expect(fwsCore).toContain('CABIN_DOORS.map((_, point) =>');
+    const { core, simVars } = createFws(new Set());
+    closeAllDoors(simVars);
+    cycleTwice(core);
+    expect(core.anyDoorNotClosed.get()).toBe(false);
+
+    CABIN_DOORS.forEach((_, point) => {
+      simVars.set(`INTERACTIVE POINT OPEN:${point}`, 1);
+      cycleTwice(core);
+      expect(core.anyDoorNotClosed.get(), CABIN_DOORS[point]).toBe(true);
+      simVars.set(`INTERACTIVE POINT OPEN:${point}`, 0);
+    });
+    CARGO_DOORS.forEach((door) => {
+      simVars.set(cargoDoorLockedVariable(door), 0);
+      cycleTwice(core);
+      expect(core.anyDoorNotClosed.get(), door).toBe(true);
+      simVars.set(cargoDoorLockedVariable(door), 1);
+    });
+    cycleTwice(core);
+    expect(core.anyDoorNotClosed.get()).toBe(false);
   });
 });
 
@@ -141,17 +162,21 @@ describe('T.O CONFIG test door input', () => {
     expect(areDoorsInTakeoffConfig(allClosed(), [false, false], true)).toBe(false);
   });
 
-  it('FwsCore T.O CONFIG NORMAL reads every door, not only interactive points 0 and 3', () => {
-    const toConfigCheck = fwsCore.slice(
-      fwsCore.indexOf('/* T.O. CONFIG CHECK */'),
-      fwsCore.indexOf('this.toConfigNormal.set(', fwsCore.indexOf('/* T.O. CONFIG CHECK */')),
-    );
-    expect(toConfigCheck).toMatch(
-      /const doors = areDoorsInTakeoffConfig\(\s*this\.cabinDoorNotClosed\.map\([^)]*\)[^,]*,\s*this\.cargoDoorNotClosed\.map\([^)]*\)[^,]*,\s*this\.cockpitWindowOpen\.get\(\),?\s*\);/,
-    );
-    expect(toConfigCheck).not.toContain('INTERACTIVE POINT OPEN');
-    // The doors reach T.O CONFIG NORMAL either as a term of the condition or as its doorsInTakeoffConfig input.
-    expect(toConfigCheck).toMatch(/const toConfigNormal =[^;]*(&& doors &&|doorsInTakeoffConfig: doors,)/);
+  it('FwsCore T.O CONFIG NORMAL reads every door and both sliding windows', () => {
+    const { core, simVars } = createFws(new Set());
+    closeAllDoors(simVars);
+    runFwsCycle(core);
+    expect(core.doorsInTakeoffConfig()).toBe(true);
+
+    CABIN_DOORS.forEach((_, point) => {
+      simVars.set(`INTERACTIVE POINT OPEN:${point}`, 1);
+      runFwsCycle(core);
+      expect(core.doorsInTakeoffConfig(), CABIN_DOORS[point]).toBe(false);
+      simVars.set(`INTERACTIVE POINT OPEN:${point}`, 0);
+    });
+    simVars.set('L:FO_SLIDING_WINDOW', 1);
+    runFwsCycle(core);
+    expect(core.doorsInTakeoffConfig()).toBe(false);
   });
 });
 
@@ -159,14 +184,14 @@ describe('DOOR ... NOT CLOSED alerts', () => {
   it.each(CABIN_DOORS.map((door, index) => [cabinDoorNotClosedAlertId(index), door]))(
     '%s is the text of DOOR %s NOT CLOSED',
     (id, door) => {
-      expect(textBlock(id)).toContain(`DOOR\\x1bm ${door} NOT CLOSED'`);
+      expect(EcamAbnormalProcedures[id].title).toContain(`DOOR\x1bm ${door} NOT CLOSED`);
     },
   );
 
   it.each(CARGO_DOORS.map((door, index) => [cargoDoorNotClosedAlertId(index), door]))(
     '%s is the text of DOOR %s CARGO NOT CLOSED',
     (id, door) => {
-      expect(textBlock(id)).toContain(`DOOR\\x1bm ${door} CARGO NOT CLOSED'`);
+      expect(EcamAbnormalProcedures[id].title).toContain(`DOOR\x1bm ${door} CARGO NOT CLOSED`);
     },
   );
 
@@ -181,22 +206,22 @@ describe('DOOR ... NOT CLOSED alerts', () => {
    * what the FWS limitation MAX FL 100/MEA reads (checked[1]).
    */
   it.each(allDoorAlertIds)('%s: IF ABNORM CAB V/S is a crew-confirmed condition above its four lines', (id) => {
-    expect(textBlock(id)).toMatch(
-      /name: 'ABNORM CAB V\/S',\r?\n\s+sensed: false,\r?\n\s+condition: true,\r?\n\s+\},\r?\n\s+\{\r?\n\s+name: 'MAX FL : 100\/MEA-MORA',\r?\n\s+sensed: false,\r?\n\s+level: 1,/,
-    );
-    expect(textBlock(id)).toContain("name: 'DESCENT TO FL 100/MEA-MORA'");
+    const items = EcamAbnormalProcedures[id].items;
+    const condition = items.findIndex((item) => item.name === 'ABNORM CAB V/S');
+    expect(condition).toBeGreaterThanOrEqual(0);
+    expect(items[condition]).toMatchObject({ sensed: false, condition: true });
+    expect(items[condition + 1]).toMatchObject({ name: 'MAX FL : 100/MEA-MORA', sensed: false, level: 1 });
+    expect(items.some((item) => item.name === 'DESCENT TO FL 100/MEA-MORA')).toBe(true);
   });
 
   it('FwsAbnormalSensed builds one alert per passenger and cargo door', () => {
-    const generator = abnormalSensed.slice(abnormalSensed.indexOf('private doorNotClosedAlerts(): EwdAbnormalDict'));
-    expect(generator).toMatch(
-      /this\.fws\.cabinDoorNotClosed\.forEach\(\(doorNotClosed, index\) => \{\s+alerts\[cabinDoorNotClosedAlertId\(index\)\]/,
-    );
-    expect(generator).toMatch(
-      /this\.fws\.cargoDoorNotClosed\.forEach\(\(doorNotClosed, index\) => \{\s+alerts\[cargoDoorNotClosedAlertId\(index\)\]/,
-    );
-    expect(abnormalSensed).toContain('...this.doorNotClosedAlerts(),');
-    // No hand-written entry left that would override a generated one
-    allDoorAlertIds.forEach((id) => expect(abnormalSensed).not.toContain(`    ${id}: {`));
+    const { core } = createFws(new Set());
+    const alerts = core.abnormalSensed.ewdAbnormalSensed;
+    core.cabinDoorNotClosed.forEach((doorNotClosed, index) => {
+      expect(alerts[cabinDoorNotClosedAlertId(index)].simVarIsActive).toBe(doorNotClosed);
+    });
+    core.cargoDoorNotClosed.forEach((doorNotClosed, index) => {
+      expect(alerts[cargoDoorNotClosedAlertId(index)].simVarIsActive).toBe(doorNotClosed);
+    });
   });
 });

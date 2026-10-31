@@ -1,8 +1,6 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import {
   BULK_CARGO_DUCT_OVHT_PHASE_INHIBITION,
@@ -26,6 +24,12 @@ import {
   packValveFaults,
   readPackMonitoringFlags,
 } from './FwsAirCondAlerts';
+import { EcamInfos } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { diffPressHiItemsToShow, ldgElevnFaultItemsToShow } from './CabPressAlerts';
+import { createFws, runFwsCycle } from './FwsSpecFixture';
+
+const { core, simVars } = createFws();
+const alert = (id: string) => core.abnormalSensed.ewdAbnormalSensed[Number(id)];
 
 /** A discrete word with the given bits set */
 function word(...bits: number[]) {
@@ -111,42 +115,37 @@ describe('A380X FWS AIR PACK 1(2) OVHT and REGUL FAULT', () => {
   });
 
   it('REGUL FAULT: STATUS INFO AVAIL ABOVE FL 290 and REGUL DEGRADED of the right pack', () => {
-    const infos = readFileSync(
-      resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/index.ts'),
-      'utf-8',
-    );
-    expect(packRegulFaultInfo(1).map((id) => infos.match(new RegExp(`${id}: '\\\\x1b<3m(.*)'`))?.[1])).toEqual([
-      'PACK 1 AVAIL ABOVE FL 290',
-      'PACK 1 REGUL DEGRADED',
+    expect(packRegulFaultInfo(1).map((id) => EcamInfos[id])).toEqual([
+      '\x1b<3mPACK 1 AVAIL ABOVE FL 290',
+      '\x1b<3mPACK 1 REGUL DEGRADED',
     ]);
-    expect(packRegulFaultInfo(2).map((id) => infos.match(new RegExp(`${id}: '\\\\x1b<3m(.*)'`))?.[1])).toEqual([
-      'PACK 2 AVAIL ABOVE FL 290',
-      'PACK 2 REGUL DEGRADED',
+    expect(packRegulFaultInfo(2).map((id) => EcamInfos[id])).toEqual([
+      '\x1b<3mPACK 2 AVAIL ABOVE FL 290',
+      '\x1b<3mPACK 2 REGUL DEGRADED',
     ]);
   });
 });
 
-/* The wiring is read from the source text, as ApuFaultAlerts.spec.ts does (EcamMessages import cycle). */
 describe('A380X FWS COND TEMP CTL FAULT', () => {
-  const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-  const fwsCore = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
-  const infos = readFileSync(
-    resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/index.ts'),
-    'utf-8',
-  );
-
   it('STATUS INFO ENG IDLE HI only when both pack controllers are failed', () => {
-    const tempCtlFault = abnormalSensed.slice(abnormalSensed.indexOf('211800041: {'));
-    const entry = tempCtlFault.slice(0, tempCtlFault.indexOf('},'));
-    expect(entry).toContain("info: () => [this.fws.pack1And2CtlFault.get() ? '210200008' : null, '210200003'],");
-    expect(infos).toContain("210200008: '\\x1b<3mENG IDLE HI',");
+    core.pack1And2CtlFault.set(false);
+    expect(alert('211800041').info?.([])).toEqual([null, '210200003']);
+    core.pack1And2CtlFault.set(true);
+    expect(alert('211800041').info?.([])).toEqual(['210200008', '210200003']);
+    expect(EcamInfos['210200008']).toBe('\x1b<3mENG IDLE HI');
   });
 
   it('both pack controllers are failed when the two channels of FDAC 1 and of FDAC 2 are failed', () => {
-    const update = fwsCore.slice(fwsCore.indexOf('this.pack1And2CtlFault.set('));
-    expect(update.slice(0, update.indexOf(');'))).toMatch(
-      /fdac1Channel1Failure\.get\(\) &&\s+this\.fdac1Channel2Failure\.get\(\) &&\s+this\.fdac2Channel1Failure\.get\(\) &&\s+this\.fdac2Channel2Failure\.get\(\)/,
+    const channels = ['1_CHANNEL_1', '1_CHANNEL_2', '2_CHANNEL_1', '2_CHANNEL_2'].map(
+      (channel) => `L:A32NX_COND_FDAC_${channel}_FAILURE`,
     );
+    channels.forEach((simVar) => simVars.set(simVar, 1));
+    runFwsCycle(core);
+    expect(core.pack1And2CtlFault.get()).toBeTruthy();
+    // one channel left is enough for the controllers
+    simVars.set(channels[2], 0);
+    runFwsCycle(core);
+    expect(core.pack1And2CtlFault.get()).toBeFalsy();
   });
 });
 
@@ -173,16 +172,21 @@ describe('A380X FWS COND and CAB PRESS alerts of the cargo heater, extract valve
   });
 });
 
-/*
- * The wiring in FwsAbnormalSensed, read from the source text (importing the EcamMessages tables in a test fails on a
- * circular import, see FwsAbnormalSensedItems.spec.ts).
- */
-const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
+const phaseInhibitions: { [name: string]: number[] } = {
+  PACK_OVHT_PHASE_INHIBITION,
+  PACK_REGUL_FAULT_PHASE_INHIBITION,
+  PACK_VLV_FAULT_PHASE_INHIBITION,
+  BULK_CARGO_DUCT_OVHT_PHASE_INHIBITION,
+  CAB_PRESS_MAN_CTL_FAULT_PHASE_INHIBITION,
+  CABIN_AIR_EXTRACT_VLV_FAULT_PHASE_INHIBITION,
+};
 
-function alertBlock(id: string): string {
-  const start = abnormalSensed.indexOf(`    ${id}: {`);
-  expect(start, id).toBeGreaterThan(0);
-  return abnormalSensed.slice(start, abnormalSensed.indexOf('\n    },', start));
+/** The FWS condition at a path like packOvht[0] or packBayVentFault.bay1 */
+function fwsCondition(path: string): unknown {
+  return path
+    .split(/[.[\]]+/)
+    .filter((part) => part.length > 0)
+    .reduce((value: any, part) => value[part], core);
 }
 
 describe('A380X FwsAbnormalSensed wiring of the AIR PACK, COND and CAB PRESS alerts', () => {
@@ -199,27 +203,30 @@ describe('A380X FwsAbnormalSensed wiring of the AIR PACK, COND and CAB PRESS ale
     ['213800010', 'CAB_PRESS_MAN_CTL_FAULT_PHASE_INHIBITION', 'cabPressManCtlFault'],
     ['213800018', 'CABIN_AIR_EXTRACT_VLV_FAULT_PHASE_INHIBITION', 'cabinAirExtractVlvFault'],
   ])('%s uses the phase inhibition %s and the FWS condition %s', (id, inhibition, condition) => {
-    const block = alertBlock(id);
-    expect(block).toContain(`flightPhaseInhib: ${inhibition},`);
-    expect(block).toContain(`simVarIsActive: this.fws.${condition},`);
+    const entry = alert(id);
+    expect(entry.flightPhaseInhib).toEqual(phaseInhibitions[inhibition]);
+    expect(entry.simVarIsActive).toBe(fwsCondition(condition));
   });
 
   it('INHIBITED BY DOORS uses the phase inhibition (no longer inhibited in phase 12)', () => {
-    expect(alertBlock('213800009')).toContain('flightPhaseInhib: CAB_PRESS_INHIBITED_BY_DOORS_PHASE_INHIBITION,');
+    expect(alert('213800009').flightPhaseInhib).toEqual(CAB_PRESS_INHIBITED_BY_DOORS_PHASE_INHIBITION);
   });
 
   it('the indication levels follow the aircraft: VLV FAULT and EXTRACT VLV FAULT without master caution', () => {
     for (const id of ['211800017', '211800018', '211800019', '211800020', '213800018']) {
-      expect(alertBlock(id)).toContain('failure: 1,');
+      expect(alert(id).failure, id).toBe(1);
     }
     for (const id of ['211800013', '211800014', '211800015', '211800016', '211800024', '213800010']) {
-      expect(alertBlock(id)).toContain('failure: 2,');
+      expect(alert(id).failure, id).toBe(2);
     }
   });
 
   it('DIFF PRESS HI and LDG ELEVN FAULT show the manual mode lines only with the manual mode available', () => {
-    expect(alertBlock('213800007')).toContain('diffPressHiItemsToShow(!this.fws.cabPressManCtlFault.get())');
-    expect(alertBlock('213800043')).toContain('ldgElevnFaultItemsToShow(!this.fws.cabPressManCtlFault.get())');
+    for (const manualModeFailed of [false, true]) {
+      core.cabPressManCtlFault.set(manualModeFailed);
+      expect(alert('213800007').whichItemsToShow()).toEqual(diffPressHiItemsToShow(!manualModeFailed));
+      expect(alert('213800043').whichItemsToShow()).toEqual(ldgElevnFaultItemsToShow(!manualModeFailed));
+    }
   });
 });
 
@@ -285,15 +292,24 @@ describe('A380X FwsAbnormalSensed wiring of the pack regulation, bay ventilation
     ['212800027', 'packBayVentFault.both'],
     ['213800016', 'cabPressSensorsFault'],
   ])('%s uses COND_MONITORING_PHASE_INHIBITION and the FWS condition %s', (id, condition) => {
-    const block = alertBlock(id);
-    expect(block).toContain('flightPhaseInhib: COND_MONITORING_PHASE_INHIBITION,');
-    expect(block).toContain(`simVarIsActive: this.fws.${condition},`);
+    const entry = alert(id);
+    expect(entry.flightPhaseInhib).toEqual(COND_MONITORING_PHASE_INHIBITION);
+    expect(entry.simVarIsActive).toBe(fwsCondition(condition));
   });
 
   it('MIXER PRESS REGUL FAULT shows its HI and LO lines from the mixer pressure conditions', () => {
-    const block = alertBlock('211800034');
-    expect(block).toContain('mixerPressRegulItemsToShow(');
-    expect(block).toContain('this.fws.mixerPressHigh');
-    expect(block).toContain('this.fws.mixerPressLow');
+    const entry = alert('211800034');
+    for (const [high, low] of [
+      [true, false],
+      [false, true],
+    ]) {
+      core.mixerPressHigh.set(high);
+      core.mixerPressLow.set(low);
+      expect(entry.whichItemsToShow()).toEqual(mixerPressRegulItemsToShow(high, low, core.flightPhase.get()));
+      expect(entry.simVarIsActive.get()).toBe(true);
+    }
+    core.mixerPressHigh.set(false);
+    core.mixerPressLow.set(false);
+    expect(entry.simVarIsActive.get()).toBe(false);
   });
 });

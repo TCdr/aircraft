@@ -1,10 +1,10 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
-import { TIRE_COUNT } from '@shared/TirePressures';
+import { TIRE_COUNT, tirePressureVar } from '@shared/TirePressures';
+import { SdPages } from '@shared/EcamSystemPages';
+import { createFws, runFwsCycle } from './FwsSpecFixture';
 import {
   isWheelTirePressLo,
   WHEEL_TIRE_PRESS_LO_ALERT,
@@ -52,14 +52,28 @@ describe('WHEEL TIRE PRESS LO', () => {
     expect(WHEEL_TIRE_PRESS_LO_PHASE_INHIBITION).toEqual([3, 4, 5, 6, 7, 10]);
   });
 
-  it('is wired in FwsCore and FwsAbnormalSensed, with the WHEEL SD page', () => {
-    const core = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
-    const abnormal = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8').replace(/\r\n/g, '\n');
-    expect(core).toContain('this.wheelTirePressLo.set(');
-    const start = abnormal.indexOf('    [WHEEL_TIRE_PRESS_LO_ALERT]: {');
-    expect(start).toBeGreaterThan(0);
-    const entry = abnormal.slice(start, abnormal.indexOf('\n    },', start));
-    expect(entry).toContain('simVarIsActive: this.fws.wheelTirePressLo,');
-    expect(entry).toContain('sysPage: SdPages.Wheel,');
+  describe('in the FWS', () => {
+    const { core, simVars } = createFws(new Set());
+
+    it('is the alert of the wheelTirePressLo signal with the WHEEL SD page', () => {
+      const entry = core.abnormalSensed.ewdAbnormalSensed[String(WHEEL_TIRE_PRESS_LO_ALERT)];
+      expect(entry.simVarIsActive).toBe(core.wheelTirePressLo);
+      expect(entry.sysPage).toBe(SdPages.Wheel);
+      expect(entry.failure).toBe(WHEEL_TIRE_PRESS_LO_LEVEL);
+      expect(entry.flightPhaseInhib).toBe(WHEEL_TIRE_PRESS_LO_PHASE_INHIBITION);
+    });
+
+    it('is raised from the TPIS pressure of a tire', () => {
+      for (let tire = 1; tire <= TIRE_COUNT; tire++) {
+        simVars.set(tirePressureVar(tire), 220);
+      }
+      runFwsCycle(core);
+      expect(core.wheelTirePressLo.get()).toBe(false);
+
+      simVars.set(tirePressureVar(21), 150);
+      simVars.set(tirePressureVar(22), 150);
+      runFwsCycle(core);
+      expect(core.wheelTirePressLo.get()).toBe(true);
+    });
   });
 });

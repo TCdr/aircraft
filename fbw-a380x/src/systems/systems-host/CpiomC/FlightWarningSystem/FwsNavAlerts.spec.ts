@@ -1,8 +1,6 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { Arinc429Register, Arinc429SignStatusMatrix } from '@flybywiresim/fbw-sdk';
 import {
@@ -16,6 +14,7 @@ import {
   SideDisplayData,
   sideSource,
 } from './FwsNavAlerts';
+import { createFws, runFwsCycle } from './FwsSpecFixture';
 
 const SIDE: SideDisplayData = { baroStd: false, altitudeFt: 10000, pitchDeg: 2, rollDeg: 0, headingDeg: 90 };
 
@@ -120,13 +119,24 @@ describe('confirm time', () => {
 });
 
 describe('FWS wiring of the NAV CAPT AND F/O DISAGREE alerts', () => {
-  const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-  const fwsCore = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
-
   it('FwsCore updates the monitor with both sides', () => {
-    expect(fwsCore).toContain('this.navAlerts.update(');
-    expect(fwsCore).toMatch(/readSideDisplayData\(true,/);
-    expect(fwsCore).toMatch(/readSideDisplayData\(false,/);
+    const { core, simVars } = createFws();
+    const efisWord2 = (bits: number[]) => {
+      const register = Arinc429Register.empty();
+      register.setSsm(Arinc429SignStatusMatrix.NormalOperation);
+      bits.forEach((bit) => register.setBitValue(bit, true));
+      return register.rawWord;
+    };
+    // The CAPT on QNH, the F/O on STD
+    simVars.set('L:A32NX_FCU_EFIS_L_DISCRETE_WORD_2', efisWord2([12]));
+    simVars.set('L:A32NX_FCU_EFIS_R_DISCRETE_WORD_2', efisWord2([11]));
+    for (let frame = 0; frame < 12; frame++) {
+      runFwsCycle(core);
+    }
+    expect(core.navAlerts.baroRefDisagree.get()).toBe(true);
+    simVars.set('L:A32NX_FCU_EFIS_R_DISCRETE_WORD_2', efisWord2([12]));
+    runFwsCycle(core);
+    expect(core.navAlerts.baroRefDisagree.get()).toBe(false);
   });
 
   it.each([
@@ -134,14 +144,12 @@ describe('FWS wiring of the NAV CAPT AND F/O DISAGREE alerts', () => {
     ['340800017', 'attDisagree', 2],
     ['340800018', 'baroRefDisagree', 1],
     ['340800020', 'hdgDisagree', 2],
-  ])('%s is raised by navAlerts.%s, level 2, with its %i lines', (id, subject, lines) => {
-    const start = abnormalSensed.indexOf(`    ${id}: {`);
-    expect(start).toBeGreaterThan(0);
-    const b = abnormalSensed.slice(start, abnormalSensed.indexOf('\n    },', start));
-    expect(b).toContain(`simVarIsActive: this.fws.navAlerts.${subject},`);
-    expect(b).toContain('failure: 2,');
-    const shown = b.split('whichItemsToShow')[1].split('whichItemsChecked')[0];
-    expect(shown.match(/true/g)).toHaveLength(lines);
+  ] as const)('%s is raised by navAlerts.%s, level 2, with its %i lines', (id, subject, lines) => {
+    const { core } = createFws();
+    const entry = core.abnormalSensed.ewdAbnormalSensed[id];
+    expect(entry.simVarIsActive).toBe(core.navAlerts[subject]);
+    expect(entry.failure).toBe(2);
+    expect(entry.whichItemsToShow().filter((shown) => shown)).toHaveLength(lines);
   });
 
   // An ADR without one of its supplies is in the INOP SYS of the ELEC alert, not a NAV ADR FAULT

@@ -4,6 +4,14 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
+import {
+  EcamAbnormalProcedures,
+  EcamInfos,
+  EcamInopSys,
+  EcamLimitations,
+  EcamMemos,
+} from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
+import { createFws, runFwsCycle } from './FwsSpecFixture';
 import { SdPages } from '@shared/EcamSystemPages';
 import {
   BLEED_LEAK_ALERT_KEYS,
@@ -31,6 +39,9 @@ import {
 } from './FwsBleedLeakAlerts';
 
 const FRAME_MS = 100;
+
+/** The ECAM message tables an INOP SYS, INFO, LIMITATION or MEMO code is looked up in */
+const ecamTables: { [code: string]: unknown }[] = [EcamInopSys, EcamInfos, EcamLimitations, EcamMemos];
 
 /** Four engines running in flight, all bleeds, packs and hot-air valves normal */
 const normal: BleedLeakAlertInputs = {
@@ -381,19 +392,6 @@ describe('FwsBleedLeakAlerts entries', () => {
     expect(items[keys.hpValveNotOpen[3]].info?.([])).toEqual(['360200004']);
   });
 
-  /*
-   * The ata35-36-42.ts table is read from the source text (importing EcamMessages in a test fails on a circular
-   * import, see FwsElecAlertsStatus.spec.ts).
-   */
-  const ata36 = readFileSync(
-    resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata35-36-42.ts'),
-    'utf-8',
-  );
-  const ecamIndex = readFileSync(
-    resolve(__dirname, '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/index.ts'),
-    'utf-8',
-  );
-
   it('every alert key has its procedure, with as many lines as the alert shows', () => {
     const lineCount: [number, number][] = [
       [keys.apuBleedLeak, apuBleedLeakItems(normal).show.length],
@@ -402,21 +400,17 @@ describe('FwsBleedLeakAlerts entries', () => {
       [keys.xbleedFault, xbleedFaultItems(normal).show.length],
     ];
     for (const [key, count] of lineCount) {
-      const start = ata36.indexOf(`\n  ${key}: {`);
-      expect(start, `${key}`).toBeGreaterThan(0);
-      const block = ata36.slice(start, ata36.indexOf('\n  },', start));
-      const lines = (block.match(/\{ name: /g) ?? []).length;
-      // the duct lines of LEAK DET FAULT are mapped from a list of names
-      const ductLines = (block.match(/^ {6}'[A-Z0-9 ]+',$/gm) ?? []).length;
-      expect(key === keys.leakDetFault ? ductLines : lines, `${key}`).toBe(count);
+      expect(EcamAbnormalProcedures[key], `${key}`).toBeDefined();
+      expect(EcamAbnormalProcedures[key].items.length, `${key}`).toBe(count);
     }
-    expect(ata36).toContain(`${keys.engineBleedNotClosed[0]}: engineBleedNotClosed(1),`);
-    expect(ata36).toContain(`${keys.bleedTempLo[3]}: engineBleedTempLo(4),`);
-    expect(ata36).toContain(`${keys.fwdCargoDuctLeak}: hotAirDuctLeak('FWD CARGO DUCT LEAK', 1),`);
-    expect(ata36).toContain(`${keys.hotAirLeak[1]}: hotAirDuctLeak('HOT AIR 2 LEAK', 2),`);
-    expect(ata36).toContain(`${keys.packLeak[1]}: packLeak(2),`);
+    const titleOf = (key: number) => EcamAbnormalProcedures[key].title;
+    expect(titleOf(keys.engineBleedNotClosed[0])).toContain('ENG 1 BLEED NOT CLOSED');
+    expect(titleOf(keys.bleedTempLo[3])).toContain('ENG BLEED TEMP LO ON BLEED 4');
+    expect(titleOf(keys.fwdCargoDuctLeak)).toContain('FWD CARGO DUCT LEAK');
+    expect(titleOf(keys.hotAirLeak[1])).toContain('HOT AIR 2 LEAK');
+    expect(titleOf(keys.packLeak[1])).toContain('PACK 2 LEAK');
     for (const key of keys.hpValveNotOpen) {
-      expect(ata36).toContain(`\n  ${key}: {`);
+      expect(EcamAbnormalProcedures[key], `${key}`).toBeDefined();
     }
   });
 
@@ -447,7 +441,10 @@ describe('FwsBleedLeakAlerts entries', () => {
       '360300009',
     ];
     for (const code of codes) {
-      expect(ecamIndex, code).toContain(`\n  ${code}: '`);
+      expect(
+        ecamTables.some((table) => code in table),
+        code,
+      ).toBe(true);
     }
   });
 });
@@ -517,10 +514,17 @@ describe('FwsBleedLeakAlerts inputs and wiring', () => {
   });
 
   it('FwsCore updates the alerts every cycle and FwsAbnormalSensed lists them', () => {
-    const fwsCore = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
-    const abnormalSensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-    expect(fwsCore).toContain('public readonly bleedLeakAlerts = new BleedLeakAlerts();');
-    expect(fwsCore).toContain('this.bleedLeakAlerts.update(');
-    expect(abnormalSensed).toContain('...bleedLeakAbnormalItems(this.fws.bleedLeakAlerts),');
+    const { core, simVars } = createFws();
+    const listed = bleedLeakAbnormalItems(core.bleedLeakAlerts);
+    for (const key of Object.keys(listed).map(Number)) {
+      const entry = core.abnormalSensed.ewdAbnormalSensed[key];
+      expect(entry, `${key}`).toBeDefined();
+      expect(entry.simVarIsActive).toBe(listed[key].simVarIsActive);
+    }
+    simVars.set('L:A32NX_PNEU_APU_BLEED_LEAK', 1);
+    for (let cycle = 0; cycle < 5; cycle++) {
+      runFwsCycle(core);
+    }
+    expect(core.bleedLeakAlerts.apuBleedLeak.get()).toBe(true);
   });
 });
