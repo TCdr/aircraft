@@ -670,10 +670,11 @@ export class FwsSoundManager {
 
   onUpdate(deltaTime: number) {
     if (this.audioFunctionLost.get()) {
-      while (this.currentSoundPlaying) {
-        this.stopCurrentSound();
+      // A sound that cannot be stopped plays to its end: the countdown below finishes it, and no new sound starts
+      this.stopCurrentSound();
+      if (this.currentSoundPlaying === null) {
+        return;
       }
-      return;
     }
 
     // Either wait for the current sound to finish, or schedule the next sound
