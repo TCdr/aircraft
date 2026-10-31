@@ -28,6 +28,7 @@ import { AircraftContext } from '../../AircraftContext';
 import { isWindMagnitudeOnly, WIND_MAGNITUDE_ONLY_REGEX } from '../Data/Utils';
 import { DescentProfile } from './DescentProfile';
 import { DESCENT_NOTES_SEPARATOR, joinDescentNotes } from './descentNotes';
+import { fmsInitialAltitude } from './descentInitialAltitude';
 import { M3Button, M3Card, M3Segmented, M3Switch } from '../../UtilComponents/Material/Material';
 import {
   PERF_INPUT,
@@ -69,6 +70,7 @@ export const DescentWidget = () => {
   const [pressureAltitude] = useSimVar('PRESSURE ALTITUDE', 'feet', 1_000);
   const [sat] = useSimVar('AMBIENT TEMPERATURE', 'celsius', 1_000);
   const [groundSpeed] = useSimVar('GPS GROUND SPEED', 'knots', 1_000);
+  const [fmgcPhase] = useSimVar('L:A32NX_FMGC_FLIGHT_PHASE', 'enum', 1_000);
 
   const {
     type,
@@ -119,8 +121,9 @@ export const DescentWidget = () => {
   // ---------------------------------------------------------------------------------------------- FMS
 
   /**
-   * The FMS descent data: cruise level (or the current altitude when lower), destination elevation + 1500 ft (the end
-   * of the Airbus descent tables), gross weight, speed limit, ECON speeds, and the distance to the destination
+   * The FMS descent data: cruise level (or the current altitude when already in the descent below it), destination
+   * elevation + 1500 ft (the end of the Airbus descent tables), gross weight, speed limit, ECON speeds, and the distance
+   * to the destination
    */
   const fillFromFms = async (econOnly = false) => {
     const fms = await requestFmsDescentData(eventBus);
@@ -136,12 +139,7 @@ export const DescentWidget = () => {
       return;
     }
     const currentLevel = Math.round(pressureAltitude / 100) * 100;
-    const initial =
-      fms.cruiseAltitude !== null
-        ? currentLevel > 5000 && currentLevel < fms.cruiseAltitude - 500
-          ? currentLevel
-          : fms.cruiseAltitude
-        : undefined;
+    const initial = fmsInitialAltitude(currentLevel, fms.cruiseAltitude, fmgcPhase);
     set({
       ...(initial !== undefined ? { initialAltitude: initial } : {}),
       ...(fms.destinationElevation !== null
