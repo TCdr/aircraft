@@ -39,13 +39,8 @@ import { useAppDispatch, useAppSelector } from '../../Store/store';
 import { clearTakeoffValues, initialState, setTakeoffValues } from '../../Store/features/performance';
 import { AircraftContext } from '../../AircraftContext';
 import { useNavigraphAuthInfo } from '../../Apis/Navigraph/Components/Authentication';
-import {
-  isValidIcao,
-  isWindMagnitudeAndDirection,
-  isWindMagnitudeOnly,
-  WIND_MAGNITUDE_AND_DIR_REGEX,
-  WIND_MAGNITUDE_ONLY_REGEX,
-} from '../Data/Utils';
+import { isValidIcao, isWindMagnitudeOnly, WIND_MAGNITUDE_ONLY_REGEX } from '../Data/Utils';
+import { parseLandingWindEntry } from '../Data/landingWindEntry';
 import { fetchRawMetarBySource } from '../../Service/WeatherService';
 import { CompanyTakeoffRequests, requestFmsTakeoffData, sendTakeoffDataToFms } from './TakeoffFmsLink';
 import { TakeoffRunway } from './TakeoffRunway';
@@ -652,6 +647,7 @@ export const TakeoffWidget = () => {
 
   const handleWindChange = (input: string): void => {
     clearResult();
+    const enteredWind = parseLandingWindEntry(input);
     if (input === '0') {
       dispatch(setTakeoffValues({ windMagnitude: 0, windDirection: undefined, windEntry: input }));
     } else if (isWindMagnitudeOnly(input)) {
@@ -665,10 +661,14 @@ export const TakeoffWidget = () => {
           windEntry: input,
         }),
       );
-    } else if (isWindMagnitudeAndDirection(input)) {
-      const match = input.match(WIND_MAGNITUDE_AND_DIR_REGEX);
+    } else if (enteredWind !== undefined) {
+      // the takeoff has no gust handling: it calculates with the steady wind of an entry such as 270/15G35
       dispatch(
-        setTakeoffValues({ windDirection: parseInt(match[1]), windMagnitude: parseFloat(match[2]), windEntry: input }),
+        setTakeoffValues({
+          windDirection: enteredWind.windDirection,
+          windMagnitude: enteredWind.windMagnitude,
+          windEntry: input,
+        }),
       );
     } else {
       dispatch(setTakeoffValues({ windMagnitude: undefined, windDirection: undefined, windEntry: input }));

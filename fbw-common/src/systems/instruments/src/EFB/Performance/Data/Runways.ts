@@ -1,4 +1,5 @@
 import { RunwayDesignatorChar } from '@flybywiresim/fbw-sdk-react';
+import { displacedThresholdOfEnd } from './runwayLda';
 
 export interface Runway {
   airportIdent: string;
@@ -9,7 +10,10 @@ export interface Runway {
    * slope of the runway, negative for downhill
    */
   gradient: number;
+  /** The full facility length; the landing distance available is shorter by the displaced threshold */
   length: number;
+  /** Metres of the runway in front of the landing threshold of this end */
+  displacedThreshold?: number;
   elevation: number;
 }
 
@@ -93,6 +97,7 @@ export function runwaysOfAirport(airport: RawAirport, icao: string): Runway[] {
         magneticBearing,
         gradient,
         length: rawRunway.length,
+        displacedThreshold: displacedThresholdOfEnd(rawRunway, i === 0 ? 0 : 1),
         elevation: rawRunway.elevation / 0.3048,
       });
     }

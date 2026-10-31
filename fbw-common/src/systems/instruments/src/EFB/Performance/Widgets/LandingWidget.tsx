@@ -3,14 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import React, { useContext, useEffect, useState } from 'react';
-import {
-  AirframeType,
-  MathUtils,
-  MetarParserType,
-  parseMetar,
-  Units,
-  usePersistentProperty,
-} from '@flybywiresim/fbw-sdk-react';
+import { AirframeType, MetarParserType, parseMetar, Units, usePersistentProperty } from '@flybywiresim/fbw-sdk-react';
 import {
   getSimbriefData,
   LandingAntiIce,
@@ -43,18 +36,14 @@ import { clearLandingValues, initialState, setLandingValues } from '../../Store/
 import { AircraftContext } from '../../AircraftContext';
 import { useNavigraphAuthInfo } from '../../Apis/Navigraph/Components/Authentication';
 import { fetchRawMetarBySource } from '../../Service/WeatherService';
-import {
-  isValidIcao,
-  isWindMagnitudeAndDirection,
-  isWindMagnitudeOnly,
-  WIND_MAGNITUDE_AND_DIR_REGEX,
-  WIND_MAGNITUDE_ONLY_REGEX,
-} from '../Data/Utils';
+import { isValidIcao, isWindMagnitudeOnly, WIND_MAGNITUDE_ONLY_REGEX } from '../Data/Utils';
 import { getAirportMagVar, getRunways } from '../Data/Runways';
 import { LandingRunway, LandingRunwayStop } from './LandingRunway';
 import { LandingRunwayExits, loadLandingRunwayExits } from './LandingBtv';
 import { LandingAlternate, LandingWindCheck } from './LandingWindCheck';
 import { assessLandingWind, LandingWindAssessment } from '../Data/landingWind';
+import { metarLandingWind, parseLandingWindEntry, windAgainstLimits } from '../Data/landingWindEntry';
+import { landingDistanceAvailable } from '../Data/runwayLda';
 import { M3ActionChip, M3Button, M3Card, M3Segmented, M3Switch } from '../../UtilComponents/Material/Material';
 import {
   PERF_INPUT,
@@ -85,6 +74,9 @@ const BRAKING_LABELS: Record<LandingBrakingMode, string> = {
 
 /** Water and slush 1/2": Airbus does not recommend their operational use */
 const NOT_RECOMMENDED = [LandingRunwayCondition.Water13mm, LandingRunwayCondition.Slush13mm];
+
+/** A typed or FMS wind replaces the gust or variable wind of a METAR */
+const NO_GUST = { windGust: undefined, windVariable: false };
 
 /**
  * The landing calculator of the A380X and the A32NX, after the LDG PERF application of the A380:
@@ -133,6 +125,8 @@ export const LandingWidget = () => {
     runwayCondition,
     windDirection,
     windMagnitude,
+    windGust,
+    windVariable,
     windEntry,
     temperature,
     pressure,
@@ -308,12 +302,22 @@ export const LandingWidget = () => {
     crosswind: calculator.crosswindLimit(condition, oat ?? 15),
     tailwind: calculator.maxTailwind,
   });
-  const resultWind: LandingWindAssessment | undefined =
+  // The limits include gusts, so the gust components are checked, while the calculation uses the steady wind
+  const resultLimitWind =
     result !== undefined
-      ? assessLandingWind(result.inputs, windLimits(result.inputs.runwayCondition, result.inputs.oat))
+      ? windAgainstLimits(result.inputs, runwayHeading, windDirection, windMagnitude, windGust, windVariable)
+      : undefined;
+  const resultWind: LandingWindAssessment | undefined =
+    result !== undefined && resultLimitWind !== undefined
+      ? assessLandingWind(resultLimitWind, windLimits(result.inputs.runwayCondition, result.inputs.oat))
       : undefined;
   const inputWind: LandingWindAssessment | undefined =
-    wind !== undefined ? assessLandingWind(wind, windLimits(runwayCondition, temperature)) : undefined;
+    wind !== undefined
+      ? assessLandingWind(
+          windAgainstLimits(wind, runwayHeading, windDirection, windMagnitude, windGust, windVariable),
+          windLimits(runwayCondition, temperature),
+        )
+      : undefined;
   const shownWind = resultWind ?? inputWind;
   const windAboveLimits = shownWind !== undefined && (shownWind.crosswindExceeded || shownWind.tailwindExceeded);
 
@@ -346,18 +350,15 @@ export const LandingWidget = () => {
       availableRunways: runways,
       selectedRunwayIndex: runwayIndex,
       runwayHeading: newRunway?.magneticBearing,
-      runwayLength: newRunway?.length,
+      runwayLength: newRunway !== undefined ? landingDistanceAvailable(newRunway) : undefined,
       slope: newRunway !== undefined ? -Math.tan(newRunway.gradient * Avionics.Utils.DEG2RAD) * 100 : undefined,
       elevation: newRunway?.elevation,
     };
   };
 
   const metarValues = (parsedMetar: MetarParserType, magvar: number | null) => {
-    const direction = Math.round(MathUtils.normalise360(parsedMetar.wind.degrees - (magvar ?? 0)));
     return {
-      windDirection: direction,
-      windMagnitude: parsedMetar.wind.speed_kts,
-      windEntry: `${direction.toFixed(0).padStart(3, '0')}/${parsedMetar.wind.speed_kts.toFixed(0).padStart(2, '0')}`,
+      ...metarLandingWind(parsedMetar, magvar),
       temperature: parsedMetar.temperature.celsius,
       pressure: parsedMetar.barometer.mb,
     };
@@ -496,6 +497,7 @@ export const LandingWidget = () => {
             ? {
                 windDirection: fms.windDirection,
                 windMagnitude: fms.windSpeed,
+                ...NO_GUST,
                 windEntry: `${fms.windDirection.toFixed(0).padStart(3, '0')}/${fms.windSpeed.toFixed(0)}`,
               }
             : {}),
@@ -543,8 +545,9 @@ export const LandingWidget = () => {
 
   const handleWindChange = (input: string): void => {
     clearResult();
+    const enteredWind = parseLandingWindEntry(input);
     if (input === '0') {
-      dispatch(setLandingValues({ windMagnitude: 0, windDirection: undefined, windEntry: input }));
+      dispatch(setLandingValues({ windMagnitude: 0, windDirection: undefined, ...NO_GUST, windEntry: input }));
     } else if (isWindMagnitudeOnly(input)) {
       const match = input.match(WIND_MAGNITUDE_ONLY_REGEX);
       const magnitude = parseFloat(match[2]);
@@ -553,16 +556,14 @@ export const LandingWidget = () => {
         setLandingValues({
           windMagnitude: tailwind ? -magnitude : magnitude,
           windDirection: undefined,
+          ...NO_GUST,
           windEntry: input,
         }),
       );
-    } else if (isWindMagnitudeAndDirection(input)) {
-      const match = input.match(WIND_MAGNITUDE_AND_DIR_REGEX);
-      dispatch(
-        setLandingValues({ windDirection: parseInt(match[1]), windMagnitude: parseFloat(match[2]), windEntry: input }),
-      );
+    } else if (enteredWind !== undefined) {
+      dispatch(setLandingValues({ ...enteredWind, windVariable: false, windEntry: input }));
     } else {
-      dispatch(setLandingValues({ windMagnitude: undefined, windDirection: undefined, windEntry: input }));
+      dispatch(setLandingValues({ windMagnitude: undefined, windDirection: undefined, ...NO_GUST, windEntry: input }));
     }
   };
 
@@ -1043,11 +1044,11 @@ export const LandingWidget = () => {
             goAround={features.goAround}
             brakingLabel={result ? BRAKING_LABELS[result.inputs.brakingMode] : ''}
             windAlert={
-              result !== undefined && resultWind !== undefined
+              result !== undefined && resultWind !== undefined && resultLimitWind !== undefined
                 ? {
                     ...resultWind,
-                    crosswind: Math.round(result.inputs.crosswind),
-                    tailwind: Math.round(-result.inputs.headwind),
+                    crosswind: Math.round(resultLimitWind.crosswind),
+                    tailwind: Math.round(-resultLimitWind.headwind),
                     crosswindLimit: calculator.crosswindLimit(result.inputs.runwayCondition, result.inputs.oat),
                     tailwindLimit: calculator.maxTailwind,
                   }
@@ -1090,16 +1091,16 @@ export const LandingWidget = () => {
                   <span
                     className={`text-xs font-bold ${resultWind?.crosswindExceeded ? 'text-m3-on-error' : 'text-m3-text'}`}
                   >
-                    {`${Math.round(result.inputs.crosswind)} / ${calculator.crosswindLimit(result.inputs.runwayCondition, result.inputs.oat)} kt`}
+                    {`${Math.round(resultLimitWind?.crosswind ?? result.inputs.crosswind)} / ${calculator.crosswindLimit(result.inputs.runwayCondition, result.inputs.oat)} kt`}
                   </span>
                 </span>
-                {Math.round(-result.inputs.headwind) > 0 && (
+                {Math.round(-(resultLimitWind?.headwind ?? result.inputs.headwind)) > 0 && (
                   <span className="mr-3 whitespace-nowrap text-xs text-m3-muted">
                     {`${t('Performance.Landing.Calc.WindCheck.Tailwind')} `}
                     <span
                       className={`text-xs font-bold ${resultWind?.tailwindExceeded ? 'text-m3-on-error' : 'text-m3-text'}`}
                     >
-                      {`${Math.round(-result.inputs.headwind)} / ${calculator.maxTailwind} kt`}
+                      {`${Math.round(-(resultLimitWind?.headwind ?? result.inputs.headwind))} / ${calculator.maxTailwind} kt`}
                     </span>
                   </span>
                 )}
@@ -1138,6 +1139,8 @@ export const LandingWidget = () => {
                 selectedRunwayIndex={selectedRunwayIndex ?? -1}
                 windDirection={windDirection}
                 windSpeed={windMagnitude}
+                windGust={windGust}
+                windVariable={windVariable}
                 windEntry={windEntry}
                 crosswindLimit={(oat) => calculator.crosswindLimit(runwayCondition, oat)}
                 oat={temperature}

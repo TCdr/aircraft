@@ -508,7 +508,7 @@ export const A320Services: React.FC = () => {
     simpleServiceListenerHandling(asuButtonState, setAsuButtonState, asuActive);
   }, [asuActive]);
 
-  // Pushback or movement start --> disable buttons and close doors
+  // Pushback or movement start --> disable buttons (the doors are closed by the flyPad root, Efb.tsx)
   // Enable buttons if all have been disabled before
   useEffect(() => {
     if (!groundServicesAvailable) {
@@ -524,22 +524,6 @@ export const A320Services: React.FC = () => {
       dispatch(setServiceDoorButtonState(ServiceButtonState.DISABLED));
       dispatch(setCateringButtonState(ServiceButtonState.DISABLED));
       dispatch(setAsuButtonState(ServiceButtonState.DISABLED));
-
-      if (cabinLeftDoorOpen === 1) {
-        toggleCabinLeftDoor();
-      }
-      if (cabinRightDoorOpen === 1) {
-        toggleCabinRightDoor();
-      }
-      if (aftLeftDoorOpen === 1) {
-        toggleAftLeftDoor();
-      }
-      if (aftRightDoorOpen === 1) {
-        toggleAftRightDoor();
-      }
-      if (cargoDoorOpen === 1) {
-        toggleCargoDoor();
-      }
     } else if (
       [
         boarding1DoorButtonState,
