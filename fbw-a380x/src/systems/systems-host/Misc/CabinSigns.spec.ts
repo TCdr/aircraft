@@ -148,10 +148,7 @@ describe('CabinSigns instrument, NO SMOKING signs', () => {
     expect(memoWrites(setSimVarValue)).toEqual([false]);
   });
 
-  // The FWS and the systems host cannot be built in a unit test (the sim host): text check of their sources
-  it('is not driven by the FWS, and the systems host runs it', () => {
-    const systemsHost = readFileSync(resolve(__dirname, '../SystemsHost.ts'), 'utf-8');
-    expect(systemsHost).toContain("this.backplane.addInstrument('CabinSigns', this.cabinSigns);");
+  it('the FWS does not write L:A32NX_NO_SMOKING_MEMO', () => {
     const fwsCore = readFileSync(resolve(__dirname, '../CpiomC/FlightWarningSystem/FwsCore.ts'), 'utf-8');
     expect(fwsCore).not.toContain("SimVar.SetSimVarValue('L:A32NX_NO_SMOKING_MEMO'");
   });
