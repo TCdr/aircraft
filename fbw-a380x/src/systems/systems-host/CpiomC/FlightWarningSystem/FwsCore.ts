@@ -117,7 +117,7 @@ import {
 // FIXME should not import from instruments
 import { FcdcBusEvents } from '@shared/publishers/FcdcPublisher';
 import { FwsAutoCallouts } from './FwsAutoCallouts';
-import { btvFaultCautionTriggered, FwsBrakeAlerts, readBrakeSteerInputs } from './FwsBrakeAlerts';
+import { btvFaultCautionTriggered, FwsBrakeAlerts, isParkBrakeHandleOn } from './FwsBrakeAlerts';
 import { FwsBrakeControlAlerts, readBrakeControlInputs } from './FwsBrakeControlAlerts';
 import { FuelManagementAlerts, readFuelManagementInputs } from './FwsFuelManagementAlerts';
 import { readFuelJettisonFlags } from './FuelJettisonFlags';
@@ -5406,21 +5406,17 @@ export class FwsCore {
       },
       SimVar.GetSimVarValue('L:A32NX_FM_IR_POS_DISAGREE', 'bool') > 0,
     );
-    const parkBrakeSet = SimVar.GetSimVarValue('L:A32NX_PARK_BRAKE_LEVER_POS', 'Number') === 1;
+    const readSimVarNumber = (name: string) => SimVar.GetSimVarValue(name, 'number');
+    const parkBrakeSet = isParkBrakeHandleOn(readSimVarNumber);
     this.parkBrakeSet.set(parkBrakeSet);
     this.lgParkBrkOn.set(this.parkBrake2sConfNode.write(parkBrakeSet, deltaTime));
     this.configParkBrakeOn.set(
       this.confingParkBrakeOnMemoryNode.write(phase3 && parkBrakeSet, !parkBrakeSet || phase6),
     );
     this.nwSteeringDisc.set(SimVar.GetSimVarValue('L:A32NX_HYD_NW_STRG_DISC_ECAM_MEMO', 'Bool'));
-    const brakeSteerInputs = readBrakeSteerInputs((name) => SimVar.GetSimVarValue(name, 'number'));
-    this.brakeSteerAlerts.update(deltaTime, brakeSteerInputs, parkBrakeSet);
+    const brakeSteerInputs = this.brakeSteerAlerts.updateFromSimVars(deltaTime, readSimVarNumber);
     this.brakeControlAlerts.update(
-      readBrakeControlInputs(
-        (name) => SimVar.GetSimVarValue(name, 'number'),
-        (failure) => this.failuresConsumer.isActive(failure),
-        brakeSteerInputs,
-      ),
+      readBrakeControlInputs(readSimVarNumber, (failure) => this.failuresConsumer.isActive(failure), brakeSteerInputs),
     );
     const leftCompressedHardwireLgciu1 =
       this.dcESSBusPowered.get() && SimVar.GetSimVarValue('L:A32NX_LGCIU_1_LEFT_GEAR_COMPRESSED', 'bool') > 0;

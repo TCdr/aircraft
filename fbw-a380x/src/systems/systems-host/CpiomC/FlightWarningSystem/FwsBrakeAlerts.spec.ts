@@ -3,7 +3,12 @@
 
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { EventBus, Subject } from '@microsoft/msfs-sdk';
+import { SdPages } from '@shared/EcamSystemPages';
+import type { FwsCore } from './FwsCore';
+import { FwsAbnormalSensed } from './FwsAbnormalSensed';
+import { FwsInopSys } from './FwsInopSys';
 import {
   ACCU_PRESS_LO_PSI,
   accuPressLoItems,
@@ -12,10 +17,122 @@ import {
   brakeFaultAlerts,
   btvFaultCautionTriggered,
   FwsBrakeAlerts,
+  isParkBrakeHandleOn,
   PARK_BRK_PRESS_LO_PSI,
   readBrakeSteerInputs,
   steerFaultAlerts,
 } from './FwsBrakeAlerts';
+
+/*
+ * The procedure tables import the enums of EcamMessages/index and it imports the tables: loaded through EcamMessages/index, that cycle
+ * runs the tables before the enums exist. So ./index gets empty tables here, and each real table is loaded afterwards.
+ */
+vi.mock('../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata21-22-23', () => ({
+  EcamAbnormalSensedAta212223: {},
+  EcamDeferredProcAta212223: {},
+}));
+vi.mock('../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata24', () => ({
+  EcamAbnormalSensedAta24: {},
+  EcamDeferredProcAta24: {},
+}));
+vi.mock('../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata26', () => ({
+  EcamAbnormalSensedAta26: {},
+}));
+vi.mock('../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata27', () => ({
+  EcamAbnormalSensedAta27: {},
+  EcamDeferredProcAta27: {},
+}));
+vi.mock('../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata28', () => ({
+  EcamAbnormalSensedAta28: {},
+}));
+vi.mock('../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata29-30', () => ({
+  EcamAbnormalSensedAta2930: {},
+  EcamDeferredProcAta2930: {},
+}));
+vi.mock('../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata31-32-33', () => ({
+  EcamAbnormalSensedAta313233: {},
+  EcamDeferredProcAta313233: {},
+}));
+vi.mock('../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata34', () => ({
+  EcamAbnormalSensedAta34: {},
+  EcamDeferredProcAta34: {},
+}));
+vi.mock('../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata35-36-42', () => ({
+  EcamAbnormalSensedAta353642: {},
+}));
+vi.mock('../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata46-49-52-56', () => ({
+  EcamAbnormalSensedAta46495256: {},
+}));
+vi.mock('../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata70', () => ({
+  EcamAbnormalSensedAta70: {},
+  EcamDeferredProcAta70: {},
+}));
+vi.mock('../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata80-rest', () => ({
+  EcamAbnormalSensedAta80Rest: {},
+  EcamDeferredProcAta80Rest: {},
+}));
+vi.mock('../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/secondary-failures', () => ({
+  EcamAbnormalSecondaryFailures: {},
+}));
+
+/**
+ * A boolean Subject that also answers any other property or index with another such Subject: the alert tables of the
+ * FWS read nested members of FwsCore (alerts.engineBleedNotClosed[engine]) while they are built
+ */
+function nestedSubject(): Subject<boolean> {
+  const children: Record<string, unknown> = {};
+  const subject = Subject.create(false);
+  // a function target, so that FwsCore methods (this.fws.trimAirMonitoringFlags()) can be called too
+  return new Proxy(() => nestedSubject(), {
+    get: (_target, name) => {
+      if (name in subject) {
+        // methods run on the Subject itself, so that its private fields stay out of the proxy
+        const member = (subject as unknown as Record<string | symbol, unknown>)[name];
+        return typeof member === 'function' ? member.bind(subject) : member;
+      }
+      if (typeof name === 'symbol') {
+        return undefined;
+      }
+      if (!(name in children)) {
+        children[name] = nestedSubject();
+      }
+      return children[name];
+    },
+  }) as unknown as Subject<boolean>;
+}
+
+/**
+ * An FwsCore stand-in for FwsAbnormalSensed and FwsInopSys: brakeSteerAlerts is the real FwsBrakeAlerts, bus a real EventBus, every other
+ * property is a boolean Subject created false on first access (nested: also answering nested members and calls, which
+ * FwsAbnormalSensed needs to be built; FwsInopSys needs plain Subjects for its mapped subjects to read false)
+ */
+function fakeFws(nested = true): {
+  fws: FwsCore;
+  subjects: Record<string, Subject<boolean>>;
+  brakeAlerts: FwsBrakeAlerts;
+} {
+  const subjects: Record<string, Subject<boolean>> = {};
+  const brakeAlerts = new FwsBrakeAlerts();
+  const bus = new EventBus();
+  const fws = new Proxy(
+    {},
+    {
+      get: (_target, name: string) => {
+        if (name === 'brakeSteerAlerts') {
+          return brakeAlerts;
+        }
+        if (name === 'bus') {
+          return bus;
+        }
+        if (!(name in subjects)) {
+          subjects[name] = nested ? nestedSubject() : Subject.create(false);
+        }
+        return subjects[name];
+      },
+    },
+  ) as unknown as FwsCore;
+  return { fws, subjects, brakeAlerts };
+}
 
 /** Nominal inputs: no fault, accumulator charged, no brake pressure */
 function inputs(overrides: Partial<BrakeSteerInputs> = {}): BrakeSteerInputs {
@@ -222,9 +339,36 @@ describe('FwsBrakeAlerts inputs and wiring', () => {
     expect(autobrakes).toContain('"BRAKES_AUTO_BRK_FAULT"');
   });
 
-  it('the FWS updates the alerts with the park brake handle', () => {
-    const core = readFileSync(resolve(__dirname, 'FwsCore.ts'), 'utf-8');
-    expect(core).toMatch(/this\.brakeSteerAlerts\.update\(\s*deltaTime,\s*readBrakeSteerInputs\(/);
+  it('the park brake handle read from the simvars decides PARK BRK PRESS LO', () => {
+    const lowPressure = {
+      'L:A32NX_HYD_BRAKE_ALTN_ACC_PRESS': 5000,
+      'L:A32NX_HYD_BRAKE_ALTN_LEFT_PRESS': 3600,
+      'L:A32NX_HYD_BRAKE_ALTN_RIGHT_PRESS': PARK_BRK_PRESS_LO_PSI - 100,
+    };
+    const readWithHandle = (handle: number) => (name: string) => {
+      if (name === 'L:A32NX_PARK_BRAKE_LEVER_POS') {
+        return handle;
+      }
+      return (lowPressure as Record<string, number>)[name] ?? 0;
+    };
+
+    const handleOff = new FwsBrakeAlerts();
+    for (let t = 0; t < 100; t++) {
+      handleOff.updateFromSimVars(100, readWithHandle(0));
+    }
+    expect(handleOff.parkBrkPressLo.get()).toBe(false);
+
+    const handleOn = new FwsBrakeAlerts();
+    for (let t = 0; t < 100; t++) {
+      handleOn.updateFromSimVars(100, readWithHandle(1));
+    }
+    expect(handleOn.parkBrkPressLo.get()).toBe(true);
+  });
+
+  it('reads the park brake handle as ON only at position 1', () => {
+    expect(isParkBrakeHandleOn(() => 1)).toBe(true);
+    expect(isParkBrakeHandleOn(() => 0)).toBe(false);
+    expect(isParkBrakeHandleOn(() => 2)).toBe(false);
   });
 
   /**
@@ -251,14 +395,13 @@ describe('FwsBrakeAlerts inputs and wiring', () => {
   ];
 
   it.each(expectedAlerts)('wires %s to %s with level %i and the phase inhibition', (id, subject, level, phases) => {
-    const sensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-    const start = sensed.indexOf(`    ${id}: {`);
-    expect(start).toBeGreaterThan(0);
-    const block = sensed.slice(start, sensed.indexOf('\n    },', start));
-    expect(block).toContain(`simVarIsActive: this.fws.brakeSteerAlerts.${subject},`);
-    expect(block).toContain(`failure: ${level},`);
-    expect(block).toContain(`flightPhaseInhib: [${phases.join(', ')}],`);
-    expect(block).toContain('sysPage: SdPages.Wheel,');
+    const { fws, brakeAlerts } = fakeFws();
+    const alert = new FwsAbnormalSensed(fws).ewdAbnormalSensed[id];
+    expect(alert, id).toBeDefined();
+    expect(alert.simVarIsActive).toBe(brakeAlerts[subject as keyof FwsBrakeAlerts]);
+    expect(alert.failure).toBe(level);
+    expect(alert.flightPhaseInhib).toEqual(phases);
+    expect(alert.sysPage).toBe(SdPages.Wheel);
   });
 });
 
@@ -284,12 +427,15 @@ describe('BRAKES BTV FAULT trigger', () => {
   });
 
   it('320800014 BTV FAULT reads the caution trigger, the INOP SYS BTV keeps the FCDC BTV LOST', () => {
-    const sensed = readFileSync(resolve(__dirname, 'FwsAbnormalSensed.ts'), 'utf-8');
-    const start = sensed.indexOf('    320800014: {');
-    const block = sensed.slice(start, sensed.indexOf('\n    },', start));
-    expect(block).toContain('simVarIsActive: this.fws.btvFaultCaution,');
-    expect(block).toContain('failure: 2,');
-    const inopSys = readFileSync(resolve(__dirname, 'FwsInopSys.ts'), 'utf-8');
-    expect(inopSys).toContain('this.fws.btvLost,');
+    const { fws, subjects } = fakeFws();
+    const alert = new FwsAbnormalSensed(fws).ewdAbnormalSensed['320800014'];
+    expect(alert.simVarIsActive).toBe(subjects.btvFaultCaution);
+    expect(alert.failure).toBe(2);
+
+    const plain = fakeFws(false);
+    const btvInopSys = new FwsInopSys(plain.fws).inopSys['320300007'];
+    expect(btvInopSys.simVarIsActive.get()).toBe(false);
+    plain.subjects.btvLost.set(true);
+    expect(btvInopSys.simVarIsActive.get()).toBe(true);
   });
 });

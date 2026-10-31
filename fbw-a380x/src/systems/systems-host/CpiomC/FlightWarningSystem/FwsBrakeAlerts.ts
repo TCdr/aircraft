@@ -42,6 +42,15 @@ export interface BrakeSteerInputs {
 const PEDAL_BRAKING_MODE_EMERGENCY = 3;
 
 /**
+ * Whether the PARK BRK handle is ON.
+ * @param read reads one simvar as a number (SimVar.GetSimVarValue(name, 'number') in the sim)
+ * @returns true with the handle ON
+ */
+export function isParkBrakeHandleOn(read: (name: string) => number): boolean {
+  return read('L:A32NX_PARK_BRAKE_LEVER_POS') === 1;
+}
+
+/**
  * Reads the inputs of the BRAKES and STEER alerts.
  * @param read reads one simvar as a number (SimVar.GetSimVarValue(name, 'number') in the sim)
  * @returns the inputs
@@ -239,6 +248,18 @@ export class FwsBrakeAlerts {
 
   private readonly accuPressLoConfirm = new NXLogicConfirmNode(ACCU_PRESS_LO_CONFIRM_S);
   private readonly parkBrkPressLoConfirm = new NXLogicConfirmNode(PARK_BRK_PRESS_LO_CONFIRM_S);
+
+  /**
+   * Updates the alerts from the simvars: the inputs and the PARK BRK handle.
+   * @param deltaTime time since the last update, ms
+   * @param read reads one simvar as a number (SimVar.GetSimVarValue(name, 'number') in the sim)
+   * @returns the inputs read, so the brake control alerts use the same sample without reading the simvars again
+   */
+  public updateFromSimVars(deltaTime: number, read: (name: string) => number): BrakeSteerInputs {
+    const inputs = readBrakeSteerInputs(read);
+    this.update(deltaTime, inputs, isParkBrakeHandleOn(read));
+    return inputs;
+  }
 
   /**
    * @param deltaTime time since the last update, ms
