@@ -72,6 +72,12 @@ const FUEL_LEAK_PROCEDURE_ITEMS: AbnormalProcedure['items'] = [
   { name: 'REVERSERS : DO NOT USE', sensed: false },
 ];
 
+/** The lines of FUEL_LEAK_PROCEDURE_ITEMS whose outcome (STATUS) depends on the leak behaviour */
+export const FUEL_LEAK_STOPS_ITEM_INDEX = FUEL_LEAK_PROCEDURE_ITEMS.findIndex((item) => item.name === 'LEAK STOPS');
+export const FUEL_LEAK_CONTINUES_ITEM_INDEX = FUEL_LEAK_PROCEDURE_ITEMS.findIndex(
+  (item) => item.name === 'LEAK CONTINUES',
+);
+
 /**
  * FUEL COLLECTOR CELL 1(2)(3)(4) NOT FULL; FwsFuelTankAlerts collectorCellNotFullLines chooses the lines shown.
  * @param cell the collector cell, 1 to 4

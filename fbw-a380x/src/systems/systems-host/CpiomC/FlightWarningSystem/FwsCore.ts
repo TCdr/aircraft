@@ -1087,6 +1087,11 @@ export class FwsCore {
 
   private readonly cabinAltitude = Arinc429Register.empty();
 
+  /**
+   * Read in every flight phase: the depressurization inhibit of the oxygen alerts must not freeze with cabinAltitude
+   */
+  private readonly oxygenCabinAltitude = Arinc429Register.empty();
+
   private readonly cabinAltitudeTarget = Arinc429Register.empty();
 
   /* 22 - AUTOFLIGHT */
@@ -1489,6 +1494,9 @@ export class FwsCore {
 
   /** ELEC supply centre, network and load management, C/B monitoring alerts (FwsElecSupplyCentreAlerts) */
   public readonly elecSupplyCentreAlerts = new ElecSupplyCentreAlerts();
+
+  /** Per secondary supply centre: the redundancy is lost (REDUND LOSS line of the STATUS) */
+  public readonly elecSecondarySupplyCentreRedundLost = this.elecSupplyCentreAlerts.secondarySupplyCentreRedundancyLost;
 
   /* 26 - FIRE */
 
@@ -6459,6 +6467,7 @@ export class FwsCore {
       this.outflowValve2OpenAmount.setFromSimVar(`L:A32NX_PRESS_OUTFLOW_VALVE_2_OPEN_PERCENTAGE_B${cpcsToUseId}`);
       this.outflowValve3OpenAmount.setFromSimVar(`L:A32NX_PRESS_OUTFLOW_VALVE_3_OPEN_PERCENTAGE_B${cpcsToUseId}`);
       this.outflowValve4OpenAmount.setFromSimVar(`L:A32NX_PRESS_OUTFLOW_VALVE_4_OPEN_PERCENTAGE_B${cpcsToUseId}`);
+      this.oxygenCabinAltitude.setFromSimVar(`L:A32NX_PRESS_CABIN_ALTITUDE_B${cpcsToUseId}`);
       if (this.flightPhase12Or1112.get()) {
         this.cabinAltitude.setFromSimVar(`L:A32NX_PRESS_CABIN_ALTITUDE_B${cpcsToUseId}`);
       }
@@ -6472,6 +6481,7 @@ export class FwsCore {
       this.outflowValve3OpenAmount.setSsm(Arinc429SignStatusMatrix.FailureWarning);
       this.outflowValve4OpenAmount.setSsm(Arinc429SignStatusMatrix.FailureWarning);
       this.cabinAltitude.setSsm(Arinc429SignStatusMatrix.FailureWarning);
+      this.oxygenCabinAltitude.setSsm(Arinc429SignStatusMatrix.FailureWarning);
       this.cabinAltitudeTarget.setSsm(Arinc429SignStatusMatrix.FailureWarning);
     }
     // CAB PRESS EXCESS NEGATIVE DIFF PRESS, DIFF PRESS HI and LO from the CPCS discrete word (CabPressAlerts)
@@ -8057,7 +8067,7 @@ export class FwsCore {
       cabinValveClosed: SimVar.GetSimVarValue('L:A32NX_OXYGEN_CABIN_VALVE_CLOSED', 'bool') > 0,
       oneEngineRunning: this.oneEngineRunning.get(),
       fmsPassengers: SimVar.GetSimVarValue('L:A32NX_FMS_PAX_NUMBER', 'number'),
-      cabinAltitudeFt: this.cabinAltitude.isNormalOperation() ? this.cabinAltitude.value : null,
+      cabinAltitudeFt: this.oxygenCabinAltitude.isNormalOperation() ? this.oxygenCabinAltitude.value : null,
       masksReleased: !!this.paxOxyMasksDeployed.get(),
     });
     this.oxyCabinBottlePressLo.set(oxygen.cabinBottlePressLo);
@@ -8497,7 +8507,7 @@ export class FwsCore {
     const ewdLimitationsAllPhasesKeys: string[] = [];
     const ewdLimitationsApprLdgKeys: string[] = [];
     const pfdLimitationsKeys: string[] = [];
-    let failureKeys: string[] = this.presentedFailures;
+    let failureKeys: string[] = [...this.presentedFailures];
     let recallFailureKeys: string[] = this.recallFailures.filter((key) => !this.emerCancel.isCancelledCaution(key));
     let failureSystemCount = 0;
     const auralCrcKeys: string[] = [];
@@ -8753,7 +8763,7 @@ export class FwsCore {
             return [];
           }, ewdLimitationsAllPhasesKeys);
 
-          if (!recallFailureKeys.includes(key)) {
+          if (!recallFailureKeys.includes(key) && !this.emerCancel.isCancelledCaution(key)) {
             if (value.sysPage > -1) {
               failureSystemCount++;
             }
@@ -9025,9 +9035,15 @@ export class FwsCore {
           !EcamAbnormalProcedures[b].sensed,
         );
       });
-      if (sortedAbnormals.length > 0 && this.ewdAbnormal[sortedAbnormals[0]].sysPage > -1) {
-        SimVar.SetSimVarValue('L:A32NX_ECAM_SFAIL', 'number', this.ewdAbnormal[sortedAbnormals[0]].sysPage);
-      }
+      // A caution cancelled with EMER CANC no longer calls its page: the highest remaining alert with a page does
+      const topAbnormalWithPage = sortedAbnormals.find(
+        (key) => !this.emerCancel.isCancelledCaution(key) && this.ewdAbnormal[key].sysPage > -1,
+      );
+      SimVar.SetSimVarValue(
+        'L:A32NX_ECAM_SFAIL',
+        'number',
+        topAbnormalWithPage !== undefined ? this.ewdAbnormal[topAbnormalWithPage].sysPage : -1,
+      );
     }
 
     this.ewdMessageLinesLeft.forEach((l, i) => l.set(orderedMemoArrayLeft[i] ?? ''));

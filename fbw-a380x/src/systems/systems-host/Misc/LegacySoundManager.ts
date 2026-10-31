@@ -7,12 +7,23 @@ class PeriodicSound {
   constructor(
     public sound: LegacySound,
     public period: number,
+    public priority: number,
   ) {
     this.sound = sound;
     this.period = period;
     this.timeSinceLastPlayed = NaN;
   }
 }
+
+/** Periodic sound priorities, the higher one is played first when several are due and only one can play. */
+export const SoundPriority = {
+  GlideSlope: 1,
+  SinkRate: 2,
+  DontSink: 2,
+  TooLow: 3,
+  Terrain: 4,
+  PullUp: 5,
+};
 
 export class LegacySoundManager {
   private updateThrottler = new UpdateThrottler(50);
@@ -32,7 +43,7 @@ export class LegacySoundManager {
     this.playingSoundRemaining = NaN;
   }
 
-  addPeriodicSound(sound: LegacySound, period = NaN) {
+  addPeriodicSound(sound: LegacySound, period = NaN, priority = 0) {
     if (!sound) {
       return;
     }
@@ -53,7 +64,7 @@ export class LegacySoundManager {
     });
 
     if (!found) {
-      this.periodicList.push(new PeriodicSound(sound, useLengthForPeriod ? sound.length : period));
+      this.periodicList.push(new PeriodicSound(sound, useLengthForPeriod ? sound.length : period, priority));
     }
   }
 
@@ -104,15 +115,36 @@ export class LegacySoundManager {
       this.playingSoundRemaining -= throttledT / 1000;
     }
 
+    const deltaSeconds = throttledT / 1000;
+    const isDue = (element: PeriodicSound) =>
+      Number.isNaN(element.timeSinceLastPlayed) || element.timeSinceLastPlayed >= element.period;
+    const secondsUntilDue = (element: PeriodicSound) =>
+      isDue(element) ? 0 : element.period - element.timeSinceLastPlayed;
+
     this.periodicList.forEach((element) => {
-      if (Number.isNaN(element.timeSinceLastPlayed) || element.timeSinceLastPlayed >= element.period) {
-        if (this.tryPlaySound(element.sound)) {
-          element.timeSinceLastPlayed = 0;
-        }
-      } else {
-        element.timeSinceLastPlayed += throttledT / 1000;
+      if (!isDue(element)) {
+        element.timeSinceLastPlayed += deltaSeconds;
       }
     });
+
+    // A due sound waits when a higher priority sound comes due before it would end, otherwise the gap between two
+    // repeats of the high priority sound is long enough for the low priority one to take the channel again.
+    let next: PeriodicSound = null;
+    this.periodicList.forEach((element) => {
+      if (!isDue(element) || (next !== null && element.priority <= next.priority)) {
+        return;
+      }
+      const blocked = this.periodicList.some(
+        (other) => other.priority > element.priority && secondsUntilDue(other) < element.sound.length,
+      );
+      if (!blocked) {
+        next = element;
+      }
+    });
+
+    if (next !== null && this.tryPlaySound(next.sound)) {
+      next.timeSinceLastPlayed = 0;
+    }
   }
 }
 

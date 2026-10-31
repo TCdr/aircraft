@@ -235,6 +235,19 @@ describe('FuelJettison', () => {
       expect(get('L:A380X_FUEL_JETTISON_COMPLETED')).toBe(true);
     });
 
+    it('a jettison with only a held trim tank left completes', async () => {
+      const jettison = await createJettison();
+      for (const tank of TRANSFER_TANKS) {
+        set(`FUELSYSTEM TANK QUANTITY:${tank}`, 0.4);
+      }
+      // CG at the forward limit: the trim tank is held
+      set('L:A32NX_AIRFRAME_GW_CG_PERCENT_MAC', 31);
+      updateOneSecond(jettison);
+      expect(quantity(TRIM_TANK)).toBe(5000);
+      expect(get('L:A380X_FUEL_JETTISON_IN_PROGRESS')).toBe(false);
+      expect(get('L:A380X_FUEL_JETTISON_COMPLETED')).toBe(true);
+    });
+
     it('stops at once when the flight crew sets a pb-sw OFF, without FUEL JETTISON COMPLETED', async () => {
       const jettison = await createJettison();
       updateOneSecond(jettison);

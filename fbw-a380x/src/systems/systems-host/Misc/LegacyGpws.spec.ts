@@ -482,3 +482,110 @@ describe('GPWS and callouts use the voted radio height', () => {
     expect(calloutsFor(failed, failed, normal(1000))).toEqual(['alt_1000']);
   });
 });
+
+/*
+ * Mode 4C (TOO LOW TERRAIN after takeoff) uses the highest radio height of the takeoff / go-around; on approach the
+ * highest height of the whole flight must not turn TOO LOW GEAR / TOO LOW FLAPS into TOO LOW TERRAIN.
+ * mode.current: 1 = TOO LOW GEAR, 2 = TOO LOW FLAPS, 3 = TOO LOW TERRAIN.
+ */
+describe('GPWS mode 4C only in the takeoff and go-around phases', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const gpwsAfterClimb = (maxRadioAlt: number, phase: FmgcFlightPhase) => {
+    vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation(() => 0);
+    const gpws = new LegacyGpws(new EventBus(), {} as LegacySoundManager);
+    gpws.updateMaxRA(maxRadioAlt, false, phase);
+    return gpws;
+  };
+
+  const mode4 = (
+    gpws: LegacyGpws,
+    radioAlt: number,
+    speed: number,
+    landingFlaps: boolean,
+    gearDown: boolean,
+    phase: FmgcFlightPhase,
+  ) => {
+    const mode = { current: 0, previous: 0, type: [] };
+    gpws.GPWSMode4(mode, radioAlt, speed, landingFlaps, gearDown, phase);
+    return mode.current;
+  };
+
+  it('approach below 500 ft at 150 kt, gear up, flaps up: TOO LOW GEAR after a climb to 2 450 ft', () => {
+    const gpws = gpwsAfterClimb(2450, FmgcFlightPhase.Climb);
+    expect(mode4(gpws, 400, 150, false, false, FmgcFlightPhase.Approach)).toBe(1);
+  });
+
+  it('approach below 245 ft, gear down, flaps not landing: TOO LOW FLAPS after a climb to 2 450 ft', () => {
+    const gpws = gpwsAfterClimb(2450, FmgcFlightPhase.Climb);
+    expect(mode4(gpws, 200, 150, false, true, FmgcFlightPhase.Approach)).toBe(2);
+  });
+
+  it('descent phase: no TOO LOW TERRAIN from the highest height of the flight', () => {
+    const gpws = gpwsAfterClimb(2450, FmgcFlightPhase.Climb);
+    expect(mode4(gpws, 400, 150, false, false, FmgcFlightPhase.Descent)).toBe(0);
+  });
+
+  it('takeoff climb to 1 000 ft then a descent to 600 ft at 220 kt, gear up: TOO LOW TERRAIN', () => {
+    const gpws = gpwsAfterClimb(1000, FmgcFlightPhase.Takeoff);
+    expect(mode4(gpws, 600, 220, false, false, FmgcFlightPhase.Takeoff)).toBe(3);
+    expect(mode4(gpws, 800, 220, false, false, FmgcFlightPhase.Takeoff)).toBe(0);
+  });
+
+  it('climb phase after a go-around: TOO LOW TERRAIN below the floor, with the flaps up', () => {
+    const gpws = gpwsAfterClimb(1000, FmgcFlightPhase.Climb);
+    expect(mode4(gpws, 600, 220, false, true, FmgcFlightPhase.Climb)).toBe(3);
+  });
+});
+
+/*
+ * The gear counts as down from 90 % of the extension.
+ */
+describe('GPWS gear down threshold', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  /** One GPWS update at 200 ft RA, approach, flaps not landing, 2.5 dots below the glide slope, gear extended by the fraction */
+  const modesWithGear = (fraction: number) => {
+    vi.stubGlobal('Simplane', { getVerticalSpeed: () => -800 });
+    vi.spyOn(SimVar, 'SetSimVarValue').mockImplementation(() => Promise.resolve());
+    vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string, unit: string) => {
+      switch (name) {
+        case 'L:A32NX_RA_1_RADIO_ALTITUDE':
+          return Arinc429Word.getRawWord(200, Arinc429SignStatusMatrix.NormalOperation);
+        case 'L:A32NX_WXR_TAWS_SYS_SELECTED':
+          return 1;
+        case 'L:A32NX_FMGC_FLIGHT_PHASE':
+          return FmgcFlightPhase.Approach;
+        case 'L:A32NX_RADIO_RECEIVER_GS_IS_VALID':
+          return 1;
+        case 'L:A32NX_RADIO_RECEIVER_GS_DEVIATION':
+          return -1;
+        case 'AIRSPEED INDICATED':
+          return 150;
+        case 'GEAR TOTAL PCT EXTENDED':
+          return unit === 'percent over 100' ? fraction : fraction * 100;
+        default:
+          return 0;
+      }
+    });
+    const gpws = new LegacyGpws(new EventBus(), {
+      addPeriodicSound: () => {},
+      removePeriodicSound: () => {},
+    } as unknown as LegacySoundManager);
+    gpws.gpws(125);
+    return { tooLow: gpws.modes[3].current, glideSlope: gpws.modes[4].current };
+  };
+
+  it('gear 50 % extended: not down, TOO LOW GEAR is given and mode 5 is not armed', () => {
+    expect(modesWithGear(0.5)).toEqual({ tooLow: 1, glideSlope: 0 });
+  });
+
+  it('gear fully extended: mode 5 is armed', () => {
+    expect(modesWithGear(1).glideSlope).toBeGreaterThan(0);
+  });
+});

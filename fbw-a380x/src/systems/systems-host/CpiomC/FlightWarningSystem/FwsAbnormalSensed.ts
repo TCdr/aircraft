@@ -5,6 +5,10 @@
 import { FwcFlightPhase } from './FwsFlightPhases';
 import { EcamAbnormalProcedures, WD_NUM_LINES } from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages';
 import {
+  FUEL_LEAK_CONTINUES_ITEM_INDEX,
+  FUEL_LEAK_STOPS_ITEM_INDEX,
+} from '../../../instruments/src/MsfsAvionicsCommon/EcamMessages/AbnormalSensed/ata28';
+import {
   MappedSubject,
   MappedSubscribable,
   SimVarValueType,
@@ -4466,7 +4470,7 @@ export class FwsAbnormalSensed {
         undefined,
         undefined,
         undefined,
-        this.fws.fireEng1Agent1Discharge10sTimeStamp.get(),
+        this.fws.fireEng2Agent1Discharge10sTimeStamp.get(),
         undefined,
         this.fws.fireEng2Agent2Discharge30sTimeStamp.get(),
       ],
@@ -6122,7 +6126,7 @@ export class FwsAbnormalSensed {
       // one is not known). The FQMS shut-off of the symmetric pump and the gravity transfer are not simulated.
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.outerTankPumpFault[0],
-      notActiveWhenItemActive: [],
+      notActiveWhenItemActive: ['281800045', '281800079', '281800073'],
       whichItemsToShow: () => [true],
       whichItemsChecked: () => [!this.fws.transferPumpFlags.leftOuter.pbOn],
       failure: 2,
@@ -6134,7 +6138,7 @@ export class FwsAbnormalSensed {
       // R OUTR TK PMP FAULT, as L OUTR TK PMP FAULT
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.outerTankPumpFault[1],
-      notActiveWhenItemActive: [],
+      notActiveWhenItemActive: ['281800045', '281800079', '281800073'],
       whichItemsToShow: () => [true],
       whichItemsChecked: () => [!this.fws.transferPumpFlags.rightOuter.pbOn],
       failure: 2,
@@ -6147,7 +6151,7 @@ export class FwsAbnormalSensed {
       // FUEL ALTN XFR IN USE) are not simulated.
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.innerTankPumpFaults[0].fwd,
-      notActiveWhenItemActive: [],
+      notActiveWhenItemActive: ['281800073'],
       whichItemsToShow: () => [true],
       whichItemsChecked: () => [!this.fws.transferPumpFlags.leftInnerFwd.pbOn],
       failure: 2,
@@ -6160,7 +6164,7 @@ export class FwsAbnormalSensed {
       // simulated.
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.innerTankPumpFaults[0].aft,
-      notActiveWhenItemActive: [],
+      notActiveWhenItemActive: ['281800074', '281800099', '281800073'],
       whichItemsToShow: () => [true],
       whichItemsChecked: () => [!this.fws.transferPumpFlags.leftInnerAft.pbOn],
       failure: 2,
@@ -6173,7 +6177,7 @@ export class FwsAbnormalSensed {
       // simulated.
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.innerTankPumpFaults[0].fwdAndAft,
-      notActiveWhenItemActive: [],
+      notActiveWhenItemActive: ['281800073'],
       whichItemsToShow: () => [true, true],
       whichItemsChecked: () => [
         !this.fws.transferPumpFlags.leftInnerFwd.pbOn,
@@ -6188,7 +6192,7 @@ export class FwsAbnormalSensed {
       // R INR TK FWD PMP FAULT, as L INR TK FWD PMP FAULT
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.innerTankPumpFaults[1].fwd,
-      notActiveWhenItemActive: [],
+      notActiveWhenItemActive: ['281800073'],
       whichItemsToShow: () => [true],
       whichItemsChecked: () => [!this.fws.transferPumpFlags.rightInnerFwd.pbOn],
       failure: 2,
@@ -6199,7 +6203,7 @@ export class FwsAbnormalSensed {
       // R INR TK AFT PMP FAULT, as L INR TK AFT PMP FAULT
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.innerTankPumpFaults[1].aft,
-      notActiveWhenItemActive: [],
+      notActiveWhenItemActive: ['281800074', '281800099', '281800073'],
       whichItemsToShow: () => [true],
       whichItemsChecked: () => [!this.fws.transferPumpFlags.rightInnerAft.pbOn],
       failure: 2,
@@ -6210,7 +6214,7 @@ export class FwsAbnormalSensed {
       // R INR TK FWD+AFT PMPs FAULT, as L INR TK FWD+AFT PMPs FAULT
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.innerTankPumpFaults[1].fwdAndAft,
-      notActiveWhenItemActive: [],
+      notActiveWhenItemActive: ['281800073'],
       whichItemsToShow: () => [true, true],
       whichItemsChecked: () => [
         !this.fws.transferPumpFlags.rightInnerFwd.pbOn,
@@ -6225,7 +6229,7 @@ export class FwsAbnormalSensed {
       // L MID TK FWD PMP FAULT, as L INR TK FWD PMP FAULT
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.midTankPumpFaults[0].fwd,
-      notActiveWhenItemActive: [],
+      notActiveWhenItemActive: ['281800073'],
       whichItemsToShow: () => [true],
       whichItemsChecked: () => [!this.fws.transferPumpFlags.leftMidFwd.pbOn],
       failure: 2,
@@ -6236,7 +6240,7 @@ export class FwsAbnormalSensed {
       // L MID TK AFT PMP FAULT, as L INR TK AFT PMP FAULT
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.midTankPumpFaults[0].aft,
-      notActiveWhenItemActive: [],
+      notActiveWhenItemActive: ['281800099', '281800073'],
       whichItemsToShow: () => [true],
       whichItemsChecked: () => [!this.fws.transferPumpFlags.leftMidAft.pbOn],
       failure: 2,
@@ -6247,7 +6251,7 @@ export class FwsAbnormalSensed {
       // L MID TK FWD+AFT PMPs FAULT, as L INR TK FWD+AFT PMPs FAULT
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.midTankPumpFaults[0].fwdAndAft,
-      notActiveWhenItemActive: [],
+      notActiveWhenItemActive: ['281800073'],
       whichItemsToShow: () => [true, true],
       whichItemsChecked: () => [
         !this.fws.transferPumpFlags.leftMidFwd.pbOn,
@@ -6262,7 +6266,7 @@ export class FwsAbnormalSensed {
       // R MID TK FWD PMP FAULT, as L INR TK FWD PMP FAULT
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.midTankPumpFaults[1].fwd,
-      notActiveWhenItemActive: [],
+      notActiveWhenItemActive: ['281800073'],
       whichItemsToShow: () => [true],
       whichItemsChecked: () => [!this.fws.transferPumpFlags.rightMidFwd.pbOn],
       failure: 2,
@@ -6273,7 +6277,7 @@ export class FwsAbnormalSensed {
       // R MID TK AFT PMP FAULT, as L INR TK AFT PMP FAULT
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.midTankPumpFaults[1].aft,
-      notActiveWhenItemActive: [],
+      notActiveWhenItemActive: ['281800099', '281800073'],
       whichItemsToShow: () => [true],
       whichItemsChecked: () => [!this.fws.transferPumpFlags.rightMidAft.pbOn],
       failure: 2,
@@ -6284,7 +6288,7 @@ export class FwsAbnormalSensed {
       // R MID TK FWD+AFT PMPs FAULT, as L INR TK FWD+AFT PMPs FAULT
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.midTankPumpFaults[1].fwdAndAft,
-      notActiveWhenItemActive: [],
+      notActiveWhenItemActive: ['281800073'],
       whichItemsToShow: () => [true, true],
       whichItemsChecked: () => [
         !this.fws.transferPumpFlags.rightMidFwd.pbOn,
@@ -6299,7 +6303,7 @@ export class FwsAbnormalSensed {
       // TRIM TK L PMP FAULT: TRIM TK L PMP OFF; MORE INFO REDUND LOSS TRIM TK L PMP
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.trimTankPumpFaults.left,
-      notActiveWhenItemActive: [],
+      notActiveWhenItemActive: ['281800087', '281800094', '281800073'],
       whichItemsToShow: () => [true],
       whichItemsChecked: () => [!this.fws.transferPumpFlags.trimLeft.pbOn],
       failure: 2,
@@ -6310,7 +6314,7 @@ export class FwsAbnormalSensed {
       // TRIM TK R PMP FAULT, as TRIM TK L PMP FAULT
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.trimTankPumpFaults.right,
-      notActiveWhenItemActive: [],
+      notActiveWhenItemActive: ['281800087', '281800094', '281800073'],
       whichItemsToShow: () => [true],
       whichItemsChecked: () => [!this.fws.transferPumpFlags.trimRight.pbOn],
       failure: 2,
@@ -6324,7 +6328,7 @@ export class FwsAbnormalSensed {
       // ONLY, TRIM TK GRVTY XFR : AROUND 3000 KG / HR. The gravity transfer from the trim tank is not simulated.
       flightPhaseInhib: [4, 5, 6, 7, 9, 10],
       simVarIsActive: this.fws.trimTankPumpFaults.leftAndRight,
-      notActiveWhenItemActive: [],
+      notActiveWhenItemActive: ['281800087', '281800094', '281800073'],
       whichItemsToShow: () => {
         const pumpsFailed = this.fws.transferPumpFlags.trimLeft.fault && this.fws.transferPumpFlags.trimRight.fault;
         return [true, true, !this.fws.aircraftOnGround.get(), true, pumpsFailed];
@@ -6669,16 +6673,16 @@ export class FwsAbnormalSensed {
     },
     281800073: {
       // LEAK DETECTED (FwsFuelLeakLpValveAlerts): the procedure of the ABN PROC FUEL LEAK (280900002), with its STATUS:
-      // LAND ANSA; FUEL PARTLY UNUSABLE except an engine fuel leak (LEAK STOPS, item 13); the minimum usable fuel when
-      // the leak continues (item 17)
+      // LAND ANSA; FUEL PARTLY UNUSABLE except an engine fuel leak (LEAK STOPS); the minimum usable fuel when
+      // the leak continues (LEAK CONTINUES)
       flightPhaseInhib: FUEL_LEAK_LP_VALVE_PHASE_INHIBITION.leakDetected,
       simVarIsActive: this.fws.fuelLeakDetected,
       notActiveWhenItemActive: [],
       whichItemsToShow: showAllItems(281800073),
       whichItemsChecked: () => EcamAbnormalProcedures[281800073].items.map(() => false),
-      limitationsAllPhases: (checked) => ['2', checked[13] ? null : '280400001'],
+      limitationsAllPhases: (checked) => ['2', checked[FUEL_LEAK_STOPS_ITEM_INDEX] ? null : '280400001'],
       limitationsPfd: () => ['2'],
-      info: (checked) => (checked[17] ? ['280200001', '280200002'] : []),
+      info: (checked) => (checked[FUEL_LEAK_CONTINUES_ITEM_INDEX] ? ['280200001', '280200002'] : []),
       failure: 2,
       sysPage: SdPages.Fuel,
     },

@@ -138,13 +138,16 @@ export class FuelJettison implements Instrument {
           SimVar.GetSimVarValue(`FUELSYSTEM TANK QUANTITY:${tank}`, SimVarValueType.GAL),
         ]),
       );
-      const transferTanksEmpty = [...quantities.values()].every((q) => q < FuelJettison.EMPTY_GALLONS);
+      this.updateTrimTankHold(grossWeightKg);
+      // A held trim tank is not jettisoned: with the other transfer tanks empty nothing flows any more
+      const nothingToJettison = [...quantities].every(
+        ([tank, q]) => q < FuelJettison.EMPTY_GALLONS || (tank === FuelJettison.TRIM_TANK && this.trimTankHeld),
+      );
 
-      if ((targetKg > 0 && grossWeightKg <= targetKg) || transferTanksEmpty) {
+      if ((targetKg > 0 && grossWeightKg <= targetKg) || nothingToJettison) {
         this.completed = true;
         jettisoning = false;
       } else {
-        this.updateTrimTankHold(grossWeightKg);
         this.jettison(quantities, ((dt / 1000) * openValves) / FuelJettison.JETTISON_VALVES.length);
       }
     }
