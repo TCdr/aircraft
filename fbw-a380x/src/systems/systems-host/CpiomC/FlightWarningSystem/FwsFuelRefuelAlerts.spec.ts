@@ -1,8 +1,6 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
 import { Arinc429Register, Arinc429SignStatusMatrix } from '@flybywiresim/fbw-sdk';
 import {
@@ -339,13 +337,5 @@ describe('FUEL refuel alert wiring', () => {
     const gaugingFault = fuelManagementAbnormalItems(management)[FUEL_MANAGEMENT_ALERT_IDS.gaugingFault];
     expect(management.gaugingFault.get()).toBe(true);
     expect(gaugingFault.inopSysAllPhases?.([])).toContain(FUEL_REFUEL_INOP_SYS.autoGndXfr);
-  });
-
-  it('the systems host runs the systems of the alerts', () => {
-    // SystemsHost cannot be built in vitest (it needs the sim), so its source text is read
-    const systemsHost = readFileSync(resolve(__dirname, '../../SystemsHost.ts'), 'utf-8');
-    for (const instrument of ['FuelApuFeed', 'FuelOverflow', 'FuelRefuelFaults']) {
-      expect(systemsHost).toContain(`addInstrument('${instrument}'`);
-    }
   });
 });

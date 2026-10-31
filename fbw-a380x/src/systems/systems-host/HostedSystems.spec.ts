@@ -4,7 +4,13 @@
 import { EventBus, KeyEventManager } from '@microsoft/msfs-sdk';
 import { FailuresConsumer } from '@flybywiresim/fbw-sdk';
 import { describe, expect, it, vi } from 'vitest';
+import { FuelApuFeed } from './CpiomF/FuelApuFeed';
+import { FuelCollectorCells } from './CpiomF/FuelCollectorCells';
+import { FuelOverflow } from './CpiomF/FuelOverflow';
+import { FuelRefuelFaults } from './CpiomF/FuelRefuelFaults';
+import { FuelTemperatures } from './CpiomF/FuelTankTemperatures';
 import { FuelTransferFaults } from './CpiomF/FuelTransferFaults';
+import { WeightBalanceBackup } from './CpiomF/WeightBalanceBackup';
 import { createHostedSystems } from './HostedSystems';
 import { CabinOxygenMasks } from './Misc/CabinOxygenMasks';
 import { CabinSigns } from './Misc/CabinSigns';
@@ -28,6 +34,17 @@ describe('the systems the A380X systems host runs', () => {
 
   it('runs the TPIS', () => {
     expect(systemNamed('Tpis')).toBeInstanceOf(Tpis);
+  });
+
+  it.each([
+    ['FuelCollectorCells', FuelCollectorCells],
+    ['FuelTemperatures', FuelTemperatures],
+    ['WeightBalanceBackup', WeightBalanceBackup],
+    ['FuelApuFeed', FuelApuFeed],
+    ['FuelOverflow', FuelOverflow],
+    ['FuelRefuelFaults', FuelRefuelFaults],
+  ])('runs %s, a source of the FUEL alerts', (name, system) => {
+    expect(systemNamed(name)).toBeInstanceOf(system);
   });
 
   it('gives each system its own backplane name and instance', () => {

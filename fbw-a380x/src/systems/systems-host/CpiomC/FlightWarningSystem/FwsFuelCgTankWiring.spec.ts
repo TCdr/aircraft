@@ -8,12 +8,8 @@ import { EcamAbnormalProcedures } from '../../../instruments/src/MsfsAvionicsCom
 import { feedTankLevelLoTransferLines } from './FwsFuelTankAlerts';
 import { createFws } from './FwsSpecFixture';
 
-/*
- * The SystemsHost and the FUEL SD page cannot be built in a test (they need the sim), so the last two tests read their
- * source text.
- */
+// The FUEL SD page cannot be built in a test (it needs the sim), so the last test reads its source text
 const read = (path: string) => readFileSync(resolve(__dirname, path), 'utf-8');
-const systemsHost = read('../../SystemsHost.ts');
 const fuelPage = read('../../../instruments/src/SD/Pages/FuelPage.tsx');
 
 describe('FUEL CG, weight and tank alert wiring', () => {
@@ -83,12 +79,6 @@ describe('FUEL CG, weight and tank alert wiring', () => {
         expect(alert.whichItemsToShow(), `${id}`).toHaveLength(EcamAbnormalProcedures[id].items.length);
       }
     }
-  });
-
-  it('the systems host runs the collector cells, the fuel temperatures and the WBBC', () => {
-    expect(systemsHost).toContain("addInstrument('FuelCollectorCells', this.fuelCollectorCells)");
-    expect(systemsHost).toContain("addInstrument('FuelTemperatures', this.fuelTemperatures)");
-    expect(systemsHost).toContain("addInstrument('WeightBalanceBackup', this.weightBalanceBackup)");
   });
 
   it('the FUEL SD page shows the computed collector cell quantities, not the 1200 placeholder', () => {
