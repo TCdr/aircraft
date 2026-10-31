@@ -978,6 +978,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [EFB] Failure details for the A380X ice and rain protection failures: anti-ice valves and control, ice detectors, probe and window heating (ATA 30) - @TCdr
 1. [EFB] Failure details for the A380X navigation failures: air data, inertial and radio sensors, surveillance (ATA 34) - @TCdr
 1. [EFB] Failure details for the A380X integrated modular avionics failures: AFDX switches and cables, IOMs and CPIOMs (ATA 42) - @TCdr
+1. [EFB] Failure details for the A380X door failures: door actuators, flight locks, latch monitoring, local door controllers, escape slides, door system computers and the residual pressure detection (ATA 52) - @TCdr
 
 ## 2024.1.0
 
