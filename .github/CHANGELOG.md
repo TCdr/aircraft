@@ -996,6 +996,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OIT] The CHARTS application no longer shows the EFB overlay with the Navigraph charts: it is the native terminal charts page, the Navigraph account is not used on the OIT any more - @TCdr
 1. [EFB] Failure details for the A380X navigation failures: air data, inertial and radio sensors, surveillance (ATA 34) - @TCdr
 1. [EFB] Failure details for the A380X integrated modular avionics failures: AFDX switches and cables, IOMs and CPIOMs (ATA 42) - @TCdr
+1. [EFB] Failure details for the A380X door failures: door actuators, flight locks, latch monitoring, local door controllers, escape slides, door system computers and the residual pressure detection (ATA 52) - @TCdr
 
 ## 2024.1.0
 
