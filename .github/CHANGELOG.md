@@ -74,6 +74,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OIT] The CHARTS clipboard shows PREPARED (NEW) while charts the other laptop sent wait for IMPORT, until the PREPARED tab is opened - @TCdr
 1. [A380X/OIT] Fix the OOOI OUT time showing the PC clock and the fuel missing when the aircraft starts with the park brake released, and the STORE pop-up allowing a second STORE while it is open - @TCdr
 1. [A380X/OIT] Fix the FLT FOLDER FLT INFO and ALTN Update cells accepting an entry on the laptop that is not the flight follow-up master - @TCdr
+1. [A380X/OIT] The LOADSHEET RESULTS panel shows a small CG diagram next to the results, and the diagram of the MORE panel draws the ZF, LDG and T.O CG limits; the ZFW/CG, TOW/CG and LW/CG turn red against their own limit - @TCdr
 1. [A380X/MFD] Fix LS field remaining blank on F-PLN arrival page when no landing system is available or selected - @matze-tech (matze2346)
 1. [A380X/PRIM] Move FE to PRIM and add SPD LIM flag - @lukecologne (luke)
 1. [A380X/PRIM] Improve speed trend behaviour - @lukecologne (luke)
