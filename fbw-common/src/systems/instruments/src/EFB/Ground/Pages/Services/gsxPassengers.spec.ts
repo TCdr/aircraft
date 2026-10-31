@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { describe, expect, it } from 'vitest';
-import { GsxPaxAnnounceInput, GsxPaxCounts, gsxPaxProgress, gsxPaxToAnnounce } from './gsxPassengers';
+import { GsxPaxAnnounceInput, GsxPaxCounts, gsxIsArrival, gsxPaxProgress, gsxPaxToAnnounce } from './gsxPassengers';
 
 const counts = (c: Partial<GsxPaxCounts>): GsxPaxCounts => ({
   onBoard: 0,
@@ -118,5 +118,52 @@ describe('GSX passenger number (L:FSDT_GSX_NUMPASSENGERS)', () => {
 
   it('may give it again once the boarding is done (a changed plan for the next flight)', () => {
     expect(gsxPaxToAnnounce(input({ boardingState: 6, announced: 100 }))).toBe(120);
+  });
+});
+
+describe('arrival or departure for the passenger number (the A32NX DONE phase never ends on its own)', () => {
+  const arrivalInput = {
+    flightPhaseDone: true,
+    onBoard: 118,
+    deboardingActive: false,
+    boardingStarted: false,
+  };
+
+  it('is an arrival after landing while the passengers are on board', () => {
+    expect(gsxIsArrival(arrivalInput)).toBe(true);
+  });
+
+  it('is a departure in any other flight phase', () => {
+    expect(gsxIsArrival({ ...arrivalInput, flightPhaseDone: false })).toBe(false);
+  });
+
+  it('stays an arrival while GSX deboards and the last passengers are still on board', () => {
+    expect(gsxIsArrival({ ...arrivalInput, onBoard: 3 })).toBe(true);
+  });
+
+  it('stays an arrival while a deboarding runs although nobody is counted on board for a moment', () => {
+    expect(gsxIsArrival({ ...arrivalInput, onBoard: 0, deboardingActive: true })).toBe(true);
+  });
+
+  it('is a departure when nobody is on board and no deboarding runs (deboarded on the Payload page, or flyPad reloaded)', () => {
+    expect(gsxIsArrival({ ...arrivalInput, onBoard: 0 })).toBe(false);
+  });
+
+  it('is a departure from the moment the boarding starts, when the passengers come on board', () => {
+    expect(gsxIsArrival({ ...arrivalInput, onBoard: 40, boardingStarted: true })).toBe(false);
+  });
+
+  it('announces the planned passengers once nobody is on board, not the previous flight number', () => {
+    const arrival = gsxIsArrival({ ...arrivalInput, onBoard: 0 });
+    const announced = gsxPaxToAnnounce({
+      ready: true,
+      boardingState: 1,
+      deboardingState: 1,
+      arrival,
+      counts: counts({ onBoard: 0, planned: 150 }),
+      announced: 118,
+    });
+
+    expect(announced).toBe(150);
   });
 });

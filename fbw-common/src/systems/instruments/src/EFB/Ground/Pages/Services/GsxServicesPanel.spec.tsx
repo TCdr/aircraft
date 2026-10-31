@@ -3,16 +3,27 @@
 
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GsxMenuBox, GsxServicesPanel, gsxServiceStatus } from './GsxServicesPanel';
 import { GsxRemoteState, GsxService, withTurnaroundMemory } from './GsxRemote';
 import { gsxTurnaround } from './gsxTurnaround';
 import { gsxPaxProgress } from './gsxPassengers';
 
 // The panel's sim and flyPad dependencies (vi.mock is hoisted above the imports): only the status line is tested
+// The simvars the panel reads, by name (0 when not set)
+const simVars = vi.hoisted(() => ({}) as Record<string, number>);
 vi.mock('@flybywiresim/fbw-sdk-react', () => ({
-  useSimVar: () => [0, () => {}],
+  useSimVar: (name: string) => [simVars[name] ?? 0, () => {}],
   SeatFlags: class {},
+}));
+// The passengers the panel's hook read (the hook reads simvars in an effect, which the static render never runs)
+const paxRead = vi.hoisted(() => ({ onBoard: 0, loaded: true }));
+vi.mock('./useGsxPassengers', () => ({
+  useGsxPassengers: () => ({
+    counts: { onBoard: paxRead.onBoard, planned: 0, gsxBoarded: 0, gsxDeboarded: 0 },
+    loaded: paxRead.loaded,
+    announce: () => {},
+  }),
 }));
 vi.mock('../../../Store/store', () => ({ useAppSelector: () => undefined }));
 vi.mock('../../../Localization/translation', () => ({ t: (key: string) => key.split('.').pop() }));
@@ -227,6 +238,55 @@ describe('GSX baggage step of the Services page', () => {
     const rows = turnaroundRows([step('Catering', 'Catering', 'available', true)]);
 
     expect(rows.map((r) => r.name)).toEqual(['Catering']);
+  });
+});
+
+describe('GSX turnaround list after landing (the A32NX DONE phase never ends on its own)', () => {
+  const services = [
+    step('Deboarding', 'Deboard', 'completed', false),
+    step('Catering', 'Catering', 'available', true),
+    step('Boarding', 'Board', 'available', true),
+    step('Departure', 'Pushback', 'available', true),
+  ];
+
+  afterEach(() => {
+    delete simVars['L:A32NX_FMGC_FLIGHT_PHASE'];
+    delete simVars['L:FSDT_GSX_DEBOARDING_STATE'];
+    paxRead.onBoard = 0;
+    paxRead.loaded = true;
+    gsxTurnaround.clear();
+  });
+
+  it('lists the deboarding while the passengers are on board', () => {
+    simVars['L:A32NX_FMGC_FLIGHT_PHASE'] = 7;
+    paxRead.onBoard = 118;
+    gsxTurnaround.clear();
+
+    expect(turnaroundRows(services).map((r) => r.name)).toEqual(['Deboard', 'Baggage', 'Catering']);
+  });
+
+  it('lists the boarding when nobody is on board and no deboarding runs (deboarded on the Payload page)', () => {
+    simVars['L:A32NX_FMGC_FLIGHT_PHASE'] = 7;
+    simVars['L:FSDT_GSX_DEBOARDING_STATE'] = 1;
+    gsxTurnaround.clear();
+
+    expect(turnaroundRows(services).map((r) => r.name)).toEqual(['Catering', 'Board', 'Baggage', 'Pushback']);
+  });
+
+  it('keeps the deboarding while it runs although nobody is counted on board', () => {
+    simVars['L:A32NX_FMGC_FLIGHT_PHASE'] = 7;
+    simVars['L:FSDT_GSX_DEBOARDING_STATE'] = 5;
+    gsxTurnaround.clear();
+
+    expect(turnaroundRows(services).map((r) => r.name)).toEqual(['Deboard', 'Baggage', 'Catering']);
+  });
+
+  it('keeps the arrival list until the passengers are read, so that it does not flash the departure list', () => {
+    simVars['L:A32NX_FMGC_FLIGHT_PHASE'] = 7;
+    paxRead.loaded = false;
+    gsxTurnaround.clear();
+
+    expect(turnaroundRows(services).map((r) => r.name)).toEqual(['Deboard', 'Baggage', 'Catering']);
   });
 });
 

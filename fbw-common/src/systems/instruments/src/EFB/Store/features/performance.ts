@@ -38,6 +38,10 @@ interface TPerformanceLanding {
   runwayCondition: LandingRunwayCondition;
   windDirection?: number;
   windMagnitude?: number;
+  /** The gust speed in knots, when above the steady speed */
+  windGust?: number;
+  /** The METAR wind direction is variable: windMagnitude holds the worst case (a tailwind) */
+  windVariable?: boolean;
   windEntry?: string;
   temperature?: number;
   pressure?: number;

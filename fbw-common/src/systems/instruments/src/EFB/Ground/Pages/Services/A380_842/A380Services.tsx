@@ -579,7 +579,7 @@ export const A380Services: React.FC = () => {
     );
   }, [main5RightDoorOpen]);
 
-  // Pushback or movement start --> disable buttons and close doors
+  // Pushback or movement start --> disable buttons (the doors are closed by the flyPad root, Efb.tsx)
   // Enable buttons if all have been disabled before
   useEffect(() => {
     if (!groundServicesAvailable) {
@@ -598,30 +598,6 @@ export const A380Services: React.FC = () => {
       dispatch(setBaggageButtonState(ServiceButtonState.DISABLED));
       dispatch(setCateringButtonState(ServiceButtonState.DISABLED));
       dispatch(setAsuButtonState(ServiceButtonState.DISABLED));
-      if (main1LeftDoorOpen === 1) {
-        toggleMain1LeftDoor();
-      }
-      if (main2LeftDoorOpen === 1) {
-        toggleMain2LeftDoor();
-      }
-      if (upper1LeftDoorOpen === 1) {
-        toggleUpper1LeftDoor();
-      }
-      if (main4LeftDoorOpen === 1) {
-        toggleMain4LeftDoor();
-      }
-      if (main5LeftDoorOpen === 1) {
-        toggleMain5LeftDoor();
-      }
-      if (main4RightDoorOpen === 1) {
-        toggleMain4RightDoor();
-      }
-      if (main5RightDoorOpen === 1) {
-        toggleMain5RightDoor();
-      }
-      if (frontCargoDoorOpen === 1) {
-        toggleFrontCargoDoor();
-      }
     } else if (
       [
         boarding1DoorButtonState,

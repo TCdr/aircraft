@@ -19,6 +19,7 @@
 /** The GSX service states of the L:FSDT_GSX_*_STATE variables */
 export const GSX_STATE_REQUESTED = 4;
 export const GSX_STATE_PERFORMING = 5;
+export const GSX_STATE_COMPLETED = 6;
 
 /** The GSX Remote API service ids of the passenger services */
 const BOARDING_ID = 'Boarding';
@@ -85,6 +86,33 @@ export function gsxPaxProgress(
   }
 }
 
+export interface GsxArrivalInput {
+  /** The FMGC flight phase is DONE */
+  flightPhaseDone: boolean;
+  /** Passengers seated in the aircraft */
+  onBoard: number;
+  /** GSX requested or runs the deboarding */
+  deboardingActive: boolean;
+  /** GSX requested, runs or completed the boarding of this turnaround */
+  boardingStarted: boolean;
+}
+
+/**
+ * Whether the aircraft is on an arrival turnaround (deboarding) and not on a departure one (boarding). The A32NX DONE
+ * phase only ends when the next flight is entered in the MCDU, so it alone would keep a turnaround at the same
+ * airport on the arrival list, and GSX would board the previous flight's passenger number.
+ * It is a departure from the moment the boarding starts, and when nobody is on board and no deboarding is requested
+ * or running. Design choice: nobody on board is read as "deboarded" whatever deboarded them (GSX with the flyPad seats
+ * synced, the Payload page, or a flyPad reloaded afterwards), because the flyPad cannot tell those apart; the cost is
+ * that an arrival with 0 passengers does not list the Deboard row.
+ */
+export function gsxIsArrival(input: GsxArrivalInput): boolean {
+  if (!input.flightPhaseDone || input.boardingStarted) {
+    return false;
+  }
+  return input.onBoard > 0 || input.deboardingActive;
+}
+
 export interface GsxPaxAnnounceInput {
   /** The page may give GSX the number (the Services page: linked to GSX and GSX runs; the Payload page: always) */
   ready: boolean;
@@ -92,7 +120,7 @@ export interface GsxPaxAnnounceInput {
   boardingState: number;
   /** L:FSDT_GSX_DEBOARDING_STATE */
   deboardingState: number;
-  /** After landing (the FMGC flight phase is DONE): GSX deboards the passengers on board */
+  /** After landing, until the deboarding is done (gsxIsArrival): GSX deboards the passengers on board */
   arrival: boolean;
   counts: GsxPaxCounts;
   /** The current value of L:FSDT_GSX_NUMPASSENGERS */
