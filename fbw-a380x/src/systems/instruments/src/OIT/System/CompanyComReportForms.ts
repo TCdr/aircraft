@@ -526,6 +526,26 @@ const etaForm: ReportForm = {
   ],
 };
 
+/**
+ * Design choice: sent when the aircraft comes within range of the destination, so that the operator can plan the
+ * arrival: the ETA (typed, as in the ETA report), the fuel on board and the stand; the flight time up to the ETA follows.
+ */
+const inRangeForm: ReportForm = {
+  title: 'IN RANGE',
+  fields: [
+    flightNumberField,
+    originField,
+    destinationField,
+    timeField('off', 'OFF', false, (data) => data.offTime),
+    timeField('eta', 'ETA', true),
+    weightField('fuelOnBoard', 'FOB', true, (data) => data.fuelOnBoard),
+    { id: 'stand', label: 'STAND', kind: ReportFieldKind.Text, length: 6 },
+    textField('remarks', 'REMARKS'),
+  ],
+  derivedLines: (values) =>
+    values.off !== undefined ? [`EST FLIGHT TIME ${durationBetween(values.off, values.eta)}`] : [],
+};
+
 /** Design choice: the OOOI times and the fuel at OUT and IN of the flight log; the block and flight times and fuel used follow */
 const flightSummaryForm: ReportForm = {
   title: 'FLIGHT SUMMARY',
@@ -582,6 +602,7 @@ const REPORT_FORM_PAGES: readonly { readonly path: string; readonly form: Report
   { path: 'in-flight/eta', form: etaForm },
   { path: 'in-flight/flight-delay', form: flightDelayForm },
   { path: 'in-flight/flight-parameters', form: flightParametersForm },
+  { path: 'in-flight/in-range', form: inRangeForm },
   { path: 'post-flight/asr-notification', form: asrNotificationForm },
   { path: 'post-flight/flight-summary', form: flightSummaryForm },
   { path: 'post-flight/gate-delay', form: gateDelayForm },
