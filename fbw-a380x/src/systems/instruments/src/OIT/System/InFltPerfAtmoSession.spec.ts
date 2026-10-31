@@ -1,9 +1,10 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { EventBus, Subject } from '@microsoft/msfs-sdk';
 import { describe, expect, it } from 'vitest';
+import { fakeUiService, withStandIns } from '../OitSpecSupport';
+import { OitFltOpsInFltPerf } from '../Pages/FltOps/OitFltOpsInFltPerf';
 import { InFltPerfAtmoSession, NO_ATMO_RESULTS, atmoMode, hasAtmoResults } from './InFltPerfAtmoSession';
 
 const ENTRIES = [
@@ -26,9 +27,16 @@ const ENTRIES = [
 describe('IN-FLT PERF ATMO session', () => {
   it('keeps the entries and results of the page in the laptop session', () => {
     // The switching bar draws the page again: an entry held by the page itself would be lost
-    const page = readFileSync(resolve(__dirname, '../Pages/FltOps/OitFltOpsInFltPerf.tsx'), 'utf-8');
+    const session = new InFltPerfAtmoSession();
+    const page = new OitFltOpsInFltPerf({
+      bus: new EventBus(),
+      uiService: fakeUiService().uiService,
+      container: withStandIns({ laptopData: withStandIns({ inFltPerf: session }) }),
+    } as any);
     for (const entry of ENTRIES) {
-      expect(page, entry).toContain(`private readonly ${entry} = this.session.${entry};`);
+      const sessionEntry = session[entry] as Subject<unknown>;
+      sessionEntry.set(`${entry} typed`);
+      expect((page as any)[entry].get(), entry).toBe(`${entry} typed`);
     }
   });
 
