@@ -188,11 +188,12 @@ describe('FLT OPS STS synchronisation between the CAPT and F/O laptops', () => {
 });
 
 describe('FMS data route to the FLT OPS laptops', () => {
-  it('needs the laptop on the network, an NSS AVNCS server and an SCI', () => {
-    expect(fmsDataReachLaptop(true, true, true)).toBe(true);
-    expect(fmsDataReachLaptop(false, true, true)).toBe(false);
-    expect(fmsDataReachLaptop(true, false, true)).toBe(false);
-    expect(fmsDataReachLaptop(true, true, false)).toBe(false);
+  it('needs the laptop on the network, an NSS AVNCS server, an SCI and the link from the NSS AVNCS side', () => {
+    expect(fmsDataReachLaptop(true, true, true, true)).toBe(true);
+    expect(fmsDataReachLaptop(false, true, true, true)).toBe(false);
+    expect(fmsDataReachLaptop(true, false, true, true)).toBe(false);
+    expect(fmsDataReachLaptop(true, true, false, true)).toBe(false);
+    expect(fmsDataReachLaptop(true, true, true, false)).toBe(false);
   });
 });
 

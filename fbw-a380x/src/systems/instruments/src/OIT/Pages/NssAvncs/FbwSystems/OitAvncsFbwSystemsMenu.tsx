@@ -1,4 +1,4 @@
-//  Copyright (c) 2025 FlyByWire Simulations
+//  Copyright (c) 2025-2026 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 
 import { EventBus, FSComponent, VNode } from '@microsoft/msfs-sdk';
@@ -24,6 +24,13 @@ export class OitAvncsFbwSystemsMenu extends DestroyableComponent<OitAvncsFbwSyst
             name={'App & Ldg Capability'}
             uiService={this.props.uiService}
             navigationTarget="nss-avncs/a380x-systems/app-ldg-cap"
+          />
+        </OitFolder>
+        <OitFolder name={'NSS'} initExpanded={true}>
+          <OitFile
+            name={'NSS AVNCS Units'}
+            uiService={this.props.uiService}
+            navigationTarget="nss-avncs/a380x-systems/nss-units"
           />
         </OitFolder>
         <OitFolder name={'CDS / FWS'} initExpanded={true}>

@@ -1,9 +1,9 @@
 // Copyright (c) 2025 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { Subject, Subscription } from '@microsoft/msfs-sdk';
+import { ConsumerSubject, EventBus, Subject, Subscribable, Subscription } from '@microsoft/msfs-sdk';
 import { AircraftNetworkServerUnit } from './AircraftNetworkServerUnit';
-import { NXDataStore, NXLogicConfirmNode, UpdateThrottler } from '@flybywiresim/fbw-sdk';
+import { FailuresConsumer, NXDataStore, NXLogicConfirmNode, UpdateThrottler } from '@flybywiresim/fbw-sdk';
 import { CompanyComMailbox } from './CompanyComMailbox';
 import { CompanyComRequests } from './CompanyComRequests';
 import { CompanyComDownlinks } from './CompanyComDownlinks';
@@ -13,12 +13,22 @@ import { TechLogbookStore } from './TechLogbookStore';
 import { formatOisDateTime, OIS_MONTHS } from './OisDateTime';
 import { OitPageDrafts } from './OitPageDrafts';
 import { linkDegradedToolbarText } from './NssAvionicsLink';
+import { AnsuIndex, AnsuType, isNssAvncsAvailable } from './AnsuLogic';
+import { OitSimvars } from '../OitSimvarPublisher';
 import { OooiEvent, OooiReports } from './OooiReports';
 import { ReportWeightUnit } from './CompanyComReportForms';
 
 export class AnsuOps extends AircraftNetworkServerUnit {
   private lastUpdateTime: number | undefined = undefined;
   private startStateRecorded = false;
+  /** Whether the applications had lost their data at the previous update, so that it is cleared once */
+  private nssAvncsDataWasLost = false;
+
+  /** The health of the other NSS AVNCS ANSU, which keeps the applications running when this one fails */
+  private readonly ansu2Healthy = ConsumerSubject.create(
+    this.bus.getSubscriber<OitSimvars>().on('nssAnsu2Healthy'),
+    false,
+  );
   private readonly ansuUpdateThrottler = new UpdateThrottler(500); // has to be > 100 due to pulse nodes
 
   // OOOI times, ref: https://patents.google.com/patent/US6308044B1/en
@@ -80,6 +90,26 @@ export class AnsuOps extends AircraftNetworkServerUnit {
   /** The technical logbook, kept here across the OIT page changes; it reuses the flight log values */
   public readonly techLogbook = new TechLogbookStore(this.bus, this.sci, this);
 
+  /**
+   * @param bus the bus of the OIT
+   * @param index the ANSU number
+   * @param type the ANSU type
+   * @param failuresConsumer the failures
+   * @param generatesOooiReports whether this OIT sends the OOOI reports to the AOC. The AOC is one for both OITs, so
+   * only one of them sends: the other keeps the times for its display
+   * @param routerOperating whether the Aircraft Router Unit of this ANSU operates, null without a router
+   */
+  constructor(
+    bus: EventBus,
+    index: AnsuIndex,
+    type: AnsuType,
+    failuresConsumer: FailuresConsumer,
+    private readonly generatesOooiReports: boolean = true,
+    routerOperating: Subscribable<boolean> | null = null,
+  ) {
+    super(bus, index, type, failuresConsumer, routerOperating);
+  }
+
   /** @inheritdoc */
   init(): void {
     super.init();
@@ -93,10 +123,7 @@ export class AnsuOps extends AircraftNetworkServerUnit {
     this.techLogbook.init();
 
     this.subscriptions.push(
-      this.reportOnSet('OUT', this.outBlockTime, this.outBlockFob),
-      this.reportOnSet('OFF', this.offBlockTime, this.offBlockFob),
-      this.reportOnSet('ON', this.onBlockTime, this.onBlockFob),
-      this.reportOnSet('IN', this.inBlockTime, this.inBlockFob),
+      this.ansu2Healthy,
       this.sci.link.sub((link) => {
         const text = linkDegradedToolbarText(link);
         if (text !== null) {
@@ -106,6 +133,14 @@ export class AnsuOps extends AircraftNetworkServerUnit {
       this.sci.parkBrakeSet.sub((set) => this.recordParkBrake(set)),
       this.sci.onGround.sub((onGround) => this.recordGround(onGround)),
     );
+    if (this.generatesOooiReports) {
+      this.subscriptions.push(
+        this.reportOnSet('OUT', this.outBlockTime, this.outBlockFob),
+        this.reportOnSet('OFF', this.offBlockTime, this.offBlockFob),
+        this.reportOnSet('ON', this.onBlockTime, this.onBlockFob),
+        this.reportOnSet('IN', this.inBlockTime, this.inBlockFob),
+      );
+    }
   }
 
   /**
@@ -113,6 +148,10 @@ export class AnsuOps extends AircraftNetworkServerUnit {
    * @param set whether the park brake is set now
    */
   private recordParkBrake(set: boolean): void {
+    // Before the first update the values are the defaults of the data link, not changes of the aircraft
+    if (!this.startStateRecorded) {
+      return;
+    }
     if (set) {
       this.parkBrakeOnTime.set(this.sci.zuluTime.get());
       this.parkBrakeOnFob.set(this.sci.fqmsFuelQuantity.get().valueOr(null));
@@ -127,6 +166,9 @@ export class AnsuOps extends AircraftNetworkServerUnit {
    * @param onGround whether the aircraft is on the ground now
    */
   private recordGround(onGround: boolean): void {
+    if (!this.startStateRecorded) {
+      return;
+    }
     if (onGround) {
       this.touchdownTime.set(this.sci.zuluTime.get());
       this.touchdownFob.set(this.sci.fqmsFuelQuantity.get().valueOr(null));
@@ -137,12 +179,17 @@ export class AnsuOps extends AircraftNetworkServerUnit {
   }
 
   /**
-   * The state the aircraft starts in counts as the last change. It is recorded at the first update, not at init: the
-   * sim clock and the avionics data have not arrived by then, the time would be the one of the PC and the fuel unknown.
+   * Starts the recording of the ground and park brake changes at the first update, not at init: the sim clock and the
+   * avionics data have not arrived by then, the time would be the one of the PC and the fuel unknown. A park brake that
+   * is off or an aircraft that is airborne at the load records no OOOI event, as it did not leave a block or the
+   * ground; a transition after the first update does.
    */
   private recordStartState(): void {
     this.startStateRecorded = true;
-    this.recordParkBrake(this.sci.parkBrakeSet.get());
+    // A brake that is off at the start is no release: the aircraft did not leave a block, so there is no OUT
+    if (this.sci.parkBrakeSet.get()) {
+      this.recordParkBrake(true);
+    }
     this.recordGround(this.sci.onGround.get());
   }
 
@@ -166,9 +213,22 @@ export class AnsuOps extends AircraftNetworkServerUnit {
     });
   }
 
+  /** The applications run on ANSU 2 while ANSU 1 is out, so ANSU 1 alone does not clear them */
+  protected onBecameUnhealthy(): void {}
+
   /** @inheritdoc */
-  onUpdate(): void {
-    super.onUpdate();
+  onUpdate(): boolean {
+    const healthy = super.onUpdate();
+    const available = isNssAvncsAvailable(healthy, this.ansu2Healthy.get());
+    // A lost router only cuts this ANSU off from the users of the applications: its data survives until the ANSU stops
+    const dataLost = !available && !this.operational;
+    if (dataLost && !this.nssAvncsDataWasLost) {
+      this.reset();
+    }
+    this.nssAvncsDataWasLost = dataLost;
+    if (!available) {
+      return false;
+    }
     if (!this.startStateRecorded) {
       this.recordStartState();
     }
@@ -179,11 +239,12 @@ export class AnsuOps extends AircraftNetworkServerUnit {
 
     // Enforce cycle time for the logic computation (otherwise pulse nodes would be broken)
     if (deltaTime === -1 || _deltaTime === 0) {
-      return;
+      return true;
     }
 
     this.updateOooiTimes(deltaTime);
     this.techLogbook.update(this.sci.zuluTime.get());
+    return true;
   }
 
   private updateOooiTimes(deltaTime: number): void {
@@ -275,6 +336,7 @@ export class AnsuOps extends AircraftNetworkServerUnit {
 
     if (this.lastUpdateTime !== undefined) {
       this.lastUpdateTime = undefined;
+      this.startStateRecorded = false;
 
       this.parkBrakeOffTime.set(null);
       this.parkBrakeOffFob.set(null);

@@ -2572,8 +2572,24 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
 - A32NX_NSS_ANSU_{index}_IS_HEALTHY
   - Bool
   - NSS AVNCS ANSU 1(2) healthy: powered, not failed (flyPad 46001, 46002), not reset (RESET panel NSS AVNCS), NSS master
-    on, and the aircraft not powered down (each ANSU shuts down by itself 10 s after the AC busbar that feeds it is lost (AC 2, AC 1 or AC EMER, AC ESS), batteries alone do not keep it). Written by the OIT (AircraftNetworkServerUnit.ts); the AOC (systems host CpiomD/atsu.ts) runs while one of them
+    on, its own ARU operating (A32NX_NSS_ARU_{index}_IS_OPERATING), and the aircraft not powered down (each ANSU shuts down by itself 10 s after the AC busbar that feeds it is lost (AC 2, AC 1 or AC EMER, AC ESS), batteries alone do not keep it). Written by the OIT (AircraftNetworkServerUnit.ts); the AOC (systems host CpiomD/atsu.ts) runs while one of them
     is healthy (A380 FCOM DSC-46-40-10-20: "In the case of an ANSU 1 failure, ANSU 2 provides the AOC application")
+
+- A32NX_NSS_ARU_{index}_IS_POWERED
+  - Bool
+  - NSS AVNCS ARU 1(2) has its supply: ARU 1 AC 2 and DC 2, ARU 2 AC 1 or AC EMER and DC 1, held through a loss shorter
+    than 10 s, and the NSS master on. Written by the OIT (NssRouterUnits.ts) (A380 FCOM DSC-46-20-70)
+
+- A32NX_NSS_ARU_{index}_IS_OPERATING
+  - Bool
+  - NSS AVNCS ARU 1(2) finished its start (the ARU start time of the self-test time setting, 2 minutes at REAL, at once
+    in a flight loaded powered). An NSS AVNCS ANSU is healthy only while its ARU operates; the FLT OPS network gets no
+    avionics data while ARU 2 does not operate. Written by the OIT (NssRouterUnits.ts)
+
+- A32NX_NSS_SIRU_IS_POWERED
+  - Bool
+  - The secure interface router (SIRU) has its supply, AC 1 and DC 1, and the NSS master is on. Nothing in the
+    simulator uses it but the NSS AVNCS units page of the OIT (A380 FCOM DSC-46-20-70)
 
 - A380X_ACD_{side}_{key}
   - Bool

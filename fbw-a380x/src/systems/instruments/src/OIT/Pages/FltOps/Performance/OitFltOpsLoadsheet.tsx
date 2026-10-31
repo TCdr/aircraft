@@ -83,24 +83,27 @@ import {
   FUEL_MODE_LABELS,
   FUEL_MODE_MANUAL,
   FUEL_MODE_TRIM_ADJUSTMENT,
+  displayedTankTotal,
   manualDistribution,
+  fitManualDistributionToFob,
   manualDistributionMatchesFob,
   trimAdjustmentDistribution,
 } from '../../../System/Performance/LoadsheetFuelModes';
+import { A380_CG_LIMITS } from '../../../System/Performance/CgEnvelopes';
 import { OitCgDiagram } from './OitCgDiagram';
+import {
+  CG_DIAGRAM_SIZE,
+  MORE_ADVICE_COLUMN_WIDTH,
+  MORE_LINE_WIDTHS,
+  MORE_RESULTS_COLUMN_WIDTH,
+  RESULTS_COLUMN_WIDTH,
+  RESULTS_LINE_WIDTHS,
+  ResultLineWidths,
+  SMALL_CG_DIAGRAM_SIZE,
+} from './LoadsheetLayout';
 import { applicationExportIdentifier } from '../../../System/OisExportBox';
 
 interface OitFltOpsLoadsheetProps extends AbstractOitFltOpsPageProps {}
-
-/** The CG diagram of the MORE panel */
-const CG_DIAGRAM_SIZE = {
-  width: 420,
-  height: 330,
-  marginLeft: 44,
-  marginBottom: 40,
-  marginTop: 14,
-  marginRight: 14,
-};
 
 /** The tank fields of the MANUAL DISTR mode accept up to the largest tank at the highest fuel density, kg */
 const MANUAL_TANK_MAX = 45_000;
@@ -158,6 +161,9 @@ export class OitFltOpsLoadsheet extends OitPerfPageBase<OitFltOpsLoadsheetProps,
 
   /** The predicted fuel of each tank after the refuel with the CG targeting, kg */
   private readonly distribution = Subject.create<number[]>(LOADSHEET_FUEL_TANKS.map(() => 0));
+
+  /** The manual distribution the last computation ran on (rounding remainder placed), null in the other modes */
+  private fittedDistribution: number[] | null = null;
 
   private readonly weightFormat = (maxWeight: number) =>
     new OitPerfEntryFormat<number>(
@@ -459,17 +465,24 @@ export class OitFltOpsLoadsheet extends OitPerfPageBase<OitFltOpsLoadsheetProps,
       return;
     }
     this.updateFuelDistribution();
-    if (
-      s.fuelMode.get() === FUEL_MODE_MANUAL &&
-      !manualDistributionMatchesFob(this.distribution.get(), loading.fob ?? 0)
-    ) {
-      fail(['FUEL DISTR FOB differs from the FOB of the loading']);
-      return;
+    this.fittedDistribution = null;
+    let distribution = this.distribution.get();
+    if (s.fuelMode.get() === FUEL_MODE_MANUAL) {
+      const fob = loading.fob ?? 0;
+      if (!manualDistributionMatchesFob(distribution, fob, this.metric)) {
+        fail(['FUEL DISTR FOB differs from the FOB of the loading']);
+        return;
+      }
+      const fitted = fitManualDistributionToFob(distribution, fob, this.density());
+      if (fitted === null) {
+        fail(['FUEL DISTR FOB differs from the FOB of the loading']);
+        return;
+      }
+      distribution = fitted;
+      this.fittedDistribution = fitted;
     }
     this.session.onLoadsheetComputed(
-      computeLoadsheet(this.configuration(), loading, this.distribution.get(), this.perPaxWeight(), (cg, weight) =>
-        A380_TAKEOFF_CALCULATOR.isCgWithinLimits(cg, weight),
-      ),
+      computeLoadsheet(this.configuration(), loading, distribution, this.perPaxWeight(), A380_CG_LIMITS),
     );
   }
 
@@ -559,7 +572,7 @@ export class OitFltOpsLoadsheet extends OitPerfPageBase<OitFltOpsLoadsheetProps,
     }
     const advice = groundTransferAdvice(
       { zfw: results.zfw, zfcg: results.zfcg },
-      this.distribution.get(),
+      this.fittedDistribution ?? this.distribution.get(),
       results.tow,
       results.towCg,
       takeoffCgLimits(results.tow, (cg, weight) => A380_TAKEOFF_CALCULATOR.isCgWithinLimits(cg, weight)),
@@ -974,14 +987,7 @@ export class OitFltOpsLoadsheet extends OitPerfPageBase<OitFltOpsLoadsheetProps,
     const notMode = (wanted: number) => this.tracked(mode.map((m) => m !== wanted));
     const notTrimEntry = notMode(FUEL_MODE_TRIM_ADJUSTMENT);
     const notManual = notMode(FUEL_MODE_MANUAL);
-    const distributionFob = this.tracked(
-      this.distribution.map((d) =>
-        formatWeight(
-          d.reduce((sum, kg) => sum + kg, 0),
-          this.metric,
-        ),
-      ),
-    );
+    const distributionFob = this.tracked(this.distribution.map((d) => displayedTankTotal(d, this.metric).toFixed(1)));
     return (
       <div class={{ fc: true, hidden: this.tracked(this.tab.map((t) => t !== 'fuel')) }} style="padding: 8px;">
         <div class="oit-perf-row">
@@ -1033,9 +1039,10 @@ export class OitFltOpsLoadsheet extends OitPerfPageBase<OitFltOpsLoadsheetProps,
 
   /**
    * The weight and CG lines of the RESULTS and MORE panels.
+   * @param widths the widths of the label, weight and CG columns
    * @returns the lines
    */
-  private renderResultLines(): VNode[] {
+  private renderResultLines(widths: ResultLineWidths): VNode[] {
     // One unit element per line: an element rendered twice moves to its last place
     const unit = () => <span class="oit-perf-unit">{this.weightUnit}</span>;
     const line = (
@@ -1049,14 +1056,14 @@ export class OitFltOpsLoadsheet extends OitPerfPageBase<OitFltOpsLoadsheetProps,
       const valueClass = { 'oit-perf-value': true, big, red };
       return (
         <div class="oit-perf-row" style="min-height: 38px;">
-          <span class={valueClass} style="width: 200px;">
+          <span class={valueClass} style={`width: ${widths.label}px;`}>
             {label}
           </span>
-          <span class={valueClass} style="width: 160px; text-align: right;">
+          <span class={valueClass} style={`width: ${widths.weight}px; text-align: right;`}>
             {this.resultText((r) => formatWeight(weight(r), this.metric))}
           </span>
           {unit()}
-          <span class={valueClass} style="width: 140px; text-align: right;">
+          <span class={valueClass} style={`width: ${widths.cg}px; text-align: right;`}>
             {this.resultText((r) => (cg ? cg(r).toFixed(1) : ''))}
           </span>
           {cg !== null && <span class="oit-perf-unit">%</span>}
@@ -1094,13 +1101,21 @@ export class OitFltOpsLoadsheet extends OitPerfPageBase<OitFltOpsLoadsheetProps,
         true,
         (r) => r.lwOutOfLimits,
       ),
-      <div class="oit-perf-row">
+    ];
+  }
+
+  /**
+   * @returns the T.O THS FOR line under the result lines, as wide as the panel
+   */
+  private renderTakeoffThsLine(): VNode {
+    return (
+      <div class="oit-perf-row oit-perf-ths-row">
         {this.value(
           this.resultText((r) => takeoffThsText(r)),
           'big',
         )}
-      </div>,
-    ];
+      </div>
+    );
   }
 
   private renderLoadsheetView(): VNode {
@@ -1151,7 +1166,13 @@ export class OitFltOpsLoadsheet extends OitPerfPageBase<OitFltOpsLoadsheetProps,
                 )}
               </div>
               <div class={{ fc: true, hidden: this.hideResults }} style="padding: 6px 10px;">
-                {this.renderResultLines()}
+                <div class="fr">
+                  <div class="fc" style={`width: ${RESULTS_COLUMN_WIDTH}px;`}>
+                    {this.renderResultLines(RESULTS_LINE_WIDTHS)}
+                  </div>
+                  <OitCgDiagram results={this.results} size={SMALL_CG_DIAGRAM_SIZE} />
+                </div>
+                {this.renderTakeoffThsLine()}
               </div>
               <div ref={this.errorListRef} class={{ hidden: this.hideErrors }} />
               <div style="flex: 1 1 auto;" />
@@ -1188,15 +1209,12 @@ export class OitFltOpsLoadsheet extends OitPerfPageBase<OitFltOpsLoadsheetProps,
         <div class="oit-perf-panel grow">
           <div class="oit-perf-panel-title">MORE RESULTS</div>
           <div class="fr">
-            <div class="fc" style="width: 500px; padding: 6px 10px;">
-              {this.renderResultLines()}
+            <div class="fc" style={`flex: 0 0 auto; width: ${MORE_RESULTS_COLUMN_WIDTH}px; padding: 6px 10px;`}>
+              {this.renderResultLines(MORE_LINE_WIDTHS)}
+              {this.renderTakeoffThsLine()}
             </div>
-            <div ref={this.moreLinesRef} class="oit-perf-more-lines" />
-            <OitCgDiagram
-              results={this.results}
-              size={CG_DIAGRAM_SIZE}
-              cgWithinLimits={(cg, weight) => A380_TAKEOFF_CALCULATOR.isCgWithinLimits(cg, weight)}
-            />
+            <div ref={this.moreLinesRef} class="oit-perf-more-lines" style={`width: ${MORE_ADVICE_COLUMN_WIDTH}px;`} />
+            <OitCgDiagram results={this.results} size={CG_DIAGRAM_SIZE} />
           </div>
         </div>
         <div class="oit-perf-bottom jend">

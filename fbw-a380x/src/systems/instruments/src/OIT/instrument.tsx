@@ -1,4 +1,4 @@
-//  Copyright (c) 2025 FlyByWire Simulations
+//  Copyright (c) 2025-2026 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 
 import {
@@ -22,6 +22,7 @@ import { OisLaptop } from './OisLaptop';
 import { LaptopKeyChords } from './LaptopKeyboard';
 import { AircraftNetworkServerUnit } from './System/AircraftNetworkServerUnit';
 import { AnsuOps } from './System/AnsuOps';
+import { AvncsRouterUnit, SecureInterfaceRouterUnit } from './System/NssRouterUnits';
 import { ResetPanelSimvarPublisher } from '../MsfsAvionicsCommon/providers/ResetPanelPublisher';
 import { FqmsBusPublisher } from '@shared/publishers/FqmsBusPublisher';
 import { FlightReportTimes } from './System/FlightFolderReport';
@@ -57,11 +58,30 @@ class OitInstrument implements FsInstrument {
     EcamAbnormalSensedProcedures,
   );
 
-  private readonly avncsAnsu = new AnsuOps(this.bus, 1, 'nss-avncs', this.failuresConsumer);
+  // The NSS AVNCS routers: each ANSU is reachable through its own ARU, and ARU 2 holds the link to the FLT OPS network
+  private readonly avncsRouter1 = new AvncsRouterUnit(this.bus, 1);
+  private readonly avncsRouter2 = new AvncsRouterUnit(this.bus, 2);
+  private readonly secureInterfaceRouter = new SecureInterfaceRouterUnit(this.bus);
+
+  private readonly avncsAnsu = new AnsuOps(
+    this.bus,
+    1,
+    'nss-avncs',
+    this.failuresConsumer,
+    // The AOC is one for both OITs: only the captain's OIT sends the OOOI reports
+    this.instrument.instrumentIndex === 1,
+    this.avncsRouter1.operating,
+  );
   // NSS AVNCS ANSU 2: hosts the same applications as ANSU 1 and takes over when ANSU 1 fails. The applications keep
   // their data in avncsAnsu (AnsuOps); the OIT shows them while either NSS AVNCS ANSU is healthy
   // (AnsuLogic.isNssAvncsAvailable).
-  private readonly avncsAnsu2 = new AircraftNetworkServerUnit(this.bus, 2, 'nss-avncs', this.failuresConsumer);
+  private readonly avncsAnsu2 = new AircraftNetworkServerUnit(
+    this.bus,
+    2,
+    'nss-avncs',
+    this.failuresConsumer,
+    this.avncsRouter2.operating,
+  );
   private readonly fltOpsAnsu = new AircraftNetworkServerUnit(this.bus, 1, 'flt-ops', this.failuresConsumer);
 
   private readonly keyChords = new LaptopKeyChords();
@@ -93,6 +113,9 @@ class OitInstrument implements FsInstrument {
     this.backplane.addPublisher('fqms', this.fqmsPublisher);
     this.backplane.addPublisher('resetPanel', this.resetPanelPublisher);
     this.backplane.addInstrument('Laptop', this.laptop);
+    this.backplane.addInstrument('nssAru1', this.avncsRouter1, true);
+    this.backplane.addInstrument('nssAru2', this.avncsRouter2, true);
+    this.backplane.addInstrument('nssSiru', this.secureInterfaceRouter, true);
     this.backplane.addInstrument('nssAnsu', this.avncsAnsu, true);
     this.backplane.addInstrument('nssAnsu2', this.avncsAnsu2, true);
     this.backplane.addInstrument('fltOpsAnsu', this.fltOpsAnsu, true);
@@ -101,6 +124,7 @@ class OitInstrument implements FsInstrument {
     this.avncsAnsu.companyCom.onNewUplink((entry) => this.laptop.receiveAocNotification(entry.uid, entry.subject));
     this.avncsAnsu.companyCom.onUplinkHandled((uid) => this.laptop.messageToolbar.removeAocNotification(uid));
     this.laptop.connectAvionicsData(this.avncsAnsu.sci.canReceiveFromAvionics);
+    this.laptop.connectFltOpsDiode(this.avncsRouter2.operating);
     this.laptop.connectFlightTimes(
       MappedSubject.create(
         ([outMs, offMs, onMs, inMs, outFobKg, offFobKg, onFobKg, inFobKg, blockMs, flightMs]): FlightReportTimes => ({
