@@ -43,9 +43,9 @@ FSComponent/MSFS SDK instruments:
 
 React instruments:
 
-- `BAT`, `EFB`, `ISISlegacy`, `OITlegacy`, `RTPI`, and `SD`.
+- `BAT`, `EFB`, `ISISlegacy`, `RTPI`, and `SD`.
 
-`ATCCOM` exists in the source tree but is not currently registered as a standalone Mach instrument. Do not infer build inclusion from the presence of a folder; trace its imports and owning entry point. Likewise, `SD` and `SDv2`, or `OITlegacy` and `OIT`, are distinct runtime generations. Make changes in the active owner and avoid adding new dependencies from FSComponent code back into legacy React code.
+`ATCCOM` exists in the source tree but is not currently registered as a standalone Mach instrument. Do not infer build inclusion from the presence of a folder; trace its imports and owning entry point. Likewise, `SD` and `SDv2` are distinct runtime generations. Make changes in the active owner and avoid adding new dependencies from FSComponent code back into legacy React code.
 
 Instrument package identifiers use the `A380X_` template namespace and normally mount into `<NAME>_CONTENT`. Preserve registrations and base-package references. EFB requires the additional shared map-instrument HTML import configured in Mach.
 
