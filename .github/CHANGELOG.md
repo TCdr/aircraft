@@ -237,6 +237,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OIT] The function keys, CTRL and ALT of the laptop keyboards work: F-keys press the OIT buttons that show them (COMPUTE <F8>...), CTRL and ALT latch for the next key (backlit) for the menu shortcuts (Ctrl P, Alt H...); the OIT BRIGHTNESS knob at OFF also switches off the keyboard and ACD; COMPANY COM and LOGBOOK start at the NSS AVNCS log-on - @TCdr
 1. [A380X/OIT] LOADSHEET FUEL DISTR offers TRIM ADJUSTMENT and MANUAL DISTR next to CG TARGETING, and the MORE panel draws the CG diagram with the DOW, ZFW, TOW and LW points - @TCdr
 1. [A380X/OIT] The CHARTS application no longer shows the EFB overlay with the Navigraph charts: it is the native terminal charts page, the Navigraph account is not used on the OIT any more - @TCdr
+1. [A380X/OIT] The NSS AVNCS routers (ARU 1 and 2) and the SIRU are simulated: an ANSU serves the applications only while its router operates, the FMS data reach the FLT OPS laptops only through ARU 2, and the A380X SYSTEMS application shows the unit states - @TCdr
 
 ## 2024.1.0
 

@@ -1,4 +1,4 @@
-// Copyright (c) 2025 FlyByWire Simulations
+// Copyright (c) 2025-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import {
@@ -8,6 +8,7 @@ import {
   Instrument,
   SimVarValueType,
   Subject,
+  Subscribable,
   Subscription,
 } from '@microsoft/msfs-sdk';
 import { FailuresConsumer } from '@flybywiresim/fbw-sdk';
@@ -15,7 +16,20 @@ import { A380Failure } from '@failures';
 import { ResetPanelSimvars } from '../../MsfsAvionicsCommon/providers/ResetPanelPublisher';
 import { OitSimvars } from '../OitSimvarPublisher';
 import { SecureCommunicationInterface } from './SecureCommunicationInterface';
-import { AnsuIndex, AnsuType, isAnsuAcSupplied, isAnsuPowered, NssAutoShutdown } from './AnsuLogic';
+import { AnsuIndex, AnsuSupplies, AnsuType, isAnsuAcSupplied, isAnsuPowered, NssAutoShutdown } from './AnsuLogic';
+
+/** @returns the state of the busbars that supply the ANSUs */
+export function readAnsuSupplies(): AnsuSupplies {
+  // The A380 busbar names come from the A320: AC_ESS_SHED is the A380 AC ESS (400XP), AC_ESS the AC EMER (491XP)
+  return {
+    ac1: SimVar.GetSimVarValue('L:A32NX_ELEC_AC_1_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
+    ac2: SimVar.GetSimVarValue('L:A32NX_ELEC_AC_2_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
+    acEss: SimVar.GetSimVarValue('L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
+    acEmer: SimVar.GetSimVarValue('L:A32NX_ELEC_AC_ESS_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
+    dcHot1: SimVar.GetSimVarValue('L:A32NX_ELEC_DC_HOT_1_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
+    dcHot2: SimVar.GetSimVarValue('L:A32NX_ELEC_DC_HOT_2_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
+  };
+}
 
 export class AircraftNetworkServerUnit implements Instrument {
   //TODO ANSU should be under systems host and split between flt-opts and nss-avncs?
@@ -44,8 +58,11 @@ export class AircraftNetworkServerUnit implements Instrument {
     false,
   );
 
-  /** Whether the unit was healthy at the previous update, so that the reset runs once per failure, not every frame */
-  private wasHealthy = true;
+  /** Whether the unit was operational at the previous update, so that the reset runs once per loss, not every frame */
+  private wasOperational = true;
+
+  /** The unit is not failed, powered, reset or switched off; unlike the health, it ignores the router */
+  protected operational = false;
 
   /** The NSS stops by itself when the aircraft is powered down */
   protected readonly autoShutdown = new NssAutoShutdown();
@@ -57,6 +74,11 @@ export class AircraftNetworkServerUnit implements Instrument {
     protected readonly index: AnsuIndex, // NSS AVNCS: ANSU 1 and 2, FLT OPS: one ANSU (index 1)
     protected readonly type: AnsuType,
     protected readonly failuresConsumer: FailuresConsumer,
+    /**
+     * Whether the Aircraft Router Unit of this ANSU operates: the ANSU is only reachable, and so healthy for the
+     * applications, through it. Null on the FLT OPS side, which has no router to wait for.
+     */
+    protected readonly routerOperating: Subscribable<boolean> | null = null,
   ) {}
 
   /** @inheritdoc */
@@ -78,30 +100,26 @@ export class AircraftNetworkServerUnit implements Instrument {
     const failed = this.failuresConsumer.isActive(this.failureKey);
     this.sci.onUpdate();
 
-    // The A380 busbar names come from the A320: AC_ESS_SHED is the A380 AC ESS (400XP), AC_ESS the AC EMER (491XP)
-    const supplies = {
-      ac1: SimVar.GetSimVarValue('L:A32NX_ELEC_AC_1_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
-      ac2: SimVar.GetSimVarValue('L:A32NX_ELEC_AC_2_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
-      acEss: SimVar.GetSimVarValue('L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
-      acEmer: SimVar.GetSimVarValue('L:A32NX_ELEC_AC_ESS_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
-      dcHot1: SimVar.GetSimVarValue('L:A32NX_ELEC_DC_HOT_1_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
-      dcHot2: SimVar.GetSimVarValue('L:A32NX_ELEC_DC_HOT_2_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
-    };
+    const supplies = readAnsuSupplies();
     const shutDown = this.autoShutdown.update(isAnsuAcSupplied(this.type, this.index, supplies), this.simTime.get());
 
     this.powered.set(!shutDown && isAnsuPowered(this.type, this.index, supplies));
 
-    this._isHealthy.set(!failed && this.powered.get() && !this.resetPbStatus.get() && !this.nssMasterOff.get());
+    // A lost router only cuts the ANSU off from the NSS AVNCS side: the ANSU keeps its data, unlike a power loss
+    const operational = !failed && this.powered.get() && !this.resetPbStatus.get() && !this.nssMasterOff.get();
+    const routed = this.routerOperating === null || this.routerOperating.get();
+    this._isHealthy.set(operational && routed);
 
     const healthy = this._isHealthy.get();
-    if (!healthy && this.wasHealthy) {
+    if (!operational && this.wasOperational) {
       this.onBecameUnhealthy();
     }
-    this.wasHealthy = healthy;
+    this.wasOperational = operational;
+    this.operational = operational;
     return healthy;
   }
 
-  /** The unit just stopped working: by default it loses its data */
+  /** The unit just stopped working (a lost router does not count): by default it loses its data */
   protected onBecameUnhealthy(): void {
     this.reset();
   }
