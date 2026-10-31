@@ -71,6 +71,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OIT] New FLT OPS application OPS LIBRARY: the feature and simvar manuals, the ECAM procedures, the ECAM alerts of the flight, the deferred MEL and CDL items of the eLogbook, search, bookmarks and notes - @TCdr
 1. [A380X/OIT] STORE of FLT OPS T.O PERF, LDG PERF, LOADSHEET and IN-FLT PERF keeps the page as a document (TOPA, LDPA, WBA, IFPA) in the Performance folder of the current flight folder - @TCdr
 1. [A380X/OIT] The CHARTS application shows the terminal charts of the simulator's own chart service (LIDO, no account needed) for the airports of the flight and others you add, by group, runway and page, with zoom, move and FIT buttons and a clipboard that one laptop sends to the other; the FLT OPS STS page shows the validity of the charts once CHARTS has been started - @TCdr
+1. [A380X/OIT] The CHARTS clipboard shows PREPARED (NEW) while charts the other laptop sent wait for IMPORT, until the PREPARED tab is opened - @TCdr
 1. [A380X/OIT] Fix the OOOI OUT time showing the PC clock and the fuel missing when the aircraft starts with the park brake released, and the STORE pop-up allowing a second STORE while it is open - @TCdr
 1. [A380X/OIT] Fix the FLT FOLDER FLT INFO and ALTN Update cells accepting an entry on the laptop that is not the flight follow-up master - @TCdr
 1. [A380X/MFD] Fix LS field remaining blank on F-PLN arrival page when no landing system is available or selected - @matze-tech (matze2346)
