@@ -7,6 +7,8 @@
  * of the A32NX (MCDU pages, AOC/ATC reports, the DCDU PRINT key) goes through printPage.
  */
 
+import { NXSystemMessages, TypeIIMessage } from '../messages/NXSystemMessages';
+
 export enum PrintRequestOutcome {
   Print,
   /** A page is being printed: the request is dropped */
@@ -24,4 +26,23 @@ export function printRequestOutcome(printerFailed: boolean, printing: boolean): 
     return PrintRequestOutcome.PrinterNotAvailable;
   }
   return printing ? PrintRequestOutcome.Busy : PrintRequestOutcome.Print;
+}
+
+/**
+ * Decides a print request and, for a failed printer, queues PRINTER NOT AVAILABLE
+ * @param printerFailed L:A32NX_PRINTER_FAILED
+ * @param printing a page is being printed
+ * @param queueMessage queues a message on the MCDU scratchpad
+ * @returns the page may be printed
+ */
+export function requestPrint(
+  printerFailed: boolean,
+  printing: boolean,
+  queueMessage: (message: TypeIIMessage) => void,
+): boolean {
+  const outcome = printRequestOutcome(printerFailed, printing);
+  if (outcome === PrintRequestOutcome.PrinterNotAvailable) {
+    queueMessage(NXSystemMessages.printerNotAvailable);
+  }
+  return outcome === PrintRequestOutcome.Print;
 }

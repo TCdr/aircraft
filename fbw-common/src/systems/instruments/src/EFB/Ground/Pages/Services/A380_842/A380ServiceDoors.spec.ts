@@ -3,21 +3,26 @@
 
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
+import en from '../../../../Localization/data/en.json';
+import { A380SeatOutlineBg } from '../../../../Assets/A380SeatOutlineBg';
 import { A380_FWD_CARGO_DOOR, A380_SERVICE_DOORS, A380ServiceDoor } from './A380ServiceDoors';
 
-/* The model, the flight model and the labels, read as text (the repo root is ten folders up) */
+/* The model and the flight model are read as data files (the repo root is ten folders up) */
 const fromRoot = (path: string) => readFileSync(resolve(__dirname, '../../../../../../../../../..', path), 'utf-8');
 const a380Base = 'fbw-a380x/src/base/flybywire-aircraft-a380-842';
 const doorAnimations = fromRoot(`${a380Base}/ModelBehaviorDefs/fbw_a380x/Templates/Anims_Door.xml`);
 const flightModel = fromRoot(`${a380Base}/SimObjects/AirPlanes/FlyByWire_A380X/common/config/flight_model.cfg`);
-const payloadDrawing = fromRoot('fbw-common/src/systems/instruments/src/EFB/Assets/A380SeatOutlineBg.tsx');
+// the Payload page drawing, as the SVG markup of the component
+const payloadDrawing = renderToStaticMarkup(
+  React.createElement(A380SeatOutlineBg, { stroke: 'black', highlight: 'red' }),
+);
 const gsxProfile = fromRoot(
   `${a380Base}/SimObjects/AirPlanes/FlyByWire_A380X/presets/flybywire/FlyByWire_A380_842/config/GSX.cfg`,
 );
-const servicesLabels: Record<string, string> = JSON.parse(
-  fromRoot('fbw-common/src/systems/instruments/src/EFB/Localization/data/en.json'),
-).Ground.Services;
+const servicesLabels: Record<string, unknown> = en.Ground.Services;
 
 const doors = Object.entries(A380_SERVICE_DOORS) as [string, A380ServiceDoor][];
 

@@ -1,9 +1,15 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { A32NX_LocalVarUpdater } from './A32NX_LocalVarUpdater';
+import {
+  createFwc,
+  installFwcSimVarMocks,
+  runFwc,
+  setHealthyCruise,
+  writtenEwdLines,
+} from '../../../../../systems-host/systems/FWC/PseudoFwcTestBed';
 import { NoSmokingSignsInputs, NoSmokingSwitchPosition, areNoSmokingSignsOn, areSeatBeltsSignsOn } from './CabinSigns';
 
 /** Cruise: switch AUTO, gear up, flaps lever 0, cabin at 8000 ft, NO SMOKING signs */
@@ -14,6 +20,22 @@ const CRUISE: NoSmokingSignsInputs = {
   cabinAltitudeFt: 8000,
   portableDevicesSigns: false,
 };
+
+/** Runs the A32NX_LocalVarUpdater once on the given simvar values; returns the L:vars it wrote */
+function runLocalVarUpdater(simVars: Map<string, number>): Map<string, boolean> {
+  const written = new Map<string, boolean>();
+  vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) => simVars.get(name) ?? 0);
+  vi.spyOn(SimVar, 'SetSimVarValue').mockImplementation((name: string, _unit: string, value: unknown) => {
+    written.set(name, value as boolean);
+    return Promise.resolve();
+  });
+  new A32NX_LocalVarUpdater().update(2000);
+  return written;
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 const signsOn = (changes: Partial<NoSmokingSignsInputs>) => areNoSmokingSignsOn({ ...CRUISE, ...changes });
 
@@ -50,15 +72,34 @@ describe('NO SMOKING cabin signs', () => {
     ).toBe(false);
   });
 
-  it('drive the NO SMOKING memo L:var', () => {
-    const updater = readFileSync(resolve(__dirname, 'A32NX_LocalVarUpdater.ts'), 'utf-8');
-    const selector = updater.slice(
-      updater.indexOf('_noSmokingMemoSelector() {'),
-      updater.indexOf('_flapsInMotionSelector() {'),
-    );
-    expect(selector).toContain('areNoSmokingSignsOn(');
-    expect(selector).toContain('L:A32NX_FLAPS_HANDLE_INDEX');
-    expect(selector).toContain('L:A32NX_PRESS_MAN_CABIN_ALTITUDE');
+  describe('memo L:var', () => {
+    it('is written from the switch, gear, flaps lever and cabin altitude L:vars', () => {
+      const simVars = new Map<string, number>([
+        ['L:XMLVAR_SWITCH_OVHD_INTLT_NOSMOKING_Position', NoSmokingSwitchPosition.auto],
+        ['L:A32NX_PRESS_MAN_CABIN_ALTITUDE', 8000],
+      ]);
+      expect(runLocalVarUpdater(simVars).get('L:A32NX_NO_SMOKING_MEMO')).toBe(false);
+
+      simVars.set('L:A32NX_FLAPS_HANDLE_INDEX', 1);
+      expect(runLocalVarUpdater(simVars).get('L:A32NX_NO_SMOKING_MEMO')).toBe(true);
+
+      simVars.set('L:A32NX_FLAPS_HANDLE_INDEX', 0);
+      simVars.set('L:A32NX_GEAR_CENTER_POSITION', 100);
+      expect(runLocalVarUpdater(simVars).get('L:A32NX_NO_SMOKING_MEMO')).toBe(true);
+
+      simVars.set('L:A32NX_GEAR_CENTER_POSITION', 0);
+      simVars.set('L:A32NX_PRESS_MAN_CABIN_ALTITUDE', 11_400);
+      expect(runLocalVarUpdater(simVars).get('L:A32NX_NO_SMOKING_MEMO')).toBe(true);
+    });
+
+    it('does not follow the cabin altitude with the NO PED switch', () => {
+      const simVars = new Map<string, number>([
+        ['L:XMLVAR_SWITCH_OVHD_INTLT_NOSMOKING_Position', NoSmokingSwitchPosition.off],
+        ['L:A32NX_CONFIG_USING_PORTABLE_DEVICES', 1],
+        ['L:A32NX_PRESS_MAN_CABIN_ALTITUDE', 14_000],
+      ]);
+      expect(runLocalVarUpdater(simVars).get('L:A32NX_NO_SMOKING_MEMO')).toBe(false);
+    });
   });
 });
 
@@ -73,23 +114,48 @@ describe('SEAT BELTS cabin signs', () => {
     expect(areSeatBeltsSignsOn({ switchOn: false, cabinAltitudeFt: 11_400 })).toBe(true);
   });
 
-  it('drive the SEAT BELTS memo L:var, read by the FWC for the SEAT BELTS memo and the T.O MEMO', () => {
-    const updater = readFileSync(resolve(__dirname, 'A32NX_LocalVarUpdater.ts'), 'utf-8');
-    expect(updater).toContain("varName: 'L:A32NX_SEAT_BELTS_MEMO'");
-    const selector = updater.slice(
-      updater.indexOf('_seatBeltsMemoSelector() {'),
-      updater.indexOf('_flapsInMotionSelector() {'),
-    );
-    expect(selector).toContain('areSeatBeltsSignsOn(');
-    expect(selector).toContain('A:CABIN SEATBELTS ALERT SWITCH');
-    expect(selector).toContain('L:A32NX_PRESS_MAN_CABIN_ALTITUDE');
+  describe('memo L:var, read by the FWC for the SEAT BELTS memo and the T.O MEMO', () => {
+    it('is written from the SEAT BELTS switch and the cabin altitude L:var', () => {
+      const simVars = new Map<string, number>([['L:A32NX_PRESS_MAN_CABIN_ALTITUDE', 8000]]);
+      expect(runLocalVarUpdater(simVars).get('L:A32NX_SEAT_BELTS_MEMO')).toBe(false);
 
-    const fwc = readFileSync(resolve(__dirname, '../../../../../systems-host/systems/FWC/PseudoFWC.ts'), 'utf-8');
-    const memo = fwc.slice(fwc.indexOf("'0000080': {"), fwc.indexOf("'0000090': {"));
-    expect(memo).toContain('simVarIsActive: this.seatBeltsSignsOn');
-    const toMemo = fwc.slice(fwc.indexOf("'0000010': {"), fwc.indexOf("'0000020': {"));
-    expect(toMemo).toContain('this.seatBeltsSignsOn.get()');
-    expect(toMemo).not.toContain('A:CABIN SEATBELTS ALERT SWITCH');
-    expect(fwc).toContain("this.seatBeltsSignsOn.set(SimVar.GetSimVarValue('L:A32NX_SEAT_BELTS_MEMO', 'bool') > 0)");
+      simVars.set('A:CABIN SEATBELTS ALERT SWITCH', 1);
+      expect(runLocalVarUpdater(simVars).get('L:A32NX_SEAT_BELTS_MEMO')).toBe(true);
+
+      simVars.set('A:CABIN SEATBELTS ALERT SWITCH', 0);
+      simVars.set('L:A32NX_PRESS_MAN_CABIN_ALTITUDE', 11_400);
+      expect(runLocalVarUpdater(simVars).get('L:A32NX_SEAT_BELTS_MEMO')).toBe(true);
+    });
+  });
+
+  describe('SEAT BELTS memo of the FWC', () => {
+    const SEAT_BELTS_MEMO = '000008001';
+    let simvars: Map<string, number>;
+    let writes: Map<string, unknown>;
+
+    beforeEach(() => {
+      vi.setConfig({ testTimeout: 60_000 });
+      ({ simvars, writes } = installFwcSimVarMocks());
+    });
+
+    it('shows while L:A32NX_SEAT_BELTS_MEMO is set, and not for the sim switch alone', () => {
+      const { fwc, bus } = createFwc();
+      setHealthyCruise(bus, simvars);
+      runFwc(fwc, 3);
+      expect(writtenEwdLines(writes, 'LEFT')).not.toContain(SEAT_BELTS_MEMO);
+
+      // the FWC reads the memo L:var, not the switch of the sim
+      simvars.set('A:CABIN SEATBELTS ALERT SWITCH', 1);
+      runFwc(fwc, 2);
+      expect(writtenEwdLines(writes, 'LEFT')).not.toContain(SEAT_BELTS_MEMO);
+
+      simvars.set('L:A32NX_SEAT_BELTS_MEMO', 1);
+      runFwc(fwc, 2);
+      expect(writtenEwdLines(writes, 'LEFT')).toContain(SEAT_BELTS_MEMO);
+
+      simvars.set('L:A32NX_SEAT_BELTS_MEMO', 0);
+      runFwc(fwc, 2);
+      expect(writtenEwdLines(writes, 'LEFT')).not.toContain(SEAT_BELTS_MEMO);
+    });
   });
 });

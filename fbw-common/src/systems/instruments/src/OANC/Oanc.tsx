@@ -66,7 +66,7 @@ import { OancMarkerManager } from './OancMarkerManager';
 import { isOansDestinationArrowShown } from './OancDestinationArrow';
 import { ResetPanelSimvars } from './ResetPanelPublisher';
 import { NavigraphAmdbClient } from './api/NavigraphAmdbClient';
-import { isAirportNotInActiveFpln, isFmsSelectedRunway, pointAngle } from './OancMapUtils';
+import { createAirportNotInActiveFpln, isFmsSelectedRunwayOfFms, pointAngle } from './OancMapUtils';
 import { LubberLine } from '../ND/pages/arc/LubberLine';
 
 export const OANC_RENDER_WIDTH = 768;
@@ -364,13 +364,10 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
 
   private readonly markerManager = new OancMarkerManager<T>(this, this.labelManager, this.props.bus);
 
-  private readonly airportNotInActiveFpln = MappedSubject.create(
-    ([ndMode, arpt, origin, dest, altn]) => isAirportNotInActiveFpln(ndMode, arpt, origin, dest, altn),
+  private readonly airportNotInActiveFpln = createAirportNotInActiveFpln(
     this.overlayNDModeSub,
     this.dataAirportIcao,
-    this.fmsDataStore.origin,
-    this.fmsDataStore.destination,
-    this.fmsDataStore.alternate,
+    this.fmsDataStore,
   );
 
   private readonly pposNotAvailable = MappedSubject.create(
@@ -1021,14 +1018,7 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
           designators.push(copied[1], copied[0]);
         }
 
-        const isSelectedRunway = isFmsSelectedRunway(
-          this.dataAirportIcao.get(),
-          this.fmsDataStore.origin.get(),
-          this.fmsDataStore.destination.get(),
-          this.fmsDataStore.departureRunway.get()?.substring(4),
-          this.fmsDataStore.landingRunway.get()?.substring(4),
-          designators,
-        );
+        const isSelectedRunway = isFmsSelectedRunwayOfFms(this.dataAirportIcao.get(), this.fmsDataStore, designators);
 
         const label1: Label = {
           text: designators[0],

@@ -2,24 +2,18 @@
 //
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
-import { formatStatusPage, orderStatusCodes } from './StatusMessages';
+import { EwdMessageEntries } from './EwdMessages';
+import { formatStatusPage, orderStatusCodes, StatusMessageEntries } from './StatusMessages';
 
 /**
- * The message codes written more than once in a message table source file. The tables are Maps built from
- * `['code', {...}]` entries (StatusMessages) or object literals with `'code': '...'` keys (EwdMessages): a second entry
- * with the same code silently replaces the text of the first one, so the source text is checked, not the built table.
+ * The message codes written more than once in a message table: a second entry with the same code silently replaces the
+ * text of the first one in the Map built from the entries.
  */
-function duplicatedCodes(fileName: string): string[] {
-  const source = readFileSync(resolve(__dirname, fileName), 'utf-8');
-  const codePattern = /^\s*(?:\[\s*'(\d{9})'\s*,|'(\d{9})'\s*:)/gm;
+function duplicatedCodes(entries: readonly (readonly [string, unknown])[]): string[] {
   const seen = new Set<string>();
   const duplicated = new Set<string>();
-  let match: RegExpExecArray | null;
-  while ((match = codePattern.exec(source)) !== null) {
-    const code = match[1] ?? match[2];
+  for (const [code] of entries) {
     if (seen.has(code)) {
       duplicated.add(code);
     }
@@ -29,12 +23,22 @@ function duplicatedCodes(fileName: string): string[] {
 }
 
 describe('A320 ECAM message tables', () => {
+  it('finds a code written twice', () => {
+    expect(
+      duplicatedCodes([
+        ['1', {}],
+        ['2', {}],
+        ['1', {}],
+      ]),
+    ).toEqual(['1']);
+  });
+
   it('give each STATUS code one line only', () => {
-    expect(duplicatedCodes('StatusMessages.ts')).toEqual([]);
+    expect(duplicatedCodes(StatusMessageEntries)).toEqual([]);
   });
 
   it('give each E/WD code one line only', () => {
-    expect(duplicatedCodes('EwdMessages.ts')).toEqual([]);
+    expect(duplicatedCodes(EwdMessageEntries)).toEqual([]);
   });
 });
 
