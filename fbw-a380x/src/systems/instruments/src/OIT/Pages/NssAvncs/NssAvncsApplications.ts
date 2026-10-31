@@ -50,3 +50,20 @@ export function nssAvncsApplicationName(application: string): string {
 export function createNssAvncsOpenApplications(): FltOpsOpenApplications {
   return new FltOpsOpenApplications(NSS_AVNCS_TASK_BAR_KEYS, nssAvncsApplicationOf);
 }
+
+/** The applications that navigate between their own pages themselves, so the container keeps their page drawn */
+const SELF_NAVIGATING_APPLICATIONS = ['nss-avncs/company-com', 'nss-avncs/a380x-systems', 'nss-avncs/logbook'];
+
+/**
+ * @param uri the page being displayed
+ * @param renderedUri the page the container has drawn
+ * @returns whether the page belongs to an application whose page is already drawn, which then changes its own pages
+ */
+export function isPageOfRenderedApplication(uri: string, renderedUri: string | undefined): boolean {
+  return (
+    renderedUri !== undefined &&
+    SELF_NAVIGATING_APPLICATIONS.some(
+      (application) => uri.startsWith(`${application}/`) && renderedUri.startsWith(application),
+    )
+  );
+}
