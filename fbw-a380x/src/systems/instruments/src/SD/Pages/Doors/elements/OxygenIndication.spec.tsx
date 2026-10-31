@@ -1,10 +1,51 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import React from 'react';
 import { describe, expect, it } from 'vitest';
+import { withRenderedSdElement } from '../../../SdSpecSupport';
+import { DoorPage } from '../DoorPage';
+import Oxygen from './Oxygen';
 import { oxygenIndication, OxygenPressureInputs, oxygenPressureIndication } from './OxygenIndication';
+
+const fullBottleSimVars = {
+  'L:A32NX_OXYGEN_CREW_BOTTLE_PRESSURE': 1800,
+  'L:A32NX_OXYGEN_CABIN_BOTTLE_PRESSURE': 1850,
+};
+
+/**
+ * @param simVars the L:vars the OXYGEN element reads, over full bottles
+ * @param onGround the aircraft is on the ground
+ * @returns what the element shows
+ */
+function renderedOxygen(simVars: Record<string, number>, onGround = true) {
+  return withRenderedSdElement(
+    <Oxygen x={0} y={0} active onGround={onGround} oneEngineRunning={false} />,
+    { ...fullBottleSimVars, ...simVars },
+    (container) => {
+      const ckpt = container.querySelector('g#crewOxygen');
+      const cabin = container.querySelector('g#cabinOxygen');
+      const shown = (group: Element | null, text: string) =>
+        Array.from(group?.querySelectorAll('text') ?? []).some(
+          (element) => element.textContent === text && !element.classList.contains('Hide'),
+        );
+      const labelAmber = (group: Element | null, text: string) =>
+        Array.from(group?.querySelectorAll('text') ?? [])
+          .find((element) => element.textContent === text)
+          ?.getAttribute('class')
+          ?.includes('Amber');
+      const halfFrameShown = (group: Element | null) => !group?.querySelector('path')?.classList.contains('Hide');
+      return {
+        ckptLabelAmber: labelAmber(ckpt, 'CKPT'),
+        cabinLabelAmber: labelAmber(cabin, 'CABIN'),
+        ckptRegulPrLo: shown(ckpt, 'REGUL PR LO'),
+        cabinRegulPrLo: shown(cabin, 'REGUL PR LO'),
+        ckptHalfFrame: halfFrameShown(ckpt),
+        cabinHalfFrame: halfFrameShown(cabin),
+      };
+    },
+  );
+}
 
 describe('SD DOOR/OXY oxygen indications', () => {
   it('are normal with CREW SUPPLY on', () => {
@@ -54,16 +95,27 @@ describe('SD DOOR/OXY oxygen indications', () => {
   });
 
   it('the page gives the cabin bottle pressure and the cabin valve to the CABIN line', () => {
-    const element = readFileSync(resolve(__dirname, 'Oxygen.tsx'), 'utf-8');
-    expect(element).toMatch(/useSimVar\('L:A32NX_OXYGEN_CABIN_VALVE_CLOSED'/);
-    expect(element).toContain('valveClosed: cabinValveClosedVar > 0');
-    expect(element).toContain('bottlePressureLow: pressures.cabinValueAmber');
+    expect(renderedOxygen({ 'L:A32NX_OXYGEN_CABIN_VALVE_CLOSED': 1 })).toMatchObject({
+      cabinLabelAmber: true,
+      cabinRegulPrLo: false,
+      ckptLabelAmber: false,
+    });
+    // 90 PSI in the manifold on the ground
+    expect(renderedOxygen({ 'L:A32NX_OXYGEN_CABIN_BOTTLE_PRESSURE': 90 })).toMatchObject({
+      cabinLabelAmber: true,
+      cabinRegulPrLo: true,
+    });
+    expect(renderedOxygen({ 'L:A32NX_OXYGEN_CABIN_BOTTLE_PRESSURE': 90 }, false)).toMatchObject({
+      cabinLabelAmber: true,
+      cabinRegulPrLo: false,
+    });
   });
 
-  it('the page reads the CREW SUPPLY pb value (not the useSimVar tuple) and only for the CKPT line', () => {
-    const element = readFileSync(resolve(__dirname, 'Oxygen.tsx'), 'utf-8');
-    expect(element).toMatch(/const \[crewSupplyOffVar\] = useSimVar\('L:PUSH_OVHD_OXYGEN_CREW'/);
-    expect(element.match(/L:PUSH_OVHD_OXYGEN_CREW/g)).toHaveLength(1);
+  it('the page reads the CREW SUPPLY pb value and only for the CKPT line', () => {
+    const rendered = renderedOxygen({ 'L:PUSH_OVHD_OXYGEN_CREW': 1 });
+    expect(rendered).toMatchObject({ ckptLabelAmber: true, ckptRegulPrLo: true, cabinLabelAmber: false });
+    expect(rendered.cabinRegulPrLo).toBe(false);
+    expect(renderedOxygen({ 'L:PUSH_OVHD_OXYGEN_CREW': 0 }).ckptLabelAmber).toBe(false);
   });
 });
 
@@ -128,11 +180,29 @@ describe('SD DOOR/OXY cockpit oxygen pressure', () => {
     });
   });
 
-  it('the page draws the half-frames and reads the real on-ground state', () => {
-    const element = readFileSync(resolve(__dirname, 'Oxygen.tsx'), 'utf-8');
-    expect(element).toContain('<HalfFrame y={0} visible={pressures.ckptHalfFrame} />');
-    expect(element).toContain('<HalfFrame y={124} visible={pressures.cabinHalfFrame} />');
-    const page = readFileSync(resolve(__dirname, '../DoorPage.tsx'), 'utf-8');
-    expect(page).not.toContain('const onGround = true;');
+  it('the page draws the half-frames, below the dispatch minimum and on the ground only', () => {
+    const lowBottles = { 'L:A32NX_OXYGEN_CREW_BOTTLE_PRESSURE': 900, 'L:A32NX_OXYGEN_CABIN_BOTTLE_PRESSURE': 1500 };
+    expect(renderedOxygen(lowBottles)).toMatchObject({ ckptHalfFrame: true, cabinHalfFrame: true });
+    expect(renderedOxygen(lowBottles, false)).toMatchObject({ ckptHalfFrame: false, cabinHalfFrame: false });
+    expect(renderedOxygen({})).toMatchObject({ ckptHalfFrame: false, cabinHalfFrame: false });
+  });
+
+  it('the DOOR page reads the real on-ground state from the left main gear compression', () => {
+    const halfFrames = (gearCompressed: number) =>
+      withRenderedSdElement(
+        <DoorPage />,
+        {
+          'L:A32NX_OXYGEN_CREW_BOTTLE_PRESSURE': 900,
+          'L:A32NX_OXYGEN_CABIN_BOTTLE_PRESSURE': 1850,
+          'L:A32NX_LGCIU_1_LEFT_GEAR_COMPRESSED': gearCompressed,
+        },
+        (container) =>
+          Array.from(container.querySelectorAll('path.Amber.SW2.NoFill'))
+            .filter((path) => path.getAttribute('d')?.startsWith('M24,'))
+            .map((path) => !path.classList.contains('Hide')),
+      );
+    // [CKPT half-frame, CABIN half-frame]
+    expect(halfFrames(1)).toEqual([true, false]);
+    expect(halfFrames(0)).toEqual([false, false]);
   });
 });

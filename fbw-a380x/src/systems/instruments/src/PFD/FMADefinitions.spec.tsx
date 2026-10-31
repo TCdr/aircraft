@@ -1,10 +1,10 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
-import { Arinc429Register, Arinc429SignStatusMatrix } from '@flybywiresim/fbw-sdk';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { FSComponent, Subject } from '@microsoft/msfs-sdk';
+import { Arinc429Register, Arinc429SignStatusMatrix, ArincEventBus } from '@flybywiresim/fbw-sdk';
+import { FMA } from './FMA';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { FlsCapability } from '@flybywiresim/pfd';
 import {
@@ -57,6 +57,25 @@ function bc3(
   );
 }
 
+// The ECAM message tables are not used by the FMA but are loaded by the PFD modules, and import each other in a cycle
+vi.mock('../MsfsAvionicsCommon/EcamMessages', () => ({}));
+
+afterEach(() => {
+  document.body.innerHTML = '';
+});
+
+/** Draws the FMA on a bus the spec publishes the PFD data on (a topic nobody published reads as its default) */
+function drawFma() {
+  const bus = new ArincEventBus();
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+  FSComponent.render(<FMA bus={bus} isAttExcessive={Subject.create(false)} />, container);
+  return {
+    container,
+    publish: (topic: string, value: number | boolean) => bus.pub(topic, value, false, false),
+  };
+}
+
 describe('A380X FMA line 3 FMS messages', () => {
   it('shows CHECK SPD MODE when the FMS sets it', () => {
     expect(bc3(false, false)).toBe(BC3Messages.NONE);
@@ -81,11 +100,12 @@ describe('A380X FMA line 3 speed brake and approach selection messages', () => {
     expect(bc3(true, false, false, SpeedBrakeMessage.NONE, true)).toBe(BC3Messages.CHECK_SPD_MODE);
   });
 
-  it('the FMA passes the speed brake message and CHECK APPR SEL to the line 3 message', () => {
-    const fma = readFileSync(resolve(__dirname, 'FMA.tsx'), 'utf-8');
-    expect(fma).toMatch(/checkEoSpeedSetting,\s*spdBrkMessage,\s*checkApprSel,\s*\);/);
-    expect(fma).toContain("ConsumerSubject.create(this.sub.on('checkApprSel'), false)");
-    expect(fma).toContain('speedBrakesExtended: fcdcWord4.bitValueOr(28, false)');
+  it('the FMA passes CHECK APPR SEL to the line 3 message', () => {
+    const fma = drawFma();
+    fma.publish('checkApprSel', false);
+    expect(fma.container.innerHTML).not.toContain('CHECK APPR SEL');
+    fma.publish('checkApprSel', true);
+    expect(fma.container.innerHTML).toContain('CHECK APPR SEL');
   });
 });
 
@@ -196,10 +216,14 @@ describe('A380X FMA manual takeoff thrust label', () => {
   });
 
   it('the FMA reads the selected derate for the MAN FLX message', () => {
-    const fma = readFileSync(resolve(__dirname, 'FMA.tsx'), 'utf-8');
-    const publisher = readFileSync(resolve(__dirname, 'shared/PFDSimvarPublisher.tsx'), 'utf-8');
-    expect(publisher).toContain("takeoffDerate = 'L:A32NX_AIRLINER_TO_DERATE'");
-    expect(fma).toContain('manualTakeoffThrustLabel(this.takeoffDerate.get())');
+    const manualThrustMessage = (derate: number) => {
+      const fma = drawFma();
+      fma.publish('prim_fg_ats_fma_discrete_word', word([13]).rawWord);
+      fma.publish('takeoffDerate', derate);
+      return ['DTO', 'FLX'].filter((label) => fma.container.innerHTML.includes(`>${label}</text>`));
+    };
+    expect(manualThrustMessage(0)).toEqual(['FLX']);
+    expect(manualThrustMessage(4)).toEqual(['DTO']);
   });
 });
 

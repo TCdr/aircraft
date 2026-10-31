@@ -3,7 +3,12 @@
 
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
+import { ClockEvents, EventBus, FSComponent, Subject } from '@microsoft/msfs-sdk';
+import { AutoThrustMode } from '@shared/autopilot';
+import { EwdSimvars } from '../shared/EwdSimvarPublisher';
+import { FGVars } from '../../MsfsAvionicsCommon/providers/FGDataPublisher';
+import { EGT } from './EGT';
 import {
   egtColour,
   egtExceedanceShown,
@@ -22,6 +27,44 @@ import {
   n3Exceeds,
   ThrustLimitType,
 } from './EgtLimits';
+
+/** Draws the EGT gauge of engine 1 on a bus the spec publishes the engine data on. */
+function drawEgtGauge() {
+  const bus = new EventBus();
+  const container = document.createElement('div');
+  document.body.appendChild(container);
+  FSComponent.render(<EGT bus={bus} x={0} y={0} engine={1} active={Subject.create(true)} />, container);
+  const publisher = bus.getPublisher<EwdSimvars & FGVars & ClockEvents>();
+  const gauge = container.querySelector('g#EGT-indicator-1');
+  return {
+    publisher,
+    /** The value text of the gauge: its colour class and the shown number */
+    value: () => {
+      const text = gauge?.querySelector('text.Large');
+      return { colourClass: text?.getAttribute('class'), shown: text?.textContent };
+    },
+    /** The amber EGT limit mark of the gauge is visible */
+    limitMarkVisible: () => {
+      const mark = gauge?.querySelector('path.GaugeThrustLimitIndicatorFill');
+      return mark?.parentElement?.getAttribute('visibility') === 'inherit';
+    },
+    /** The angle of the EGT needle and of the red line end of the red arc, seen from the gauge centre */
+    needleAngle: () => {
+      const needle = gauge?.querySelector('line[class$="GaugeIndicator Gauge"]');
+      return Math.atan2(Number(needle?.getAttribute('y2')), Number(needle?.getAttribute('x2')));
+    },
+    redArcStartAngle: () => {
+      // the arc is drawn from the end of the scale (M) down to the red line (the last point of the A command)
+      const d = gauge?.querySelector('path.ThickRedLine')?.getAttribute('d') ?? '';
+      const [x, y] = d.split(' ').slice(-2);
+      return Math.atan2(Number(y), Number(x));
+    },
+  };
+}
+
+afterEach(() => {
+  document.body.innerHTML = '';
+});
 
 describe('EWD EGT limits', () => {
   it('has the 970 °C EGT limit, the 1 002 °C red line and the takeoff values 1 022 °C / 20 s', () => {
@@ -72,16 +115,23 @@ describe('EWD EGT limits from the thrust limit type', () => {
   });
 
   it('the gauge hides the amber limit with alpha floor (autothrust mode A.FLOOR)', () => {
-    const gauge = readFileSync(resolve(__dirname, 'EGT.tsx'), 'utf-8');
-    expect(gauge).toContain("this.sub.on('fg.athr.mode')");
-    expect(gauge).toContain('mode === AutoThrustMode.A_FLOOR');
-    expect(gauge).toContain('egtLimitMarkVisible(limitType, alphaFloor)');
+    const gauge = drawEgtGauge();
+    gauge.publisher.pub('thrust_limit_type', ThrustLimitType.Clb);
+    gauge.publisher.pub('fg.athr.mode', AutoThrustMode.SPEED);
+    expect(gauge.limitMarkVisible()).toBe(true);
+    gauge.publisher.pub('fg.athr.mode', AutoThrustMode.A_FLOOR);
+    expect(gauge.limitMarkVisible()).toBe(false);
   });
 
   it('the gauge reads the thrust limit type, not the thrust lever angle', () => {
-    const gauge = readFileSync(resolve(__dirname, 'EGT.tsx'), 'utf-8');
-    expect(gauge).toContain("this.sub.on('thrust_limit_type')");
-    expect(gauge).not.toContain('throttle_position_');
+    const gauge = drawEgtGauge();
+    gauge.publisher.pub('egt_1', 990);
+    // the thrust lever at the MCT detent angle, with TOGA as the thrust limit type: the limit type decides
+    gauge.publisher.pub('throttle_position_n1_1', 25);
+    gauge.publisher.pub('thrust_limit_type', ThrustLimitType.Toga);
+    expect(gauge.value().colourClass).toContain('Green');
+    gauge.publisher.pub('thrust_limit_type', ThrustLimitType.Mct);
+    expect(gauge.value().colourClass).toContain('Amber');
   });
 });
 
@@ -143,19 +193,22 @@ describe('EWD EGT time at or above the red line', () => {
   });
 
   it('the gauge colours the EGT it shows, with the time at or above the red line of the sim clock', () => {
-    const gauge = readFileSync(resolve(__dirname, 'EGT.tsx'), 'utf-8');
-    expect(gauge).toContain('new EgtRedLineTimer()');
-    expect(gauge).toContain("this.sub.on('simTime')");
-    expect(gauge).toContain('egtColour(egt, limitType, limit, seconds, alphaFloor)');
-    // the colour follows the FADEC EGT as it is, as the FWS alert does
-    expect(gauge).toMatch(
-      /readonly egtColour = MappedSubject\.create\(\s*\([^)]*\]\) => egtColour\([^)]*\),\s*this\.egt,/,
-    );
+    const gauge = drawEgtGauge();
+    gauge.publisher.pub('thrust_limit_type', ThrustLimitType.Toga);
+    gauge.publisher.pub('egt_1', 1010);
+    // one step counts at most 1 s
+    for (let seconds = 0; seconds <= 20; seconds++) {
+      gauge.publisher.pub('simTime', seconds * 1000);
+    }
+    expect(gauge.value().colourClass).toContain('Green');
+    gauge.publisher.pub('simTime', 20_500);
+    expect(gauge.value().colourClass).toContain('Red');
   });
 
   it('the red arc of the gauge starts at the red line', () => {
-    const gauge = readFileSync(resolve(__dirname, 'EGT.tsx'), 'utf-8');
-    expect(gauge).toContain('startAngle={this.redArcStartAngle}');
+    const gauge = drawEgtGauge();
+    gauge.publisher.pub('egt_1', 1002);
+    expect(gauge.redArcStartAngle()).toBeCloseTo(gauge.needleAngle(), 3);
   });
 });
 
@@ -163,8 +216,10 @@ describe('EWD EGT with the engine failures (stage B4)', () => {
   it('shows the FADEC EGT without an EEC trim: an EGT above the limits shows as it is', () => {
     expect(egtExceedanceShown(1100, EGT_LIMIT_C)).toBe(true);
     expect(isEgtRed(1100, ThrustLimitType.Clb, 0)).toBe(true);
-    const gauge = readFileSync(resolve(__dirname, 'EGT.tsx'), 'utf-8');
-    expect(gauge).toContain('{this.egt.map((egt) => Math.round(egt))}');
+    // the gauge shows the FADEC EGT without any trim
+    const gauge = drawEgtGauge();
+    gauge.publisher.pub('egt_1', 1100);
+    expect(gauge.value().shown).toBe('1100');
     const fws = readFileSync(
       resolve(__dirname, '../../../../systems-host/CpiomC/FlightWarningSystem/FwsCore.ts'),
       'utf-8',

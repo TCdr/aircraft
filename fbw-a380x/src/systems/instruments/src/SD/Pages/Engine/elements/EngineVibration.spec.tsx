@@ -1,9 +1,8 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
+import { withRenderedEngineColumn } from '../EngineColumnSpecSupport';
 import { n3ClassName, n3RedCrossShown, vibrationClassName } from './EngineVibration';
 
 describe('A380X SD ENGINE page vibrations and N3', () => {
@@ -39,16 +38,33 @@ describe('A380X SD ENGINE page vibrations and N3', () => {
   });
 
   it('draws the red cross next to the N3 value', () => {
-    const column = readFileSync(resolve(__dirname, 'EngineColumn.tsx'), 'utf-8');
-    expect(column).toContain('n3RedCrossShown(shownBefore, N3, groundStart, fadecPowered)');
-    expect(column).toMatch(/n3RedCross && \(\s*<text[^>]*className="Red F25 MiddleAlign">\s*\+\s*<\/text>/);
+    const redCrossShown = (n3: number) =>
+      withRenderedEngineColumn({ 'L:A32NX_ENGINE_N3:1': n3 }, (container) =>
+        Array.from(container.querySelectorAll('text')).some(
+          (text) => text.textContent === '+' && text.getAttribute('class') === 'Red F25 MiddleAlign',
+        ),
+      );
+    expect(redCrossShown(118.7)).toBe(false);
+    expect(redCrossShown(118.8)).toBe(true);
   });
 
   it('reads separate N1, N2 and N3 vibrations from the systems WASM', () => {
-    const column = readFileSync(resolve(__dirname, 'EngineColumn.tsx'), 'utf-8');
-    expect(column).not.toContain('TURB ENG VIBRATION');
-    expect(column).toContain('_N1_VIBRATION`');
-    expect(column).toContain('_N2_VIBRATION`');
-    expect(column).toContain('_N3_VIBRATION`');
+    const vibrationValues = withRenderedEngineColumn(
+      {
+        'L:A32NX_ENGINE_1_N1_VIBRATION': 1.1,
+        'L:A32NX_ENGINE_1_N2_VIBRATION': 2.2,
+        'L:A32NX_ENGINE_1_N3_VIBRATION': 3.3,
+        // the sim's own single vibration value must not be shown
+        'TURB ENG VIBRATION:1': 4.4,
+      },
+      (container) =>
+        Array.from(container.querySelectorAll('text'))
+          .map((text) => text.textContent)
+          .filter((content) => /^\d\.\d$/.test(content ?? '')),
+    );
+    expect(vibrationValues).toContain('1.1');
+    expect(vibrationValues).toContain('2.2');
+    expect(vibrationValues).toContain('3.3');
+    expect(vibrationValues).not.toContain('4.4');
   });
 });
