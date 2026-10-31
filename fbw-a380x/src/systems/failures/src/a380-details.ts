@@ -38,9 +38,12 @@ import { Ata30ProbesWindowsEntries, Ata30ProbesWindowsFamilies } from './details
 import { Ata34AirDataFamilies } from './details/ata34AirData';
 import { Ata34NavSensorsFamilies } from './details/ata34NavSensors';
 import { Ata34SurveillanceEntries, Ata34SurveillanceFamilies } from './details/ata34Surveillance';
+import { Ata42NetworkFamilies } from './details/ata42Network';
+import { Ata42IomFamilies } from './details/ata42Iom';
+import { Ata42CpiomEntries, Ata42CpiomFamilies } from './details/ata42Cpiom';
 
 /** Chapters whose failures all have a detail; the coverage spec only demands these. */
-export const A380_DETAIL_CHAPTERS_DONE: readonly AtaChapterNumber[] = [21, 24, 26, 27, 28, 29, 30, 32, 34, 36];
+export const A380_DETAIL_CHAPTERS_DONE: readonly AtaChapterNumber[] = [21, 24, 26, 27, 28, 29, 30, 32, 34, 36, 42];
 
 export const A380FailureDetails: FailureDetailTable = {
   entries: {
@@ -72,6 +75,7 @@ export const A380FailureDetails: FailureDetailTable = {
     ...Ata30AntiIceEntries,
     ...Ata30ProbesWindowsEntries,
     ...Ata34SurveillanceEntries,
+    ...Ata42CpiomEntries,
   },
   families: [
     ...Ata21CabinFamilies,
@@ -108,5 +112,8 @@ export const A380FailureDetails: FailureDetailTable = {
     ...Ata34AirDataFamilies,
     ...Ata34NavSensorsFamilies,
     ...Ata34SurveillanceFamilies,
+    ...Ata42NetworkFamilies,
+    ...Ata42IomFamilies,
+    ...Ata42CpiomFamilies,
   ],
 };

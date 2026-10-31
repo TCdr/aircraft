@@ -995,6 +995,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [EFB] Failure details for the A380X ice and rain protection failures: anti-ice valves and control, ice detectors, probe and window heating (ATA 30) - @TCdr
 1. [A380X/OIT] The CHARTS application no longer shows the EFB overlay with the Navigraph charts: it is the native terminal charts page, the Navigraph account is not used on the OIT any more - @TCdr
 1. [EFB] Failure details for the A380X navigation failures: air data, inertial and radio sensors, surveillance (ATA 34) - @TCdr
+1. [EFB] Failure details for the A380X integrated modular avionics failures: AFDX switches and cables, IOMs and CPIOMs (ATA 42) - @TCdr
 
 ## 2024.1.0
 
