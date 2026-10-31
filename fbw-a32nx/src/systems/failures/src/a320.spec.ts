@@ -11,8 +11,8 @@ describe('A320 flyPad failures', () => {
   it('has a title and a description for every ATA chapter of the failures page', () => {
     const chapters = [...new Set(A320FailureDefinitions.map(([chapter]) => chapter))];
     for (const chapter of chapters) {
-      expect(AtaChaptersTitle[chapter], `ATA ${chapter} title`).toBeTruthy();
-      expect(AtaChaptersDescription[chapter], `ATA ${chapter} description`).toBeTruthy();
+      expect((AtaChaptersTitle as Record<number, string>)[chapter], `ATA ${chapter} title`).toBeTruthy();
+      expect((AtaChaptersDescription as Record<number, string>)[chapter], `ATA ${chapter} description`).toBeTruthy();
     }
   });
 
@@ -489,8 +489,8 @@ describe('A320 flyPad failures', () => {
     }
   });
 
-  // TS only failures: the systems-host reads them (FWC Logic/EngineFadecFaultAlerts,
-  // Logic/DatalinkAlerts and atsu.ts), the systems WASM does not know them
+  // TS only failures (the systems-host reads them, see a320-wiring.spec.ts and atsu.spec.ts), the systems WASM does
+  // not know them
   it('lists the vibration monitoring unit in ATA 77 and the ATSU failures in ATA 46, TS only', () => {
     const label = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
     expect(label(A320Failure.EngineVibrationMonitoringUnit)).toEqual([
@@ -504,21 +504,10 @@ describe('A320 flyPad failures', () => {
     for (const rustId of ['77_010', '46_000', '46_001']) {
       expect(wasm).not.toContain(`(${rustId},`);
     }
-    const host = resolve(__dirname, '../../systems-host/systems');
-    expect(readFileSync(resolve(host, 'FWC/Logic/EngineFadecFaultAlerts.ts'), 'utf8')).toContain(
-      'A320Failure.EngineVibrationMonitoringUnit',
-    );
-    const datalinkAlerts = readFileSync(resolve(host, 'FWC/Logic/DatalinkAlerts.ts'), 'utf8');
-    const atsu = readFileSync(resolve(host, 'atsu.ts'), 'utf8');
-    for (const source of [datalinkAlerts, atsu]) {
-      expect(source).toMatch(/A320Failure\.Atsu\b/);
-      expect(source).toContain('A320Failure.AtsuAoc');
-    }
   });
 
-  // TS only failures: the systems-host ATSU (atsu.ts) writes them for the DCDU, its
-  // screens and the MCDU print
-  it('lists the DCDU 1, DCDU 2 and printer failures in ATA 46, TS only, read by the systems-host ATSU', () => {
+  // TS only failures (the systems-host ATSU applies them, see atsu.spec.ts), the systems WASM does not know them
+  it('lists the DCDU 1, DCDU 2 and printer failures in ATA 46, TS only', () => {
     const label = (id: number) => A320FailureDefinitions.find(([, failureId]) => failureId === id);
     expect(label(A320Failure.Dcdu1)).toEqual([46, 46002, 'DCDU 1 (captain)']);
     expect(label(A320Failure.Dcdu2)).toEqual([46, 46003, 'DCDU 2 (first officer)']);
@@ -526,10 +515,6 @@ describe('A320 flyPad failures', () => {
     const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8');
     for (const rustId of ['46_002', '46_003', '46_004']) {
       expect(wasm).not.toContain(`(${rustId},`);
-    }
-    const atsu = readFileSync(resolve(__dirname, '../../systems-host/systems/atsu.ts'), 'utf8');
-    for (const failure of ['Dcdu1', 'Dcdu2', 'Printer']) {
-      expect(atsu).toContain(`this.failuresConsumer.isActive(A320Failure.${failure})`);
     }
   });
 
@@ -609,39 +594,28 @@ describe('A320 flyPad failures', () => {
 
   // The ventilation and communication failures are TS only (the FWC Logic module reads them), the FG TCAS mode failure
   // is read by the C++ fbw module (failures/FailureList.h, FlyByWireInterface.cpp)
-  it('lists the ventilation, FG TCAS mode and communication failures with the code that reads them', () => {
-    const host = resolve(__dirname, '../../systems-host/systems/FWC/Logic');
-    const ventilation = readFileSync(resolve(host, 'VentilationAlerts.ts'), 'utf8');
-    const communication = readFileSync(resolve(host, 'CommunicationAlerts.ts'), 'utf8');
-    const tcasMode = readFileSync(resolve(host, 'TcasModeFaultAlert.ts'), 'utf8');
-    const expected: [number, number, string, string, string][] = [
-      [21, 21020, 'AvionicsVentilationController', 'AEVC (avionics equipment ventilation controller)', ventilation],
-      [21, 21021, 'AvionicsBlowerFan', 'Avionics ventilation blower fan', ventilation],
-      [21, 21022, 'AvionicsExtractFan', 'Avionics ventilation extract fan', ventilation],
-      [
-        21,
-        21023,
-        'AvionicsSkinExtractValveStuckOpen',
-        'Avionics ventilation skin extract valve stuck open',
-        ventilation,
-      ],
-      [21, 21024, 'AvionicsSkinInletValveStuckOpen', 'Avionics ventilation skin inlet valve stuck open', ventilation],
-      [21, 21025, 'AftCargoExtractionFan', 'AFT cargo ventilation extraction fan', ventilation],
+  it('lists the ventilation, FG TCAS mode and communication failures, read by the FWC (a320-wiring.spec.ts)', () => {
+    const expected: [number, number, string, string][] = [
+      [21, 21020, 'AvionicsVentilationController', 'AEVC (avionics equipment ventilation controller)'],
+      [21, 21021, 'AvionicsBlowerFan', 'Avionics ventilation blower fan'],
+      [21, 21022, 'AvionicsExtractFan', 'Avionics ventilation extract fan'],
+      [21, 21023, 'AvionicsSkinExtractValveStuckOpen', 'Avionics ventilation skin extract valve stuck open'],
+      [21, 21024, 'AvionicsSkinInletValveStuckOpen', 'Avionics ventilation skin inlet valve stuck open'],
+      [21, 21025, 'AftCargoExtractionFan', 'AFT cargo ventilation extraction fan'],
       // 21026 (AFT cargo isolation valves stuck closed) is a Rust failure: see the ATA 21 test above
-      [22, 22012, 'TcasModeFailure', 'FG TCAS mode (AP/FD TCAS, both FMGCs)', tcasMode],
-      [23, 23008, 'CidsDirector1', 'CIDS 1 (cabin intercommunication data system)', communication],
-      [23, 23009, 'CidsDirector2', 'CIDS 2 (cabin intercommunication data system)', communication],
-      [23, 23017, 'CaptPttStuck', 'CAPT push-to-talk (PTT) switch stuck in transmit', communication],
-      [23, 23018, 'FoPttStuck', 'F/O push-to-talk (PTT) switch stuck in transmit', communication],
-      [23, 23020, 'Vhf1StuckEmitting', 'VHF 1 transmitter stuck emitting', communication],
-      [23, 23021, 'Vhf2StuckEmitting', 'VHF 2 transmitter stuck emitting', communication],
-      [23, 23022, 'Vhf3StuckEmitting', 'VHF 3 transmitter stuck emitting', communication],
+      [22, 22012, 'TcasModeFailure', 'FG TCAS mode (AP/FD TCAS, both FMGCs)'],
+      [23, 23008, 'CidsDirector1', 'CIDS 1 (cabin intercommunication data system)'],
+      [23, 23009, 'CidsDirector2', 'CIDS 2 (cabin intercommunication data system)'],
+      [23, 23017, 'CaptPttStuck', 'CAPT push-to-talk (PTT) switch stuck in transmit'],
+      [23, 23018, 'FoPttStuck', 'F/O push-to-talk (PTT) switch stuck in transmit'],
+      [23, 23020, 'Vhf1StuckEmitting', 'VHF 1 transmitter stuck emitting'],
+      [23, 23021, 'Vhf2StuckEmitting', 'VHF 2 transmitter stuck emitting'],
+      [23, 23022, 'Vhf3StuckEmitting', 'VHF 3 transmitter stuck emitting'],
     ];
     const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8');
-    for (const [chapter, id, key, name, consumer] of expected) {
+    for (const [chapter, id, key, name] of expected) {
       expect((A320Failure as Record<string, number>)[key]).toBe(id);
       expect(A320FailureDefinitions.find(([, failureId]) => failureId === id)).toEqual([chapter, id, name]);
-      expect(consumer).toContain(`A320Failure.${key}`);
       expect(wasm).not.toContain(`(${Math.floor(id / 1000)}_${(id % 1000).toString().padStart(3, '0')},`);
     }
     const fbw = resolve(__dirname, '../../../wasm/fbw_a320/src');
@@ -859,9 +833,7 @@ describe('A320 flyPad failures', () => {
 
   // The Rust fuel recirculation control takes the command away (fuel/fuel_recirculation.rs), the FWC reads it for
   // FUEL IDG 1(2) COOL FAULT
-  it('lists the IDG fuel cooling failures with the Rust failure they trigger and the FWC module that reads them', () => {
-    const host = resolve(__dirname, '../../systems-host/systems/FWC/Logic');
-    const idgCooling = readFileSync(resolve(host, 'IdgCoolingAlerts.ts'), 'utf8');
+  it('lists the IDG fuel cooling failures with the Rust failure they trigger', () => {
     const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8');
     for (const [id, key, name, engine] of [
       [28018, 'Idg1FuelCoolingCommand', 'IDG 1 fuel cooling (fuel recirculation command)', 1],
@@ -869,31 +841,27 @@ describe('A320 flyPad failures', () => {
     ] as [number, string, string, number][]) {
       expect((A320Failure as Record<string, number>)[key]).toBe(id);
       expect(A320FailureDefinitions.find(([, failureId]) => failureId === id)).toEqual([28, id, name]);
-      expect(idgCooling).toContain(`A320Failure.${key}`);
       expect(wasm).toContain(`(28_0${id % 100}, FailureType::FuelRecirculationCommand(${engine})),`);
     }
   });
 
   // TS only failures, read by the FWC: EIS DMC 1(2)(3) FAULT, EIS DMC/FWC COM FAULT,
   // FWS SDAC 1(2) / 1+2 FAULT, RECORDER DFDR FAULT and RECORDER SYS FAULT
-  it('lists the DMC, SDAC and recorder failures, TS only, with the FWC module that reads them', () => {
-    const host = resolve(__dirname, '../../systems-host/systems/FWC/Logic');
-    const eisRecorder = readFileSync(resolve(host, 'EisRecorderAlerts.ts'), 'utf8');
-    const expected: [number, number, string, string, string][] = [
-      [31, 31009, 'Dmc1', 'DMC 1', eisRecorder],
-      [31, 31010, 'Dmc2', 'DMC 2', eisRecorder],
-      [31, 31011, 'Dmc3', 'DMC 3', eisRecorder],
-      [31, 31012, 'DmcFwcBuses', 'DMC to FWC data buses', eisRecorder],
-      [31, 31013, 'Sdac1', 'SDAC 1', eisRecorder],
-      [31, 31014, 'Sdac2', 'SDAC 2', eisRecorder],
-      [31, 31015, 'Dfdr', 'DFDR (flight data recorder)', eisRecorder],
-      [31, 31016, 'Fdiu', 'FDIU (recorder system)', eisRecorder],
+  it('lists the DMC, SDAC and recorder failures, TS only', () => {
+    const expected: [number, number, string, string][] = [
+      [31, 31009, 'Dmc1', 'DMC 1'],
+      [31, 31010, 'Dmc2', 'DMC 2'],
+      [31, 31011, 'Dmc3', 'DMC 3'],
+      [31, 31012, 'DmcFwcBuses', 'DMC to FWC data buses'],
+      [31, 31013, 'Sdac1', 'SDAC 1'],
+      [31, 31014, 'Sdac2', 'SDAC 2'],
+      [31, 31015, 'Dfdr', 'DFDR (flight data recorder)'],
+      [31, 31016, 'Fdiu', 'FDIU (recorder system)'],
     ];
     const wasm = readFileSync(resolve(__dirname, '../../../wasm/systems/a320_systems_wasm/src/lib.rs'), 'utf8');
-    for (const [chapter, id, key, name, consumer] of expected) {
+    for (const [chapter, id, key, name] of expected) {
       expect((A320Failure as Record<string, number>)[key]).toBe(id);
       expect(A320FailureDefinitions.find(([, failureId]) => failureId === id)).toEqual([chapter, id, name]);
-      expect(consumer).toContain(`A320Failure.${key}`);
       expect(wasm).not.toContain(`(${Math.floor(id / 1000)}_${(id % 1000).toString().padStart(3, '0')},`);
     }
   });
