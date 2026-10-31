@@ -43,7 +43,7 @@ const KEPT_ENTRIES: [string, new (props: any) => unknown, readonly string[]][] =
   [
     'Cockpit interface',
     OitAvncsLogbookCockpitInterface,
-    ['area', 'stdDefectMode', 'selectedIndex', 'pilotComment', 'storeTarget'],
+    ['view', 'zone', 'stdDefectMode', 'selectedIndex', 'pilotComment', 'storeTarget'],
   ],
   ['Flight data', OitAvncsLogbookFlightData, ['panel']],
   ['Release', OitAvncsLogbookRelease, ['panel', 'selectedRef', 'servicedCategory']],
