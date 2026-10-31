@@ -262,15 +262,11 @@ export class OisLaptop implements Instrument {
 
   public synchroAvionics() {
     const fms = this.fmsFlight();
-    // Without the avionics data the STS page keeps its entries and the EFB overlay its flight plan
+    // Without the avionics data the STS page keeps its entries
     if (fms === null) {
       return;
     }
     this.fltOpsStatus.synchroAvionics(fms);
-
-    // The EFB overlay of the OIT reloads its flight plan on this L:var: synced bus events do not reach it, as it is in
-    // the same VCockpit
-    SimVar.SetSimVarValue('L:A32NX_OIS_SYNCHRO_AVIONICS', SimVarValueType.Number, Math.random());
   }
 
   /** EXIT SESSION: this laptop starts again for the next flight, and so does the FLT OPS STS page of the other one */

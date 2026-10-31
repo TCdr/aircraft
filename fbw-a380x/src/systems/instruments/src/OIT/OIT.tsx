@@ -88,7 +88,6 @@ export class OIT extends DisplayComponent<OitProps> {
         <OitFltOpsContainer
           bus={this.props.bus}
           laptop={this.props.laptop}
-          displayUnitRef={this.displayUnitRef}
           captOrFo={this.props.captOrFo}
           avncsOrFltOps={this.avncsOrFltOps}
         />
