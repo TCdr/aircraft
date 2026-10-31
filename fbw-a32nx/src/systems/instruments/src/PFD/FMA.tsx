@@ -1682,7 +1682,7 @@ class BC1Cell extends ShowForSecondsComponent<CellProps> {
   }
 }
 
-const getBC3Message = (
+export const getBC3Message = (
   isAttExcessive: boolean,
   fmgcDiscreteWord7: Arinc429Word,
   setHoldSpeed: boolean,

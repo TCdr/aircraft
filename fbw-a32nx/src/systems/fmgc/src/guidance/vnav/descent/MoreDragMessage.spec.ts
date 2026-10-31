@@ -1,9 +1,8 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
+import { AutoThrustMode, VerticalMode } from '@shared/autopilot';
 import {
   DescentAltitudeConstraint,
   VerticalCheckpoint,
@@ -14,6 +13,8 @@ import {
   isInSpeedbrakeDecelerationSegment,
   isMoreDragMessageActive,
   MoreDragInputs,
+  moreDragInputsFromSources,
+  MoreDragSources,
 } from './MoreDragMessage';
 
 const desIdle: MoreDragInputs = {
@@ -113,23 +114,76 @@ describe('MORE DRAG speedbrake decelerating segment', () => {
   });
 });
 
-describe('MORE DRAG wiring', () => {
-  it('is computed by the VNAV driver and shown by the FMA', () => {
-    const vnav = readFileSync(resolve(__dirname, '../VnavDriver.ts'), 'utf-8');
-    const fma = readFileSync(resolve(__dirname, '../../../../../instruments/src/PFD/FMA.tsx'), 'utf-8');
-    expect(vnav).toContain('isMoreDragMessageActive(');
-    expect(vnav).toContain('L:A32NX_PFD_MSG_MORE_DRAG');
-    expect(fma).not.toMatch(/else if \(false\) \{\s*text = 'MORE DRAG'/);
-    expect(fma).toMatch(/else if \(moreDrag\) \{[^}]*text = 'MORE DRAG'/);
-    expect(fma).toContain("sub.on('moreDrag')");
+describe('MORE DRAG inputs from the guidance', () => {
+  const desIdleSources: MoreDragSources = {
+    fcuVerticalMode: VerticalMode.DES,
+    autoThrustMode: AutoThrustMode.THR_IDLE,
+    linearDeviation: 0,
+    fcuSpeedManaged: true,
+    ndProfile: undefined,
+    descentProfile: undefined,
+    aircraftToDescentProfileRelation: { isValid: true, distanceFromStart: 150 },
+  };
+
+  const descentProfile = {
+    speedbrakeDecelerationSegments: [{ startDistanceFromStart: 150, endDistanceFromStart: 158 }],
+  };
+
+  it('takes DES engaged and the A/THR in THR IDLE', () => {
+    const inputs = moreDragInputsFromSources(desIdleSources);
+    expect(inputs.desModeEngaged).toBe(true);
+    expect(inputs.thrustIdle).toBe(true);
+    expect(moreDragInputsFromSources({ ...desIdleSources, fcuVerticalMode: VerticalMode.OP_DES }).desModeEngaged).toBe(
+      false,
+    );
+    expect(moreDragInputsFromSources({ ...desIdleSources, autoThrustMode: AutoThrustMode.SPEED }).thrustIdle).toBe(
+      false,
+    );
   });
 
-  it('records the speedbrake decelerations of the descent and approach paths', () => {
-    expect(readFileSync(resolve(__dirname, 'GeometricPathBuilder.ts'), 'utf-8')).toContain(
-      'profile.speedbrakeDecelerationSegments.push(',
+  it('is above the profile for a positive linear deviation only', () => {
+    expect(moreDragInputsFromSources({ ...desIdleSources, linearDeviation: 50 }).aboveProfile).toBe(true);
+    expect(moreDragInputsFromSources({ ...desIdleSources, linearDeviation: 0 }).aboveProfile).toBe(false);
+    expect(moreDragInputsFromSources({ ...desIdleSources, linearDeviation: -50 }).aboveProfile).toBe(false);
+    expect(moreDragInputsFromSources({ ...desIdleSources, linearDeviation: undefined }).aboveProfile).toBe(false);
+  });
+
+  it('takes managed speed from the FCU', () => {
+    expect(moreDragInputsFromSources({ ...desIdleSources, fcuSpeedManaged: true }).speedAuto).toBe(true);
+    expect(moreDragInputsFromSources({ ...desIdleSources, fcuSpeedManaged: false }).speedAuto).toBe(false);
+    expect(moreDragInputsFromSources({ ...desIdleSources, fcuSpeedManaged: undefined }).speedAuto).toBe(false);
+  });
+
+  it('takes the intercept margin from the ND profile, null without one', () => {
+    const ndProfile = {
+      checkpoints: [
+        checkpoint(VerticalCheckpointReason.InterceptDescentProfileManaged, 118.5),
+        checkpoint(VerticalCheckpointReason.AltitudeConstraint, 120),
+      ],
+      descentAltitudeConstraints: [constraint(120)],
+      distanceToPresentPosition: 100,
+    };
+    expect(moreDragInputsFromSources({ ...desIdleSources, ndProfile }).interceptMarginToNextAltitudeConstraintNm).toBe(
+      1.5,
     );
-    expect(readFileSync(resolve(__dirname, 'ApproachPathBuilder.ts'), 'utf-8')).toContain(
-      'profile.speedbrakeDecelerationSegments.push(',
-    );
+    expect(moreDragInputsFromSources(desIdleSources).interceptMarginToNextAltitudeConstraintNm).toBe(null);
+  });
+
+  it('is in a speedbrake decelerating segment of a valid relation to the descent profile only', () => {
+    const inSegment = (sources: Partial<MoreDragSources>) =>
+      moreDragInputsFromSources({ ...desIdleSources, descentProfile, ...sources }).inSpeedbrakeDecelerationSegment;
+    expect(inSegment({})).toBe(true);
+    expect(inSegment({ aircraftToDescentProfileRelation: { isValid: true, distanceFromStart: 140 } })).toBe(false);
+    expect(inSegment({ aircraftToDescentProfileRelation: { isValid: false, distanceFromStart: 152 } })).toBe(false);
+    expect(inSegment({ descentProfile: undefined })).toBe(false);
+  });
+
+  it('gives MORE DRAG for DES at idle in managed speed inside a speedbrake decelerating segment', () => {
+    expect(isMoreDragMessageActive(moreDragInputsFromSources({ ...desIdleSources, descentProfile }))).toBe(true);
+    expect(
+      isMoreDragMessageActive(
+        moreDragInputsFromSources({ ...desIdleSources, descentProfile, autoThrustMode: AutoThrustMode.SPEED }),
+      ),
+    ).toBe(false);
   });
 });
