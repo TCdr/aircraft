@@ -39,7 +39,7 @@ const LOADING: LoadsheetLoading = {
 /** All the fuel in feed tank 2, forward of the MAC leading edge */
 const FUEL_IN_FEED_2 = LOADSHEET_FUEL_TANKS.map((_, i) => (i === 4 ? 1 : 0));
 
-const anyCg = () => true;
+const anyCg = { zeroFuel: () => true, takeoff: () => true, landing: () => true };
 
 describe('LOADSHEET', () => {
   it('converts arms and % MAC', () => {
@@ -102,9 +102,35 @@ describe('LOADSHEET', () => {
   });
 
   it('blocks LTS EDITION with a CG out of the envelope', () => {
-    const { results } = computeLoadsheet(CONFIGURATION, LOADING, FUEL_IN_FEED_2, 84, (cg) => cg < 30);
+    const { results } = computeLoadsheet(CONFIGURATION, LOADING, FUEL_IN_FEED_2, 84, {
+      ...anyCg,
+      zeroFuel: (cg) => cg < 30,
+    });
     expect(results?.zfwOutOfLimits).toBe(true);
     expect(ltsEditionAllowed(results!)).toBe(false);
+  });
+
+  it('checks each weight against the envelope of its own limit', () => {
+    const run = (limits: Partial<typeof anyCg>) =>
+      computeLoadsheet(CONFIGURATION, LOADING, FUEL_IN_FEED_2, 84, { ...anyCg, ...limits }).results!;
+    const outsideZeroFuel = run({ zeroFuel: () => false });
+    expect([outsideZeroFuel.zfwOutOfLimits, outsideZeroFuel.towOutOfLimits, outsideZeroFuel.lwOutOfLimits]).toEqual([
+      true,
+      false,
+      false,
+    ]);
+    const outsideTakeoff = run({ takeoff: () => false });
+    expect([outsideTakeoff.zfwOutOfLimits, outsideTakeoff.towOutOfLimits, outsideTakeoff.lwOutOfLimits]).toEqual([
+      false,
+      true,
+      false,
+    ]);
+    const outsideLanding = run({ landing: () => false });
+    expect([outsideLanding.zfwOutOfLimits, outsideLanding.towOutOfLimits, outsideLanding.lwOutOfLimits]).toEqual([
+      false,
+      false,
+      true,
+    ]);
   });
 
   it('lists the missing entries and the inconsistent fuel', () => {

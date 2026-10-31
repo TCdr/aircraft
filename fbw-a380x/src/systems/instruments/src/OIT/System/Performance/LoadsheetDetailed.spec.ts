@@ -107,7 +107,7 @@ describe('LOADSHEET DETAILED mode', () => {
       },
       [1],
       84,
-      () => true,
+      { zeroFuel: () => true, takeoff: () => true, landing: () => true },
     );
     expect(results!.dow).toBe(zeroFuel.dow);
     expect(results!.payload).toBeCloseTo(zeroFuel.payload, 6);
