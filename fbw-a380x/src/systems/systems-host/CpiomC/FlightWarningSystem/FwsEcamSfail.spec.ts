@@ -18,25 +18,24 @@ describe('L:A32NX_ECAM_SFAIL (the SD page called by the alert on top of the EWD)
     fixture.core.flightPhase.set(8);
     fixture.core.flightPhase.set = () => undefined;
     // Only these alerts: the all-zero simvars make many others active, which would rank above them
-    fixture.core.ewdAbnormal = {
+    const abnormal: typeof fixture.core.ewdAbnormal = {
       [FUEL_CG_AT_FWD_LIMIT]: fixture.core.ewdAbnormal[FUEL_CG_AT_FWD_LIMIT],
-      ...(withOtherCautions
-        ? {
-            [CAUTION_WITHOUT_PAGE]: {
-              ...fixture.core.ewdAbnormal[CAUTION_WITHOUT_PAGE],
-              simVarIsActive: Subject.create(true),
-              failure: 2,
-              sysPage: -1,
-            },
-            [CAUTION_ON_HYD_PAGE]: {
-              ...fixture.core.ewdAbnormal[CAUTION_ON_HYD_PAGE],
-              simVarIsActive: Subject.create(true),
-              failure: 2,
-              sysPage: SdPages.Hyd,
-            },
-          }
-        : {}),
     };
+    if (withOtherCautions) {
+      abnormal[CAUTION_WITHOUT_PAGE] = {
+        ...fixture.core.ewdAbnormal[CAUTION_WITHOUT_PAGE],
+        simVarIsActive: Subject.create(true),
+        failure: 2,
+        sysPage: -1,
+      };
+      abnormal[CAUTION_ON_HYD_PAGE] = {
+        ...fixture.core.ewdAbnormal[CAUTION_ON_HYD_PAGE],
+        simVarIsActive: Subject.create(true),
+        failure: 2,
+        sysPage: SdPages.Hyd,
+      };
+    }
+    fixture.core.ewdAbnormal = abnormal;
     // A first cycle at a known time, so that the activation time of the alert below is a number
     fixture.simVars.set('E:SIMULATION TIME', 1);
     runFwsCycle(fixture.core);
