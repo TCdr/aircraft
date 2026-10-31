@@ -32,4 +32,13 @@ describe('logbook style', () => {
       'min-width: 0 !important;',
     );
   });
+
+  it('draws the cockpit pictures at a fixed size, so that their frames in percent keep their place', () => {
+    const picture = declarationsOf('.oit-logbook-cockpit-picture');
+    expect(picture).toContain('position: relative;');
+    expect(picture).toContain('width: 940px;');
+    expect(picture).toContain('height: 660px;');
+    expect(declarationsOf('.oit-logbook-cockpit-frame')).toContain('position: absolute;');
+    expect(declarationsOf('.oit-logbook-cockpit-frame.selected')).toContain('border-width: 4px;');
+  });
 });

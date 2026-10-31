@@ -494,7 +494,9 @@ describe('flight closure', () => {
         ['SIDESTICK', GROUND_RECTIFICATION_ACTION],
       ]),
     );
-    expect(updated.release?.closedItemRefs).toHaveLength(4);
+    // The REPORTS panel of the release lists what maintenance rectified, not what it deferred
+    const [sidestick] = history.filter((i) => i.title === 'SIDESTICK');
+    expect(updated.release?.closedItemRefs).toEqual([sidestick.ref]);
 
     const [mel] = deferredItems(updated, 'MEL');
     expect(mel).toMatchObject({
