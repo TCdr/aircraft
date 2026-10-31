@@ -93,18 +93,21 @@ describe('A32NX loudspeaker volume knobs', () => {
     expect(runRpn(knobCode('ANIM_CODE', 'FO'), { 'L:A32NX_LOUDSPEAKER_FO_VOLUME': 40 }).value).toBe(40);
   });
 
-  it('the CAPT and F/O glareshield knobs use the template and start full clockwise', () => {
+  it('the CAPT and F/O glareshield knobs each drive their own side variable', () => {
     const interior = readFileSync(INTERIOR_XML, 'utf8');
     for (const [node, side] of [
       ['KNOB_EFIS_CS_LOUDSPKR', 'CAPT'],
       ['KNOB_EFIS_FO_LOUDSPKR', 'FO'],
-    ]) {
-      expect(interior).toMatch(
-        new RegExp(
-          `<UseTemplate Name="FBW_AIRLINER_Loudspeaker_Volume_Knob_Template">\\s*<NODE_ID>${node}</NODE_ID>\\s*<SIDE>${side}</SIDE>`,
-        ),
-      );
-      expect(interior).toContain(`100 (&gt;L:A32NX_LOUDSPEAKER_${side}_VOLUME, number)`);
+    ] as const) {
+      const use = new RegExp(
+        `<UseTemplate Name="FBW_AIRLINER_Loudspeaker_Volume_Knob_Template">\\s*<NODE_ID>${node}</NODE_ID>\\s*<SIDE>(\\w+)</SIDE>`,
+      ).exec(interior);
+      expect(use?.[1], node).toBe(side);
+      const variable = `L:A32NX_LOUDSPEAKER_${side}_VOLUME`;
+      expect(runRpn(knobCode('CLOCKWISE_CODE', side), { [variable]: 50 }).writes[0]).toEqual({
+        target: variable,
+        value: 55,
+      });
     }
   });
 

@@ -4,6 +4,7 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
+import { runRpn } from '../../../../../fbw-a32nx/src/behavior/RpnTestInterpreter';
 
 /*
  * STBY COMPASS / ICE IND / OFF switch: the up position lights the standby compass and the eye reference lights, the
@@ -55,18 +56,29 @@ const POSITIONS = [
 describe('A380X STBY COMPASS / ICE IND switch', () => {
   for (const { pos, name, value } of POSITIONS) {
     it(`${name}: the click writes ${value} to the switch L:var`, () => {
-      expect(codeAsRun(`CODE_POS_${pos}`)).toBe(`${value} (>${SWITCH_LVAR})`);
+      expect(runRpn(codeAsRun(`CODE_POS_${pos}`)).writes).toEqual([{ target: SWITCH_LVAR, value }]);
     });
 
-    it(`${name}: the state test holds the switch in that position`, () => {
-      expect(codeAsRun(`STATE${pos}_TEST`)).toBe(`(${SWITCH_LVAR}) ${value} ==`);
+    it(`${name}: the state test holds the switch in that position only`, () => {
+      for (const written of POSITIONS) {
+        const holds = runRpn(codeAsRun(`STATE${pos}_TEST`), { [SWITCH_LVAR]: written.value }).value;
+        expect(holds, `switch value ${written.value}`).toBe(written.pos === pos ? 1 : 0);
+      }
     });
   }
 
-  it('ICE IND: both ice indicator lights come on with the written value', () => {
-    const iceLights = cockpitXml.match(
-      /<EMISSIVE_CODE>\(L:A380X_OVHD_EXTLT_STBY_COMPASS_ICE_IND_SWITCH_POS\) 1 ==<\/EMISSIVE_CODE>/g,
-    );
+  it('ICE IND: both ice indicator lights come on with the written value of the ICE IND position only', () => {
+    const iceLights: string[] = [];
+    const emissiveCode = /<EMISSIVE_CODE>([^<]*ICE_IND_SWITCH_POS[^<]*)<\/EMISSIVE_CODE>/g;
+    let match: RegExpExecArray | null;
+    while ((match = emissiveCode.exec(cockpitXml)) !== null) {
+      iceLights.push(match[1]);
+    }
     expect(iceLights).toHaveLength(2);
+    for (const light of iceLights) {
+      for (const { name, value } of POSITIONS) {
+        expect(runRpn(light, { [SWITCH_LVAR]: value }).value, name).toBe(name === 'ICE IND' ? 1 : 0);
+      }
+    }
   });
 });

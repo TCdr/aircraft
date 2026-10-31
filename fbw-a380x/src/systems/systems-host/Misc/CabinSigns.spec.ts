@@ -3,12 +3,14 @@
 
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Arinc429SignStatusMatrix, Arinc429Word } from '@flybywiresim/fbw-sdk';
+import { mockSimVars, MockedSimVarValues } from '../../../../../fbw-common/src/jest/MockedSimVars';
 import {
   areNoSmokingSignsOn,
   areSeatBeltsSignsOn,
   areSlatsExtended,
+  CabinSigns,
   CabinSignsSwitchPosition,
   isCabinAltitudeExcessive,
   NoSmokingSignsInputs,
@@ -25,6 +27,20 @@ const cruise: NoSmokingSignsInputs = {
 /** A slat/flap actual position word, bit 12 = slats retracted */
 const sfccWord = (slatsRetracted: boolean, ssm = Arinc429SignStatusMatrix.NormalOperation) =>
   new Arinc429Word(Arinc429Word.getRawWord(slatsRetracted ? 1 << 11 : 0, ssm));
+
+const retractedWord = Arinc429Word.getRawWord(1 << 11, Arinc429SignStatusMatrix.NormalOperation);
+const extendedWord = Arinc429Word.getRawWord(0, Arinc429SignStatusMatrix.NormalOperation);
+
+/** The CabinSigns instrument over mocked simvars: slats retracted, no cabin altitude, no gear, both switches AUTO */
+function cabinSignsHarness() {
+  const simVars: MockedSimVarValues = new Map();
+  const { setSimVarValue } = mockSimVars(simVars);
+  simVars.set('L:A32NX_SFCC_1_SLAT_FLAP_ACTUAL_POSITION_WORD', retractedWord);
+  simVars.set('L:A32NX_SFCC_2_SLAT_FLAP_ACTUAL_POSITION_WORD', retractedWord);
+  simVars.set('L:XMLVAR_SWITCH_OVHD_INTLT_NOSMOKING_Position', CabinSignsSwitchPosition.Auto);
+  simVars.set('L:XMLVAR_SWITCH_OVHD_INTLT_SEATBELT_Position', CabinSignsSwitchPosition.Auto);
+  return { cabinSigns: new CabinSigns(), simVars, setSimVarValue };
+}
 
 describe('A380X cabin NO SMOKING signs', () => {
   it('ON: the signs come on; OFF: they go off', () => {
@@ -72,8 +88,68 @@ describe('A380X cabin NO SMOKING signs', () => {
       ]),
     ).toBe(false);
   });
+});
 
-  it('is the source of L:A32NX_NO_SMOKING_MEMO (no longer forced on by the FWS)', () => {
+describe('CabinSigns instrument, NO SMOKING signs', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const memoWrites = (setSimVarValue: ReturnType<typeof cabinSignsHarness>['setSimVarValue']) =>
+    setSimVarValue.mock.calls.filter(([name]) => name === 'L:A32NX_NO_SMOKING_MEMO').map(([, , value]) => value);
+
+  it('is the source of L:A32NX_NO_SMOKING_MEMO, written on a change only', () => {
+    const { cabinSigns, simVars, setSimVarValue } = cabinSignsHarness();
+
+    simVars.set('L:XMLVAR_SWITCH_OVHD_INTLT_NOSMOKING_Position', CabinSignsSwitchPosition.On);
+    cabinSigns.onUpdate();
+    cabinSigns.onUpdate();
+    expect(memoWrites(setSimVarValue)).toEqual([true]);
+
+    simVars.set('L:XMLVAR_SWITCH_OVHD_INTLT_NOSMOKING_Position', CabinSignsSwitchPosition.Off);
+    cabinSigns.onUpdate();
+    expect(memoWrites(setSimVarValue)).toEqual([true, false]);
+  });
+
+  it('AUTO: stays off in the clean configuration', () => {
+    const { cabinSigns, setSimVarValue } = cabinSignsHarness();
+    cabinSigns.onUpdate();
+    expect(memoWrites(setSimVarValue)).toEqual([false]);
+  });
+
+  it.each([
+    ['a main gear downlocked', { 'L:A32NX_LGCIU_2_RIGHT_GEAR_DOWNLOCKED': 1 }],
+    [
+      'slats extended (no valid SFCC reports them retracted)',
+      {
+        'L:A32NX_SFCC_1_SLAT_FLAP_ACTUAL_POSITION_WORD': extendedWord,
+        'L:A32NX_SFCC_2_SLAT_FLAP_ACTUAL_POSITION_WORD': extendedWord,
+      },
+    ],
+    [
+      'an excessive cabin altitude',
+      { 'L:A32NX_PRESS_CABIN_ALTITUDE_B1': Arinc429Word.getRawWord(12000, Arinc429SignStatusMatrix.NormalOperation) },
+    ],
+  ])('AUTO: comes on with %s', (_description, changes) => {
+    const { cabinSigns, simVars, setSimVarValue } = cabinSignsHarness();
+    cabinSigns.onUpdate();
+    for (const [name, value] of Object.entries(changes)) {
+      simVars.set(name, value);
+    }
+    cabinSigns.onUpdate();
+    expect(memoWrites(setSimVarValue)).toEqual([false, true]);
+  });
+
+  it('AUTO: stays off while one SFCC still reports the slats retracted', () => {
+    const { cabinSigns, simVars, setSimVarValue } = cabinSignsHarness();
+    simVars.set('L:A32NX_SFCC_1_SLAT_FLAP_ACTUAL_POSITION_WORD', extendedWord);
+    simVars.set('L:A32NX_SFCC_2_SLAT_FLAP_ACTUAL_POSITION_WORD', retractedWord);
+    cabinSigns.onUpdate();
+    expect(memoWrites(setSimVarValue)).toEqual([false]);
+  });
+
+  // The FWS and the systems host cannot be built in a unit test (the sim host): text check of their sources
+  it('is not driven by the FWS, and the systems host runs it', () => {
     const systemsHost = readFileSync(resolve(__dirname, '../SystemsHost.ts'), 'utf-8');
     expect(systemsHost).toContain("this.backplane.addInstrument('CabinSigns', this.cabinSigns);");
     const fwsCore = readFileSync(resolve(__dirname, '../CpiomC/FlightWarningSystem/FwsCore.ts'), 'utf-8');
@@ -105,10 +181,46 @@ describe('A380X cabin FASTEN SEAT BELT signs', () => {
       expect(areSeatBeltsSignsOn({ ...cruise, switchPosition, cabinAltitudeExcessive: true })).toBe(true);
     }
   });
+});
 
-  it('is the source of A:CABIN SEATBELTS ALERT SWITCH (the cockpit XML N1 > 10 % / 19 deg slat rule is gone)', () => {
-    const cabinSigns = readFileSync(resolve(__dirname, './CabinSigns.ts'), 'utf-8');
-    expect(cabinSigns).toContain("'K:CABIN_SEATBELTS_ALERT_SWITCH_TOGGLE'");
+describe('CabinSigns instrument, FASTEN SEAT BELT signs', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const toggles = (setSimVarValue: ReturnType<typeof cabinSignsHarness>['setSimVarValue']) =>
+    setSimVarValue.mock.calls.filter(([name]) => name === 'K:CABIN_SEATBELTS_ALERT_SWITCH_TOGGLE').length;
+
+  it('is the source of A:CABIN SEATBELTS ALERT SWITCH: toggles it to follow the switch, no engine or slat angle rule', () => {
+    const now = vi.spyOn(Date, 'now').mockReturnValue(10_000);
+    const { cabinSigns, simVars, setSimVarValue } = cabinSignsHarness();
+    // engines running and slats at 19 degrees do not turn the signs on by themselves
+    simVars.set('L:A32NX_ENGINE_N1:1', 60);
+    cabinSigns.onUpdate();
+    expect(toggles(setSimVarValue)).toBe(0);
+
+    simVars.set('L:XMLVAR_SWITCH_OVHD_INTLT_SEATBELT_Position', CabinSignsSwitchPosition.On);
+    cabinSigns.onUpdate();
+    expect(toggles(setSimVarValue)).toBe(1);
+
+    // the sim has not applied the toggle yet: no second toggle within the settle time
+    now.mockReturnValue(10_200);
+    cabinSigns.onUpdate();
+    expect(toggles(setSimVarValue)).toBe(1);
+
+    // the sim shows the signs on: nothing more to do
+    simVars.set('A:CABIN SEATBELTS ALERT SWITCH', 1);
+    now.mockReturnValue(12_000);
+    cabinSigns.onUpdate();
+    expect(toggles(setSimVarValue)).toBe(1);
+
+    simVars.set('L:XMLVAR_SWITCH_OVHD_INTLT_SEATBELT_Position', CabinSignsSwitchPosition.Off);
+    cabinSigns.onUpdate();
+    expect(toggles(setSimVarValue)).toBe(2);
+  });
+
+  // The cockpit XML cannot be run in a unit test for this point (an absent rule): text check of the model file
+  it('the cockpit XML has no seat belt toggle of its own', () => {
     const cockpitBehavior = readFileSync(
       resolve(
         __dirname,

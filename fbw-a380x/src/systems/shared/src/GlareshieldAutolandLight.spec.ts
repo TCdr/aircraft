@@ -4,6 +4,7 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
+import { runRpn } from '../../../../../fbw-a32nx/src/behavior/RpnTestInterpreter';
 
 /*
  * AUTOLAND light: it flashes in autoland below 200 ft RA when the autoland conditions are lost, and flashes as long as
@@ -37,7 +38,11 @@ describe('AUTOLAND light (glareshield.xml)', () => {
       expect(autoland).toContain(`<HOLD_SIMVAR>${holdVar}</HOLD_SIMVAR>`);
       // Lit and flashing from the systems host (AutolandLights.ts): the lamp code cannot read the sim time
       const light = autoland.match(/<SEQ1_CODE>([^<]*)<\/SEQ1_CODE>/)?.[1] ?? '';
-      expect(light).toBe(`(${holdVar.replace('_TEST_', '_LIGHT_')}, bool)`);
+      const lightVar = holdVar.replace('_TEST_', '_LIGHT_');
+      expect(runRpn(light, { [lightVar]: 1 }).value).toBe(1);
+      expect(runRpn(light, { [lightVar]: 0 }).value).toBe(0);
+      // the held pushbutton variable alone does not light it, the systems host flashes it
+      expect(runRpn(light, { [holdVar]: 1 }).value).toBe(0);
     });
   }
 });

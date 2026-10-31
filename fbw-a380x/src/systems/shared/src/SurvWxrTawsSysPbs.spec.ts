@@ -4,6 +4,8 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
+import { runRpn } from '../../../../../fbw-a32nx/src/behavior/RpnTestInterpreter';
+import { wxrTawsSystemSelectedByButton } from '../../instruments/src/MFD/pages/SURV/SurvStatus';
 
 /*
  * SURV panel: the WXR/TAWS SYS 1(2) pb selects the system that provides the WXR/TAWS functions, and the MFD SURV
@@ -18,6 +20,8 @@ const pedestal = readFileSync(
   'utf-8',
 );
 
+const SELECTED_VAR = 'L:A32NX_WXR_TAWS_SYS_SELECTED';
+
 /** The BUTTON_CODE of the template with that NODE_ID */
 function buttonCodeOf(nodeId: string): string | undefined {
   const start = pedestal.indexOf(`<NODE_ID>${nodeId}</NODE_ID>`);
@@ -26,19 +30,21 @@ function buttonCodeOf(nodeId: string): string | undefined {
 }
 
 describe('SURV panel WXR/TAWS SYS pbs', () => {
-  it('SYS 1 always selects system 1', () => {
-    expect(buttonCodeOf('PUSH_SURV_WXR_TAWS_SYS1')).toBe('1 (&gt;L:A32NX_WXR_TAWS_SYS_SELECTED, Number)');
-  });
-
-  it('SYS 2 always selects system 2', () => {
-    expect(buttonCodeOf('PUSH_SURV_WXR_TAWS_SYS2')).toBe('2 (&gt;L:A32NX_WXR_TAWS_SYS_SELECTED, Number)');
-  });
+  // Pressed with the system already selected (lit pb) and with the other one selected: the result must not depend on it
+  for (const [pb, system] of [
+    ['PUSH_SURV_WXR_TAWS_SYS1', 1],
+    ['PUSH_SURV_WXR_TAWS_SYS2', 2],
+  ] as const) {
+    it(`${pb} always selects system ${system}`, () => {
+      for (const selected of [0, 1, 2]) {
+        const { writes } = runRpn(buttonCodeOf(pb) ?? '', { [SELECTED_VAR]: selected });
+        expect(writes, `selected ${selected}`).toEqual([{ target: SELECTED_VAR, value: system }]);
+      }
+    });
+  }
 
   it('the MFD SURV STATUS & SWITCHING SYS buttons never select no system', () => {
-    const page = readFileSync(
-      resolve(__dirname, '../../instruments/src/MFD/pages/SURV/MfdSurvStatusSwitching.tsx'),
-      'utf-8',
-    );
-    expect(page).toContain("'L:A32NX_WXR_TAWS_SYS_SELECTED', SimVarValueType.Number, one ? 1 : 2)");
+    expect(wxrTawsSystemSelectedByButton('1')).toBe(1);
+    expect(wxrTawsSystemSelectedByButton('2')).toBe(2);
   });
 });

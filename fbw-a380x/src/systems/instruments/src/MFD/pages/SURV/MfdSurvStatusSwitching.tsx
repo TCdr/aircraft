@@ -20,7 +20,7 @@ import { MfdSimvars } from '../../shared/MFDSimvarPublisher';
 import { SurvStatusButton } from '../../../MsfsAvionicsCommon/UiWidgets/SurvStatusButton';
 import { SurvStatusItem } from '../../../MsfsAvionicsCommon/UiWidgets/SurvStatusItem';
 import { fcomAt, fcomCentre } from '../common/FcomLayout';
-import { tawsInUseText, tawsSystem } from './SurvStatus';
+import { tawsInUseText, tawsSystem, wxrTawsSystemSelectedByButton } from './SurvStatus';
 
 interface MfdSurvStatusSwitchingProps extends AbstractMfdPageProps {}
 
@@ -203,7 +203,13 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
           label={`SYS ${sys}`}
           active={active}
           // The SYS button selects that WXR/TAWS system (one is always selected)
-          onClick={() => SimVar.SetSimVarValue('L:A32NX_WXR_TAWS_SYS_SELECTED', SimVarValueType.Number, one ? 1 : 2)}
+          onClick={() =>
+            SimVar.SetSimVarValue(
+              'L:A32NX_WXR_TAWS_SYS_SELECTED',
+              SimVarValueType.Number,
+              wxrTawsSystemSelectedByButton(sys),
+            )
+          }
         />,
         [
           {

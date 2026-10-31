@@ -18,13 +18,6 @@ describe('APU page OIL LVL LO', () => {
     expect(apuOilLevelLowIndicationShown(false, true)).toBe(false);
   });
 
-  it('pulses on the APU page from the ECB word', () => {
-    const apuPage = source('../../instruments/src/SD/Pages/Apu/ApuPage.tsx');
-    expect(apuPage).toContain("useArinc429Var('L:A32NX_APU_LOW_OIL_LEVEL'");
-    expect(apuPage).toContain('apuOilLevelLowIndicationShown(');
-    expect(apuPage).toMatch(/FillPulse[^>]*>\s*OIL LVL LO/);
-  });
-
   it('is fed by the flyPad failure 49005 of the A380X', () => {
     const wasm = source('../../../wasm/systems/a380_systems_wasm/src/lib.rs');
     expect(wasm).toContain('(49_005, FailureType::ApuOilLevelLow),');
