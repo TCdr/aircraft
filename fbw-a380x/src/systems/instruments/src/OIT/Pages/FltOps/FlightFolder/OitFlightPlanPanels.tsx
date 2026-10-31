@@ -35,10 +35,11 @@ import './flight-folder.scss';
 
 interface EffUpdateFieldProps extends ComponentProps {
   readonly folder: FlightFolder;
+  readonly session: FlightFolderSession;
   readonly keyboard: LogbookFieldKeyboard;
   readonly metric: boolean;
   readonly cell: () => EffUpdateCell;
-  /** Stores the crew entry in kg, null to remove it */
+  /** Stores the crew entry in kg, null to remove it; the session refuses it without the master status */
   readonly set: (kg: number | null) => void;
 }
 
@@ -53,12 +54,14 @@ class EffUpdateField extends DestroyableComponent<EffUpdateFieldProps> {
     6,
   );
 
-  private readonly disabled = this.props.folder.changed.map(() => this.props.folder.closed);
+  private readonly editable = this.props.session.followUpEditable(this.props.folder);
+  private readonly disabled = this.editable.map((editable) => !editable);
 
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
     this.subscriptions.push(
       this.disabled,
+      this.editable,
       this.props.folder.changed.sub(() => {
         const cell = this.props.cell();
         this.value.set(cell.kg);
@@ -246,10 +249,11 @@ export class OitFlightPlanPanels extends DestroyableComponent<OitFlightPlanPanel
     return (
       <EffUpdateField
         folder={this.props.folder}
+        session={this.props.session}
         keyboard={this.props.keyboard}
         metric={this.props.metric}
         cell={() => fuelUpdateCell(this.plan, key)}
-        set={(kg) => this.props.folder.setFuelUpdate(key, kg)}
+        set={(kg) => this.props.session.setFuelUpdate(this.props.folder.id, key, kg)}
       />
     );
   }
@@ -258,10 +262,11 @@ export class OitFlightPlanPanels extends DestroyableComponent<OitFlightPlanPanel
     return (
       <EffUpdateField
         folder={this.props.folder}
+        session={this.props.session}
         keyboard={this.props.keyboard}
         metric={this.props.metric}
         cell={() => loadUpdateCell(this.plan, key)}
-        set={(kg) => this.props.folder.setLoadUpdate(key, kg)}
+        set={(kg) => this.props.session.setLoadUpdate(this.props.folder.id, key, kg)}
       />
     );
   }
@@ -452,10 +457,11 @@ export class OitFlightPlanPanels extends DestroyableComponent<OitFlightPlanPanel
                 <div>{row.fuelKg !== null ? weightText(row.fuelKg, this.props.metric) : '-'}</div>
                 <EffUpdateField
                   folder={this.props.folder}
+                  session={this.props.session}
                   keyboard={this.props.keyboard}
                   metric={this.props.metric}
                   cell={() => altnUpdateCell(p, index)}
-                  set={(kg) => this.props.folder.setAltnFuelUpdate(index, kg)}
+                  set={(kg) => this.props.session.setAltnFuelUpdate(this.props.folder.id, index, kg)}
                 />
               </>
             ))}
