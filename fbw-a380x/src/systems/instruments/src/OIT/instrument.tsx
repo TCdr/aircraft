@@ -57,7 +57,14 @@ class OitInstrument implements FsInstrument {
     EcamAbnormalSensedProcedures,
   );
 
-  private readonly avncsAnsu = new AnsuOps(this.bus, 1, 'nss-avncs', this.failuresConsumer);
+  private readonly avncsAnsu = new AnsuOps(
+    this.bus,
+    1,
+    'nss-avncs',
+    this.failuresConsumer,
+    // The AOC is one for both OITs: only the captain's OIT sends the OOOI reports
+    this.instrument.instrumentIndex === 1,
+  );
   // NSS AVNCS ANSU 2: hosts the same applications as ANSU 1 and takes over when ANSU 1 fails. The applications keep
   // their data in avncsAnsu (AnsuOps); the OIT shows them while either NSS AVNCS ANSU is healthy
   // (AnsuLogic.isNssAvncsAvailable).

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { useInterval, useSimVar } from '@flybywiresim/fbw-sdk-react';
 import { useArinc429Var } from '@instruments/common/arinc429';
 import { MoreLabel, PageTitle } from '../Generic/PageTitle';
@@ -9,7 +9,7 @@ import { WheelBogey, WheelBogeyPosition, WheelBogeyType } from './elements/Wheel
 import { BrakingSupply } from './elements/BrakingSupply';
 import { ControlSystem, ControlSystemType } from './elements/ControlSystem';
 import { Accumulator } from './elements/Accumulator';
-import { allGearsDownlocked, GravityExtensionIndication, LgCtlIndication } from './LgersIndications';
+import { wheelIndicationTimers } from './WheelIndicationTimers';
 import {
   brakeControlIndication,
   hottestBrakeArcs,
@@ -83,21 +83,12 @@ export const WheelPage = () => {
     word3Lgcis1: lgciu1Word3,
     word3Lgcis2: lgciu2Word3,
   };
-  const [gravitySwitchPosition] = useSimVar('L:A32NX_LG_GRVTY_SWITCH_POS', 'number', LGERS_UPDATE_MS);
-  const lgCtlIndication = useRef(new LgCtlIndication());
-  const gravityExtensionIndication = useRef(new GravityExtensionIndication());
-  const [lgCtlVisible, setLgCtlVisible] = useState(false);
-  const [gravityExtensionVisible, setGravityExtensionVisible] = useState(false);
+  // The timers run in the SD instrument loop (WheelIndicationTimers), so that they survive the page changes
+  const [lgCtlVisible, setLgCtlVisible] = useState(wheelIndicationTimers.lgCtlVisible);
+  const [gravityExtensionVisible, setGravityExtensionVisible] = useState(wheelIndicationTimers.gravityExtensionVisible);
   useInterval(() => {
-    const deltaS = LGERS_UPDATE_MS / 1000;
-    setLgCtlVisible(lgCtlIndication.current.update(deltaS, lgciu1Word1, lgciu2Word1));
-    setGravityExtensionVisible(
-      gravityExtensionIndication.current.update(
-        deltaS,
-        gravitySwitchPosition === 2,
-        allGearsDownlocked(lgciu1Word1, lgciu2Word1),
-      ),
-    );
+    setLgCtlVisible(wheelIndicationTimers.lgCtlVisible);
+    setGravityExtensionVisible(wheelIndicationTimers.gravityExtensionVisible);
   }, LGERS_UPDATE_MS);
 
   return (

@@ -44,6 +44,9 @@ export class AircraftNetworkServerUnit implements Instrument {
     false,
   );
 
+  /** Whether the unit was healthy at the previous update, so that the reset runs once per failure, not every frame */
+  private wasHealthy = true;
+
   /** The NSS stops by itself when the aircraft is powered down */
   protected readonly autoShutdown = new NssAutoShutdown();
 
@@ -67,8 +70,11 @@ export class AircraftNetworkServerUnit implements Instrument {
     );
   }
 
-  /** @inheritdoc */
-  onUpdate(): void {
+  /**
+   * @inheritdoc
+   * @returns whether the unit is healthy; false when the update stopped after the data link
+   */
+  onUpdate(): boolean {
     const failed = this.failuresConsumer.isActive(this.failureKey);
     this.sci.onUpdate();
 
@@ -87,10 +93,17 @@ export class AircraftNetworkServerUnit implements Instrument {
 
     this._isHealthy.set(!failed && this.powered.get() && !this.resetPbStatus.get() && !this.nssMasterOff.get());
 
-    if (!this._isHealthy.get()) {
-      this.reset();
-      return;
+    const healthy = this._isHealthy.get();
+    if (!healthy && this.wasHealthy) {
+      this.onBecameUnhealthy();
     }
+    this.wasHealthy = healthy;
+    return healthy;
+  }
+
+  /** The unit just stopped working: by default it loses its data */
+  protected onBecameUnhealthy(): void {
+    this.reset();
   }
 
   reset(): void {
