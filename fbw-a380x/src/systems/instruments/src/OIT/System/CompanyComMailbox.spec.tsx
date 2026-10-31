@@ -1,12 +1,12 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { EventBus } from '@microsoft/msfs-sdk';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { EventBus, FSComponent, Subject } from '@microsoft/msfs-sdk';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Aoc } from '@datalink/aoc';
 import { AtsuMessageDirection, AtsuTimestamp, FreetextMessage } from '@datalink/common';
+import { fakeUiService, withStandIns } from '../OitSpecSupport';
+import { OitAvncsCompanyComInbox } from '../Pages/NssAvncs/CompanyCom/OitAvncsCompanyComInbox';
 import {
   aocPrintText,
   atsuTimestampToUtcMs,
@@ -15,6 +15,13 @@ import {
   inboxEntryOf,
   upsertInboxEntry,
 } from './CompanyComMailbox';
+
+// The EcamMessages tables and enums import each other, so the pages cannot load the real index
+vi.mock('../../MsfsAvionicsCommon/EcamMessages', () => ({
+  EcamAbnormalProcedures: {},
+  ChecklistLineStyle: {},
+  EcamAbnormalSensedProcedures: {},
+}));
 
 /**
  * A company uplink: a free text message from the ground station.
@@ -70,6 +77,25 @@ afterEach(() => {
   SimVar.GetSimVarValue = GetSimVarValue;
   SimVar.SetSimVarValue = SetSimVarValue;
 });
+
+/**
+ * Draws the COMPANY COM inbox page over a mailbox on a bus, as the OIT does.
+ * @returns the page content, the mailbox, the bus and the page functions the page registered
+ */
+function drawInbox() {
+  const bus = new EventBus();
+  const mailbox = new CompanyComMailbox(bus);
+  mailbox.init();
+  const { uiService } = fakeUiService();
+  const registered: { print: { run: () => void; available: Subject<boolean> } } = {} as any;
+  (uiService as any).registerPageFunctions = (functions: typeof registered) => Object.assign(registered, functions);
+  const container = withStandIns({
+    ansu: withStandIns({ companyCom: mailbox, sci: withStandIns({ fltNumber: Subject.create('KLM123') }) }),
+  });
+  const root = document.createElement('div');
+  FSComponent.render(<OitAvncsCompanyComInbox bus={bus} uiService={uiService} container={container} />, root);
+  return { root, mailbox, bus, registered };
+}
 
 /*
  * On the OIT the flight crew can display, edit, print, send, delete and store AOC messages; the COMPANY MSG memo goes
@@ -178,9 +204,23 @@ describe('OIT COMPANY COM inbox', () => {
   });
 
   it('the inbox page prints the displayed message with PRINT of the menu bar', () => {
-    const page = readFileSync(resolve(__dirname, '../Pages/NssAvncs/CompanyCom/OitAvncsCompanyComInbox.tsx'), 'utf-8');
-    expect(page).toContain('print: { run: () => this.printSelected(), available: this.printable }');
-    expect(page).toContain('this.mailbox.printMessage(uid, AnsuOps.formatDateTime)');
+    const { mailbox, bus, registered } = drawInbox();
+    const printed: string[] = [];
+    bus
+      .getSubscriber<any>()
+      .on('aocPrintMessage')
+      .handle((text: string) => printed.push(text));
+    bus.getPublisher<any>().pub('aocResynchronizeFreetextMessage', uplink('LOADSHEET FOLLOWS', 4));
+
+    expect(registered.print.available.get()).toBe(false);
+    registered.print.run();
+    expect(printed).toEqual([]);
+
+    mailbox.display(4);
+    expect(registered.print.available.get()).toBe(true);
+    registered.print.run();
+    expect(printed.length).toBe(1);
+    expect(printed[0]).toContain('LOADSHEET FOLLOWS');
   });
 
   it('counts the messages not read yet for the Inbox folder', () => {
@@ -237,8 +277,10 @@ describe('OIT COMPANY COM inbox', () => {
   });
 
   it('is the inbox page of the OIT, with no hard-coded test message left', () => {
-    const page = readFileSync(resolve(__dirname, '../Pages/NssAvncs/CompanyCom/OitAvncsCompanyComInbox.tsx'), 'utf-8');
-    expect(page).toContain('this.props.container.ansu.companyCom');
-    expect(page).not.toContain('TEST MESSAGE');
+    const { root, bus, mailbox } = drawInbox();
+    expect(root.textContent).not.toContain('TEST MESSAGE');
+    bus.getPublisher<any>().pub('aocResynchronizeFreetextMessage', uplink('GATE CHANGE B32', 7));
+    mailbox.display(7);
+    expect(root.textContent).toContain('GATE CHANGE B32');
   });
 });

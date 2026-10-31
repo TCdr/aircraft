@@ -2,7 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { describe, expect, it } from 'vitest';
-import { createNssAvncsOpenApplications, nssAvncsApplicationName, nssAvncsApplicationOf } from './NssAvncsApplications';
+import {
+  createNssAvncsOpenApplications,
+  isPageOfRenderedApplication,
+  nssAvncsApplicationName,
+  nssAvncsApplicationOf,
+} from './NssAvncsApplications';
 
 describe('NSS AVNCS applications', () => {
   it('names the applications of the NSS AVNCS menu on the task bar', () => {
@@ -55,5 +60,19 @@ describe('NSS AVNCS open applications (task bar)', () => {
 
     apps.reset();
     expect(apps.open.get()).toEqual([]);
+  });
+});
+
+describe('pages of an application that is already drawn', () => {
+  it('are left to the application for company-com, a380x-systems and logbook', () => {
+    expect(isPageOfRenderedApplication('nss-avncs/company-com/inbox', 'nss-avncs/company-com')).toBe(true);
+    expect(isPageOfRenderedApplication('nss-avncs/a380x-systems/debug-data', 'nss-avncs/a380x-systems')).toBe(true);
+    expect(isPageOfRenderedApplication('nss-avncs/logbook/status', 'nss-avncs/logbook')).toBe(true);
+  });
+
+  it('are drawn by the container for the other applications and after a change of application', () => {
+    expect(isPageOfRenderedApplication('nss-avncs/refuel/anything', 'nss-avncs/refuel')).toBe(false);
+    expect(isPageOfRenderedApplication('nss-avncs/logbook/status', 'nss-avncs/company-com')).toBe(false);
+    expect(isPageOfRenderedApplication('nss-avncs/logbook', 'nss-avncs/logbook')).toBe(false);
   });
 });

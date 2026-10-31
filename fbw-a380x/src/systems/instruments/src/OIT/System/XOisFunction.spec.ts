@@ -1,10 +1,16 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { pageDirectoryHas } from '../OitPageDirectoryLookup';
 import { FLT_OPS_MENU_URI, XOisFunction, fltOpsPageCode, fltOpsPageUri } from './XOisFunction';
+
+// The EcamMessages tables and enums import each other, so the page directory cannot load the real index
+vi.mock('../../MsfsAvionicsCommon/EcamMessages', () => ({
+  EcamAbnormalProcedures: {},
+  ChecklistLineStyle: {},
+  EcamAbnormalSensedProcedures: {},
+}));
 
 describe('FLT OPS page codes of the OITs', () => {
   it('codes every FLT OPS page and back, 0 for other pages', () => {
@@ -46,13 +52,17 @@ describe('FLT OPS page codes of the OITs', () => {
     expect(fltOpsPageUri(11)).toBe('flt-ops/ops-library');
   });
 
-  it('codes every FLT OPS page of the page directory, each with its own code', () => {
-    const directory = readFileSync(resolve(__dirname, '../OitPageDirectory.tsx'), 'utf-8');
-    const pages = (directory.match(/case 'flt-ops\/[a-z-]+'/g) ?? []).map((match) => match.slice(6, -1));
+  it('codes only pages of the page directory, each with its own code', () => {
+    const pages: string[] = [];
+    for (let code = 1; fltOpsPageUri(code) !== null; code++) {
+      pages.push(fltOpsPageUri(code) as string);
+    }
     expect(pages.length).toBeGreaterThanOrEqual(9);
-    const codes = pages.map(fltOpsPageCode);
-    expect(codes).not.toContain(0);
-    expect(new Set(codes).size).toBe(codes.length);
+    for (const page of pages) {
+      expect(pageDirectoryHas(page), page).toBe(true);
+    }
+    expect(new Set(pages.map(fltOpsPageCode)).size).toBe(pages.length);
+    expect(pageDirectoryHas('flt-ops/no-such-page')).toBe(false);
   });
 });
 
