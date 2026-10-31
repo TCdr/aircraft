@@ -184,6 +184,8 @@ describe('FMS data on the FLT OPS STS page', () => {
     const laptop = new OisLaptop(bus, 1, fakeFailures(new Set()));
     laptop.init();
     laptop.connectAvionicsData(sci.canReceiveFromAvionics);
+    const fltOpsDiode = Subject.create(true);
+    laptop.connectFltOpsDiode(fltOpsDiode);
     const simvars = bus.getPublisher<OitSimvars>();
     simvars.pub('laptopCaptPowered', true);
     simvars.pub('nssAnsu1Healthy', true);
@@ -208,7 +210,7 @@ describe('FMS data on the FLT OPS STS page', () => {
       }
       sci.onUpdate();
     };
-    return { laptop, fms, simvars, loseBothScis };
+    return { laptop, fms, simvars, loseBothScis, fltOpsDiode };
   }
 
   it('SYNCHRO AVIONICS keeps the entries while both SCIs are lost, and takes the FMS data once one is back', () => {
@@ -251,6 +253,22 @@ describe('FMS data on the FLT OPS STS page', () => {
       expect.anything(),
       expect.anything(),
     );
+  });
+
+  it('stops following the FMS while NSS AVNCS ARU 2, which holds the link to the FLT OPS network, is lost', () => {
+    const { laptop, fms, fltOpsDiode } = setUp();
+    expect(laptop.data.fltNumber.get()).toBe('AIB123');
+
+    fltOpsDiode.set(false);
+    fms.pub('fmsFlightNumber', 'AIB456');
+    laptop.onUpdate();
+    expect(laptop.data.fltNumber.get()).toBe('AIB123');
+    laptop.synchroAvionics();
+    expect(laptop.data.fltNumber.get()).toBe('AIB123');
+
+    fltOpsDiode.set(true);
+    laptop.onUpdate();
+    expect(laptop.data.fltNumber.get()).toBe('AIB456');
   });
 
   it('takes no FMS data at SYNCHRO AVIONICS without an NSS AVNCS server, though both SCIs work', () => {

@@ -1,7 +1,7 @@
 // Copyright (c) 2025 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { ConsumerSubject, EventBus, Subject, Subscription } from '@microsoft/msfs-sdk';
+import { ConsumerSubject, EventBus, Subject, Subscribable, Subscription } from '@microsoft/msfs-sdk';
 import { AircraftNetworkServerUnit } from './AircraftNetworkServerUnit';
 import { FailuresConsumer, NXDataStore, NXLogicConfirmNode, UpdateThrottler } from '@flybywiresim/fbw-sdk';
 import { CompanyComMailbox } from './CompanyComMailbox';
@@ -21,8 +21,8 @@ import { ReportWeightUnit } from './CompanyComReportForms';
 export class AnsuOps extends AircraftNetworkServerUnit {
   private lastUpdateTime: number | undefined = undefined;
   private startStateRecorded = false;
-  /** Whether at least one NSS AVNCS ANSU hosted the applications at the previous update */
-  private nssAvncsWasAvailable = true;
+  /** Whether the applications had lost their data at the previous update, so that it is cleared once */
+  private nssAvncsDataWasLost = false;
 
   /** The health of the other NSS AVNCS ANSU, which keeps the applications running when this one fails */
   private readonly ansu2Healthy = ConsumerSubject.create(
@@ -97,6 +97,7 @@ export class AnsuOps extends AircraftNetworkServerUnit {
    * @param failuresConsumer the failures
    * @param generatesOooiReports whether this OIT sends the OOOI reports to the AOC. The AOC is one for both OITs, so
    * only one of them sends: the other keeps the times for its display
+   * @param routerOperating whether the Aircraft Router Unit of this ANSU operates, null without a router
    */
   constructor(
     bus: EventBus,
@@ -104,8 +105,9 @@ export class AnsuOps extends AircraftNetworkServerUnit {
     type: AnsuType,
     failuresConsumer: FailuresConsumer,
     private readonly generatesOooiReports: boolean = true,
+    routerOperating: Subscribable<boolean> | null = null,
   ) {
-    super(bus, index, type, failuresConsumer);
+    super(bus, index, type, failuresConsumer, routerOperating);
   }
 
   /** @inheritdoc */
@@ -218,10 +220,12 @@ export class AnsuOps extends AircraftNetworkServerUnit {
   onUpdate(): boolean {
     const healthy = super.onUpdate();
     const available = isNssAvncsAvailable(healthy, this.ansu2Healthy.get());
-    if (!available && this.nssAvncsWasAvailable) {
+    // A lost router only cuts this ANSU off from the users of the applications: its data survives until the ANSU stops
+    const dataLost = !available && !this.operational;
+    if (dataLost && !this.nssAvncsDataWasLost) {
       this.reset();
     }
-    this.nssAvncsWasAvailable = available;
+    this.nssAvncsDataWasLost = dataLost;
     if (!available) {
       return false;
     }

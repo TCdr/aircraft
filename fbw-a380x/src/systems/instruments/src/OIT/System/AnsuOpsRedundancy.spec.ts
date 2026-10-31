@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { ClockEvents, EventBus } from '@microsoft/msfs-sdk';
+import { ClockEvents, EventBus, Subject } from '@microsoft/msfs-sdk';
 import { Arinc429Register, Arinc429SignStatusMatrix, FailuresConsumer, FwcBusEvents } from '@flybywiresim/fbw-sdk';
 import { A380Failure } from '@failures';
 import { FmsAocMessages } from '@datalink/aoc';
@@ -29,10 +29,11 @@ function groundWord(onGround = true): number {
 }
 
 /**
+ * @param routerOperating whether the router of the first ANSU operates, none for an ANSU without a router
  * @returns two NSS AVNCS ANSU units on one bus, the first one sending the OOOI reports and the second one not, and the
  * messages the AOC gets
  */
-function setUp() {
+function setUp(routerOperating: Subject<boolean> | null = null) {
   vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) => (name.startsWith('L:A32NX_ELEC') ? 1 : 0));
   vi.spyOn(SimVar, 'SetSimVarValue').mockImplementation(() => Promise.resolve());
   const bus = new EventBus();
@@ -42,7 +43,7 @@ function setUp() {
     register: () => {},
     update: () => {},
   } as unknown as FailuresConsumer;
-  const captain = new AnsuOps(bus, 1, 'nss-avncs', failures, true);
+  const captain = new AnsuOps(bus, 1, 'nss-avncs', failures, true, routerOperating);
   const firstOfficer = new AnsuOps(bus, 1, 'nss-avncs', failures, false);
   captain.init();
   firstOfficer.init();
@@ -166,5 +167,28 @@ describe('ANSU failures and the data of the NSS AVNCS applications', () => {
     frame(START_TIME_MS + 71_000, captain);
     frame(START_TIME_MS + 72_000, captain);
     expect(captain.pageDrafts.has('page')).toBe(true);
+  });
+
+  it('keeps the data of an ANSU that only lost its router, and clears it once the ANSU itself stops', () => {
+    const routerOperating = Subject.create(true);
+    const context = setUp(routerOperating);
+    const { captain, failed, simvars, frame } = context;
+    simvars.pub('nssAnsu2Healthy', true);
+    releaseBrake(context, captain);
+    captain.pageDrafts.field('page', 'name', 'typed');
+    const outTime = captain.outBlockTime.get();
+
+    // Both ANSU units are cut off from their users, but ANSU 1 still has its power and its data
+    routerOperating.set(false);
+    simvars.pub('nssAnsu2Healthy', false);
+    frame(START_TIME_MS + 70_000, captain);
+    frame(START_TIME_MS + 71_000, captain);
+    expect(captain.pageDrafts.has('page')).toBe(true);
+    expect(captain.outBlockTime.get()).toBe(outTime);
+
+    failed.add(A380Failure.NssAnsu1);
+    frame(START_TIME_MS + 72_000, captain);
+    expect(captain.pageDrafts.has('page')).toBe(false);
+    expect(captain.outBlockTime.get()).toBeNull();
   });
 });

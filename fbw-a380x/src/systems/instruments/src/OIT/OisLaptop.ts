@@ -1,4 +1,4 @@
-// Copyright (c) 2025 FlyByWire Simulations
+// Copyright (c) 2025-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import {
@@ -182,6 +182,19 @@ export class OisLaptop implements Instrument {
     this.avionicsDataReachNss = available;
   }
 
+  /**
+   * The one-way link (diode) from the NSS AVNCS side to the FLT OPS network. It hangs off NSS AVNCS ARU 2: without
+   * it the avionics data stop at the NSS AVNCS side, though ARU 1 works.
+   */
+  private fltOpsDiodeAvailable: Subscribable<boolean> = Subject.create(true);
+
+  /**
+   * @param available whether data can pass from the NSS AVNCS side to the FLT OPS side
+   */
+  public connectFltOpsDiode(available: Subscribable<boolean>): void {
+    this.fltOpsDiodeAvailable = available;
+  }
+
   /** The block and flight times the avionics record, given by the instrument */
   private flightTimesSource: Subscribable<FlightReportTimes> | null = null;
 
@@ -280,7 +293,7 @@ export class OisLaptop implements Instrument {
   private fmsFlight(): FltOpsStatusFlight | null {
     const connected = this._isHealthy.get() && !this._standalone.get();
     const nssAvncsAvailable = isNssAvncsAvailable(this.nssAnsu1Healthy.get(), this.nssAnsu2Healthy.get());
-    if (!fmsDataReachLaptop(connected, nssAvncsAvailable, this.avionicsDataReachNss.get())) {
+    if (!this.fmsDataReaches(connected, nssAvncsAvailable)) {
       return null;
     }
     return { fltNumber: this.fltNumberBus.get(), from: this.fromAirportBus.get(), to: this.toAirportBus.get() };
@@ -473,7 +486,16 @@ export class OisLaptop implements Instrument {
   /** @returns whether the avionics data reach this laptop through the NSS AVNCS side */
   private avionicsDataReachLaptop(): boolean {
     const nssAvncsAvailable = isNssAvncsAvailable(this.nssAnsu1Healthy.get(), this.nssAnsu2Healthy.get());
-    return fmsDataReachLaptop(this.isConnected(), nssAvncsAvailable, this.avionicsDataReachNss.get());
+    return this.fmsDataReaches(this.isConnected(), nssAvncsAvailable);
+  }
+
+  private fmsDataReaches(connected: boolean, nssAvncsAvailable: boolean): boolean {
+    return fmsDataReachLaptop(
+      connected,
+      nssAvncsAvailable,
+      this.avionicsDataReachNss.get(),
+      this.fltOpsDiodeAvailable.get(),
+    );
   }
 
   private isConnected(): boolean {
