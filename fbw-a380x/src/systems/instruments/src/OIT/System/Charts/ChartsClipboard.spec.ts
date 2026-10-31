@@ -118,6 +118,72 @@ describe('send and import', () => {
   });
 });
 
+describe('new charts from the other laptop', () => {
+  it('marks the offer new when the other laptop sends, and not before', () => {
+    const { fo, capt } = new Network();
+    expect(capt.offerIsNew.get()).toBe(false);
+    fo.prepare(SID);
+    fo.send();
+    expect(capt.offerIsNew.get()).toBe(true);
+  });
+
+  it('does not mark the sender', () => {
+    const { fo } = new Network();
+    fo.prepare(SID);
+    fo.send();
+    expect(fo.offerIsNew.get()).toBe(false);
+  });
+
+  it('is no longer new once the crew has seen it, but still waits for IMPORT', () => {
+    const { fo, capt } = new Network();
+    fo.prepare(SID);
+    fo.send();
+    capt.markOfferSeen();
+    expect(capt.offerIsNew.get()).toBe(false);
+    expect(capt.canImport()).toBe(true);
+  });
+
+  it('is new again for a later send', () => {
+    const { fo, capt } = new Network();
+    fo.prepare(SID);
+    fo.send();
+    capt.markOfferSeen();
+    fo.prepare(STAR);
+    fo.send();
+    expect(capt.offerIsNew.get()).toBe(true);
+  });
+
+  it('is no longer new once the charts are imported', () => {
+    const { fo, capt } = new Network();
+    fo.prepare(SID);
+    fo.send();
+    capt.importOffered();
+    expect(capt.offerIsNew.get()).toBe(false);
+  });
+
+  it('is not new on a laptop that is off the network', () => {
+    const { fo, capt, captOnNetwork } = new Network();
+    captOnNetwork.set(false);
+    fo.prepare(SID);
+    fo.send();
+    expect(capt.offerIsNew.get()).toBe(false);
+  });
+
+  it('is cleared by a laptop restart', () => {
+    const { fo, capt } = new Network();
+    fo.prepare(SID);
+    fo.send();
+    capt.reset();
+    expect(capt.offerIsNew.get()).toBe(false);
+  });
+
+  it('is not new for a message without charts', () => {
+    const { capt } = new Network();
+    capt.receive({ sender: 2, charts: [] });
+    expect(capt.offerIsNew.get()).toBe(false);
+  });
+});
+
 describe('a laptop that is not on the network', () => {
   it('cannot send', () => {
     const { fo, capt, foOnNetwork, sent } = new Network();

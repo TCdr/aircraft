@@ -24,14 +24,6 @@ import { A380Failure } from '@failures';
 import { OisDomain } from './OIT';
 import { OIT_RESTART_OFF_MS, PowerCycleRecovery } from './System/AnsuLogic';
 
-export const getDisplayIndex = () => {
-  const url = Array.from(document.querySelectorAll('vcockpit-panel > *'))
-    ?.find((it) => it.tagName.toLowerCase() !== 'wasm-instrument')
-    ?.getAttribute('url');
-
-  return url ? parseInt(url.substring(url.length - 1), 10) : 0;
-};
-
 export enum OitDisplayUnitID {
   CaptOit,
   FoOit,

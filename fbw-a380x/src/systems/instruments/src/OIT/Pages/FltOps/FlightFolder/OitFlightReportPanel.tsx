@@ -1,7 +1,7 @@
 //  Copyright (c) 2026 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 
-import { ComponentProps, FSComponent, MappedSubject, Subscribable, VNode } from '@microsoft/msfs-sdk';
+import { ComponentProps, FSComponent, Subscribable, VNode } from '@microsoft/msfs-sdk';
 import { DestroyableComponent } from '@flybywiresim/msfs-avionics-common';
 import { FlightFolder } from '../../../System/FlightFolder';
 import { FlightFolderSession } from '../../../System/FlightFolderSession';
@@ -46,13 +46,7 @@ export class OitFlightReportPanel extends DestroyableComponent<OitFlightReportPa
     ['IN', (t) => t.inMs, (t) => t.inFobKg],
   ];
 
-  private readonly editable = MappedSubject.create(
-    ([master, current]) => master && current === this.props.folder.id && !this.props.folder.closed,
-    this.props.session.isMaster,
-    this.props.session.currentId,
-    // A flight closure closes the folder without changing who is current
-    this.props.folder.changed,
-  );
+  private readonly editable = this.props.session.followUpEditable(this.props.folder);
   private readonly readOnly = this.editable.map((editable) => !editable);
   private readonly remarksText = this.props.folder.changed.map(() => this.props.folder.flightPlan.followUp.remarks);
 

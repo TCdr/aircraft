@@ -394,6 +394,40 @@ describe('the follow-up of the current folder', () => {
     expect(session.setNavLogActual('W2', { ataMs: NOW })).toBe(false);
   });
 
+  it('keeps the Update cells of the flight plan for the master: FLT INFO fuel and load, ALTN', async () => {
+    const { session, folder } = await laptop();
+    expect(session.setFuelUpdate(folder.id, 'trip', 14_400)).toBe(false);
+    expect(session.setLoadUpdate(folder.id, 'dow', 280_000)).toBe(false);
+    expect(session.setAltnFuelUpdate(folder.id, 0, 3_000)).toBe(false);
+    expect(folder.flightPlan.updates).toEqual({ fuel: {}, load: {}, altnFuel: [] });
+
+    session.takeMaster();
+    expect(session.setFuelUpdate(folder.id, 'trip', 14_400)).toBe(true);
+    expect(session.setLoadUpdate(folder.id, 'dow', 280_000)).toBe(true);
+    expect(session.setAltnFuelUpdate(folder.id, 0, 3_000)).toBe(true);
+    expect(folder.flightPlan.updates.fuel.trip).toBe(14_400);
+    expect(folder.flightPlan.updates.load.dow).toBe(280_000);
+    expect(folder.flightPlan.updates.altnFuel[0]).toBe(3_000);
+    expect(session.setFuelUpdate('AIB406 23-SEP-08 OTHER', 'trip', 1)).toBe(false);
+    expect(folder.flightPlan.updates.fuel.trip).toBe(14_400);
+  });
+
+  it('follows the master status in the Update cells without a new page: GET MASTER on either laptop, closure', async () => {
+    const { session, folder } = await laptop();
+    const editable = session.followUpEditable(folder);
+    expect(editable.get()).toBe(false);
+    session.takeMaster();
+    expect(editable.get()).toBe(true);
+    // the other laptop asked for the master status
+    session.receiveMaster({ sender: 2 });
+    expect(editable.get()).toBe(false);
+    session.takeMaster();
+    expect(editable.get()).toBe(true);
+    folder.close();
+    expect(editable.get()).toBe(false);
+    editable.destroy();
+  });
+
   it('records the take-off in the current folder without being the master', async () => {
     const { session, folder } = await laptop();
     session.recordTakeoff(NOW, 25_000);

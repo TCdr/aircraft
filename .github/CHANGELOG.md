@@ -65,7 +65,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OIT] New FLT OPS application OPS LIBRARY: the feature and simvar manuals, the ECAM procedures, the ECAM alerts of the flight, the deferred MEL and CDL items of the eLogbook, search, bookmarks and notes - @TCdr
 1. [A380X/OIT] STORE of FLT OPS T.O PERF, LDG PERF, LOADSHEET and IN-FLT PERF keeps the page as a document (TOPA, LDPA, WBA, IFPA) in the Performance folder of the current flight folder - @TCdr
 1. [A380X/OIT] The CHARTS application shows the terminal charts of the simulator's own chart service (LIDO, no account needed) for the airports of the flight and others you add, by group, runway and page, with zoom, move and FIT buttons and a clipboard that one laptop sends to the other; the FLT OPS STS page shows the validity of the charts once CHARTS has been started - @TCdr
+1. [A380X/OIT] The CHARTS clipboard shows PREPARED (NEW) while charts the other laptop sent wait for IMPORT, until the PREPARED tab is opened - @TCdr
 1. [A380X/OIT] Fix the OOOI OUT time showing the PC clock and the fuel missing when the aircraft starts with the park brake released, and the STORE pop-up allowing a second STORE while it is open - @TCdr
+1. [A380X/OIT] Fix the FLT FOLDER FLT INFO and ALTN Update cells accepting an entry on the laptop that is not the flight follow-up master - @TCdr
 1. [A380X/MFD] Fix LS field remaining blank on F-PLN arrival page when no landing system is available or selected - @matze-tech (matze2346)
 1. [A380X/PRIM] Move FE to PRIM and add SPD LIM flag - @lukecologne (luke)
 1. [A380X/PRIM] Improve speed trend behaviour - @lukecologne (luke)
@@ -415,6 +417,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] No COMPANY MSG memo or COMPANY MESSAGE voice with NSS DATA TO AVNCS OFF or both SCIs lost, and the COMPANY MSG:PRNTR memo while received weather reports wait for their automatic printout - @TCdr
 1. [A380X/OIT] The function keys, CTRL and ALT of the laptop keyboards work: F-keys press the OIT buttons that show them (COMPUTE <F8>...), CTRL and ALT latch for the next key (backlit) for the menu shortcuts (Ctrl P, Alt H...); the OIT BRIGHTNESS knob at OFF also switches off the keyboard and ACD; COMPANY COM and LOGBOOK start at the NSS AVNCS log-on - @TCdr
 1. [A380X/OIT] LOADSHEET FUEL DISTR offers TRIM ADJUSTMENT and MANUAL DISTR next to CG TARGETING, and the MORE panel draws the CG diagram with the DOW, ZFW, TOW and LW points - @TCdr
+1. [A380X/OIT] The CHARTS application no longer shows the EFB overlay with the Navigraph charts: it is the native terminal charts page, the Navigraph account is not used on the OIT any more - @TCdr
 
 ## 2024.1.0
 
