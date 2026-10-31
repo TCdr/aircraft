@@ -1,9 +1,13 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+// first: the fmgc modules it loads depend on their import order
+import { createAdvisoryMessages, withStubbedSimVars } from './FmsAdvisoryMessagesSpecSupport';
+import { describe, expect, it, vi } from 'vitest';
+
+// FmsAdvisoryMessages only needs the PI leg class for an instanceof check: the real leg classes import each other in a cycle
+vi.mock('@fmgc/guidance/lnav/legs/PI', () => ({ PILeg: class {} }));
+import { NXSystemMessages } from '../shared/NXSystemMessages';
 import { ApproachType } from '@flybywiresim/fbw-sdk';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import {
@@ -68,13 +72,30 @@ describe('CHECK APPR SEL', () => {
   });
 
   it('the FMS sends it to the MFD and the PFD', () => {
-    const source = readFileSync(resolve(__dirname, 'FmsAdvisoryMessages.ts'), 'utf-8');
-    expect(source).toContain(
-      'this.apply(this.checkApprSelLatch, checkApprSel ? NXSystemMessages.checkApprSel : null);',
-    );
-    expect(source).toContain('this.setCheckApprSelOnPfd(checkApprSel);');
-    expect(source).toContain("const CHECK_APPR_SEL_PFD_VAR = 'L:A32NX_PFD_MSG_CHECK_APPR_SELECTION';");
-    const pfd = readFileSync(resolve(__dirname, '../../PFD/shared/PFDSimvarPublisher.tsx'), 'utf-8');
-    expect(pfd).toContain("checkApprSel = 'L:A32NX_PFD_MSG_CHECK_APPR_SELECTION'");
+    const pfdVars: Record<string, unknown> = {};
+    const pfdMessageShown = () => !!pfdVars['L:A32NX_PFD_MSG_CHECK_APPR_SELECTION'];
+    withStubbedSimVars(pfdVars, () => {
+      const { advisoryMessages, queued, removedTexts } = createAdvisoryMessages({
+        flightPhase: FmgcFlightPhase.Descent,
+        approach: { type: ApproachType.Ils, finalLegNavaidIdent: 'IKL' },
+        manuallyTunedIls: { ident: 'IOT', frequency: 109.5 },
+      });
+      advisoryMessages.update();
+      expect(queued).toEqual([NXSystemMessages.checkApprSel]);
+      expect(pfdMessageShown()).toBe(true);
+      // the message is not sent again every cycle
+      advisoryMessages.update();
+      expect(queued).toHaveLength(1);
+
+      const matching = createAdvisoryMessages({
+        flightPhase: FmgcFlightPhase.Descent,
+        approach: { type: ApproachType.Ils, finalLegNavaidIdent: 'IKL' },
+        manuallyTunedIls: { ident: 'IKL', frequency: 110.3 },
+      });
+      matching.advisoryMessages.update();
+      expect(matching.queued).toEqual([]);
+      expect(pfdMessageShown()).toBe(false);
+      expect(removedTexts).toEqual([]);
+    });
   });
 });

@@ -1,9 +1,10 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import React from 'react';
 import { describe, expect, it } from 'vitest';
+import { withRenderedSdElement } from '../SdSpecSupport';
+import { FuelPage } from './FuelPage';
 import {
   galleryFlowSpan,
   insertOutletsByX,
@@ -87,10 +88,44 @@ describe('SD FUEL jettison flow', () => {
   });
 
   it('the FUEL page gives the jettison outlets to both galleries and the link line', () => {
-    const page = readFileSync(resolve(__dirname, 'FuelPage.tsx'), 'utf8');
-    expect(page).toContain('outlets={fwdGalleryOutlets}');
-    expect(page).toContain('outlets={aftGalleryOutlets}');
-    expect(page).toContain('active={jettisonFlow.galleryLinkActive}');
-    expect(page.match(/running: isTransferPumpRunning\(/g)).toHaveLength(10);
+    /** @returns the green (carrying fuel) fuel lines of the page as [x1, y1, x2, y2] */
+    const greenLines = (jettisonInProgress: number) =>
+      withRenderedSdElement(
+        <FuelPage />,
+        {
+          'L:A380X_FUEL_JETTISON_IN_PROGRESS': jettisonInProgress,
+          // both jettison valves open
+          'FUELSYSTEM VALVE OPEN:57': 1,
+          'FUELSYSTEM VALVE OPEN:58': 1,
+        },
+        (container) =>
+          Array.from(container.querySelectorAll('g.Green > line')).map((line) =>
+            ['x1', 'y1', 'x2', 'y2'].map((attribute) => Number(line.getAttribute(attribute))),
+          ),
+      );
+    const FWD_GALLERY_Y = 362;
+    const AFT_GALLERY_Y = 472;
+    const GALLERY_LINK_X = 438;
+
+    const gallerySpan = (lines: number[][], galleryY: number) => {
+      const horizontal = lines.filter(([, y1, , y2]) => y1 === galleryY && y2 === galleryY);
+      return horizontal.length === 0
+        ? null
+        : [Math.min(...horizontal.map(([x1]) => x1)), Math.max(...horizontal.map(([, , x2]) => x2))];
+    };
+
+    const jettison = greenLines(1);
+    // the link line carries the FWD gallery fuel to the AFT gallery
+    expect(jettison).toContainEqual([GALLERY_LINK_X, 346, GALLERY_LINK_X, 472]);
+    // the AFT gallery carries fuel between its two jettison valves (190 and 570), the FWD gallery to the link
+    const aftSpan = gallerySpan(jettison, AFT_GALLERY_Y);
+    expect(aftSpan?.[0]).toBeLessThanOrEqual(190);
+    expect(aftSpan?.[1]).toBeGreaterThanOrEqual(570);
+    expect(gallerySpan(jettison, FWD_GALLERY_Y)?.[1]).toBeGreaterThanOrEqual(GALLERY_LINK_X);
+
+    // no jettison: no fuel in the link line and the galleries (jettison valves open without a jettison are faults)
+    const idle = greenLines(0);
+    expect(idle).not.toContainEqual([GALLERY_LINK_X, 346, GALLERY_LINK_X, 472]);
+    expect(gallerySpan(idle, FWD_GALLERY_Y)).toBeNull();
   });
 });

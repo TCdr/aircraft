@@ -1,9 +1,8 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
+import { withRenderedEngineColumn } from '../EngineColumnSpecSupport';
 import {
   StartValveFault,
   nacelleTemperatureVisible,
@@ -69,10 +68,13 @@ describe('SD ENGINE start valve colour', () => {
   });
 
   it('colours the valve symbol from the fault the FADEC reports', () => {
-    const startValve = readFileSync(resolve(__dirname, 'StartValve.tsx'), 'utf-8');
-    expect(startValve).not.toContain('css="Green SW2"');
-    expect(startValve).toContain('startValveColour(startValveFault)');
-    const column = readFileSync(resolve(__dirname, 'EngineColumn.tsx'), 'utf-8');
-    expect(column).toContain('_START_VALVE_FAULT`');
+    const startValveClass = (fault: StartValveFault) =>
+      withRenderedEngineColumn({ 'L:A32NX_ENGINE_1_START_VALVE_FAULT': fault }, (container) =>
+        container.querySelector('g#SD-start-valve-1 circle')?.getAttribute('class')?.trim(),
+      );
+    // without a fault the start valve is shown only during a start: nothing is drawn at idle
+    expect(startValveClass(StartValveFault.None)).toBeUndefined();
+    expect(startValveClass(StartValveFault.NotOpen)).toMatch(/^Amber SW2/);
+    expect(startValveClass(StartValveFault.NotClosed)).toMatch(/^Amber SW2/);
   });
 });

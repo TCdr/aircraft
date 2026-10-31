@@ -1,9 +1,14 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, expect, it } from 'vitest';
+// SdSpecSupport first: it creates the mount point that the React instrument framework looks up when it loads
+import { withRenderedSdElement } from '../../SdSpecSupport';
+import React from 'react';
+import { act } from 'react-dom/test-utils';
+import { Arinc429Register, Arinc429SignStatusMatrix } from '@flybywiresim/fbw-sdk';
+import { tirePressureVar } from '@shared/TirePressures';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { WheelPage } from './WheelPage';
 import {
   BRAKE_COUNT,
   brakeControlIndication,
@@ -169,37 +174,150 @@ describe('WING ACCU pressure indication', () => {
   });
 });
 
+/** The page reads the brake faults, temperatures and tire pressures on a 300 ms interval */
+const WHEEL_PAGE_UPDATE_MS = 300;
+
+/**
+ * Renders the WHEEL page, runs its update interval once and inspects the result.
+ * @param simVars the L:vars the page reads
+ * @param inspect reads what it needs out of the rendered SVG
+ */
+function inspectWheelPage<T>(simVars: Record<string, number>, inspect: (container: SVGSVGElement) => T): T {
+  vi.useFakeTimers();
+  return withRenderedSdElement(<WheelPage />, simVars, (container) => {
+    act(() => {
+      vi.advanceTimersByTime(WHEEL_PAGE_UPDATE_MS);
+    });
+    return inspect(container);
+  });
+}
+
+/** An LGCIU discrete word the page reads, with the sign status of a working LGCIU */
+function normalOperationWord(bits: number[] = []): number {
+  const word = Arinc429Register.empty();
+  word.setSsm(Arinc429SignStatusMatrix.NormalOperation);
+  bits.forEach((bit) => word.setBitValue(bit, true));
+  return word.rawWord;
+}
+
 describe('WHEEL page wiring', () => {
-  const source = readFileSync(resolve(__dirname, 'WheelPage.tsx'), 'utf-8');
+  afterEach(() => {
+    vi.useRealTimers();
+  });
 
   it('feeds the WING ACCU gauge with the accumulator pressure instead of a fixed needle', () => {
-    expect(source).toContain("useSimVar('L:A32NX_HYD_BRAKE_ALTN_ACC_PRESS', 'number'");
-    expect(source).toContain('indication={wingAccuIndication(');
-    const accumulator = readFileSync(resolve(__dirname, 'elements/Accumulator.tsx'), 'utf-8');
-    expect(accumulator).not.toContain('value={4.8}');
-    expect(accumulator).toContain('value={indication.needleKpsi}');
+    const accumulator = (pressurePsi: number, moreShown = 0) =>
+      inspectWheelPage(
+        { 'L:A32NX_HYD_BRAKE_ALTN_ACC_PRESS': pressurePsi, 'L:A32NX_ECAM_SD_MORE_SHOWN': moreShown },
+        (container) => {
+          const gauge = container.querySelector('g#wing-accu');
+          const needle = Array.from(gauge?.querySelectorAll('line') ?? []).find((line) =>
+            line.getAttribute('class')?.startsWith('SW6'),
+          );
+          return {
+            visibility: gauge?.getAttribute('visibility'),
+            needleClass: needle?.getAttribute('class'),
+            needleEnd: [needle?.getAttribute('x2'), needle?.getAttribute('y2')],
+          };
+        },
+      );
+
+    const low = accumulator(1000);
+    const nearAmberLimit = accumulator(3000);
+    expect(low).toMatchObject({ visibility: 'visible', needleClass: 'SW6 Amber LineRound' });
+    expect(nearAmberLimit.needleEnd).not.toEqual(low.needleEnd);
+    // the needle moves with the pressure
+    expect(accumulator(4800, 1).needleEnd).not.toEqual(accumulator(5000, 1).needleEnd);
+    expect(accumulator(5000)).toMatchObject({ visibility: 'hidden' });
+    expect(accumulator(5000, 1)).toMatchObject({ visibility: 'visible', needleClass: 'SW6 Green LineRound' });
   });
 
   it('drives the control lines and the AUTO BRAKE text from the indications, not from MORE alone', () => {
-    expect(source).toContain("id=\"brk-control\" visibility={brakeControl.lineVisible ? 'visible' : 'hidden'}");
-    expect(source).toContain("id=\"steering-control\" visibility={steeringControl.lineVisible ? 'visible' : 'hidden'}");
-    expect(source).toContain("visibility={brakeControl.autoBrakeFailedVisible ? 'visible' : 'hidden'}");
+    const visibilities = (simVars: Record<string, number>) =>
+      inspectWheelPage(simVars, (container) => {
+        const autoBrake = Array.from(container.querySelectorAll('text')).find(
+          (text) => text.textContent === 'AUTO BRAKE',
+        );
+        return {
+          brakeControl: container.querySelector('#brk-control')?.getAttribute('visibility'),
+          steeringControl: container.querySelector('#steering-control')?.getAttribute('visibility'),
+          autoBrake: autoBrake?.getAttribute('visibility'),
+        };
+      });
+
+    expect(visibilities({})).toEqual({ brakeControl: 'hidden', steeringControl: 'hidden', autoBrake: 'hidden' });
+    expect(visibilities({ 'L:A32NX_ECAM_SD_MORE_SHOWN': 1 })).toEqual({
+      brakeControl: 'visible',
+      steeringControl: 'visible',
+      autoBrake: 'hidden',
+    });
+    // one of the two braking systems failed is not a BCS failure
+    expect(visibilities({ 'L:A32NX_BRAKES_NORM_BRK_FAULT': 1 }).brakeControl).toBe('hidden');
+    expect(visibilities({ 'L:A32NX_BRAKES_NORM_BRK_FAULT': 1, 'L:A32NX_BRAKES_ALTN_BRK_FAULT': 1 }).brakeControl).toBe(
+      'visible',
+    );
+    expect(visibilities({ 'L:A32NX_STEERING_SCS_2_FAULT': 1 }).steeringControl).toBe('visible');
+    expect(visibilities({ 'L:A32NX_BRAKES_AUTO_BRK_FAULT': 1 }).autoBrake).toBe('visible');
   });
 
-  it('passes the hottest brake arcs and the LGCIU words to the bogeys and the gears', () => {
-    expect(source.match(/hottestBrakeArcs=\{arcs\}/g)).toHaveLength(5);
-    expect(source.match(/lgciuWords=\{lgciuWords\}/g)).toHaveLength(5);
+  it('passes the hottest brake arcs to the bogeys: the arc is on the hottest brake of the aircraft only', () => {
+    const wheelsWithArc = (hottestBrake: number) =>
+      inspectWheelPage({ [`L:A32NX_REPORTED_BRAKE_TEMPERATURE_${hottestBrake}`]: 400 }, (container) =>
+        Array.from(container.querySelectorAll('g[id^="wheel-"]'))
+          .filter((wheel) => wheel.querySelector('path')?.getAttribute('class') === 'Amber NoFill SW3')
+          .map((wheel) => wheel.id),
+      );
+    // every one of the 16 brakes, in the four braked bogeys
+    for (let brake = 1; brake <= 16; brake++) {
+      expect(wheelsWithArc(brake)).toEqual([`wheel-${brake}`]);
+    }
+  });
+
+  it('passes the LGCIU words to the five gears', () => {
+    const gearGroupsWithLostData = (simVars: Record<string, number>) =>
+      inspectWheelPage(simVars, (container) =>
+        Array.from(container.querySelectorAll('g[id^="gear-"]'))
+          .filter((gear) => Array.from(gear.querySelectorAll('text')).some((text) => text.textContent === 'XX'))
+          .map((gear) => gear.id),
+      );
+    // no LGCIU data: every gear shows amber crosses
+    expect(gearGroupsWithLostData({})).toHaveLength(5);
+    // both LGCIUs working: none does
+    expect(
+      gearGroupsWithLostData({
+        'L:A32NX_LGCIU_1_DISCRETE_WORD_1': normalOperationWord(),
+        'L:A32NX_LGCIU_2_DISCRETE_WORD_1': normalOperationWord(),
+        'L:A32NX_LGCIU_1_DISCRETE_WORD_3': normalOperationWord(),
+        'L:A32NX_LGCIU_2_DISCRETE_WORD_3': normalOperationWord(),
+      }),
+    ).toEqual([]);
   });
 
   it('no longer reads the sim gear and door positions', () => {
-    const gear = readFileSync(resolve(__dirname, 'elements/Gear.tsx'), 'utf-8');
-    expect(gear).not.toContain('_POSITION`');
-    expect(gear).not.toContain('FIXME');
+    const names: string[] = [];
+    const recordingSimVars = new Proxy({} as Record<string, number>, {
+      get: (_target, name) => {
+        names.push(String(name));
+        return 0;
+      },
+    });
+    inspectWheelPage(recordingSimVars, () => undefined);
+    expect(names.length).toBeGreaterThan(0);
+    expect(names.filter((name) => name.endsWith('_POSITION'))).toEqual([]);
   });
 });
 
 describe('WHEEL SD tire pressures', () => {
   const normal = () => new Array(22).fill(220);
+
+  /** The MORE page, with tire n at 200 + n so that every wheel shows its own value */
+  function tireSimVarsWithDistinctPressures(): Record<string, number> {
+    const simVars: Record<string, number> = { 'L:A32NX_ECAM_SD_MORE_SHOWN': 1 };
+    for (let tire = 1; tire <= 22; tire++) {
+      simVars[tirePressureVar(tire)] = 200 + tire;
+    }
+    return simVars;
+  }
 
   it('normal pressure: green, only on the WHEEL MORE page', () => {
     expect(tirePressureIndication(normal(), 3, 1, false)).toEqual({ visible: false, amber: false });
@@ -222,10 +340,23 @@ describe('WHEEL SD tire pressures', () => {
   });
 
   it('the wheels show the TPIS values, not a fixed 220', () => {
-    const wheel = readFileSync(resolve(__dirname, 'elements/Wheel.tsx'), 'utf-8');
-    expect(wheel).toContain('{tirePressure}');
-    expect(wheel).not.toMatch(/>\s*220\s*</);
-    const bogey = readFileSync(resolve(__dirname, 'elements/WheelBogey.tsx'), 'utf-8');
-    expect(bogey).toContain('tirePressureIndication(tirePressures, tire, flightPhase, moreActive)');
+    const shownPressures = inspectWheelPage(tireSimVarsWithDistinctPressures(), (container) =>
+      Array.from(container.querySelectorAll('g[id^="wheel-"] text'))
+        .filter((text) => text.getAttribute('visibility') === 'visible')
+        .map((text) => Number(text.textContent)),
+    );
+    // 22 tires, each pressure shown on its own wheel
+    expect(shownPressures.slice().sort((a, b) => a - b)).toEqual(Array.from({ length: 22 }, (_, i) => 201 + i));
+  });
+
+  it('the wheel of a bogey takes the pressure of its own tire', () => {
+    const wheel3Pressure = inspectWheelPage(
+      tireSimVarsWithDistinctPressures(),
+      (container) =>
+        Array.from(container.querySelectorAll('g#wheel-3 text')).find(
+          (text) => text.getAttribute('visibility') === 'visible',
+        )?.textContent,
+    );
+    expect(wheel3Pressure).toBe('203');
   });
 });
