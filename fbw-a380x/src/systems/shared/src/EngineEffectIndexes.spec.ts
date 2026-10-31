@@ -4,6 +4,7 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
+import { runRpn } from '../../../../../fbw-a32nx/src/behavior/RpnTestInterpreter';
 
 /*
  * The engine-specific effect.N lines of the [EFFECTS] section of the A380X aircraft.cfg (engine heat haze) must read the
@@ -52,9 +53,12 @@ function cfgConditionalEffects(): ConditionalEffect[] {
   return effects;
 }
 
-/** The engine indexes read by an RPN code, e.g. 2 for (A:GENERAL ENG COMBUSTION:2, boolean) */
-function engineIndexesRead(code: string): number[] {
-  return [...code.matchAll(/\(A:[^,):]*ENG[^,):]*:(\d+)\s*,/gi)].map((match) => Number(match[1]));
+/** The engines 1 to 4 */
+const ENGINES = [1, 2, 3, 4];
+
+/** The engines whose combustion alone (all other engines and the APU stopped) switches the effect line on */
+function enginesThatTrigger(effect: ConditionalEffect): number[] {
+  return ENGINES.filter((engine) => runRpn(effect.code, { [`A:GENERAL ENG COMBUSTION:${engine}`]: 1 }).value);
 }
 
 describe('A380X aircraft.cfg engine effect lines', () => {
@@ -65,17 +69,21 @@ describe('A380X aircraft.cfg engine effect lines', () => {
     expect([...heatHazeNodes].sort()).toEqual(Object.keys(ENGINE_OF_EXHAUST_NODE).sort());
   });
 
-  it('makes each engine effect line read the engine of its own exhaust node, and that engine only', () => {
+  it('comes on with the combustion of the engine of its own exhaust node, and of that engine only', () => {
     for (const effect of engineEffects) {
-      expect(engineIndexesRead(effect.code), `effect.${effect.index} on ${effect.node}: ${effect.code}`).toEqual([
+      expect(enginesThatTrigger(effect), `effect.${effect.index} on ${effect.node}: ${effect.code}`).toEqual([
         ENGINE_OF_EXHAUST_NODE[effect.node],
       ]);
     }
   });
 
-  it('reads no engine from the effect lines of the other nodes (APU)', () => {
+  it('keeps the effect lines of the other nodes (APU) off with all four engines running', () => {
+    const allEnginesRunning: Record<string, number> = {};
+    ENGINES.forEach((engine) => {
+      allEnginesRunning[`A:GENERAL ENG COMBUSTION:${engine}`] = 1;
+    });
     for (const effect of cfgConditionalEffects().filter((e) => !(e.node in ENGINE_OF_EXHAUST_NODE))) {
-      expect(engineIndexesRead(effect.code), `effect.${effect.index} on ${effect.node}`).toEqual([]);
+      expect(runRpn(effect.code, allEnginesRunning).value, `effect.${effect.index} on ${effect.node}`).toBe(0);
     }
   });
 });

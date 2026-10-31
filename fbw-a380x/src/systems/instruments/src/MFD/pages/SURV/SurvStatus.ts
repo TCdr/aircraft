@@ -44,3 +44,13 @@ export function tawsInUseText(wxrTawsSelected: number, tawsSystemInUse: number):
   const taws = tawsSystem(wxrTawsSelected, tawsSystemInUse);
   return taws !== 0 && taws !== wxrTawsSelected ? `TAWS ${taws} IN USE` : null;
 }
+
+/**
+ * The value a SYS button of the STATUS & SWITCHING page writes to L:A32NX_WXR_TAWS_SYS_SELECTED. The button always
+ * selects its own system, also when it is already lit: the TAWS, the GPWS and the radar read 0 as "no system".
+ * @param systemButton the SYS button pressed
+ * @returns the system number to select
+ */
+export function wxrTawsSystemSelectedByButton(systemButton: '1' | '2'): 1 | 2 {
+  return systemButton === '1' ? 1 : 2;
+}

@@ -97,7 +97,9 @@ function builtExteriorLodMaterialOwners(lod: number): Map<string, string[]> {
   if (lod === 0) {
     lod0ModelOperations().forEach((operation) => operation.file && baseFiles.push(operation.file));
   }
-  new Set(baseFiles.flatMap(gltfMaterialNames)).forEach((name) => add(name, 'base'));
+  new Set(baseFiles.reduce<string[]>((names, file) => names.concat(gltfMaterialNames(file)), [])).forEach((name) =>
+    add(name, 'base'),
+  );
   for (const addition of exteriorModelAdditions()) {
     if (addition.gltf && (!addition.lods || addition.lods.includes(lod))) {
       gltfMaterialNames(addition.gltf).forEach((name) => add(name, addition.gltf));
@@ -560,7 +562,10 @@ describe('A32NX engine fire marker nodes', () => {
     const marker = JSON.parse(readFileSync(join(MODEL_DIR, 'fx_engine_fire', 'fx_engine_fire.gltf'), 'utf8')) as {
       nodes: { name: string; translation: number[]; scale?: number[]; rotation?: number[] }[];
     };
-    const byName = Object.fromEntries(marker.nodes.map((node) => [node.name, node]));
+    const byName: Record<string, (typeof marker.nodes)[number]> = {};
+    marker.nodes.forEach((node) => {
+      byName[node.name] = node;
+    });
     for (const name of Object.values(ENGINE_EXHAUST_NODES)) {
       expect(byName[name].scale, name).toBeUndefined();
       expect(byName[name].rotation, name).toBeUndefined();
@@ -571,7 +576,16 @@ describe('A32NX engine fire marker nodes', () => {
     expect(left[1]).toBeCloseTo(right[1], 3);
     expect(left[2]).toBeCloseTo(right[2], 2);
     // the 0.5 scale stays on the exhaust nodes themselves (heat haze and contrails unchanged)
-    const models = readFileSync(join(MODEL_DIR, 'models.json'), 'utf8');
-    expect(models).toMatch(/"node": "fx_exhaust_left",\s*"mods": \{[^}]*"scale": \[0\.5, 0\.5, 0\.5\]/);
+    const entries = JSON.parse(readFileSync(join(MODEL_DIR, 'models.json'), 'utf8')) as {
+      modifications?: { node: string; mods: { scale?: number[] } }[];
+    }[];
+    const exhaustModifications: { mods: { scale?: number[] } }[] = [];
+    for (const entry of entries) {
+      exhaustModifications.push(...(entry.modifications ?? []).filter((mod) => mod.node === 'fx_exhaust_left'));
+    }
+    expect(exhaustModifications.length).toBeGreaterThan(0);
+    for (const mod of exhaustModifications) {
+      expect(mod.mods.scale).toEqual([0.5, 0.5, 0.5]);
+    }
   });
 });

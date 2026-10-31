@@ -4,6 +4,7 @@
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import { describe, expect, it } from 'vitest';
+import { runRpn } from '../../../../../fbw-a32nx/src/behavior/RpnTestInterpreter';
 
 /*
  * The ELMU pb-sw (automatic shedding of low commercial loads) is a function of its own: the COMMERCIAL, COMMERCIAL 2
@@ -35,10 +36,13 @@ describe('ELEC panel COMMERCIAL, COMMERCIAL 2 and ELMU pbs', () => {
     ]);
   });
 
-  it('light the ELMU FAULT legend from the ELMU failure of systems.wasm', () => {
+  it('light the ELMU FAULT legend from the ELMU failure of systems.wasm only', () => {
     const start = behaviour.indexOf('<NODE_ID>PUSH_OVHD_ELEC_ELMU</NODE_ID>');
     const block = behaviour.slice(start, behaviour.indexOf('</UseTemplate>', start));
-    expect(block).toContain('<SEQ1_CODE>(L:A380X_OVHD_ELEC_ELMU_PB_HAS_FAULT, Bool)</SEQ1_CODE>');
-    expect(block).not.toContain('<SEQ1_EMISSIVE_DRIVES_VISIBILITY>False</SEQ1_EMISSIVE_DRIVES_VISIBILITY>');
+    const faultCode = block.match(/<SEQ1_CODE>([^<]*)<\/SEQ1_CODE>/)?.[1] ?? '';
+    expect(runRpn(faultCode, { 'L:A380X_OVHD_ELEC_ELMU_PB_HAS_FAULT': 1 }).value).toBe(1);
+    expect(
+      runRpn(faultCode, { 'L:A380X_OVHD_ELEC_ELMU_PB_HAS_FAULT': 0, 'L:A380X_OVHD_ELEC_ELMU_PB_IS_OFF': 1 }).value,
+    ).toBe(0);
   });
 });
