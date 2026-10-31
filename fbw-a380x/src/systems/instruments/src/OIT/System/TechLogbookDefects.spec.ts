@@ -9,7 +9,7 @@ import {
   defectFunctions,
   defectSystems,
   defectsBySystem,
-  defectsInArea,
+  defectsInZone,
   groundDeferralRule,
   searchDefects,
 } from './TechLogbookDefects';
@@ -55,11 +55,10 @@ describe('technical logbook standard defects', () => {
     expect(searchDefects('nothing like this')).toEqual([]);
   });
 
-  it('lists the standard defects of a cockpit area', () => {
-    expect(defectsInArea('GLARESHIELD').every((d) => d.area === 'GLARESHIELD')).toBe(true);
-    for (const area of COCKPIT_AREAS) {
-      expect(defectsInArea(area).length).toBeGreaterThan(0);
-    }
+  it('lists the standard defects of an equipment zone', () => {
+    const defects = defectsInZone('GLARESHIELD', 'FCU');
+    expect(defects.length).toBeGreaterThan(0);
+    expect(defects.every((d) => d.area === 'GLARESHIELD' && d.zone === 'FCU')).toBe(true);
   });
 });
 
