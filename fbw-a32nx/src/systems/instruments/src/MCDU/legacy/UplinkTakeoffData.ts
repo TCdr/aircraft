@@ -27,6 +27,14 @@ export class UplinkTakeoffData extends CompanyTakeoffDataLink {
     super(bus, true, fmsData, onMessage);
   }
 
+  /**
+   * The flypad sends only the thrust rating chosen for the takeoff run: a runway that received FLEX data alone opens on
+   * the UPLINK FLX TO DATA page, not on an empty MAX page without INSERT UPLINK.
+   */
+  public opensOnFlexPage(runway: string): boolean {
+    return this.find(runway, false) === undefined && this.find(runway, true) !== undefined;
+  }
+
   /** The A320 UPLINK TO DATA pages need V1 and VR */
   protected override isValid(uplink: CompanyTakeoffDataUplink): boolean {
     return (
