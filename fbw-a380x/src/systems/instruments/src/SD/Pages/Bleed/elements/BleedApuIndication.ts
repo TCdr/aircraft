@@ -12,7 +12,7 @@
 
 /**
  * @param valveOpen the APU bleed valve is open (L:A32NX_APU_BLEED_AIR_VALVE_OPEN)
- * @param apuBleedPbOn the APU BLEED pb-sw is ON (L:A32NX_OVHD_APU_BLEED_PB_IS_ON)
+ * @param apuBleedPbOn the APU BLEED pb-sw is ON (L:A32NX_OVHD_PNEU_APU_BLEED_PB_IS_ON)
  * @param apuAvailable the APU is AVAIL (L:A32NX_OVHD_APU_START_PB_IS_AVAILABLE)
  * @returns the valve is abnormally open or abnormally closed (amber)
  */

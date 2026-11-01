@@ -6,7 +6,7 @@ import { isApuBleedValveAbnormal } from './BleedApuIndication';
 const BleedApu: FC = () => {
   const [apuBleedAirValveOpen] = useSimVar('L:A32NX_APU_BLEED_AIR_VALVE_OPEN', 'bool', 500);
   const [apuMasterSwitchPbIsOn] = useSimVar('L:A32NX_OVHD_APU_MASTER_SW_PB_IS_ON', 'bool', 500);
-  const [apuBleedPbIsOn] = useSimVar('L:A32NX_OVHD_APU_BLEED_PB_IS_ON', 'bool', 500);
+  const [apuBleedPbIsOn] = useSimVar('L:A32NX_OVHD_PNEU_APU_BLEED_PB_IS_ON', 'bool', 500);
   const [apuIsAvailable] = useSimVar('L:A32NX_OVHD_APU_START_PB_IS_AVAILABLE', 'bool', 500);
   const apuBleedValveAbnormal = isApuBleedValveAbnormal(!!apuBleedAirValveOpen, !!apuBleedPbIsOn, !!apuIsAvailable);
   const apuBleedValveCss = apuBleedValveAbnormal ? 'Amber SW2 NoFill' : 'Green SW2 NoFill';
