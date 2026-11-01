@@ -17,3 +17,6 @@ pnpm-lock.yaml text eol=lf
 
 # pnpm patches must keep the line endings of the files they patch
 /patches/*.patch -text
+
+# The model patches are applied to LF files and must keep their line endings
+/scripts/model-patches/*.patch -text

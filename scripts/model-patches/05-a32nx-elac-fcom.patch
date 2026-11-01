@@ -1,0 +1,59 @@
+diff --git a/fbw-a32nx/src/wasm/fbw_a320/src/model/ElacComputer.cpp b/fbw-a32nx/src/wasm/fbw_a320/src/model/ElacComputer.cpp
+index 63807896d..9e80ea442 100644
+--- a/fbw-a32nx/src/wasm/fbw_a320/src/model/ElacComputer.cpp
++++ b/fbw-a32nx/src/wasm/fbw_a320/src/model/ElacComputer.cpp
+@@ -962,7 +962,9 @@ void ElacComputer::step()
+       rtb_y_f) && ((abnormalCondition_tmp > 125.0) || ((rtb_alpha > 50.0F) || (rtb_alpha < -30.0F))))));
+     ElacComputer_DWork.abnormalConditionWasActive = (rtb_OR1_me || (rtb_ap_authorised &&
+       ElacComputer_DWork.abnormalConditionWasActive));
+-    rtb_NOT_k = ((!rtb_OR3) || (!rtb_OR1));
++    // With both blue and yellow lost the right elevator loss is expected: ELAC 2 stays in pitch normal law on the left
++    // elevator
++    rtb_NOT_k = ((!rtb_OR3) || ((!rtb_OR1) && (rtb_OR6 || rtb_BusAssignment_n_logic_is_yellow_hydraulic_power_avail)));
+     rtb_AND4 = !leftAileronAvail;
+     rtb_OR_e1 = !rightAileronAvail;
+     rtb_y_p = (casValid_tmp_tmp || rtb_tripleAdrFault || ElacComputer_DWork.abnormalConditionWasActive || (rtb_AND4 &&
+diff --git a/fbw-a32nx/src/wasm/fbw_a320/src/model/ElacComputer_data.cpp b/fbw-a32nx/src/wasm/fbw_a320/src/model/ElacComputer_data.cpp
+index 3387e40b7..82effe246 100644
+--- a/fbw-a32nx/src/wasm/fbw_a320/src/model/ElacComputer_data.cpp
++++ b/fbw-a32nx/src/wasm/fbw_a320/src/model/ElacComputer_data.cpp
+@@ -264,9 +264,9 @@ ElacComputer::Parameters_ElacComputer_T ElacComputer::ElacComputer_P{
+ 
+   0.5,
+ 
+-  30.0,
++  40.0,
+ 
+-  30.0,
++  40.0,
+ 
+   0.2,
+ 
+@@ -2165,9 +2165,9 @@ ElacComputer::Parameters_ElacComputer_T ElacComputer::ElacComputer_P{
+ 
+   0.82,
+ 
+-  380.0,
++  366.0,
+ 
+-  0.88,
++  0.86,
+ 
+   0.017453292519943295,
+ 
+diff --git a/fbw-a32nx/src/wasm/fbw_a320/src/model/SecComputer_data.cpp b/fbw-a32nx/src/wasm/fbw_a320/src/model/SecComputer_data.cpp
+index b9124ecf8..863da30df 100644
+--- a/fbw-a32nx/src/wasm/fbw_a320/src/model/SecComputer_data.cpp
++++ b/fbw-a32nx/src/wasm/fbw_a320/src/model/SecComputer_data.cpp
+@@ -274,9 +274,9 @@ SecComputer::Parameters_SecComputer_T SecComputer::SecComputer_P{
+ 
+   0.5,
+ 
+-  30.0,
++  40.0,
+ 
+-  30.0,
++  40.0,
+ 
+   0.2,
+ 

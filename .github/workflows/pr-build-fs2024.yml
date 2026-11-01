@@ -40,6 +40,23 @@ jobs:
       - name: test-rust.sh
         run: |
           ./scripts/dev-env/run.sh scripts/test-rust.sh
+  test-fbw-native:
+    name: Tests (fbw native)
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout PR source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      # The check reconstructs the recorded model files from that commit, which a default checkout does not contain.
+      - name: fetch the base commit of the recorded model edits
+        run: git fetch --no-tags --depth=1 origin "$(cat scripts/model-patches/BASE)"
+      - name: test-fbw-native.sh
+        run: |
+          ./scripts/dev-env/run.sh scripts/test-fbw-native.sh
   test-js:
     name: Tests (JS)
     runs-on: ubuntu-latest
