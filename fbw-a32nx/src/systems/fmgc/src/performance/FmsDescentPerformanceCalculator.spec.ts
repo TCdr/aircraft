@@ -96,7 +96,8 @@ describe('Descent performance', () => {
     expect(tooSteep.time).toBeCloseTo(standard.time, -1);
     const givenVs = a380.calculateDescent({ ...standard.inputs, type: DescentType.GivenVs, verticalSpeed: 1000 });
     expect(givenVs.verticalSpeedIdleBelow).toBeUndefined();
-    expect(givenVs.averageRate).toBeCloseTo(1000, -1);
+    // the deceleration to the speed limit at 10 000 ft is part of the profile and not flown at the given V/S
+    expect(givenVs.averageRate).toBeCloseTo(1000, -2);
     expect(givenVs.distance).toBeGreaterThan(standard.distance);
     expect(a380.calculateDescent({ ...standard.inputs, targetAltitude: 45_000 }).error).toBe(
       DescentPerformanceError.TargetAboveInitial,
@@ -135,6 +136,52 @@ describe('Descent performance', () => {
     expect(at(10_000).cas).toBeCloseTo(250, 0);
     expect(at(5_000).cas).toBeCloseTo(250, 0);
     expect(points.some((p) => p.event === 'DECEL')).toBe(true);
+  });
+
+  it('a descent to a target above the speed limit altitude flies the schedule speed', () => {
+    const descend = (limitCas: number) =>
+      a320.calculateDescent({
+        ...FCOM_TABLE,
+        initialAltitude: 35_000,
+        targetAltitude: 12_000,
+        schedule: { mach: 0.78, cas: 300, limitCas, limitAltitude: 10_000 },
+      });
+    const limited = descend(250);
+    for (const point of limited.points.filter((p) => p.altitude > 10_000 && p.mach < 0.78)) {
+      expect(point.cas).toBeCloseTo(300, 0);
+    }
+    expect(limited.time).toBeCloseTo(descend(300).time, 6);
+  });
+
+  it('a descent ending at the speed limit altitude decelerates to the limit speed before it', () => {
+    const descend = (limitCas: number) =>
+      a320.calculateDescent({
+        ...FCOM_TABLE,
+        initialAltitude: 35_000,
+        targetAltitude: 10_000,
+        schedule: { mach: 0.78, cas: 300, limitCas, limitAltitude: 10_000 },
+      });
+    const limited = descend(250);
+    expect(limited.points.some((p) => p.event === 'DECEL')).toBe(true);
+    expect(limited.points.some((p) => p.event === 'SPD LIM' && p.altitude === 10_000)).toBe(true);
+    expect(limited.time).toBeGreaterThan(descend(300).time);
+  });
+
+  it('a schedule speed below the speed limit is flown below the limit altitude', () => {
+    const descend = (cas: number) =>
+      a320.calculateDescent({
+        ...FCOM_TABLE,
+        initialAltitude: 35_000,
+        targetAltitude: 3_000,
+        schedule: { mach: 0.78, cas, limitCas: 300, limitAltitude: 10_000 },
+      });
+    const slow = descend(250);
+    const below = slow.points.filter((p) => p.altitude < 10_000);
+    expect(below.length).toBeGreaterThan(0);
+    for (const point of below) {
+      expect(point.cas).toBeCloseTo(250, 0);
+    }
+    expect(slow.time).toBeGreaterThan(descend(300).time);
   });
 
   it('gives the crossover altitude of the speed schedule (ISA)', () => {

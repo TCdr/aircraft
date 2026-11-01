@@ -303,6 +303,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X] Cockpit lights: panels lit at a dusk or night start, lighting presets move the MAIN PNL FLOOD and AMBIENT knobs, a stronger main panel flood on its own circuits - @TCdr
 1. [EFB] The dashboard follows the flight: a strip with the times and a countdown for the current phase, advice on weather and crosswind, and the cards that matter at the gate, in flight and after landing (turnaround, fuel, payload, weather, checklist) - @TCdr
 1. [EFB] Weather page in Navigation (METAR / TAF of the flight's airports or any ICAO): decoded conditions with the flight category, the wind on the chosen runway, the cloud layers over the field and the TAF as a timeline; a TAF missing from the weather server can be loaded from the OFP - @TCdr
+1. [EFB] Fix the wind field of the performance calculators refusing a direction typed without leading zeros (80/10 stopped at 80) - @TCdr
 
 ## 2024.1.0
 
