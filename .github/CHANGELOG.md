@@ -69,6 +69,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FMS] Disable destination QNH, temperature and wind fields on the PERF APPR page if no destination airport exists - @HendersonTyler
 1. [A380X/MFD] Show dashed placeholders for unset APPR and airport idents on PERF APPR page - @zain-asif-dev
 1. [A380X/MFD] Fix F speed showing CONF3 value instead of F2 on PERF APPR page - @smchuk
+1. [A32NX/FWS] Add `BARO VALUE DISAGREE` master caution, rename `ALTI DISCREPANCY` master caution to `ALT DISCREPANCY` - @FozzieHi (fozzie)
 1. [A380X/LIGHTS] Implement storm light switch function - @heclak (Heclak)
 1. [A380X/LIGHTS] Add side console lights - @heclak (Heclak)
 1. [A380X/RMP] Fixed a bug where the PILOT_TRANSMITTER_SET key event would toggle transmission rather than only setting it on - @tracernz (Mike)
@@ -153,6 +154,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/ENG] New flyPad failures Engine 1(2)(3)(4) max thrust miscalculated (thrust loss) (ATA 73): that engine gives 15 % less thrust above idle, with the ENG 1(2)(3)(4) THRUST LOSS caution at take-off - @TCdr
 1. [A380X/ENG] New flyPad failures FADEC 1(2)(3)(4) FLEX TEMP not received (ATA 73): that FADEC takes off in TOGA mode (MCT thrust in the FLX/MCT detent), with the ENG T.O THRUST DISAGREE caution - @TCdr
 1. [A380X/EWD] The N1 value turns red above the 111 % red limit, and a red cross stays next to it after an exceedance until the next engine start on ground - @TCdr
+1. [A32NX/FWC] ENG 1(2) FIRE and APU FIRE warnings come from a detected fire or the FIRE TEST only, no longer from a released FIRE pb; the APU AGENT 10 s countdown starts with the APU FIRE pb - @TCdr
+1. [A32NX/FUEL] The ENG MASTER switch and the ENG FIRE pb close the engine LP fuel valve (shown on the SD FUEL page); with the ENG FIRE pb pushed the engine shuts down once the fuel left downstream of the valve is burned, up to 2 min 30 s at idle - @TCdr
+1. [A380X/FUEL] The ENG FIRE pb closes the engine LP fuel valve: the engine shuts down once the fuel left downstream of the valve is burned (about 17 s at idle at sea level); the SD FUEL page shows the LP valve, amber when abnormally open - @TCdr
 1. [A380X/FMS] Added FMS WIND page - @BravoMike99 (bruno_pt99)
 1. [A380X/FMS] Added "ENTRY NOT IN LIST" message - @BravoMike99 (bruno_pt99)
 1. [A380X/FMS] Fixed minimums of non active flightplans being taken into account - @BravoMike99 (bruno_pt99)
@@ -168,6 +172,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] T.O CONFIG test: T.O CONFIG NORMAL now follows the A380 checks of the aircraft (generators and drives of the four engines, engine oil temperature) instead of the A320 GEN 1+2 check - @TCdr
 1. [A380X/SD] Automatic SD pages as on the aircraft: CRUISE from 1500 ft after take-off (it came 60 s after the flaps were up), WHEEL at the landing gear extension at any altitude (only below 16000 ft before) - @TCdr
 1. [A380X/BTV] BTV does not arm, and an armed BTV reverts to BRK HI, while an ECAM alert lists BTV in STATUS INOP SYS (ENG 2(3) SHUT DOWN, TWO ENGS OUT, ENG 2(3) REVERSER faults) - @TCdr
+1. [A32NX/FUEL SYSTEM] Close center tank valves if they are triggered open with no fuel in center tank - @donstim (donbikes)
+1. [A380X/FUEL SYSTEM] Prevent CG control transfer end from ending normal trim tank transfers - @donstim (donbikes)
+1. [A32NX/FMS] Fixed +/- altitude constraints entered on the F-PLN page being inverted - @shinji1100
 
 ## 2024.1.0
 
@@ -307,7 +314,6 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/MFD] Fixed PERF APPR QNH entries in inHg being displayed as hPa - @Daboss57 (Daboss57)
 1. [EFB] Add FAA and LIDO charts supplied by MSFS2024 - @tracernz (Mike)
 1. [A32NX/FLIGHT MODEL] Updated A32NX flight model for MSFS 2024 - @donstim (donbikes)
-1. [A32NX/FWS] Add `BARO VALUE DISAGREE` master caution, rename `ALTI DISCREPANCY` master caution to `ALT DISCREPANCY` - @FozzieHi (fozzie)
 
 ## 0.14.0
 
