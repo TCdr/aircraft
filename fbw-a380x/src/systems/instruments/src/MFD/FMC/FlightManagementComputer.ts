@@ -102,6 +102,7 @@ import { SequencedWaypointRecorder } from './SequencedWaypointRecorder';
 import { TimeConstraint } from './TimeConstraint';
 import { PilotStoredElements, StoredRoute } from './PilotStoredElements';
 import { toCoRoute } from './StoredRouteUtils';
+import { isGreyAreaTrackChange } from './VdGreyArea';
 import { CoRouteUplinkAdapter } from '@fmgc/flightplanning/uplink/CoRouteUplinkAdapter';
 import { allFmcInop, allFmcResetsPulled } from './FmcResetPanel';
 import { AtsuStatusCodes } from '@datalink/common';
@@ -2637,7 +2638,7 @@ export class FlightManagementComputer implements FmcInterface {
       if (leg.isDiscontinuity === false && legPrediction) {
         if (leg.definition.waypoint && trackChangesSignificantlyAtDistance === null) {
           const bearing = bearingTo(lastLegLatLong, leg.definition.waypoint.location);
-          if (lastBearing !== null && Math.abs(lastBearing - bearing) > 3) {
+          if (lastBearing !== null && isGreyAreaTrackChange(lastBearing, bearing)) {
             trackChangesSignificantlyAtDistance = legPrediction.distanceFromAircraft;
           }
           lastBearing = bearing;
