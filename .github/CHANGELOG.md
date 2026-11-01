@@ -1004,6 +1004,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [EFB] Failure details for the A380X engine fuel and control failures: FADEC channels and power supply, thrust control, thrust lever resolvers and engine fuel filters and valves (ATA 73) - @TCdr
 1. [EFB] Failure details for the A380X engine failures (flameout, seizure, stall, overtemperature, overspeed), oil, igniter, start, vibration and thrust reverser failures (ATA 72, 74, 77, 78, 79, 80) - @TCdr
 1. [EFB] Failure details for the remaining A380X failures: flight management and autothrust (ATA 22), communication (ATA 23), cockpit displays, FWS, controls and recorders (ATA 31), cabin emergency lighting (ATA 33), oxygen (ATA 35), information systems (ATA 46) and the APU (ATA 49) - @TCdr
+1. [A32NX/A380X] Smoother frame times with the aircraft powered: the PFD, ND, E/WD and system displays make far less temporary data with every update, so the stutters that came every few seconds are fewer and shorter - @TCdr
+1. [A32NX/A380X] Fewer short stutters with the aircraft powered: the system display, the ISIS and the radio panels redraw only when a value has changed - @TCdr
+1. [A32NX/A380X] Less stutter while the ISIS runs its self-test: the countdown no longer redraws the whole ISIS every frame - @TCdr
+1. [A380X] Fewer short stutters with the aircraft powered: the OITs, the SND and the pedestal printer no longer redraw when nothing has changed - @TCdr
+1. [A380X] Fewer and shorter stutters with the aircraft powered: the fuel, cabin and doors systems read their values with far less temporary data every frame - @TCdr
 
 ## 2024.1.0
 

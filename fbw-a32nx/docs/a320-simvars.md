@@ -422,6 +422,13 @@
     - Bool
     - Indicates if the APU fire button is RELEASED
 
+- A32NX_FIRE_BUTTON_ENG{number}
+    - Bool
+    - True when the overhead ENG FIRE pushbutton of the engine has been released
+    - {number}
+        - 1
+        - 2
+
 - A32NX_FWC_FIRE_TEST_{ENG1 | ENG2 | APU}_ACTIVE
     - Bool
     - True while the FWC sees the ENG 1, ENG 2 or APU FIRE TEST: while the TEST pb is pressed, plus 7 s after
@@ -634,6 +641,10 @@
     - Degrees
     - Weather radar TILT knob, -15 to +15 in quarters of a degree. Shown on the ND with MULTISCAN set to MAN only; MSFS
       cannot tilt the radar beam, the picture does not change.
+
+- A32NX_SWITCH_RADAR_PWS_Position
+    - Bool
+    - Position of the PRED W/S switch on the pedestal weather radar panel: true for AUTO, false for OFF. The FWC shows PRED W/S OFF when it is OFF
 
 - A32NX_LOUDSPEAKER_{side}_VOLUME
     - Percent
@@ -1271,6 +1282,10 @@
     - Bool
     - Forward cargo door is locked in closed position
 
+- A32NX_AFT_DOOR_CARGO_POSITION
+    - Percent
+    - Real position of the aft cargo door
+
 - A32NX_DOOR_{door}_PROX_SENSOR_FAULT
     - Bool
     - The proximity sensor of the door is failed (flyPad ATA 52 failure): the door is no longer detected closed, so the
@@ -1749,6 +1764,18 @@ These variables are the interface between the 3D model and the systems/code.
     - Bool
     - True when the STS reminder is shown at the bottom of the E/WD (STATUS page not empty, not shown, and no alert on the
       E/WD)
+
+- A32NX_EWD_LOWER_{side}_LINE_{number}
+    - String
+    - The message code of line {number} of the left or right column of the lower half of the E/WD, as written by the FWC. Empty for no line
+    - {side}
+        - LEFT
+        - RIGHT
+    - {number}: 1 to 7
+
+- A32NX_EWD_LOWER_LEFT_OVERFLOW
+    - Bool
+    - True when the alerts do not all fit in the left column of the lower half of the E/WD: the E/WD shows the green arrow that tells that more lines are hidden
 
 - A32NX_FCU_EFIS_{side}_NAVAID_{1|2}_MODE
     - Enum
@@ -2502,6 +2529,17 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - {side}
         - L
         - R
+
+- A32NX_FMGC_{side}_NAV_ACCURACY_HIGH
+    - Bool
+    - The FMS navigation accuracy is HIGH: the estimated position uncertainty is within the required navigation performance. Written by the FMS (fmgc navigation/Navigation.ts), read by the PFD for the FLS approach capability
+    - {side}
+        - L
+        - R
+
+- A32NX_FM_IR_POS_DISAGREE
+    - Bool
+    - The FMS FM/IR position disagree condition: an FMS position more than 5 NM from a valid IR position, not in GPS PRIMARY. Written by the FMS (fmgc navigation/Navigation.ts)
 
 - `A32NX_FM{number}_BACKBEAM_SELECTED`
     - Bool
@@ -5069,6 +5107,13 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - 2
   - As A32NX_FADEC_CHANNEL_A_POWERED_ENG{number} for channel B, whose network supply is DC BUS 1 (engine 1) or DC BUS 2 (engine 2). A32NX_FADEC_POWERED_ENG{number} is true while a supplied channel is not failed; while it is false the systems WASM opens no start valve (no crank, no start; ENG MASTER already ON starts nothing once the FADEC is powered again)
 
+- A32NX_FADEC_POWERED_ENG{number}
+  - Bool
+  - {number}
+    - 1
+    - 2
+  - True while the FADEC of the engine is powered and sends its engine data: at least one of its channels is supplied and not failed. When false, the E/WD and the SD show XX for the engine data. Written by the FADEC code of the MCDU instrument
+
 - A32NX_ENGINE_{number}_FADEC_HI_TEMP
   - Bool
   - {number}
@@ -5502,6 +5547,18 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
     - PRIORITY_LEFT: the CAPT holds the sidestick priority
     - PRIORITY_RIGHT: the F/O holds the sidestick priority
     - WINDSHEAR: WINDSHEAR said three times, at the reactive windshear warning
+
+- A32NX_FWC_CRC
+  - Bool
+  - True while the FWC plays the continuous repetitive chime of a warning
+
+- A32NX_FWC_SC
+  - Bool
+  - True while the FWC plays the single chime of a caution
+
+- A32NX_FWC_CAVALRY_CHARGE
+  - Bool
+  - True while the FWC plays the cavalry charge, the aural alert of an autopilot disconnection and of the other warnings that call for it
 
 
 ## Landing Gear (ATA 32)
@@ -6013,6 +6070,56 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
         - ZERO, ONE, TWO, THREE, FOUR, FIVE, SIX, SEVEN, EIGHT, NINE, LEFT, RIGHT, CENTER
         - THOUSAND, HUNDRED, THIRTY, REMAINING, AVAILABLE
 
+- A32NX_EGPWC_PRESENT_LAT
+    - Arinc429Word<Degrees>
+    - Latitude of the present position, taken from ADIRU 1 by the EGPWC for its terrain functions. Invalid while the EGPWC is not powered. Written by the EGPWC
+
+- A32NX_EGPWC_PRESENT_LONG
+    - Arinc429Word<Degrees>
+    - Longitude of the present position, as A32NX_EGPWC_PRESENT_LAT
+
+- A32NX_EGPWC_PRESENT_ALTITUDE
+    - Arinc429Word<Feet>
+    - Altitude of the aircraft from ADIRU 1, as A32NX_EGPWC_PRESENT_LAT
+
+- A32NX_EGPWC_PRESENT_HEADING
+    - Arinc429Word<Degrees>
+    - True heading of the aircraft from ADIRU 1, as A32NX_EGPWC_PRESENT_LAT
+
+- A32NX_EGPWC_PRESENT_VERTICAL_SPEED
+    - Arinc429Word<Feet per minute>
+    - Vertical speed of the aircraft from ADIRU 1, as A32NX_EGPWC_PRESENT_LAT
+
+- A32NX_EGPWC_DEST_LAT
+    - Arinc429Word<Degrees>
+    - Latitude of the destination of the flight plan, passed on by the EGPWC from FM 1. Invalid while the EGPWC is not powered
+
+- A32NX_EGPWC_DEST_LONG
+    - Arinc429Word<Degrees>
+    - Longitude of the destination of the flight plan, as A32NX_EGPWC_DEST_LAT
+
+- A32NX_EGPWC_GEAR_IS_DOWN
+    - Bool
+    - True when the main landing gear is down and locked. False while the EGPWC is not powered. Written by the EGPWC
+
+- A32NX_EGPWC_TERRONND_RENDERING_MODE
+    - Number
+    - How the SimBridge terrain service draws the terrain picture of the ND. A constant of the aircraft type (0 on the A320). Written by the EGPWC
+
+- A32NX_EGPWC_ND_{side}_RANGE
+    - Number
+    - The range of the {side} ND, from the EFIS range knob position (10 to 320 NM). Written by the EGPWC
+    - {side}
+        - L
+        - R
+
+- A32NX_EGPWC_ND_{side}_TERRAIN_ACTIVE
+    - Bool
+    - True while the terrain is shown on the {side} ND: its TERR ON ND pb-sw is ON (or the terrain is shown automatically for a terrain alert), the EGPWC is powered and can show the terrain (no TERR STBY, TERR pb-sw not OFF, no TERR FAULT). Written by the EGPWC
+    - {side}
+        - L
+        - R
+
 ## Weather Radar (ATA 34)
 
 - A32NX_WXR_ND_{side}_MODE
@@ -6027,6 +6134,13 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
       3 | TURB
       4 | MAP
       5 | WXR OFF
+    - {side}
+        - L
+        - R
+
+- A32NX_ND_{side}_DU_SHOWING_PICTURE
+    - Bool
+    - True while the display unit of the ND shows the ND picture: it is powered, its brightness is above 0, the self-test is done and it is not failed. The ndwxr gauge draws no radar or terrain on a blank ND. Written by the ND instrument
     - {side}
         - L
         - R
@@ -6096,6 +6210,14 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
     - Bool
     - The paper door of the pedestal printer is open (a click on the door or its handle toggles it; cockpit
       model animation PRINTER_DOOR). No effect on printing.
+
+- A32NX_PAGE_ID
+    - Number
+    - Count of the sheets sent to the cockpit printer. The sheet that was just printed is the one with the index A32NX_PAGE_ID - 1; the printer lowers the count when a sheet is discarded. Written by the MCDU and the printer
+
+- A32NX_PRINT_LINES
+    - Number
+    - The number of lines of the sheet that was just sent to the cockpit printer. Written by the MCDU
 
 - A32NX_ATSU_OFF
     - Bool
