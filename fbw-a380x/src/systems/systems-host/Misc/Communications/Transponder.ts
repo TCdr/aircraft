@@ -11,7 +11,7 @@ import {
 import { MfdSurvEvents } from '../../../instruments/src/MsfsAvionicsCommon/providers/MfdSurvPublisher';
 import { FailuresConsumer } from '@flybywiresim/fbw-sdk';
 import { A380Failure } from '@failures';
-import { isTcasInoperative, isTransponderOperative, selectedSurvSystem } from './TransponderSystem';
+import { isTcasInoperative, isTransponderOperative, presetSurvSettings, selectedSurvSystem } from './TransponderSystem';
 
 // FIXME implement the rest of the transponder and it's ARINC bus interface
 
@@ -94,6 +94,8 @@ export class Transponder implements Instrument {
 
   /** @inheritdoc */
   onUpdate(): void {
+    this.applyPresetRequest();
+
     const acEss = this.acEssPowered.get();
     const ac4 = this.ac4Powered.get();
     const isFailureActive = (failure: number) => this.failuresConsumer.isActive(failure);
@@ -138,5 +140,19 @@ export class Transponder implements Instrument {
         this.msfsTransponderState.set(MsfsTransponderState.Ground);
         break;
     }
+  }
+
+  /** The aircraft presets cannot publish the MFD SURV settings on the bus: they ask through an LVAR, answered once. */
+  private applyPresetRequest(): void {
+    const settings = presetSurvSettings(SimVar.GetSimVarValue('L:A380X_PRESET_SURV_REQUEST', SimVarValueType.Number));
+    if (!settings) {
+      return;
+    }
+    const publisher = this.bus.getPublisher<MfdSurvEvents>();
+    publisher.pub('mfd_xpdr_set_auto', settings.xpdrAuto, true);
+    publisher.pub('mfd_xpdr_set_on', false, true);
+    publisher.pub('mfd_xpdr_set_alt_reporting', true, true);
+    publisher.pub('mfd_tcas_alert_level', settings.tcasAlertLevel, true);
+    SimVar.SetSimVarValue('L:A380X_PRESET_SURV_REQUEST', SimVarValueType.Number, 0);
   }
 }
