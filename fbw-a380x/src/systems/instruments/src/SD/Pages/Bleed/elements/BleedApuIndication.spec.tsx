@@ -35,7 +35,7 @@ describe('SD BLEED APU bleed valve', () => {
         {
           'L:A32NX_APU_BLEED_AIR_VALVE_OPEN': valveOpen,
           'L:A32NX_OVHD_APU_MASTER_SW_PB_IS_ON': 1,
-          'L:A32NX_OVHD_APU_BLEED_PB_IS_ON': 1,
+          'L:A32NX_OVHD_PNEU_APU_BLEED_PB_IS_ON': 1,
           'L:A32NX_OVHD_APU_START_PB_IS_AVAILABLE': apuAvailable,
         },
         (container) => {
