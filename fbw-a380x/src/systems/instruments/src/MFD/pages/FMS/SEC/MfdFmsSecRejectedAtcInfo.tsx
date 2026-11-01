@@ -21,8 +21,8 @@ export const rejectedAtcInfoPage = 'rejected-atc-info';
 const elementsPerPage = 4;
 
 /**
- * REJECTED ATC INFO page: the elements of the ATC flight plan inserted in SEC 3 that the FMS rejected, with their
- * ranking, description and error type, 4 per page.
+ * REJECTED ATC INFO page: the elements of the ATC flight plan inserted in SEC 3
+ * that the FMS rejected, with their ranking, description and error type, 4 per page.
  *
  * No ATC flight plan can be received in the simulation, so the list is empty; PRINT is inactive (no printer).
  */
