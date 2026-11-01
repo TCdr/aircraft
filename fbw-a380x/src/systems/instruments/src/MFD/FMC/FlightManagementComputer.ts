@@ -97,6 +97,7 @@ import { SequencedWaypointRecorder } from './SequencedWaypointRecorder';
 import { TimeConstraint } from './TimeConstraint';
 import { PilotStoredElements, StoredRoute } from './PilotStoredElements';
 import { toCoRoute } from './StoredRouteUtils';
+import { isGreyAreaTrackChange } from './VdGreyArea';
 import { CoRouteUplinkAdapter } from '@fmgc/flightplanning/uplink/CoRouteUplinkAdapter';
 import { AtsuStatusCodes } from '@datalink/common';
 import { AtsuToFmsEvents, FmsToAtsuEvents, WindUplinkResponse } from '@providers/FmsAtsuBusPublisher';
@@ -228,6 +229,12 @@ export class FlightManagementComputer implements FmcInterface {
 
   public getStaticAirTemperature(): number | null {
     return this.#navigation?.getStaticAirTemperature() ?? null;
+  }
+
+  /** The aircraft position, null before the first navigation update (0/0) */
+  private knownPresentPosition(): Coordinates | null {
+    const ppos = this.#navigation.getPpos();
+    return ppos && (ppos.lat !== 0 || ppos.long !== 0) ? ppos : null;
   }
 
   get navaidTuner() {
@@ -2538,7 +2545,7 @@ export class FlightManagementComputer implements FmcInterface {
       if (leg.isDiscontinuity === false && legPrediction) {
         if (leg.definition.waypoint && trackChangesSignificantlyAtDistance === null) {
           const bearing = bearingTo(lastLegLatLong, leg.definition.waypoint.location);
-          if (lastBearing !== null && Math.abs(lastBearing - bearing) > 3) {
+          if (lastBearing !== null && isGreyAreaTrackChange(lastBearing, bearing)) {
             trackChangesSignificantlyAtDistance = legPrediction.distanceFromAircraft;
           }
           lastBearing = bearing;

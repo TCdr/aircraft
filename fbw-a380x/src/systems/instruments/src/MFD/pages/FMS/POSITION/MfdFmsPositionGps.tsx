@@ -38,7 +38,7 @@ class GpsReceiverData {
   /**
    * The simulator has no satellite constellation model. Until the MMR is modelled, the satellite count and the
    * horizontal figure of merit are stand-in values, drawn once per page view as on the A32NX MCDU GPS MONITOR page
-   * (8 to 12 satellites, 40 to 49 ft of merit; the real page shows the accuracy in FT).
+   * (8 to 12 satellites, 40 to 49 ft of merit; the reference figure shows the accuracy in FT).
    */
   readonly standInSatellites = Math.floor(Math.random() * 5) + 8;
 

@@ -74,6 +74,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FMS] Disable destination QNH, temperature and wind fields on the PERF APPR page if no destination airport exists - @HendersonTyler
 1. [A380X/MFD] Show dashed placeholders for unset APPR and airport idents on PERF APPR page - @zain-asif-dev
 1. [A380X/MFD] Fix F speed showing CONF3 value instead of F2 on PERF APPR page - @smchuk
+1. [A32NX/FWS] Add `BARO VALUE DISAGREE` master caution, rename `ALTI DISCREPANCY` master caution to `ALT DISCREPANCY` - @FozzieHi (fozzie)
 1. [A380X/LIGHTS] Implement storm light switch function - @heclak (Heclak)
 1. [A380X/LIGHTS] Add side console lights - @heclak (Heclak)
 1. [A380X/RMP] Fixed a bug where the PILOT_TRANSMITTER_SET key event would toggle transmission rather than only setting it on - @tracernz (Mike)
@@ -304,6 +305,12 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [EFB] The dashboard follows the flight: a strip with the times and a countdown for the current phase, advice on weather and crosswind, and the cards that matter at the gate, in flight and after landing (turnaround, fuel, payload, weather, checklist) - @TCdr
 1. [EFB] Weather page in Navigation (METAR / TAF of the flight's airports or any ICAO): decoded conditions with the flight category, the wind on the chosen runway, the cloud layers over the field and the TAF as a timeline; a TAF missing from the weather server can be loaded from the OFP - @TCdr
 1. [EFB] Fix the wind field of the performance calculators refusing a direction typed without leading zeros (80/10 stopped at 80) - @TCdr
+1. [A380X/VD] Fix the grey area starting at a waypoint where the route crosses north without turning - @TCdr
+1. [A380X/MFD] In flight, the active leg of the F-PLN page shows the direct track and the distance from the aircraft to the TO waypoint, counting down like the ND - @TCdr
+1. [A380X/MFD] F-PLN: the IMMEDIATE EXIT / RESUME HOLD button of a hold shows its label instead of [object Object] - @TCdr
+1. [A32NX/FUEL SYSTEM] Close center tank valves if they are triggered open with no fuel in center tank - @donstim (donbikes)
+1. [A380X/FUEL SYSTEM] Prevent CG control transfer end from ending normal trim tank transfers - @donstim (donbikes)
+1. [A32NX/FMS] Fixed +/- altitude constraints entered on the F-PLN page being inverted - @shinji1100
 
 ## 2024.1.0
 
@@ -443,7 +450,6 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/MFD] Fixed PERF APPR QNH entries in inHg being displayed as hPa - @Daboss57 (Daboss57)
 1. [EFB] Add FAA and LIDO charts supplied by MSFS2024 - @tracernz (Mike)
 1. [A32NX/FLIGHT MODEL] Updated A32NX flight model for MSFS 2024 - @donstim (donbikes)
-1. [A32NX/FWS] Add `BARO VALUE DISAGREE` master caution, rename `ALTI DISCREPANCY` master caution to `ALT DISCREPANCY` - @FozzieHi (fozzie)
 
 ## 0.14.0
 
