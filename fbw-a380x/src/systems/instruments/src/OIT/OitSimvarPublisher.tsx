@@ -1,4 +1,4 @@
-//  Copyright (c) 2025 FlyByWire Simulations
+//  Copyright (c) 2025-2026 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 
 import { EfisSide } from '@flybywiresim/fbw-sdk';
@@ -15,6 +15,12 @@ export type OitSimvars = {
   nssAnsu1Healthy: boolean;
   nssAnsu2Healthy: boolean;
   fltOpsAnsu1Healthy: boolean;
+  /** The NSS AVNCS routers (ARU 1 and 2) and the SIRU, for the NSS AVNCS units page of the A380X SYSTEMS */
+  nssAru1Powered: boolean;
+  nssAru1Operating: boolean;
+  nssAru2Powered: boolean;
+  nssAru2Operating: boolean;
+  nssSiruPowered: boolean;
   laptopCaptHealthy: boolean;
   laptopFoHealthy: boolean;
   laptopCaptPowered: boolean;
@@ -31,6 +37,8 @@ export type OitSimvars = {
   fltOpsPageCapt: number;
   /** The FLT OPS page the first officer's OIT shows */
   fltOpsPageFo: number;
+  /** The FMGC flight phase (FmgcFlightPhase): the automatic flight follow-up of the FLT FOLDER works in cruise */
+  fmgcFlightPhase: number;
 };
 
 export type InternalKbdKeyEvent = {
@@ -54,6 +62,11 @@ export class OitSimvarPublisher extends SimVarPublisher<OitSimvars> {
     ['nssAnsu1Healthy', { name: 'L:A32NX_NSS_ANSU_1_IS_HEALTHY', type: SimVarValueType.Bool }],
     ['nssAnsu2Healthy', { name: 'L:A32NX_NSS_ANSU_2_IS_HEALTHY', type: SimVarValueType.Bool }],
     ['fltOpsAnsu1Healthy', { name: 'L:A32NX_FLTOPS_ANSU_1_IS_HEALTHY', type: SimVarValueType.Bool }],
+    ['nssAru1Powered', { name: 'L:A32NX_NSS_ARU_1_IS_POWERED', type: SimVarValueType.Bool }],
+    ['nssAru1Operating', { name: 'L:A32NX_NSS_ARU_1_IS_OPERATING', type: SimVarValueType.Bool }],
+    ['nssAru2Powered', { name: 'L:A32NX_NSS_ARU_2_IS_POWERED', type: SimVarValueType.Bool }],
+    ['nssAru2Operating', { name: 'L:A32NX_NSS_ARU_2_IS_OPERATING', type: SimVarValueType.Bool }],
+    ['nssSiruPowered', { name: 'L:A32NX_NSS_SIRU_IS_POWERED', type: SimVarValueType.Bool }],
     ['laptopCaptHealthy', { name: 'L:A32NX_FLTOPS_LAPTOP_1_IS_HEALTHY', type: SimVarValueType.Bool }],
     ['laptopFoHealthy', { name: 'L:A32NX_FLTOPS_LAPTOP_2_IS_HEALTHY', type: SimVarValueType.Bool }],
     ['laptopCaptPowered', { name: 'L:A380X_SWITCH_LAPTOP_POWER_LEFT', type: SimVarValueType.Bool }],
@@ -74,6 +87,7 @@ export class OitSimvarPublisher extends SimVarPublisher<OitSimvars> {
     ],
     ['fltOpsPageCapt', { name: 'L:A380X_OIT_CAPT_FLT_OPS_PAGE', type: SimVarValueType.Number }],
     ['fltOpsPageFo', { name: 'L:A380X_OIT_FO_FLT_OPS_PAGE', type: SimVarValueType.Number }],
+    ['fmgcFlightPhase', { name: 'L:A32NX_FMGC_FLIGHT_PHASE', type: SimVarValueType.Number }],
   ]);
 
   public constructor(bus: EventBus) {

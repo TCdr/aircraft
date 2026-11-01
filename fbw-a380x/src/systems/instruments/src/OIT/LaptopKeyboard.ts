@@ -13,6 +13,8 @@ const LAPTOP_KEY_TO_OIT_KEY: Readonly<Record<string, string>> = {
   ARROW_DOWN: 'DOWN',
   ARROW_LEFT: 'LEFT',
   ARROW_RIGHT: 'RIGHT',
+  SPACE_LH: 'SP',
+  SPACE_RH: 'SP',
   OIS_MENU: 'OIS_MENU',
   OIS_XFR: 'OIS_XFR',
 };

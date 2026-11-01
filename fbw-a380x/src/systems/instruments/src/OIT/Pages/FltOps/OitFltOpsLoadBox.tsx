@@ -15,6 +15,7 @@ import { AbstractOitFltOpsPageProps } from '../../OIT';
 import { Button } from '../../../MsfsAvionicsCommon/UiWidgets/Button';
 import { OitSimvars } from '../../OitSimvarPublisher';
 import { LoadBoxItem, LoadBoxLaptop, LoadBoxStatus } from '../../System/OisLoadBox';
+import { formatOisDateTime } from '../../System/OisDateTime';
 import { OitTickBox, recycleBinIcon } from './OitFltOpsBoxWidgets';
 
 interface OitFltOpsLoadBoxProps extends AbstractOitFltOpsPageProps {}
@@ -135,7 +136,13 @@ export class OitFltOpsLoadBox extends DisplayComponent<OitFltOpsLoadBoxProps> {
                 <div class="oit-box-cell oit-load-box-identifier oit-box-link">
                   {this.row(index, (item) => item.identifier, '')}
                 </div>
-                <div class="oit-box-cell oit-load-box-column">UNKNOWN</div>
+                <div class="oit-box-cell oit-load-box-column">
+                  {this.row(
+                    index,
+                    (item) => (item.generatedMs !== null ? formatOisDateTime(item.generatedMs) : 'UNKNOWN'),
+                    '',
+                  )}
+                </div>
                 <div class="oit-box-cell oit-load-box-column">{this.row(index, (item) => item.destination, '')}</div>
                 {this.statusCell(index, 'CAPT')}
                 {this.statusCell(index, 'FO')}

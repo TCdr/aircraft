@@ -59,10 +59,20 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/MFD] Alternate flightplan or go around legs can be loaded on the vertical revision pages - @BravoMike99 (bruno_pt99)
 1. [A380X/MFD] Show approach QNH and TEMP as mandatory only when closer than 180 NM to destination or when predictions are unavailable - @matze-tech (matze2346)
 1. [A380X/FWS] Improve ROW/ROP callouts, changed autobrake off master caution light to 3 seconds - @BravoMike99 (bruno_pt99)
+1. [A380X/OIT] FLT FOLDER is the electronic flight folder: the OFP loaded in the LOAD BOX opens as a document tree (flight information, weather, NOTAMs, loadsheet, flight plan, OFP) with NOTE, SEARCH, SIGN / CHECK and the FMS INIT, FLT INFO, ALTN and NAV LOG panels, and EXPORT FLIGHT FOLDER feeds the EXPORT BOX - @TCdr
 1. [A380X/OIT] The AOC sends the OOOI reports (OUT, OFF, ON, IN) by itself to the OOOI station set on the COMPANY COM Flight Log page - @TCdr
 1. [A380X/OIT] COMPANY COM Inbox, Outbox and Sent have a ZOOM button that shows the displayed message in larger characters - @TCdr
 1. [A380X/OIT] COMPANY COM In-flight Reports: new Flight Delay and Flight Parameters reports - @TCdr
+1. [A380X/OIT] COMPANY COM In-flight Reports: new In Range report (ETA, fuel on board and stand) - @TCdr
 1. [A380X/OIT] Restart FLT OPS startup sequence after laptop power loss - @HendersonTyler (Tyler Henderson)
+1. [A380X/OIT] The FLT FOLDER NAV LOG collects the flight follow-up: in the FMS cruise phase the aircraft position is collected every minute (every 20 s near a waypoint) and a waypoint passed within 7 nm shows its actual time and fuel, to validate with FUEL CHK; NEXT WPT inserts or skips waypoints, DELETE removes the inserted ones, FLOWN WPT shows the last flown waypoint, REFRESH takes the data of the other laptop, and a FLT REPORT panel shows the OUT, OFF, ON and IN times and fuel - @TCdr
+1. [A380X/OIT] New FLT OPS application OPS LIBRARY: the feature and simvar manuals, the ECAM procedures, the ECAM alerts of the flight, the deferred MEL and CDL items of the eLogbook, search, bookmarks and notes - @TCdr
+1. [A380X/OIT] STORE of FLT OPS T.O PERF, LDG PERF, LOADSHEET and IN-FLT PERF keeps the page as a document (TOPA, LDPA, WBA, IFPA) in the Performance folder of the current flight folder - @TCdr
+1. [A380X/OIT] The CHARTS application shows the terminal charts of the simulator's own chart service (LIDO, no account needed) for the airports of the flight and others you add, by group, runway and page, with zoom, move and FIT buttons and a clipboard that one laptop sends to the other; the FLT OPS STS page shows the validity of the charts once CHARTS has been started - @TCdr
+1. [A380X/OIT] The CHARTS clipboard shows PREPARED (NEW) while charts the other laptop sent wait for IMPORT, until the PREPARED tab is opened - @TCdr
+1. [A380X/OIT] Fix the OOOI OUT time showing the PC clock and the fuel missing when the aircraft starts with the park brake released, and the STORE pop-up allowing a second STORE while it is open - @TCdr
+1. [A380X/OIT] Fix the FLT FOLDER FLT INFO and ALTN Update cells accepting an entry on the laptop that is not the flight follow-up master - @TCdr
+1. [A380X/OIT] The LOADSHEET RESULTS panel shows a small CG diagram next to the results, and the diagram of the MORE panel draws the ZF, LDG and T.O CG limits; the ZFW/CG, TOW/CG and LW/CG turn red against their own limit - @TCdr
 1. [A380X/MFD] Fix LS field remaining blank on F-PLN arrival page when no landing system is available or selected - @matze-tech (matze2346)
 1. [A380X/PRIM] Move FE to PRIM and add SPD LIM flag - @lukecologne (luke)
 1. [A380X/PRIM] Improve speed trend behaviour - @lukecologne (luke)
@@ -214,7 +224,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OIT] T.O PERF on the FLT OPS side: takeoff speeds, flaps, FLEX or derate and MTOW(perf) for a runway of the departure airport, and XCHECK WITH AVNCS against the FMS T.O page, the SD gross weight and the captain's QNH - @TCdr
 1. [A380X/OIT] LOADSHEET on the FLT OPS side: TOW/CG, LW/CG, underload and T.O THS from the ZFW/CG and the fuel, and a loadsheet that can be printed or exported to the EXPORT BOX; its TOW and LW go to T.O PERF and LDG PERF - @TCdr
 1. [A380X/OIT] LDG PERF on the FLT OPS side: DISPATCH and IN-FLIGHT landing distance, stop margin, MLW(perf), VAPP and go-around gradient for a runway of the destination - @TCdr
-1. [A380X/OIT] New technical logbook (LOGBOOK) on the NSS AVNCS side: STATUS, LOGBOOK ENTRY (ECAM alerts of the flight, cabin items, system & function, cockpit area, keyword and free text), HISTORY and FLIGHT DATA pages, the open, deferred, temporary and cabin item lists, the maintenance release report, PIC ACCEPT with the acceptance report and CLOSE FLIGHT with the closure report; at UPDATE the simulated ground maintenance defers some reported items (MEL, CDL, OTHER) and rectifies the others; the logbook is kept across flights and can be printed - @TCdr
+1. [A380X/OIT] New technical logbook (LOGBOOK) on the NSS AVNCS side: STATUS, LOGBOOK ENTRY (ECAM alerts of the flight, cabin items, system & function, cockpit interface with click-and-zoom cockpit pictures down to the equipment, keyword and free text), HISTORY and FLIGHT DATA pages, the open, deferred, temporary and cabin item lists, the maintenance release report, PIC ACCEPT with the acceptance report and CLOSE FLIGHT with the closure report; at UPDATE the simulated ground maintenance defers some reported items (MEL, CDL, OTHER) and rectifies the others; the logbook is kept across flights and can be printed - @TCdr
 1. [A380X/OIT] New FLT OPS LOAD BOX: lists the flight folder of your SimBrief OFP sent from the ground and loads it into the laptops, with the loading status of each laptop - @TCdr
 1. [A380X/OIT] The NSS GATELINK pb-sw of the overhead panel works: with it OFF the EXPORT BOX has no gatelink and the LOAD BOX gets no data from the ground - @TCdr
 1. [A380X/OIT] A restart of an OIT (brightness knob OFF for 5 s) or of a laptop (OFF for 30 s) clears an injected failure of that device, and the NSS shuts down by itself when the aircraft is powered down (the AC busbar that feeds the server lost) - @TCdr
@@ -232,6 +242,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/OIT] ACFT STS and SYNCHRO LOGBOOK in T.O PERF, LDG PERF and LOADSHEET: the deferred MEL and CDL items of the logbook, with the items the computation cannot take into account - @TCdr
 1. [A380X/OIT] The function keys, CTRL and ALT of the laptop keyboards work: F-keys press the OIT buttons that show them (COMPUTE <F8>...), CTRL and ALT latch for the next key (backlit) for the menu shortcuts (Ctrl P, Alt H...); the OIT BRIGHTNESS knob at OFF also switches off the keyboard and ACD; COMPANY COM and LOGBOOK start at the NSS AVNCS log-on - @TCdr
 1. [A380X/OIT] LOADSHEET FUEL DISTR offers TRIM ADJUSTMENT and MANUAL DISTR next to CG TARGETING, and the MORE panel draws the CG diagram with the DOW, ZFW, TOW and LW points - @TCdr
+1. [A380X/OIT] The CHARTS application no longer shows the EFB overlay with the Navigraph charts: it is the native terminal charts page, the Navigraph account is not used on the OIT any more - @TCdr
+1. [A380X/OIT] The NSS AVNCS routers (ARU 1 and 2) and the SIRU are simulated: an ANSU serves the applications only while its router operates, the FMS data reach the FLT OPS laptops only through ARU 2, and the A380X SYSTEMS application shows the unit states - @TCdr
 
 ## 2024.1.0
 

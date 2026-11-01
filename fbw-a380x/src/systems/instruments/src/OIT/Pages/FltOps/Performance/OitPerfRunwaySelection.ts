@@ -126,7 +126,8 @@ export class OitPerfRunwaySelection {
     if (icao !== this.entries.airport.get()) {
       return;
     }
-    this.airport.set(airport);
+    // The list first: setting the airport moves the runway index, which the dropdown reads from the list
     this.runwayIdents.set(airport?.runways.map((r) => r.ident) ?? []);
+    this.airport.set(airport);
   }
 }

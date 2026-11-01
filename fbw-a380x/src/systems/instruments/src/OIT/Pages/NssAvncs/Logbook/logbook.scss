@@ -333,23 +333,65 @@ $logbook-list-background: #3a3c44;
   text-decoration: underline;
 }
 
-.oit-logbook-cockpit-areas {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 16px;
-  padding: 20px;
+// The pictures of the COCKPIT INTERFACE assistant: frames in percent of a picture of fixed size, drawn from plain shapes
+.oit-logbook-cockpit-picture {
+  position: relative;
+  width: 940px;
+  height: 660px;
+  margin: 10px 0px 0px 10px;
+  border: 1px solid $display-dark-grey;
+  background: #0d1117;
 }
 
-.oit-logbook-cockpit-area {
+.oit-logbook-cockpit-zoom {
+  position: absolute;
+  left: 0px;
+  top: 0px;
+  width: 100%;
+  height: 100%;
+}
+
+.oit-logbook-cockpit-window {
+  position: absolute;
+  border: 2px solid #20242c;
+  background: #3b6a9c;
+}
+
+.oit-logbook-cockpit-frame {
+  position: absolute;
+  padding: 1px 6px;
   border: 2px solid $display-light-grey;
-  height: 110px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
+  font-size: 16px;
+  line-height: 20px;
+  text-align: left;
+  overflow: hidden;
+  text-shadow: 0px 0px 3px #000000;
 }
 
-.oit-logbook-cockpit-area.selected {
+.oit-logbook-cockpit-frame:hover {
   border-color: $display-cyan;
+}
+
+.oit-logbook-cockpit-frame.selected {
+  border-color: $logbook-link;
+  border-width: 4px;
   color: $display-cyan;
+}
+
+// Rows of pushbuttons, drawn as a grid of squares
+.oit-logbook-cockpit-buttons {
+  background-color: #3b414d;
+  background-image: repeating-linear-gradient(90deg, transparent 0px, transparent 24px, #20242c 24px, #20242c 28px),
+    repeating-linear-gradient(0deg, transparent 0px, transparent 24px, #20242c 24px, #20242c 28px);
+}
+
+// A display: dark screen in its bezel
+.oit-logbook-cockpit-screens {
+  background-color: #0b0b0e;
+  box-shadow: inset 0px 0px 0px 8px #3b414d;
+}
+
+.oit-logbook-cockpit-seat {
+  background-color: #4a4f5b;
+  border-radius: 18px 18px 6px 6px;
 }

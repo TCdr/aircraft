@@ -1,4 +1,4 @@
-// Copyright (c) 2025 FlyByWire Simulations
+// Copyright (c) 2025-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import {
@@ -6,6 +6,7 @@ import {
   ConsumerSubject,
   EventBus,
   Instrument,
+  MappedSubject,
   SimVarValueType,
   Subject,
   Subscribable,
@@ -13,13 +14,18 @@ import {
 } from '@microsoft/msfs-sdk';
 import {
   AircraftGithubVersionChecker,
+  Arinc429LocalVarConsumerSubject,
   FailuresConsumer,
   FmsData,
   getSimBriefOfp,
+  IrBusEvents,
   NXDataStore,
   NXUnits,
 } from '@flybywiresim/fbw-sdk';
 import { A380Failure } from '@failures';
+import { FmgcFlightPhase } from '@shared/flightphase';
+import { FqmsBusEvents } from '@shared/publishers/FqmsBusPublisher';
+import { FwsEvents } from '../MsfsAvionicsCommon/providers/FwsPublisher';
 import { OitSimvars } from './OitSimvarPublisher';
 import {
   aruStartDurationMs,
@@ -35,7 +41,11 @@ import {
 import { OisMessageToolbar } from './System/OisMessageToolbar';
 import { FltOpsPerformanceSession } from './System/Performance/FltOpsPerformanceSession';
 import { A380_CERTIFIED_WEIGHTS } from './System/Performance/A380PerformanceCalculators';
-import { effExportIdentifier, OisLoadBox } from './System/OisLoadBox';
+import { OisLoadBox } from './System/OisLoadBox';
+import { FlightFolderNetworkEvents, FlightFolderSession } from './System/FlightFolderSession';
+import { firstIrPosition, FollowUpAvionics } from './System/FlightFolderFollowUp';
+import { FlightReportTimes, NO_FLIGHT_REPORT_TIMES, takeoffToRecord } from './System/FlightFolderReport';
+import { OitPageDrafts } from './System/OitPageDrafts';
 import { OisExportBox } from './System/OisExportBox';
 import { InFltPerfAtmoSession } from './System/InFltPerfAtmoSession';
 import {
@@ -46,6 +56,12 @@ import {
   fmsDataReachLaptop,
   oisVersionLabel,
 } from './System/FltOpsStatusSync';
+import { OpsLibrarySession } from './System/OpsLibrary/OpsLibrarySession';
+import { readLogbook } from './System/FltOpsLogbookReader';
+import { TECH_LOGBOOK_STORAGE_KEY } from './System/TechLogbook';
+import { ChartsClipboard, ChartsNetworkEvents } from './System/Charts/ChartsClipboard';
+import { ChartsSession } from './System/Charts/ChartsSession';
+import { MsfsLidoChartSource } from './System/Charts/MsfsLidoChartSource';
 
 export class OisLaptop implements Instrument {
   private readonly subscriptions: Subscription[] = [];
@@ -57,8 +73,19 @@ export class OisLaptop implements Instrument {
 
   public readonly data = new OisLaptopData();
 
-  /** The data from the ground to load: the airline OFP (SimBrief) */
-  public readonly loadBox = new OisLoadBox(() => getSimBriefOfp());
+  /** The data from the ground to load: the airline OFP (SimBrief). What the crew loads loads on the other laptop too. */
+  public readonly loadBox = new OisLoadBox(
+    () => getSimBriefOfp(),
+    (items) =>
+      items.forEach((item) =>
+        this.networkPublisher.pub(
+          'oisEffLoaded',
+          { sender: this.index, identifier: item.identifier, generatedMs: item.generatedMs },
+          true,
+          false,
+        ),
+      ),
+  );
 
   public readonly exportBox = new OisExportBox();
 
@@ -70,7 +97,17 @@ export class OisLaptop implements Instrument {
   public readonly isHealthy = this._isHealthy as Subscribable<boolean>;
   private readonly isHealthySimVar = `L:A32NX_FLTOPS_LAPTOP_${this.index.toFixed(0)}_IS_HEALTHY`;
 
-  private readonly sub = this.bus.getSubscriber<FmsData & FltOpsStatusNetworkEvents & OitSimvars & ClockEvents>();
+  private readonly sub = this.bus.getSubscriber<
+    FmsData &
+      FltOpsStatusNetworkEvents &
+      FlightFolderNetworkEvents &
+      ChartsNetworkEvents &
+      OitSimvars &
+      ClockEvents &
+      FwsEvents &
+      IrBusEvents &
+      FqmsBusEvents
+  >();
 
   private readonly simTime = ConsumerSubject.create(this.sub.on('simTime'), 0);
 
@@ -118,6 +155,20 @@ export class OisLaptop implements Instrument {
   private readonly fromAirportBus = ConsumerSubject.create(this.sub.on('fmsOrigin'), null);
   private readonly toAirportBus = ConsumerSubject.create(this.sub.on('fmsDestination'), null);
 
+  /** What the automatic flight follow-up of the FLT FOLDER needs from the avionics */
+  private readonly flightPhase = ConsumerSubject.create(this.sub.on('fmgcFlightPhase'), FmgcFlightPhase.Preflight);
+  private readonly irLatitudes = [
+    Arinc429LocalVarConsumerSubject.create(this.sub.on('ir_latitude_1')),
+    Arinc429LocalVarConsumerSubject.create(this.sub.on('ir_latitude_2')),
+    Arinc429LocalVarConsumerSubject.create(this.sub.on('ir_latitude_3')),
+  ];
+  private readonly irLongitudes = [
+    Arinc429LocalVarConsumerSubject.create(this.sub.on('ir_longitude_1')),
+    Arinc429LocalVarConsumerSubject.create(this.sub.on('ir_longitude_2')),
+    Arinc429LocalVarConsumerSubject.create(this.sub.on('ir_longitude_3')),
+  ];
+  private readonly fuelOnBoard = Arinc429LocalVarConsumerSubject.create(this.sub.on('fqms_total_fuel_on_board'));
+
   private readonly nssAnsu1Healthy = ConsumerSubject.create(this.sub.on('nssAnsu1Healthy'), false);
   private readonly nssAnsu2Healthy = ConsumerSubject.create(this.sub.on('nssAnsu2Healthy'), false);
 
@@ -131,7 +182,53 @@ export class OisLaptop implements Instrument {
     this.avionicsDataReachNss = available;
   }
 
-  private readonly networkPublisher = this.bus.getPublisher<FltOpsStatusNetworkEvents>();
+  /**
+   * The one-way link (diode) from the NSS AVNCS side to the FLT OPS network. It hangs off NSS AVNCS ARU 2: without
+   * it the avionics data stop at the NSS AVNCS side, though ARU 1 works.
+   */
+  private fltOpsDiodeAvailable: Subscribable<boolean> = Subject.create(true);
+
+  /**
+   * @param available whether data can pass from the NSS AVNCS side to the FLT OPS side
+   */
+  public connectFltOpsDiode(available: Subscribable<boolean>): void {
+    this.fltOpsDiodeAvailable = available;
+  }
+
+  /** The block and flight times the avionics record, given by the instrument */
+  private flightTimesSource: Subscribable<FlightReportTimes> | null = null;
+
+  private readonly _flightReport = Subject.create<FlightReportTimes>(NO_FLIGHT_REPORT_TIMES);
+  /** The times and fuel of the flight report: nothing while the avionics data do not reach the laptop */
+  public readonly flightReport = this._flightReport as Subscribable<FlightReportTimes>;
+
+  /**
+   * @param times the block and flight times the avionics record
+   */
+  public connectFlightTimes(times: Subscribable<FlightReportTimes>): void {
+    this.flightTimesSource = times;
+  }
+
+  private readonly networkPublisher = this.bus.getPublisher<
+    FltOpsStatusNetworkEvents & FlightFolderNetworkEvents & ChartsNetworkEvents
+  >();
+
+  /** What the crew typed or selected on the pages of the open FLT OPS applications */
+  public readonly pageDrafts = new OitPageDrafts();
+
+  /** The electronic flight folders of this laptop, shared with the laptop of the other OIT (synced bus events) */
+  public readonly flightFolder = new FlightFolderSession(
+    this.index,
+    {
+      sendCurrent: (message) => this.networkPublisher.pub('oisEffCurrent', message, true, false),
+      sendMaster: (message) => this.networkPublisher.pub('oisEffMaster', message, true, false),
+      sendSynchronize: (message) => this.networkPublisher.pub('oisEffSynchronize', message, true, false),
+      sendRefreshRequest: (message) => this.networkPublisher.pub('oisEffRefreshRequest', message, true, false),
+      sendRefreshReply: (message) => this.networkPublisher.pub('oisEffRefreshReply', message, true, false),
+    },
+    () => NXUnits.metricWeight,
+    (identifier, source, nowMs) => this.exportBox.add(identifier, source, nowMs),
+  );
 
   /** The FLT OPS STS page, shared with the laptop of the other OIT (another instrument: synced bus events) */
   public readonly fltOpsStatus = new FltOpsStatusSync(this.index, this.data, {
@@ -139,25 +236,56 @@ export class OisLaptop implements Instrument {
     requestPage: (sender) => this.networkPublisher.pub('oisFltOpsStsRequest', sender, true, false),
   });
 
+  /**
+   * The terminal charts of this laptop (NAV CHARTS). Its clipboard is shared with the laptop of the other OIT (a synced
+   * bus event), as long as both laptops are on the network.
+   */
+  public readonly charts = new ChartsSession(
+    new MsfsLidoChartSource(),
+    this.data.fromAirport,
+    this.data.toAirport,
+    new ChartsClipboard(
+      this.index,
+      { sendClipboard: (message) => this.networkPublisher.pub('oisChartsClipboard', message, true, false) },
+      MappedSubject.create(([healthy, standalone]) => healthy && !standalone, this._isHealthy, this._standalone),
+    ),
+  );
+
+  private opsLibrarySession: OpsLibrarySession | null = null;
+
+  private cancelLogbookSubscription: (() => void) | null = null;
+
+  /**
+   * The OPS LIBRARY of this laptop, built when it is first used
+   * @returns the OPS LIBRARY session
+   */
+  public get opsLibrary(): OpsLibrarySession {
+    if (this.opsLibrarySession === null) {
+      this.opsLibrarySession = new OpsLibrarySession(this.index, this.abnormalProcedures);
+      const flightIndex = readLogbook()?.flight.index;
+      if (flightIndex !== undefined) {
+        this.opsLibrarySession.ecamAlerts.onFlightIndex(flightIndex);
+      }
+    }
+    return this.opsLibrarySession;
+  }
+
   /** The OIS VERSION line of the FLT OPS STS page */
   public readonly oisVersion = Subject.create('');
 
   public synchroAvionics() {
     const fms = this.fmsFlight();
-    // Without the avionics data the STS page keeps its entries and the EFB overlay its flight plan
+    // Without the avionics data the STS page keeps its entries
     if (fms === null) {
       return;
     }
     this.fltOpsStatus.synchroAvionics(fms);
-
-    // The EFB overlay of the OIT reloads its flight plan on this L:var: synced bus events do not reach it, as it is in
-    // the same VCockpit
-    SimVar.SetSimVarValue('L:A32NX_OIS_SYNCHRO_AVIONICS', SimVarValueType.Number, Math.random());
   }
 
   /** EXIT SESSION: this laptop starts again for the next flight, and so does the FLT OPS STS page of the other one */
   public exitSession(): void {
     this.data.reset();
+    this.opsLibrarySession?.reset();
     this.fltOpsStatus.exitSession();
   }
 
@@ -165,7 +293,7 @@ export class OisLaptop implements Instrument {
   private fmsFlight(): FltOpsStatusFlight | null {
     const connected = this._isHealthy.get() && !this._standalone.get();
     const nssAvncsAvailable = isNssAvncsAvailable(this.nssAnsu1Healthy.get(), this.nssAnsu2Healthy.get());
-    if (!fmsDataReachLaptop(connected, nssAvncsAvailable, this.avionicsDataReachNss.get())) {
+    if (!this.fmsDataReaches(connected, nssAvncsAvailable)) {
       return null;
     }
     return { fltNumber: this.fltNumberBus.get(), from: this.fromAirportBus.get(), to: this.toAirportBus.get() };
@@ -175,6 +303,8 @@ export class OisLaptop implements Instrument {
     private readonly bus: EventBus,
     private readonly index: FltOpsLaptopIndex,
     private readonly failuresConsumer: FailuresConsumer,
+    /** The abnormal procedures of the ECAM, which the OPS LIBRARY lists; given by the instrument */
+    private readonly abnormalProcedures: Readonly<Record<string, { title: string }>> = {},
   ) {}
 
   /** @inheritdoc */
@@ -184,13 +314,60 @@ export class OisLaptop implements Instrument {
     this.subscriptions.push(
       this.sub.on('oisFltOpsStsPage').handle((message) => this.fltOpsStatus.receivePage(message)),
       this.sub.on('oisFltOpsStsRequest').handle((sender) => this.fltOpsStatus.receiveRequest(sender)),
+      this.sub.on('oisEffLoaded').handle((message) => {
+        if (message.sender !== this.index && this._isHealthy.get()) {
+          // Not awaited: the item shows as loaded when the ground has answered
+          this.loadBox.loadFromOffside(
+            message.identifier,
+            message.generatedMs,
+            this.index === 1 ? 'CAPT' : 'FO',
+            !this._standalone.get(),
+          );
+        }
+      }),
+      this.sub
+        .on('oisEffCurrent')
+        .handle((message) => this.onNetworkMessage(() => this.flightFolder.receiveCurrent(message))),
+      this.sub
+        .on('oisEffMaster')
+        .handle((message) => this.onNetworkMessage(() => this.flightFolder.receiveMaster(message))),
+      this.sub
+        .on('oisEffSynchronize')
+        .handle((message) => this.onNetworkMessage(() => this.flightFolder.receiveSynchronize(message))),
+      this.sub
+        .on('oisEffRefreshRequest')
+        .handle((message) => this.onNetworkMessage(() => this.flightFolder.receiveRefreshRequest(message))),
+      this.sub
+        .on('oisEffRefreshReply')
+        .handle((message) => this.onNetworkMessage(() => this.flightFolder.receiveRefreshReply(message))),
+      this.sub.on('oisChartsClipboard').handle((message) => this.charts.clipboard.receive(message)),
+      this.loadBox.loaded.sub((items) => this.flightFolder.onLoaded(items)),
       this._isHealthy.sub((v) => SimVar.SetSimVarValue(this.isHealthySimVar, SimVarValueType.Bool, v)),
       this._isHealthy.sub((healthy) => {
         if (!healthy) {
           this.messageToolbar.clear();
+          this.flightFolder.resetLaunch();
+          this.opsLibrarySession?.reset();
+          this.charts.reset();
+        }
+      }),
+      this.sub.on('fws_abn_sensed_procedures').handle((procedures) => {
+        // An alert has to be listed from its appearance, but a library that was never used has nothing to list while no
+        // alert is active: it is not built before it is needed
+        if (this.opsLibrarySession !== null || procedures.length > 0) {
+          this.opsLibrary.ecamAlerts.update(procedures, this.simTime.get(), this.avionicsDataReachLaptop());
         }
       }),
     );
+
+    // A flight closure in the eLogbook starts the next flight: the ECAM alerts of the OPS LIBRARY start again
+    const trackFlightIndex = () => {
+      const index = readLogbook()?.flight.index;
+      if (index !== undefined && this.opsLibrarySession !== null) {
+        this.opsLibrarySession.ecamAlerts.onFlightIndex(index);
+      }
+    };
+    this.cancelLogbookSubscription = NXDataStore.subscribeLegacy(TECH_LOGBOOK_STORAGE_KEY, trackFlightIndex);
 
     this.subscriptions.push(
       this.gatelinkPbOff,
@@ -200,21 +377,30 @@ export class OisLaptop implements Instrument {
       this.nssAnsu1Healthy,
       this.nssAnsu2Healthy,
       this.simTime,
+      this.flightPhase,
+      ...this.irLatitudes,
+      ...this.irLongitudes,
+      this.fuelOnBoard,
     );
 
     AircraftGithubVersionChecker.getBuildInfo('a380x')
       .then((info) => this.oisVersion.set(oisVersionLabel(info)))
       .catch(() => this.oisVersion.set(''));
+  }
 
-    // The FLT FOLDER of the OIT is the flyPad, without its EXPORT FLIGHT FOLDER function: an EFF loaded into the
-    // laptop enters the EXPORT BOX as its before push back export.
-    this.subscriptions.push(
-      this.loadBox.loadedEff.sub((eff) => {
-        if (eff !== null) {
-          this.exportBox.add(effExportIdentifier(eff), 'FLT FOLDER', this.simTime.get());
-        }
-      }),
-    );
+  /**
+   * A message of the other laptop reaches a running laptop only
+   * @param take applies the message
+   */
+  private onNetworkMessage(take: () => void): void {
+    if (this._isHealthy.get()) {
+      take();
+    }
+  }
+
+  /** @returns the simulation time, unix ms: what the time stamps of the FLT OPS laptop use */
+  public simTimeMs(): number {
+    return this.simTime.get();
   }
 
   /** @inheritdoc */
@@ -257,9 +443,59 @@ export class OisLaptop implements Instrument {
     const statusPageRunning = this._isHealthy.get() && !this.aru.isFlightLoading();
     this.fltOpsStatus.update(statusPageRunning, !this._standalone.get(), this.fmsFlight());
 
+    this.updateFlightFollowUp(now);
+
+    this.opsLibrarySession?.update(now, this._isHealthy.get());
+    this.opsLibrarySession?.avionicsAvailable.set(this.avionicsDataReachLaptop());
+
     // Design choice: every airport has a gatelink, so only the aircraft side (on the ground, the NSS GATELINK pb-sw on)
     // decides.
     this.exportBox.update(isGatelinkAvailable(this.isConnected(), this.isOnGround(), this.gatelinkPbOff.get()), now);
+  }
+
+  /**
+   * The flight follow-up of the FLT FOLDER: the automatic collection of the position, the take-off and the flight report
+   * all need the avionics data
+   * @param now the simulation time, unix ms
+   */
+  private updateFlightFollowUp(now: number): void {
+    const reached = this.avionicsDataReachLaptop();
+    this.flightFolder.sampleFollowUp(now, reached ? this.followUpAvionics() : null);
+    const times = reached && this.flightTimesSource !== null ? this.flightTimesSource.get() : NO_FLIGHT_REPORT_TIMES;
+    this._flightReport.set(times);
+    const takeoff = takeoffToRecord(times);
+    if (takeoff !== null) {
+      this.flightFolder.recordTakeoff(takeoff.timeMs, takeoff.fobKg);
+    }
+  }
+
+  /** @returns the flight phase, the position of the first IR that gives one, and the fuel on board */
+  private followUpAvionics(): FollowUpAvionics {
+    const position = firstIrPosition(
+      this.irLatitudes.map((word) => word.get().valueOr(null)),
+      this.irLongitudes.map((word) => word.get().valueOr(null)),
+    );
+    return {
+      cruise: this.flightPhase.get() === FmgcFlightPhase.Cruise,
+      latitudeDeg: position?.latitudeDeg ?? null,
+      longitudeDeg: position?.longitudeDeg ?? null,
+      fobKg: this.fuelOnBoard.get().valueOr(null),
+    };
+  }
+
+  /** @returns whether the avionics data reach this laptop through the NSS AVNCS side */
+  private avionicsDataReachLaptop(): boolean {
+    const nssAvncsAvailable = isNssAvncsAvailable(this.nssAnsu1Healthy.get(), this.nssAnsu2Healthy.get());
+    return this.fmsDataReaches(this.isConnected(), nssAvncsAvailable);
+  }
+
+  private fmsDataReaches(connected: boolean, nssAvncsAvailable: boolean): boolean {
+    return fmsDataReachLaptop(
+      connected,
+      nssAvncsAvailable,
+      this.avionicsDataReachNss.get(),
+      this.fltOpsDiodeAvailable.get(),
+    );
   }
 
   private isConnected(): boolean {
@@ -276,6 +512,8 @@ export class OisLaptop implements Instrument {
   }
 
   destroy() {
+    this.cancelLogbookSubscription?.();
+    this.cancelLogbookSubscription = null;
     for (const s of this.subscriptions) {
       s.destroy();
     }

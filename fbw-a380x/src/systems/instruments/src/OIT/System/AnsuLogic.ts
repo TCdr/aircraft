@@ -105,15 +105,16 @@ export function aruStartDurationMs(selfTimeSetting: number): number {
 }
 
 /**
- * The start of the ARU, through which the laptops connect to the FLT OPS network.
+ * The start of an ARU: the FLT OPS ARU, through which the laptops connect to the FLT OPS network, and the two NSS AVNCS
+ * ARUs, which connect the ANSUs to the NSS AVNCS side.
  *
- * Design choices (the ARU supply and failures are not known):
- * - The ARU goes with the FLT OPS ANSU: it starts when the FLT OPS ANSU is healthy (powered, not failed, not reset, NSS
- *   master on), and stops with it.
- * - An ANSU healthy within the first seconds of the flight (FLIGHT_LOAD_WINDOW_MS, counted in played time from the first valid
- *   clock sample: a flight loaded with the aircraft
- *   powered) means an ARU that was already operating: the laptops of such a flight are connected at once. The window
- *   covers the first frames, where the ANSU and the laptops do not know their state yet.
+ * Design choices (the start time is known only for the FLT OPS ARU):
+ * - The FLT OPS ARU goes with the FLT OPS ANSU: it starts when that ANSU is healthy (powered, not failed, not reset, NSS
+ *   master on), and stops with it. An NSS AVNCS ARU starts with its own supply and takes the same time.
+ * - A unit running within the first seconds of the flight (FLIGHT_LOAD_WINDOW_MS, counted in played time from the first
+ *   valid clock sample: a flight loaded with the aircraft powered) means an ARU that was already operating: the
+ *   laptops of such a flight are connected at once. The window covers the first frames, where the ANSU and the laptops
+ *   do not know their state yet.
  */
 export class AruStartup {
   /** The first seconds of the flight, ms, see the class description */
@@ -121,11 +122,11 @@ export class AruStartup {
 
   private ageMs = 0;
 
-  private healthyTimeMs = 0;
+  private runningTimeMs = 0;
 
-  private ansuHealthy = false;
+  private unitRunning = false;
 
-  /** @param startDurationMs how long the ARU takes to start after the FLT OPS ANSU is healthy, ms */
+  /** @param startDurationMs how long the ARU takes to start after its unit is healthy or supplied, ms */
   constructor(private startDurationMs = ARU_START_DURATION_MS) {}
 
   /** @param startDurationMs the new ARU start time, ms (the self-test time setting may change in the session) */
@@ -134,27 +135,28 @@ export class AruStartup {
   }
 
   /**
-   * @param fltOpsAnsuHealthy whether the FLT OPS ANSU is healthy
+   * @param unitRunning whether the unit the ARU goes with runs: the FLT OPS ANSU is healthy, or the NSS AVNCS ARU is
+   * supplied
    * @param deltaTimeMs the time since the previous update, ms
    * @returns whether the ARU is operating
    */
-  public update(fltOpsAnsuHealthy: boolean, deltaTimeMs: number): boolean {
+  public update(unitRunning: boolean, deltaTimeMs: number): boolean {
     const deltaMs = Math.max(deltaTimeMs, 0);
     this.ageMs += deltaMs;
-    this.ansuHealthy = fltOpsAnsuHealthy;
-    if (!fltOpsAnsuHealthy) {
-      this.healthyTimeMs = 0;
+    this.unitRunning = unitRunning;
+    if (!unitRunning) {
+      this.runningTimeMs = 0;
     } else if (this.isFlightLoading()) {
-      this.healthyTimeMs = this.startDurationMs;
+      this.runningTimeMs = this.startDurationMs;
     } else {
-      this.healthyTimeMs = Math.min(this.healthyTimeMs + deltaMs, this.startDurationMs);
+      this.runningTimeMs = Math.min(this.runningTimeMs + deltaMs, this.startDurationMs);
     }
     return this.isOperating();
   }
 
-  /** @returns whether the ARU is operating (started for 2 minutes) */
+  /** @returns whether the ARU is operating (its start time is over) */
   public isOperating(): boolean {
-    return this.ansuHealthy && this.healthyTimeMs >= this.startDurationMs;
+    return this.unitRunning && this.runningTimeMs >= this.startDurationMs;
   }
 
   /** @returns whether the flight is in its first seconds, see the class description */

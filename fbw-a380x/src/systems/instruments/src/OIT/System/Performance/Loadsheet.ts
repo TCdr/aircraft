@@ -4,6 +4,7 @@
 import PitchTrimUtils from '@shared/PitchTrimUtils';
 import { AocPrintout } from '@shared/AocPrintout';
 import { formatWholeWeight, missingParameterErrors } from './PerformanceEntries';
+import { LoadsheetCgLimits } from './CgEnvelopes';
 
 /*
  * LOADSHEET: the ZFW/CG (entered in REDUCED mode, computed from the payload in DETAILED mode) and the fuel give the
@@ -174,7 +175,7 @@ export function missingLoadsheetParameters(loading: LoadsheetLoading): string[] 
  * @param loading the LOADING panel and the LMC
  * @param fuelDistribution the predicted fuel distribution of the FOB, kg per tank
  * @param perPaxWeight the passenger weight of the LMC, kg
- * @param cgWithinLimits the CG envelope: whether a CG is within the limits at a weight
+ * @param cgLimits the CG envelope of each weight: whether a CG is within the limits at a weight
  * @returns the results, or the errors of the ERROR list
  */
 export function computeLoadsheet(
@@ -182,7 +183,7 @@ export function computeLoadsheet(
   loading: LoadsheetLoading,
   fuelDistribution: readonly number[],
   perPaxWeight: number,
-  cgWithinLimits: (cg: number, weight: number) => boolean,
+  cgLimits: LoadsheetCgLimits,
 ): LoadsheetComputation {
   const missing = missingLoadsheetParameters(loading);
   if (missing.length > 0) {
@@ -242,9 +243,9 @@ export function computeLoadsheet(
       takeoffThs: PitchTrimUtils.cgToPitchTrim(towCg),
       underload: limiting[1],
       limitedBy: limiting[0],
-      zfwOutOfLimits: zfw > LOADSHEET_AIRCRAFT.mzfw || !cgWithinLimits(zfcg, zfw),
-      towOutOfLimits: tow > configuration.mtow || !cgWithinLimits(towCg, tow),
-      lwOutOfLimits: lw > configuration.mlw || !cgWithinLimits(lwCg, lw),
+      zfwOutOfLimits: zfw > LOADSHEET_AIRCRAFT.mzfw || !cgLimits.zeroFuel(zfcg, zfw),
+      towOutOfLimits: tow > configuration.mtow || !cgLimits.takeoff(towCg, tow),
+      lwOutOfLimits: lw > configuration.mlw || !cgLimits.landing(lwCg, lw),
     },
     errors: [],
   };

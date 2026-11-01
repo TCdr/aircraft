@@ -254,8 +254,13 @@ Please keep all vars under the correct ATA chapter where they relate to aircraft
 - `L:A32NX_NSS_ANSU_{1,2}_IS_HEALTHY`, `L:A32NX_FLTOPS_ANSU_1_IS_HEALTHY`
     - Boolean
     - The NSS AVNCS ANSU 1/2 and the FLT OPS ANSU are powered, not failed (46001, 46002, 46003), not reset and the NSS
-      master is on. The NSS AVNCS applications run while either NSS AVNCS ANSU is healthy (ANSU 2 takes over from
-      ANSU 1).
+      master is on; an NSS AVNCS ANSU also needs its own ARU operating. The NSS AVNCS applications run while either NSS
+      AVNCS ANSU is healthy (ANSU 2 takes over from ANSU 1).
+
+- `L:A32NX_NSS_ARU_{1,2}_IS_POWERED`, `L:A32NX_NSS_ARU_{1,2}_IS_OPERATING`, `L:A32NX_NSS_SIRU_IS_POWERED`
+    - Boolean
+    - The NSS AVNCS routers (ARU 1/2) and the secure interface router (SIRU): supplied by their busbars, and ARU
+      operating once its start is over. An NSS AVNCS ANSU is healthy only while its ARU operates.
 
 - `L:A380X_OIT_{CAPT,FO}_FLT_OPS_PAGE`
     - Number

@@ -1,6 +1,8 @@
 // Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
+import type { IOfpNotams } from './simbriefNotams';
+
 export interface ISimbriefData {
   origin: IAirportInfo;
   destination: IAirportInfo;
@@ -27,6 +29,20 @@ export interface ISimbriefData {
   weather: IWeather;
   files: Files;
   text: string;
+  /** When SimBrief generated the plan, unix seconds */
+  generatedTime?: number;
+  /** The plan number of the airline's flight plan system */
+  planNumber?: string;
+  /** Distance of the route, nm */
+  groundDistance?: number;
+  /** Distance in the air, wind corrected, nm */
+  airDistance?: number;
+  /** Average temperature deviation from ISA over the cruise, K */
+  avgTempDev?: number;
+  /** Average wind component over the cruise, kt (negative = headwind) */
+  avgWindComp?: number;
+  cruiseMach?: number;
+  notams?: IOfpNotams;
 }
 
 export interface INavlogFix {
@@ -110,6 +126,8 @@ export interface IWeights {
   bagWeight: string;
   payload: string;
   freight: string;
+  /** Operating empty weight */
+  oew?: string;
 }
 
 export interface IFuel {
@@ -136,6 +154,12 @@ interface IAlternate {
   averageWindDirection: number;
   averageWindSpeed: number;
   cruiseAltitude: number;
+  /** Distance from the destination, nm */
+  groundDistance?: number;
+  /** Distance from the destination in the air, nm */
+  airDistance?: number;
+  /** Time from the destination, s */
+  ete?: number;
 }
 
 interface ITimes {
@@ -165,6 +189,10 @@ interface ITimes {
 interface IWeather {
   avgWindDir: number;
   avgWindSpeed: number;
+  /** The TAFs of the plan's airports when the OFP was made, by ICAO */
+  tafs: Record<string, string>;
+  /** The METARs of the plan's airports when the OFP was made, by ICAO */
+  metars: Record<string, string>;
 }
 
 interface Files {
@@ -247,6 +275,8 @@ export const EmptyISimbriefData = {
   weather: {
     avgWindDir: 0,
     avgWindSpeed: 0,
+    tafs: {},
+    metars: {},
   },
   text: '',
 };

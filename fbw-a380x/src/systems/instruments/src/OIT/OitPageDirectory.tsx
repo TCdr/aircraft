@@ -1,16 +1,18 @@
-//  Copyright (c) 2025 FlyByWire Simulations
+//  Copyright (c) 2025-2026 FlyByWire Simulations
 //  SPDX-License-Identifier: GPL-3.0
 
 import { EventBus, FSComponent, VNode } from '@microsoft/msfs-sdk';
-import { OitFltOpsEfbOverlay } from './Pages/FltOps/OitFltOpsEfbOverlay';
+import { OitFltOpsTerminalCharts } from './Pages/FltOps/Charts/OitFltOpsTerminalCharts';
 import { OitFltOpsMenuPage } from './Pages/FltOps/OitFltOpsMenuPage';
 import { OitFltOpsTakeoffPerf } from './Pages/FltOps/Performance/OitFltOpsTakeoffPerf';
 import { OitFltOpsLandingPerf } from './Pages/FltOps/Performance/OitFltOpsLandingPerf';
 import { OitFltOpsLoadsheet } from './Pages/FltOps/Performance/OitFltOpsLoadsheet';
 import { OitFltOpsStatus } from './Pages/FltOps/OitFltOpsStatus';
 import { OitFltOpsLoadBox } from './Pages/FltOps/OitFltOpsLoadBox';
+import { OitFltOpsFlightFolder } from './Pages/FltOps/FlightFolder/OitFltOpsFlightFolder';
 import { OitFltOpsExportBox } from './Pages/FltOps/OitFltOpsExportBox';
 import { OitFltOpsInFltPerf } from './Pages/FltOps/OitFltOpsInFltPerf';
+import { OitFltOpsOpsLibrary } from './Pages/FltOps/OpsLibrary/OitFltOpsOpsLibrary';
 import { OitNotFound } from './Pages/OitNotFound';
 import { OitUiService } from './OitUiService';
 import { OitFltOpsContainer } from './OitFltOpsContainer';
@@ -26,6 +28,7 @@ import { OitAvncsCompanyComReportForm } from './Pages/NssAvncs/CompanyCom/OitAvn
 import { OitAvncsRefuel } from './Pages/NssAvncs/Refuel/OitAvncsRefuel';
 import { OitAvncsFbwSystems } from './Pages/NssAvncs/FbwSystems/OitAvncsFbwSystems';
 import { OitAvncsFbwSystemsGenericDebug } from './Pages/NssAvncs/FbwSystems/OitAvncsFbwSystemsGenericDebug';
+import { OitAvncsFbwSystemsNssUnits } from './Pages/NssAvncs/FbwSystems/OitAvncsFbwSystemsNssUnits';
 import { OitAvncsFbwSystemsAppLdgCap } from './Pages/NssAvncs/FbwSystems/OitAvncsFbwSystemsAppLdgCap';
 import { OitAvncsLogbook } from './Pages/NssAvncs/Logbook/OitAvncsLogbook';
 import { OitAvncsLogbookStatus } from './Pages/NssAvncs/Logbook/OitAvncsLogbookStatus';
@@ -64,15 +67,17 @@ export function fltOpsPageForUrl(
     case 'flt-ops/ldg-perf':
       return <OitFltOpsLandingPerf bus={bus} uiService={uiService} container={container} />;
     case 'flt-ops/charts':
-      return <OitFltOpsEfbOverlay bus={bus} uiService={uiService} container={container} />;
+      return <OitFltOpsTerminalCharts bus={bus} uiService={uiService} container={container} />;
     case 'flt-ops/flt-folder':
-      return <OitFltOpsEfbOverlay bus={bus} uiService={uiService} container={container} />;
+      return <OitFltOpsFlightFolder bus={bus} uiService={uiService} container={container} />;
     case 'flt-ops/load-box':
       return <OitFltOpsLoadBox bus={bus} uiService={uiService} container={container} />;
     case 'flt-ops/export-box':
       return <OitFltOpsExportBox bus={bus} uiService={uiService} container={container} />;
     case 'flt-ops/in-flt-perf':
       return <OitFltOpsInFltPerf bus={bus} uiService={uiService} container={container} />;
+    case 'flt-ops/ops-library':
+      return <OitFltOpsOpsLibrary bus={bus} uiService={uiService} container={container} />;
 
     default:
       return <OitNotFound uiService={uiService} />;
@@ -143,6 +148,7 @@ export function avncsCompanyComPageForUrl(
     case 'nss-avncs/company-com/in-flight/eta':
     case 'nss-avncs/company-com/in-flight/flight-delay':
     case 'nss-avncs/company-com/in-flight/flight-parameters':
+    case 'nss-avncs/company-com/in-flight/in-range':
     case 'nss-avncs/company-com/post-flight/asr-notification':
     case 'nss-avncs/company-com/post-flight/flight-summary':
     case 'nss-avncs/company-com/post-flight/gate-delay':
@@ -174,6 +180,8 @@ export function avncsFbwSystemsPageForUrl(
           dataEventName="a380x_ois_fws_debug_data"
         />
       );
+    case 'nss-avncs/a380x-systems/nss-units':
+      return <OitAvncsFbwSystemsNssUnits bus={bus} uiService={uiService} container={container} />;
     case 'nss-avncs/a380x-systems/app-ldg-cap':
       return (
         <OitAvncsFbwSystemsAppLdgCap

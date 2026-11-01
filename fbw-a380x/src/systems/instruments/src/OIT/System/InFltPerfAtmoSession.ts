@@ -21,6 +21,32 @@ export type AtmoResultsView =
 export const NO_ATMO_RESULTS: AtmoResultsView = { kind: 'none' };
 
 /**
+ * @param view the RESULTS panel
+ * @returns whether it shows results of a computation (not nothing, not the list of missing parameters)
+ */
+export function hasAtmoResults(view: AtmoResultsView): boolean {
+  return view.kind !== 'none' && view.kind !== 'errors';
+}
+
+export const ATMO_COMPUTATION_TYPES = ['SPEED', 'ALT (STD)'];
+export const ATMO_SPEED_TYPES = ['MACH', 'IAS', 'ECON', 'LRC'];
+export const ATMO_ALT_TYPES = ['TRUE ALT (STD)', 'LO ALT TEMP CORR'];
+
+export type AtmoMode = 'SPEED' | 'TRUE ALT' | 'LO ALT';
+
+/**
+ * @param computationType the COMPUTATION TYPE entry: 0 SPEED, 1 ALT (STD)
+ * @param altType the ALT TYPE entry: 0 TRUE ALT (STD), 1 LO ALT TEMP CORR
+ * @returns the computation of the page
+ */
+export function atmoMode(computationType: number | null, altType: number | null): AtmoMode {
+  if (computationType !== 1) {
+    return 'SPEED';
+  }
+  return altType === 1 ? 'LO ALT' : 'TRUE ALT';
+}
+
+/**
  * The IN-FLT PERF ATMO entries and results of one laptop. They live in the laptop session, not in the page: the
  * switching bar brings back an open application as the crew left it, while the page itself is drawn again.
  */

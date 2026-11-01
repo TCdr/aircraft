@@ -39,7 +39,19 @@ import {
   AtmoWindFormat,
   atmoEntryErrorText,
 } from '../../System/InFltPerfAtmoFormats';
-import { AtmoResultsView, NO_ATMO_RESULTS } from '../../System/InFltPerfAtmoSession';
+import {
+  ATMO_ALT_TYPES,
+  ATMO_COMPUTATION_TYPES,
+  ATMO_SPEED_TYPES,
+  AtmoMode,
+  AtmoResultsView,
+  NO_ATMO_RESULTS,
+  atmoMode,
+  hasAtmoResults,
+} from '../../System/InFltPerfAtmoSession';
+import { inFltPerfPrintout } from '../../System/Performance/InFltPerfPrintout';
+import { storeAndAnnounce, storeAvailability } from '../../System/Performance/PerformanceStore';
+import { OitFltOpsStoredPopup } from './OitFltOpsStoredPopup';
 
 import './OitFltOpsInFltPerf.scss';
 
@@ -47,12 +59,6 @@ interface OitFltOpsInFltPerfProps extends AbstractOitFltOpsPageProps {}
 
 /** The six modules of IN-FLT PERF. Only ATMO is described for the crew: the others stay unavailable. */
 const IN_FLT_PERF_MODULES = ['CLB', 'CRZ', 'DES', 'HLD', 'PLAN', 'ATMO'];
-
-const COMPUTATION_TYPES = ['SPEED', 'ALT (STD)'];
-const SPEED_TYPES = ['MACH', 'IAS', 'ECON', 'LRC'];
-const ALT_TYPES = ['TRUE ALT (STD)', 'LO ALT TEMP CORR'];
-
-type AtmoMode = 'SPEED' | 'TRUE ALT' | 'LO ALT';
 
 /**
  * IN-FLT PERF with its ATMO module: speed conversions, true altitude for high altitude use and low altitude
@@ -70,7 +76,7 @@ export class OitFltOpsInFltPerf extends DisplayComponent<OitFltOpsInFltPerfProps
   private readonly altType = this.session.altType;
 
   private readonly mode = MappedSubject.create(
-    ([computation, altType]): AtmoMode => (computation !== 1 ? 'SPEED' : altType === 1 ? 'LO ALT' : 'TRUE ALT'),
+    ([computation, altType]) => atmoMode(computation, altType),
     this.computationType,
     this.altType,
   );
@@ -92,6 +98,9 @@ export class OitFltOpsInFltPerf extends DisplayComponent<OitFltOpsInFltPerfProps
   private readonly results = this.session.results;
 
   private readonly entryError = Subject.create<string | null>(null);
+
+  /** The application name in the title bar of the pop-up after STORE, null while the pop-up is hidden */
+  private readonly storedPopupTitle = Subject.create<string | null>(null);
 
   private readonly weightUnit = NXUnits.userWeightUnit() === 'KG' ? 'T' : 'klbs';
 
@@ -127,7 +136,7 @@ export class OitFltOpsInFltPerf extends DisplayComponent<OitFltOpsInFltPerfProps
   private onSpeedTypeModified(index: number | null): void {
     if (index === 2 || index === 3) {
       // ECON and LRC speeds come from the aircraft performance data, which the sim does not have
-      this.entryError.set(`${SPEED_TYPES[index]} speed not available`);
+      this.entryError.set(`${ATMO_SPEED_TYPES[index]} speed not available`);
       return;
     }
     this.speedType.set(index);
@@ -180,9 +189,27 @@ export class OitFltOpsInFltPerf extends DisplayComponent<OitFltOpsInFltPerfProps
     this.entryError.set(null);
   }
 
+  /** STORE: the page as computed becomes a document of the current EFF, then the pop-up tells it */
+  private store(): void {
+    storeAndAnnounce(
+      this.props.container.laptop.flightFolder,
+      'IFPA',
+      inFltPerfPrintout(this.session, this.weightUnit),
+      this.storedPopupTitle,
+    );
+  }
+
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
+    const hasResults = this.results.map(hasAtmoResults);
+    const storeAvailable = storeAvailability(
+      this.props.container.laptop.flightFolder,
+      hasResults,
+      this.storedPopupTitle,
+    );
+    this.subs.push(hasResults, storeAvailable);
+    this.props.uiService.registerPageFunctions({ store: { run: () => this.store(), available: storeAvailable } });
     this.props.uiService.registerPageShortcuts({
       F6: { run: () => this.clear() },
       F8: { run: () => this.compute() },
@@ -415,15 +442,17 @@ export class OitFltOpsInFltPerf extends DisplayComponent<OitFltOpsInFltPerfProps
                 {this.line(
                   'COMPUTATION TYPE',
                   '',
-                  this.dropdown('computationType', COMPUTATION_TYPES, this.computationType),
+                  this.dropdown('computationType', ATMO_COMPUTATION_TYPES, this.computationType),
                 )}
                 {this.line(
                   'SPD TYPE',
                   '',
-                  this.dropdown('speedType', SPEED_TYPES, this.speedType, (index) => this.onSpeedTypeModified(index)),
+                  this.dropdown('speedType', ATMO_SPEED_TYPES, this.speedType, (index) =>
+                    this.onSpeedTypeModified(index),
+                  ),
                   hiddenOutsideSpeed,
                 )}
-                {this.line('ALT TYPE', '', this.dropdown('altType', ALT_TYPES, this.altType), hiddenInSpeed)}
+                {this.line('ALT TYPE', '', this.dropdown('altType', ATMO_ALT_TYPES, this.altType), hiddenInSpeed)}
                 {this.line(
                   'MACH',
                   '',
@@ -566,6 +595,7 @@ export class OitFltOpsInFltPerf extends DisplayComponent<OitFltOpsInFltPerfProps
             <Button label="COMPUTE <F8>" onClick={() => this.compute()} buttonStyle="font-size: 20px;" />
             <Button label="CLEAR <F6>" onClick={() => this.clear()} buttonStyle="font-size: 20px;" />
           </div>
+          <OitFltOpsStoredPopup title={this.storedPopupTitle} />
         </div>
         {/* end page content */}
       </>

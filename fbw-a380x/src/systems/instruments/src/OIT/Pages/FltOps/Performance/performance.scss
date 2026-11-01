@@ -431,14 +431,28 @@
 }
 
 // LOADSHEET MORE: the AGT information beside the primary results
+// The width comes from LoadsheetLayout.ts (fixed pixels, a spec keeps the row inside the panel); the text wraps inside
+// it instead of widening the row
 .oit-perf-more-lines {
   display: flex;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   flex-direction: column;
   padding: 10px;
   font-size: 20px;
   color: $display-white;
-  white-space: pre;
+  overflow: hidden;
+}
+
+// pre-wrap: a line wraps at the column width and the blank separator lines (one space) keep their height
+.oit-perf-more-line {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+// The T.O THS line wraps in the MORE column with a sim font wider than the harness one; 34 px keeps the lines of the
+// 30 px text apart
+.oit-perf-ths-row .oit-perf-value {
+  line-height: 34px;
 }
 
 .oit-perf-more-line.red {
@@ -458,7 +472,7 @@
   background-color: $display-green;
 }
 
-// LOADSHEET CG diagram: the envelope with the DOW, ZFW, TOW and LW points
+// LOADSHEET CG diagram: the ZF, LDG and T.O envelopes with the DOW, ZFW, TOW and LW points
 .oit-cg-diagram {
   flex: 0 0 auto;
 }
@@ -473,6 +487,22 @@
   fill: rgba(0, 200, 0, 0.18);
   stroke: $display-green;
   stroke-width: 2;
+}
+
+.oit-cg-envelope-name {
+  fill: $display-green;
+  font-size: 12px;
+}
+
+.oit-cg-path {
+  fill: none;
+  stroke: $display-white;
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.oit-cg-path.hidden {
+  display: none;
 }
 
 .oit-cg-axis {

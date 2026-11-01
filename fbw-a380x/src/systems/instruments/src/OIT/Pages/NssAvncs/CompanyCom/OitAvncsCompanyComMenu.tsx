@@ -147,6 +147,11 @@ export class OitAvncsCompanyComMenu extends DestroyableComponent<OitAvncsCompany
               uiService={this.props.uiService}
               navigationTarget="nss-avncs/company-com/in-flight/free-text"
             />
+            <OitFile
+              name={'In Range'}
+              uiService={this.props.uiService}
+              navigationTarget="nss-avncs/company-com/in-flight/in-range"
+            />
           </OitFolder>
           <OitFile
             name={'Flight Log'}

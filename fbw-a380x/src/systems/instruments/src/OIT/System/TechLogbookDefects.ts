@@ -4,7 +4,7 @@
 /*
  * The standard defect database of the technical logbook, used by the SYSTEM & FUNCTION, COCKPIT INTERFACE and KEYWORD
  * assistants. The real database is the operator's; design choice: a short list of common A380 cockpit and cabin
- * defects, each with its system, function, allocation and cockpit area.
+ * defects, each with its system, function, allocation, cockpit area and equipment zone.
  */
 
 /** The cockpit areas of the COCKPIT INTERFACE assistant, from the overhead panel down to the side consoles */
@@ -29,6 +29,8 @@ export interface StandardDefect {
   readonly function: string;
   readonly allocation: string;
   readonly area: CockpitArea;
+  /** The equipment zone of the area, as drawn in the COCKPIT INTERFACE picture (see TechLogbookCockpit) */
+  readonly zone: string;
 }
 
 export const STANDARD_DEFECTS: readonly StandardDefect[] = [
@@ -39,6 +41,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'FEED PUMPS',
     allocation: 'FAULT LEGEND',
     area: 'OVERHEAD PANEL',
+    zone: 'FUEL',
   },
   {
     title: 'STBY FEED TK 4 PMP P/BSW FAULT LEGEND ILLUMINATES ON OVERHEAD PANEL',
@@ -47,6 +50,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'FEED PUMPS',
     allocation: 'FAULT LEGEND',
     area: 'OVERHEAD PANEL',
+    zone: 'FUEL',
   },
   {
     title: 'MAIN/STANDBY FEED PUMP AMBER OFF ON OVERHEAD PANEL',
@@ -55,6 +59,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'FEED PUMPS',
     allocation: 'INOP SYS',
     area: 'OVERHEAD PANEL',
+    zone: 'FUEL',
   },
   {
     title: 'CROSSFEED VLV 4 P/BSW OPEN CAPTION ILLUMINATES ON OVERHEAD PANEL',
@@ -63,6 +68,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'CROSSFEED',
     allocation: 'CAPTION',
     area: 'OVERHEAD PANEL',
+    zone: 'FUEL',
   },
   {
     title: 'FUEL QUANTITY INDICATION FLUCTUATES ON SD FUEL PAGE',
@@ -71,6 +77,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'QUANTITY INDICATION',
     allocation: 'INDICATION',
     area: 'CENTER PANEL',
+    zone: 'SD',
   },
   {
     title: 'INOP SYS L+R WINDSHLDS HEATG',
@@ -79,6 +86,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'WINDSHIELD HEATING',
     allocation: 'INOP SYS',
     area: 'OVERHEAD PANEL',
+    zone: 'ICE & RAIN',
   },
   {
     title: 'A-ICE L WINDSHIELD HEATG FAULT',
@@ -87,6 +95,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'WINDSHIELD HEATING',
     allocation: 'FAULT',
     area: 'OVERHEAD PANEL',
+    zone: 'ICE & RAIN',
   },
   {
     title: 'WIPER CAPT INOPERATIVE',
@@ -95,6 +104,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'WIPERS',
     allocation: 'INOPERATIVE',
     area: 'OVERHEAD PANEL',
+    zone: 'ICE & RAIN',
   },
   {
     title: 'COCKPIT WINDOW CLEANING REQUEST',
@@ -103,6 +113,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'COCKPIT WINDOWS',
     allocation: 'CLEANING',
     area: 'COCKPIT AREA',
+    zone: 'WINDOWS',
   },
   {
     title: 'FAULT OF INTEGRAL LIGHTING OF SEVERAL PANELS VU',
@@ -111,6 +122,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'INTEGRAL LIGHTING',
     allocation: 'FAULT',
     area: 'OVERHEAD PANEL',
+    zone: 'LIGHTING',
   },
   {
     title: 'DOME LIGHT INOPERATIVE',
@@ -119,6 +131,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'COCKPIT LIGHTING',
     allocation: 'INOPERATIVE',
     area: 'OVERHEAD PANEL',
+    zone: 'LIGHTING',
   },
   {
     title: 'CAPT READING LIGHT INOPERATIVE',
@@ -127,6 +140,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'COCKPIT LIGHTING',
     allocation: 'INOPERATIVE',
     area: 'CAPT SIDE CONSOLE',
+    zone: 'READING LIGHT',
   },
   {
     title: 'LANDING LIGHT L INOPERATIVE',
@@ -135,6 +149,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'EXTERIOR LIGHTING',
     allocation: 'INOPERATIVE',
     area: 'OVERHEAD PANEL',
+    zone: 'EXTERIOR LIGHTS',
   },
   {
     title: 'STROBE LIGHTS INOPERATIVE',
@@ -143,6 +158,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'EXTERIOR LIGHTING',
     allocation: 'INOPERATIVE',
     area: 'OVERHEAD PANEL',
+    zone: 'EXTERIOR LIGHTS',
   },
   {
     title: 'ANNUNCIATOR LIGHT TEST: SEVERAL LEGENDS DO NOT ILLUMINATE',
@@ -151,6 +167,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'ANNUNCIATOR LIGHTS',
     allocation: 'FAULT',
     area: 'OVERHEAD PANEL',
+    zone: 'LIGHTING',
   },
   {
     title: 'FCU CAPT EFIS CONTROL PANEL BARO KNOB INOPERATIVE',
@@ -159,6 +176,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'FCU',
     allocation: 'INOPERATIVE',
     area: 'GLARESHIELD',
+    zone: 'CAPT EFIS',
   },
   {
     title: 'FCU ALT KNOB STIFF',
@@ -167,6 +185,16 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'FCU',
     allocation: 'STIFF',
     area: 'GLARESHIELD',
+    zone: 'FCU',
+  },
+  {
+    title: 'FCU F/O EFIS CONTROL PANEL ND RANGE KNOB INOPERATIVE',
+    ata: '22-81-00',
+    system: 'AUTO FLIGHT',
+    function: 'FCU',
+    allocation: 'INOPERATIVE',
+    area: 'GLARESHIELD',
+    zone: 'F/O EFIS',
   },
   {
     title: 'AP 1 DOES NOT ENGAGE',
@@ -175,6 +203,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'AUTOPILOT',
     allocation: 'INOPERATIVE',
     area: 'GLARESHIELD',
+    zone: 'FCU',
   },
   {
     title: 'A/THR DOES NOT ENGAGE',
@@ -183,6 +212,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'AUTOTHRUST',
     allocation: 'INOPERATIVE',
     area: 'GLARESHIELD',
+    zone: 'FCU',
   },
   {
     title: 'CAPT PFD FLICKERS',
@@ -191,6 +221,16 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'CDS',
     allocation: 'DISPLAY',
     area: 'CAPT MAIN PANEL',
+    zone: 'CAPT PFD',
+  },
+  {
+    title: 'CAPT ND BLANK',
+    ata: '31-61-00',
+    system: 'INDICATING/RECORDING',
+    function: 'CDS',
+    allocation: 'DISPLAY',
+    area: 'CAPT MAIN PANEL',
+    zone: 'CAPT ND',
   },
   {
     title: 'F/O ND BLANK',
@@ -199,6 +239,16 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'CDS',
     allocation: 'DISPLAY',
     area: 'F/O MAIN PANEL',
+    zone: 'F/O ND',
+  },
+  {
+    title: 'F/O PFD FLICKERS',
+    ata: '31-61-00',
+    system: 'INDICATING/RECORDING',
+    function: 'CDS',
+    allocation: 'DISPLAY',
+    area: 'F/O MAIN PANEL',
+    zone: 'F/O PFD',
   },
   {
     title: 'EWD DISPLAY UNIT BRIGHTNESS LOW',
@@ -207,6 +257,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'CDS',
     allocation: 'DISPLAY',
     area: 'CENTER PANEL',
+    zone: 'EWD',
   },
   {
     title: 'CLOCK CAPT INOPERATIVE',
@@ -215,6 +266,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'CLOCK',
     allocation: 'INOPERATIVE',
     area: 'CAPT MAIN PANEL',
+    zone: 'CLOCK',
   },
   {
     title: 'ISIS INOPERATIVE',
@@ -223,6 +275,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'STANDBY INSTRUMENTS',
     allocation: 'INOPERATIVE',
     area: 'CENTER PANEL',
+    zone: 'ISIS',
   },
   {
     title: 'WEATHER RADAR IMAGE NOT DISPLAYED ON ND',
@@ -231,6 +284,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'WEATHER RADAR',
     allocation: 'INOPERATIVE',
     area: 'PEDESTAL',
+    zone: 'WXR',
   },
   {
     title: 'KCCU CAPT KEYS STICKING',
@@ -239,6 +293,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'KCCU',
     allocation: 'STIFF',
     area: 'PEDESTAL',
+    zone: 'KCCU',
   },
   {
     title: 'RMP 1 DISPLAY INOPERATIVE',
@@ -247,6 +302,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'RMP',
     allocation: 'DISPLAY',
     area: 'PEDESTAL',
+    zone: 'RMP',
   },
   {
     title: 'VHF 1 NOISY RECEPTION',
@@ -255,6 +311,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'VHF',
     allocation: 'NOISY',
     area: 'PEDESTAL',
+    zone: 'RMP',
   },
   {
     title: 'COCKPIT PRINTER PAPER JAM',
@@ -263,6 +320,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'PRINTER',
     allocation: 'INOPERATIVE',
     area: 'PEDESTAL',
+    zone: 'PRINTER',
   },
   {
     title: 'PARKING BRAKE HANDLE STIFF',
@@ -271,6 +329,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'BRAKES',
     allocation: 'STIFF',
     area: 'PEDESTAL',
+    zone: 'PARKING BRAKE',
   },
   {
     title: 'CAPT TILLER STIFF',
@@ -279,6 +338,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'STEERING',
     allocation: 'STIFF',
     area: 'CAPT SIDE CONSOLE',
+    zone: 'TILLER',
   },
   {
     title: 'OIT CAPT INOPERATIVE',
@@ -287,6 +347,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'OIT',
     allocation: 'INOPERATIVE',
     area: 'CAPT SIDE CONSOLE',
+    zone: 'OIT',
   },
   {
     title: 'OIT F/O INOPERATIVE',
@@ -295,6 +356,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'OIT',
     allocation: 'INOPERATIVE',
     area: 'F/O SIDE CONSOLE',
+    zone: 'OIT',
   },
   {
     title: 'OXYGEN MASK CAPT FLOW INDICATOR FAULTY',
@@ -303,6 +365,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'CREW OXYGEN',
     allocation: 'FAULT',
     area: 'CAPT SIDE CONSOLE',
+    zone: 'OXYGEN',
   },
   {
     title: 'CKPT SEAT CAPT LUMBAR REST ADJUSTMENT INOPERATIVE',
@@ -311,6 +374,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'CREW SEATS',
     allocation: 'INOPERATIVE',
     area: 'COCKPIT AREA',
+    zone: 'SEATS',
   },
   {
     title: 'CKPT SEAT F/O ELECTRICAL ADJUSTMENT INOPERATIVE',
@@ -319,6 +383,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'CREW SEATS',
     allocation: 'INOPERATIVE',
     area: 'COCKPIT AREA',
+    zone: 'SEATS',
   },
   {
     title: 'COCKPIT DOOR LOCKING SYSTEM FAULT',
@@ -327,6 +392,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'COCKPIT DOOR',
     allocation: 'FAULT',
     area: 'PEDESTAL',
+    zone: 'COCKPIT DOOR',
   },
   {
     title: 'COCKPIT TEMPERATURE TOO HIGH',
@@ -335,6 +401,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'TEMPERATURE CONTROL',
     allocation: 'FAULT',
     area: 'OVERHEAD PANEL',
+    zone: 'AIR COND',
   },
   {
     title: 'COCKPIT AIR OUTLET NOISY',
@@ -343,6 +410,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'DISTRIBUTION',
     allocation: 'NOISY',
     area: 'COCKPIT AREA',
+    zone: 'AIR OUTLETS',
   },
   {
     title: 'ENG 2 REVERSER FAULT',
@@ -351,6 +419,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'THRUST REVERSER',
     allocation: 'FAULT',
     area: 'PEDESTAL',
+    zone: 'THRUST LEVERS',
   },
   {
     title: 'ENG 1 START VALVE SLOW TO OPEN',
@@ -359,6 +428,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'STARTING',
     allocation: 'FAULT',
     area: 'OVERHEAD PANEL',
+    zone: 'ENG START',
   },
   {
     title: 'APU START FAULT',
@@ -367,6 +437,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'STARTING',
     allocation: 'FAULT',
     area: 'OVERHEAD PANEL',
+    zone: 'APU',
   },
   {
     title: 'HYD G+Y SYS PRESS LO',
@@ -375,6 +446,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'MAIN SYSTEMS',
     allocation: 'FAULT',
     area: 'OVERHEAD PANEL',
+    zone: 'HYD',
   },
   {
     title: 'F/CTL SIDESTICK CAPT STIFF IN ROLL',
@@ -383,6 +455,16 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'SIDESTICKS',
     allocation: 'STIFF',
     area: 'CAPT SIDE CONSOLE',
+    zone: 'SIDESTICK',
+  },
+  {
+    title: 'F/CTL SIDESTICK F/O STIFF IN PITCH',
+    ata: '27-92-00',
+    system: 'FLIGHT CONTROLS',
+    function: 'SIDESTICKS',
+    allocation: 'STIFF',
+    area: 'F/O SIDE CONSOLE',
+    zone: 'SIDESTICK',
   },
   {
     title: 'SPEED BRAKE LEVER STIFF',
@@ -391,6 +473,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'SPEED BRAKES',
     allocation: 'STIFF',
     area: 'PEDESTAL',
+    zone: 'SPEED BRAKE',
   },
   {
     title: 'FIRE TEST: APU FIRE LIGHT DOES NOT ILLUMINATE',
@@ -399,6 +482,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'APU FIRE DETECTION',
     allocation: 'FAULT',
     area: 'OVERHEAD PANEL',
+    zone: 'FIRE',
   },
   {
     title: 'STATIC DISCHARGER MISSING ON L WING TIP',
@@ -407,6 +491,7 @@ export const STANDARD_DEFECTS: readonly StandardDefect[] = [
     function: 'STATIC DISCHARGERS',
     allocation: 'MISSING PART',
     area: 'COCKPIT AREA',
+    zone: 'OTHER',
   },
 ];
 
@@ -484,12 +569,13 @@ export function searchDefects(keywords: string): StandardDefect[] {
 }
 
 /**
- * The standard defect list of a cockpit area (COCKPIT INTERFACE assistant).
- * @param area the area
+ * The standard defect list of an equipment zone (COCKPIT INTERFACE assistant).
+ * @param area the cockpit area
+ * @param zone the zone of the area
  * @returns the defects
  */
-export function defectsInArea(area: CockpitArea): StandardDefect[] {
-  return STANDARD_DEFECTS.filter((d) => d.area === area);
+export function defectsInZone(area: CockpitArea, zone: string): StandardDefect[] {
+  return STANDARD_DEFECTS.filter((d) => d.area === area && d.zone === zone);
 }
 
 /** How the simulated ground maintenance defers an item: the DEFERRED ITEMS panel and the MEL or CDL data */

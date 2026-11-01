@@ -7,8 +7,6 @@ import {
   EventBus,
   FSComponent,
   MappedSubject,
-  MappedSubscribable,
-  NodeReference,
   SimVarValueType,
   Subject,
   Subscribable,
@@ -17,7 +15,6 @@ import {
 } from '@microsoft/msfs-sdk';
 import { OisDomain } from './OIT';
 import { OitUiService, OitUriInformation } from './OitUiService';
-import { getDisplayIndex, OitDisplayUnit } from './OitDisplayUnit';
 import { fltOpsPageForUrl } from './OitPageDirectory';
 import { OitFltOpsHeader } from './Pages/FltOps/OitFltOpsHeader';
 import { OitNotFound } from './Pages/OitNotFound';
@@ -32,7 +29,6 @@ import { XOisFunction, fltOpsPageCode } from './System/XOisFunction';
 interface OitFltOpsContainerProps {
   readonly bus: EventBus;
   readonly laptop: OisLaptop;
-  readonly displayUnitRef: NodeReference<OitDisplayUnit>;
   readonly captOrFo: 'CAPT' | 'FO';
   readonly avncsOrFltOps: Subscribable<OisDomain>;
 }
@@ -78,11 +74,6 @@ export abstract class OitFltOpsContainer extends DisplayComponent<OitFltOpsConta
   private readonly activePageRef = FSComponent.createRef<HTMLDivElement>();
 
   private activePage: VNode = (<OitNotFound uiService={this.uiService} />);
-
-  private readonly showChartsSimvar = `L:A32NX_OIS_${getDisplayIndex()}_SHOW_CHARTS`;
-  private readonly showOfpSimvar = `L:A32NX_OIS_${getDisplayIndex()}_SHOW_OFP`;
-
-  private overlaySub: MappedSubscribable<void> | undefined;
 
   /** The OIS MENU / OIS XFR keys and the X-OIS function (see XOisFunction) */
   private readonly xOis = new XOisFunction();
@@ -145,35 +136,6 @@ export abstract class OitFltOpsContainer extends DisplayComponent<OitFltOpsConta
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
 
-    this.overlaySub = MappedSubject.create(
-      ([uri, displayFailed, displayPowered, laptopHealthy, operationMode]) => {
-        // Activate EFB overlay if on charts or flt-folder page
-        SimVar.SetSimVarValue(
-          this.showChartsSimvar,
-          SimVarValueType.Bool,
-          uri.uri === 'flt-ops/charts' &&
-            operationMode === 'flt-ops' &&
-            !displayFailed &&
-            displayPowered &&
-            laptopHealthy,
-        );
-        SimVar.SetSimVarValue(
-          this.showOfpSimvar,
-          SimVarValueType.Bool,
-          uri.uri === 'flt-ops/flt-folder' &&
-            operationMode === 'flt-ops' &&
-            !displayFailed &&
-            displayPowered &&
-            laptopHealthy,
-        );
-      },
-      this.uiService.activeUri,
-      this.props.displayUnitRef.instance.failed,
-      this.props.displayUnitRef.instance.powered,
-      this.laptopHealthy,
-      this.props.avncsOrFltOps,
-    );
-
     this.subscriptions.push(
       this.uiService.activeUri.sub((uri) => {
         this.activeUriChanged(uri);
@@ -186,6 +148,8 @@ export abstract class OitFltOpsContainer extends DisplayComponent<OitFltOpsConta
           this.uiService.resetFltOpsSession();
         }
       }, true),
+      // The pages of a closed application start empty at its next opening
+      this.uiService.fltOpsApplications.open.sub((open) => this.laptop.pageDrafts.keepApplications(open)),
       this.hEventConsumer.handle(([, key]) => this.onKeyboardKey(key)),
       this.props.bus
         .getSubscriber<InternalKbdKeyEvent>()
@@ -201,7 +165,6 @@ export abstract class OitFltOpsContainer extends DisplayComponent<OitFltOpsConta
           this.uiService.navigateTo(uri);
         }
       }),
-      this.overlaySub,
       this.laptopHealthy,
       this.hideContent,
       this.hideContainer,

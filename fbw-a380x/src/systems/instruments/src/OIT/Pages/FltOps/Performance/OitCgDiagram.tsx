@@ -3,6 +3,7 @@
 
 import { ComponentProps, DisplayComponent, FSComponent, Subject, Subscribable, VNode } from '@microsoft/msfs-sdk';
 import { LoadsheetResults } from '../../../System/Performance/Loadsheet';
+import { CG_ENVELOPES } from '../../../System/Performance/CgEnvelopes';
 import {
   CgDiagramPoint,
   CgDiagramSize,
@@ -10,9 +11,12 @@ import {
   DIAGRAM_MAX_WEIGHT,
   DIAGRAM_MIN_CG,
   DIAGRAM_MIN_WEIGHT,
+  POINT_RADIUS,
   cgDiagramPoints,
   cgToX,
+  envelopeNamePosition,
   envelopePolygon,
+  loadingPathPoints,
   placeLabels,
   weightToY,
 } from '../../../System/Performance/CgDiagram';
@@ -20,8 +24,6 @@ import {
 interface OitCgDiagramProps extends ComponentProps {
   readonly results: Subscribable<LoadsheetResults | null>;
   readonly size: CgDiagramSize;
-  /** Whether a CG is within the limits at a weight */
-  readonly cgWithinLimits: (cg: number, weight: number) => boolean;
 }
 
 const POINT_NAMES: CgDiagramPoint['name'][] = ['DOW', 'ZFW', 'TOW', 'LW'];
@@ -30,12 +32,17 @@ const CG_TICKS = [25, 30, 35, 40, 45];
 const WEIGHT_TICKS = [300_000, 400_000, 500_000, 600_000];
 
 /**
- * The CG diagram of the LOADSHEET results: the CG envelope with the DOW, ZFW, TOW and LW points.
- * Design choice: the FBW A380X has one CG envelope (the takeoff one), so the ZF, LDG and T.O limits are drawn as that
- * single outline.
+ * The CG diagram of the LOADSHEET results: the ZF, LDG and T.O CG envelopes with the DOW, ZFW, TOW and LW points. The
+ * RESULTS panel and the MORE panel draw it at their own size.
+ * Design choice: the weight is plotted against the CG in % MAC with no index scale, because the FBW envelopes are
+ * defined by their CG and weight.
  */
 export class OitCgDiagram extends DisplayComponent<OitCgDiagramProps> {
   private readonly size = this.props.size;
+
+  private readonly pathPoints = Subject.create('');
+
+  private readonly pathClass = Subject.create('oit-cg-path hidden');
 
   private readonly pointX = POINT_NAMES.map(() => Subject.create(0));
 
@@ -47,6 +54,8 @@ export class OitCgDiagram extends DisplayComponent<OitCgDiagramProps> {
 
   private readonly labelY = POINT_NAMES.map(() => Subject.create(0));
 
+  private readonly labelAnchor = POINT_NAMES.map(() => Subject.create('start'));
+
   private readonly labelClass = POINT_NAMES.map(() => Subject.create('oit-cg-label hidden'));
 
   onAfterRender(): void {
@@ -55,7 +64,9 @@ export class OitCgDiagram extends DisplayComponent<OitCgDiagramProps> {
 
   private showPoints(results: LoadsheetResults | null): void {
     const points = results !== null ? cgDiagramPoints(this.size, results) : null;
-    const labels = points !== null ? placeLabels(points) : null;
+    const labels = points !== null ? placeLabels(this.size, points) : null;
+    this.pathPoints.set(points !== null ? loadingPathPoints(points) : '');
+    this.pathClass.set(points !== null ? 'oit-cg-path' : 'oit-cg-path hidden');
     POINT_NAMES.forEach((_, i) => {
       const point = points !== null ? points[i] : null;
       const state = point === null ? 'hidden' : point.outOfLimits ? 'red' : '';
@@ -66,6 +77,7 @@ export class OitCgDiagram extends DisplayComponent<OitCgDiagramProps> {
         this.pointY[i].set(point.y);
         this.labelX[i].set(labels![i].x);
         this.labelY[i].set(labels![i].y);
+        this.labelAnchor[i].set(labels![i].anchor);
       }
     });
   }
@@ -79,7 +91,18 @@ export class OitCgDiagram extends DisplayComponent<OitCgDiagramProps> {
     return (
       <svg class="oit-cg-diagram" width={size.width} height={size.height} viewBox={`0 0 ${size.width} ${size.height}`}>
         <rect class="oit-cg-frame" x={left} y={top} width={right - left} height={bottom - top} />
-        <polygon class="oit-cg-envelope" points={envelopePolygon(size, this.props.cgWithinLimits)} />
+        {CG_ENVELOPES.map((envelope) => (
+          <polygon class="oit-cg-envelope" points={envelopePolygon(size, envelope)} />
+        ))}
+        {CG_ENVELOPES.map((envelope) => {
+          const position = envelopeNamePosition(size, envelope);
+          return (
+            <text class="oit-cg-envelope-name" x={position.x} y={position.y} text-anchor="end">
+              {envelope.name}
+            </text>
+          );
+        })}
+        <polyline class={this.pathClass} points={this.pathPoints} />
         {CG_TICKS.map((cg) => (
           <text class="oit-cg-axis" x={cgToX(size, cg)} y={bottom + 18} text-anchor="middle">
             {cg.toString()}
@@ -98,8 +121,8 @@ export class OitCgDiagram extends DisplayComponent<OitCgDiagramProps> {
         </text>
         {POINT_NAMES.map((name, i) => (
           <g>
-            <circle class={this.pointClass[i]} cx={this.pointX[i]} cy={this.pointY[i]} r={5} />
-            <text class={this.labelClass[i]} x={this.labelX[i]} y={this.labelY[i]}>
+            <circle class={this.pointClass[i]} cx={this.pointX[i]} cy={this.pointY[i]} r={POINT_RADIUS} />
+            <text class={this.labelClass[i]} x={this.labelX[i]} y={this.labelY[i]} text-anchor={this.labelAnchor[i]}>
               {name}
             </text>
           </g>

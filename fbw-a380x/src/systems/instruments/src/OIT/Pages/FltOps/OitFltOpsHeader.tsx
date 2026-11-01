@@ -4,6 +4,7 @@
 import {
   DisplayComponent,
   FSComponent,
+  MappedSubject,
   Subscribable,
   SubscribableMapFunctions,
   SubscribableUtils,
@@ -12,7 +13,7 @@ import {
 } from '@microsoft/msfs-sdk';
 import { PageSelectorDropdownMenu } from '../../../MsfsAvionicsCommon/UiWidgets/PageSelectorDropdownMenu';
 import { OitUiService } from '../../OitUiService';
-import { OitPageFunction, PageFunctionAvailability } from '../../OitPageFunctions';
+import { isHomeDisabled, OitPageFunction, PageFunctionAvailability } from '../../OitPageFunctions';
 import { shortcutChord } from '../../LaptopKeyboard';
 import { OisMessageToolbar } from '../../System/OisMessageToolbar';
 import { OitMessageToolbarView } from '../OitMessageToolbarView';
@@ -34,11 +35,15 @@ export abstract class OitFltOpsHeader extends DisplayComponent<OitFltOpsHeaderPr
 
   private readonly oitHeading = this.props.uiService.activeUri.map((uri) => fltOpsApplicationName(uri.uri));
 
+  /** The HOME of a page that shows a document inside its application (OPS LIBRARY): it closes the document */
+  private readonly pageHome = new PageFunctionAvailability(this.props.uiService.pageFunctions, 'home');
+
   /** HOME: the home page of the displayed application, greyed on that page and on the FLT OPS MENU page */
-  private readonly homeDisabled = this.props.uiService.activeUri.map((uri) => {
-    const application = fltOpsApplicationOf(uri.uri);
-    return application === null || application === uri.uri;
-  });
+  private readonly homeDisabled = MappedSubject.create(
+    ([uri, pageHomeAvailable]) => isHomeDisabled(fltOpsApplicationOf(uri.uri), uri.uri, pageHomeAvailable),
+    this.props.uiService.activeUri,
+    this.pageHome.available,
+  );
 
   private readonly previousDisabled = this.props.uiService.backAvailable.map(SubscribableMapFunctions.not());
 
@@ -138,6 +143,9 @@ export abstract class OitFltOpsHeader extends DisplayComponent<OitFltOpsHeaderPr
   }
 
   private goHome(): void {
+    if (this.props.uiService.runPageFunction('home')) {
+      return;
+    }
     const application = fltOpsApplicationOf(this.props.uiService.activeUri.get().uri);
     if (application !== null) {
       this.props.uiService.navigateTo(application);
@@ -170,7 +178,7 @@ export abstract class OitFltOpsHeader extends DisplayComponent<OitFltOpsHeaderPr
     for (const s of this.subs) {
       s.destroy();
     }
-    for (const availability of [this.print, this.store, this.update, this.undo, this.redo]) {
+    for (const availability of [this.pageHome, this.print, this.store, this.update, this.undo, this.redo]) {
       availability.destroy();
     }
 
@@ -197,7 +205,6 @@ export abstract class OitFltOpsHeader extends DisplayComponent<OitFltOpsHeaderPr
             {
               label: 'OPS LIBRARY',
               action: () => this.props.uiService.navigateTo('flt-ops/ops-library'),
-              disabled: true,
               separatorBelow: true,
             },
             { label: 'T.O PERF', action: () => this.props.uiService.navigateTo('flt-ops/to-perf') },

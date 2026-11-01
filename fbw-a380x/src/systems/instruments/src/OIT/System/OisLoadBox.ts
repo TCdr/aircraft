@@ -3,7 +3,7 @@
 
 import { Subject, Subscribable } from '@microsoft/msfs-sdk';
 import type { ISimbriefData } from '@flybywiresim/fbw-sdk';
-import { OIS_MONTHS } from './OisDateTime';
+import { OIS_MONTHS, oisDateMixedCase } from './OisDateTime';
 
 /*
  * The LOAD BOX of the FLT OPS laptop: the data available to load into the laptops, and their loading status on the
@@ -31,6 +31,10 @@ export interface LoadBoxItem {
   readonly eff: ElectronicFlightFolder;
   /** The DATA IDENTIFIER, e.g. AIB406 23-Sep-08 NRT-TLS */
   readonly identifier: string;
+  /** The airline OFP, kept whole: the FLT FOLDER builds its documents from it */
+  readonly ofp: ISimbriefData;
+  /** When the OFP was generated, unix ms, null when the OFP does not say */
+  readonly generatedMs: number | null;
   /** The application the data is for */
   readonly destination: string;
   readonly selected: boolean;
@@ -75,6 +79,15 @@ export function effIdentifier(eff: ElectronicFlightFolder): string {
 
 /**
  * @param eff an electronic flight folder
+ * @returns its label in the FLT FOLDER (root of the tree, list): the identifier with the date in mixed case
+ */
+export function effFolderLabel(eff: ElectronicFlightFolder): string {
+  const date = eff.dateMs !== null ? ` ${oisDateMixedCase(eff.dateMs)}` : '';
+  return `${eff.flightNumber}${date} ${eff.from}-${eff.to}`;
+}
+
+/**
+ * @param eff an electronic flight folder
  * @returns its DATA IDENTIFIER in the EXPORT BOX: FLT FOLDER, flight number, city pair, date
  */
 export function effExportIdentifier(eff: ElectronicFlightFolder): string {
@@ -96,43 +109,98 @@ export class OisLoadBox {
   /** A refresh is waiting for the ground */
   public readonly refreshing = this._refreshing as Subscribable<boolean>;
 
-  private readonly _loadedEff = Subject.create<ElectronicFlightFolder | null>(null);
-  /** The last EFF loaded into this laptop */
-  public readonly loadedEff = this._loadedEff as Subscribable<ElectronicFlightFolder | null>;
+  private readonly _loaded = Subject.create<readonly LoadBoxItem[]>([]);
+  /** Every item loaded into this laptop, the FLT FOLDER imports them */
+  public readonly loaded = this._loaded as Subscribable<readonly LoadBoxItem[]>;
 
   /**
    * @param fetchOfp asks the ground for the airline OFP
+   * @param onLoadedByCrew tells the other laptops about items the crew of this laptop loaded
    */
-  constructor(private readonly fetchOfp: () => Promise<ISimbriefData>) {}
+  constructor(
+    private readonly fetchOfp: () => Promise<ISimbriefData>,
+    private readonly onLoadedByCrew: (items: readonly LoadBoxItem[]) => void = () => {},
+  ) {}
+
+  private running: Promise<void> | null = null;
 
   /**
    * Detects the data sent from the ground (opening the LOAD BOX, or REFRESH LOAD BOX) and adds a new EFF to the list.
-   * The wireless data comes through the network: a stand-alone laptop gets none.
+   * The wireless data comes through the network: a stand-alone laptop gets none. A refresh while another one runs
+   * waits for it.
    * @param connectedToNetwork this laptop is connected to the network
+   * @returns when the ground has answered
    */
-  public async refresh(connectedToNetwork: boolean): Promise<void> {
-    if (!connectedToNetwork || this._refreshing.get()) {
-      return;
+  public refresh(connectedToNetwork: boolean): Promise<void> {
+    if (!connectedToNetwork) {
+      return Promise.resolve();
+    }
+    if (this.running !== null) {
+      return this.running;
     }
     this._refreshing.set(true);
+    this.running = this.fetchAndAdd();
+    return this.running;
+  }
+
+  private async fetchAndAdd(): Promise<void> {
     try {
       const ofp = await this.fetchOfp();
-      this.addEff(effFromOfp(ofp));
+      this.addEff(ofp);
     } catch (e) {
       console.warn('[OIS] LOAD BOX: no data from the ground', e);
     }
     this._refreshing.set(false);
+    this.running = null;
   }
 
-  private addEff(eff: ElectronicFlightFolder): void {
+  private addEff(ofp: ISimbriefData): void {
+    const eff = effFromOfp(ofp);
     const identifier = effIdentifier(eff);
-    if (this._items.get().some((item) => item.identifier === identifier)) {
+    const generatedMs = typeof ofp.generatedTime === 'number' ? ofp.generatedTime * 1000 : null;
+    const known = this._items.get().find((item) => item.identifier === identifier);
+    if (known && known.generatedMs === generatedMs) {
       return;
     }
+    // A newer OFP of the same flight replaces the older one and has to be loaded again
+    const others = this._items.get().filter((item) => item.identifier !== identifier);
     this._items.set([
-      ...this._items.get(),
-      { eff, identifier, destination: 'FLT FOLDER', selected: false, status: NOT_LOADED },
+      ...others,
+      { eff, identifier, ofp, generatedMs, destination: 'FLT FOLDER', selected: false, status: NOT_LOADED },
     ]);
+  }
+
+  /**
+   * The other laptop loaded an item: this laptop fetches the OFP from the ground itself and takes the item only if it is
+   * the same OFP (same flight and same generation time). Otherwise the item stays NOT LOADED here.
+   * @param identifier the DATA IDENTIFIER the other laptop loaded
+   * @param generatedMs when its OFP was generated, unix ms
+   * @param ownLaptop the laptop of this OIT
+   * @param connectedToNetwork this laptop is connected to the network
+   */
+  public async loadFromOffside(
+    identifier: string,
+    generatedMs: number | null,
+    ownLaptop: 'CAPT' | 'FO',
+    connectedToNetwork: boolean,
+  ): Promise<void> {
+    await this.refresh(connectedToNetwork);
+    const item = this._items.get().find((i) => i.identifier === identifier);
+    if (!item || item.generatedMs !== generatedMs) {
+      return;
+    }
+    const otherLaptop = ownLaptop === 'CAPT' ? 'FO' : 'CAPT';
+    const loadedItem: LoadBoxItem = {
+      ...item,
+      selected: false,
+      status: { ...item.status, [ownLaptop]: 'LOADED', [otherLaptop]: 'LOADED', BACKUP: 'LOADED' },
+    };
+    this._items.set(this._items.get().map((i) => (i === item ? loadedItem : i)));
+    this.addLoaded(loadedItem);
+  }
+
+  private addLoaded(item: LoadBoxItem): void {
+    this._loaded.set([...this._loaded.get().filter((i) => i.identifier !== item.identifier), item]);
   }
 
   /** @param index the row whose tick box is clicked */
@@ -164,10 +232,10 @@ export class OisLoadBox {
     const otherLaptop = ownLaptop === 'CAPT' ? 'FO' : 'CAPT';
     const loaded = (gotIt: boolean, before: LoadBoxStatus): LoadBoxStatus => (gotIt ? 'LOADED' : before);
     const items = this._items.get();
-    const toLoad = items.filter((item) => item.selected);
-    if (toLoad.length === 0) {
+    if (!items.some((item) => item.selected)) {
       return;
     }
+    const loadedItems: LoadBoxItem[] = [];
     this._items.set(
       items.map((item) => {
         if (!item.selected) {
@@ -177,10 +245,15 @@ export class OisLoadBox {
         status[ownLaptop] = 'LOADED';
         status[otherLaptop] = loaded(connectedToNetwork && otherLaptopHealthy, status[otherLaptop]);
         status.BACKUP = loaded(connectedToNetwork, status.BACKUP);
-        return { ...item, selected: false, status };
+        const loadedItem = { ...item, selected: false, status };
+        loadedItems.push(loadedItem);
+        return loadedItem;
       }),
     );
-    this._loadedEff.set(toLoad[toLoad.length - 1].eff);
+    loadedItems.forEach((item) => this.addLoaded(item));
+    if (connectedToNetwork && otherLaptopHealthy) {
+      this.onLoadedByCrew(loadedItems);
+    }
   }
 
   /** @param index the row whose recycle bin is clicked: removed from the list, the loaded data stays */

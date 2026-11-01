@@ -69,6 +69,7 @@ describe('COMPANY COM report forms: pages', () => {
       'nss-avncs/company-com/in-flight/eta',
       'nss-avncs/company-com/in-flight/flight-delay',
       'nss-avncs/company-com/in-flight/flight-parameters',
+      'nss-avncs/company-com/in-flight/in-range',
       'nss-avncs/company-com/post-flight/asr-notification',
       'nss-avncs/company-com/post-flight/flight-summary',
       'nss-avncs/company-com/post-flight/gate-delay',
@@ -244,6 +245,57 @@ describe('COMPANY COM report forms: messages', () => {
       'FLIGHT PARAMETERS\nFLT NBR AFR006\nFL 380\nMACH .85\nCAS KT 280\nFOB 100000 KG',
     );
     expect(checkReport(form, 'AFROPS', entries, 'KG').invalidLabels).toEqual(['FL']);
+  });
+
+  it('pre-fills the In range report with the flight, the OFF time and the fuel, and needs the ETA and the fuel', () => {
+    const form = formAt('nss-avncs/company-com/in-flight/in-range');
+    const entries = prefilledEntries(
+      form,
+      {
+        ...NO_DATA,
+        flightNumber: 'AFR006',
+        origin: 'LFPG',
+        destination: 'KJFK',
+        offTime: Date.UTC(2026, 9, 31, 8, 20),
+        fuelOnBoard: 41_250,
+      },
+      'KG',
+    );
+    expect(entries).toMatchObject({
+      flightNumber: 'AFR006',
+      origin: 'LFPG',
+      destination: 'KJFK',
+      off: '0820',
+      eta: null,
+      fuelOnBoard: '41250',
+    });
+    const missing = checkReport(form, 'AFROPS', entries, 'KG');
+    expect(missing.message).toBeNull();
+    expect(missing.invalidLabels).toEqual(['ETA']);
+    expect(checkReport(form, 'AFROPS', { ...entries, eta: '1545', fuelOnBoard: null }, 'KG').invalidLabels).toEqual([
+      'FOB',
+    ]);
+  });
+
+  it('builds the In range report with the stand and the flight time to the ETA', () => {
+    const form = formAt('nss-avncs/company-com/in-flight/in-range');
+    const entries = {
+      flightNumber: 'AFR006',
+      origin: 'LFPG',
+      destination: 'KJFK',
+      off: '0820',
+      eta: '1545',
+      fuelOnBoard: '41250',
+      stand: 'b32',
+    };
+    expect(checkReport(form, 'afrops', entries, 'KG').message?.Message).toBe(
+      'IN RANGE\nFLT NBR AFR006\nFROM LFPG\nDEST KJFK\nOFF 0820\nETA 1545\nFOB 41250 KG\nSTAND B32\nEST FLIGHT TIME 7:25',
+    );
+    // without the OFF time (reload in flight) there is nothing to work the flight time from
+    expect(checkReport(form, 'afrops', { ...entries, off: null, stand: null }, 'LB').message?.Message).toBe(
+      'IN RANGE\nFLT NBR AFR006\nFROM LFPG\nDEST KJFK\nETA 1545\nFOB 41250 LB',
+    );
+    expect(checkReport(form, 'afrops', { ...entries, stand: 'GATE B32' }, 'KG').invalidLabels).toEqual(['STAND']);
   });
 
   it('names the invalid and the empty required fields, and sends nothing then', () => {

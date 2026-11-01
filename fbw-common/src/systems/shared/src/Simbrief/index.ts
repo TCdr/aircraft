@@ -3,3 +3,4 @@
 
 export * from './simbriefInterface';
 export * from './simbriefParser';
+export * from './simbriefNotams';

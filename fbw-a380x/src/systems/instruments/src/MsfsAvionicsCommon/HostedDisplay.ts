@@ -115,8 +115,7 @@ function addHiddenHostedGaugeStyle(): void {
  * shown. While it is not shown its mount element is hidden (display: none), so it does not draw, and its gauge element
  * lets the mouse through (pointer-events: none): all gauges of a panel.cfg block share one document, and the gauge
  * element of a gauge listed later covers the whole DU even with nothing drawn, so it would take the clicks of the DU's
- * own gauge under it (e.g. the hidden hosted EWD over the SD's ATC mailbox). The same as upstream's OIT legacy overlay
- * (OitLegacy.tsx, class nopointer).
+ * own gauge under it (e.g. the hidden hosted EWD over the SD's ATC mailbox).
  */
 export class HostedDisplayGate {
   private started = false;

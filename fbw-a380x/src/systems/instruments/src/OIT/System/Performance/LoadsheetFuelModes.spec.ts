@@ -5,7 +5,13 @@ import { describe, expect, it } from 'vitest';
 import { TRIM_TANK_INDEX } from './Loadsheet';
 import { tankCapacities } from './LoadsheetFuel';
 import { weightToDisplayUnit } from './PerformanceEntries';
-import { manualDistribution, manualDistributionMatchesFob, trimAdjustmentDistribution } from './LoadsheetFuelModes';
+import {
+  displayedTankTotal,
+  fitManualDistributionToFob,
+  manualDistribution,
+  manualDistributionMatchesFob,
+  trimAdjustmentDistribution,
+} from './LoadsheetFuelModes';
 
 const DENSITY = 0.785;
 const CAPACITIES = tankCapacities(DENSITY);
@@ -48,7 +54,7 @@ describe('LOADSHEET fuel modes', () => {
       DENSITY,
     );
     expect(manualDistributionMatchesFob(distribution, 11_000)).toBe(true);
-    expect(manualDistributionMatchesFob(distribution, 11_005)).toBe(false);
+    expect(manualDistributionMatchesFob(distribution, 11_200)).toBe(false);
   });
 
   it.each([true, false])('accepts the displayed value of every tank typed back (metric %s)', (metric) => {
@@ -63,5 +69,53 @@ describe('LOADSHEET fuel modes', () => {
     expect(manualDistributionMatchesFob(manualDistribution(entries, DENSITY, exact, metric), fob)).toBe(true);
     entries[0] = typedKg[0] + 1_000;
     expect(manualDistributionMatchesFob(manualDistribution(entries, DENSITY, exact, metric), fob)).toBe(false);
+  });
+
+  // Displayed 4.0 15.0 10.0 15.0 12.0 12.0 15.0 10.0 3.0 3.0 1.0 = 100.0, the exact quantities add up to 100 000
+  const BASELINE = [4012, 14989, 9996, 15007, 12003, 11990, 15004, 9993, 3002, 3004, 1000];
+  const KG_PER_LB = 0.45359237;
+
+  it.each([true, false])('moving 0.3 of the display unit between two tanks still computes (metric %s)', (metric) => {
+    const unit = metric ? 1 : KG_PER_LB;
+    const baseline = BASELINE.map((value) => value * unit);
+    const fob = 100_000 * unit;
+    const entries: (number | null)[] = [...baseline];
+    entries[2] = 10_300 * unit;
+    entries[3] = 14_700 * unit;
+    const distribution = manualDistribution(entries, DENSITY, baseline, metric);
+    expect(manualDistributionMatchesFob(distribution, fob, metric)).toBe(true);
+    expect(Math.abs(sum(fitManualDistributionToFob(distribution, fob, DENSITY)!) - fob)).toBeLessThan(1);
+  });
+
+  // Rounded tanks 4.0 15.0 10.0 15.0 12.0 12.0 15.0 10.0 3.0 3.0 1.0 = 100.0 while the exact quantities, ending in .049 or
+  // .951 t, add up to 100 040: the per-tank rounding errors do not cancel
+  const UNBALANCED_BASELINE = [3951, 14951, 10049, 15049, 11951, 12049, 14951, 9951, 3049, 3049, 1040];
+
+  it('compares the sum of the displayed tanks, the value the FOB box shows, when the rounding errors do not cancel', () => {
+    expect(sum(UNBALANCED_BASELINE)).toBe(100_040);
+    expect(displayedTankTotal(UNBALANCED_BASELINE, true)).toBeCloseTo(100, 9);
+    const entries: (number | null)[] = [...UNBALANCED_BASELINE];
+    entries[2] = 10_300;
+    entries[3] = 14_700;
+    const distribution = manualDistribution(entries, DENSITY, UNBALANCED_BASELINE, true);
+    expect(displayedTankTotal(distribution, true)).toBeCloseTo(100, 9);
+    expect(manualDistributionMatchesFob(distribution, 100_040, true)).toBe(true);
+    const fitted = fitManualDistributionToFob(distribution, 100_040, DENSITY);
+    expect(fitted).not.toBeNull();
+    expect(Math.abs(sum(fitted!) - 100_040)).toBeLessThan(1);
+  });
+
+  it('refuses the match when the remainder cannot be placed within the tank capacities', () => {
+    const full = [...CAPACITIES];
+    expect(fitManualDistributionToFob(full, sum(full) + 500, DENSITY)).toBeNull();
+    expect(fitManualDistributionToFob(full, sum(full), DENSITY)).not.toBeNull();
+  });
+
+  it('refuses a single edited tank that changes the displayed total', () => {
+    const entries: (number | null)[] = [...BASELINE];
+    entries[2] = 10_300;
+    expect(manualDistributionMatchesFob(manualDistribution(entries, DENSITY, BASELINE, true), 100_000, true)).toBe(
+      false,
+    );
   });
 });

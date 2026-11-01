@@ -52,14 +52,16 @@ export type FltOpsStatusField = keyof FltOpsStatusFields;
  * @param connected the laptop runs and is connected to the FLT OPS network
  * @param nssAvncsAvailable an NSS AVNCS server runs
  * @param avionicsDataReachNss the avionics data reach the NSS AVNCS side: at least one SCI works
+ * @param diodeAvailable the one-way link from the NSS AVNCS side to the FLT OPS network works
  * @returns whether the FMS flight number and city pair reach the laptop
  */
 export function fmsDataReachLaptop(
   connected: boolean,
   nssAvncsAvailable: boolean,
   avionicsDataReachNss: boolean,
+  diodeAvailable: boolean,
 ): boolean {
-  return connected && nssAvncsAvailable && avionicsDataReachNss;
+  return connected && nssAvncsAvailable && avionicsDataReachNss && diodeAvailable;
 }
 
 /**

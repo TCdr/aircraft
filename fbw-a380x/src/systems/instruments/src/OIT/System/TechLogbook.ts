@@ -9,6 +9,9 @@
 
 import { groundDeferralRule } from './TechLogbookDefects';
 
+/** The stored logbook, shared by both OITs and kept across flights: the NSS database is permanent */
+export const TECH_LOGBOOK_STORAGE_KEY = 'OIS_TECH_LOGBOOK';
+
 /** Who controls the logbook database: the aircraft (flight crew, onboard maintenance) or the ground station */
 export type LogbookControl = 'on-board' | 'on-ground';
 
@@ -1263,7 +1266,8 @@ function deferralExpiryDate(now: number, days: number): number {
  * The end of an UPDATE while the ground has control. The simulated ground maintenance handles the open items reported
  * in the closed flights: it defers some (the item is closed in the HISTORY and a new item with the MEL or CDL data
  * enters DEFERRED ITEMS) and rectifies the others, as it rectifies the deferred items past their expiry date. The
- * closed items also go to the REPORTS panel. It then releases the aircraft and the logbook is on board.
+ * rectified items go to the REPORTS panel of the release, which does not list the deferred ones. It then releases the
+ * aircraft and the logbook is on board.
  * @param state the logbook
  * @param now ms since the epoch (UTC)
  * @param registration the aircraft registration, for the references of the deferred items
@@ -1279,9 +1283,9 @@ export function completeGroundUpdate(state: TechLogbookState, now: number, regis
     if (!reportedInClosedFlight && (expiryDate === null || now <= expiryDate)) {
       return item;
     }
-    closedRefs.push(item.ref);
     const rule = reportedInClosedFlight ? groundDeferralRule(item.ata) : null;
     if (rule === null) {
+      closedRefs.push(item.ref);
       return { ...item, state: 'closed', closeDate: now, lastMaintAction: GROUND_RECTIFICATION_ACTION };
     }
     // Design choice: the MEL or CDL item is the first one of the ATA section of the defect

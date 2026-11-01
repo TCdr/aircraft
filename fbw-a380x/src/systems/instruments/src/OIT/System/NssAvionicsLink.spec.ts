@@ -1,12 +1,14 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
-import { ClockEvents, EventBus } from '@microsoft/msfs-sdk';
+import { ClockEvents, EventBus, Subject } from '@microsoft/msfs-sdk';
 import { FailuresConsumer, FmsData } from '@flybywiresim/fbw-sdk';
 import { A380Failure } from '@failures';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { maxZfw, maxZfwCg, minZfw, minZfwCg } from '@shared/PerformanceConstants';
+import { fakeUiService, withStandIns } from '../OitSpecSupport';
+import { OitAvncsRefuel } from '../Pages/NssAvncs/Refuel/OitAvncsRefuel';
+import { OitPageDrafts } from './OitPageDrafts';
 import { OisLaptop } from '../OisLaptop';
 import { OitSimvars } from '../OitSimvarPublisher';
 import { AnsuOps } from './AnsuOps';
@@ -182,6 +184,8 @@ describe('FMS data on the FLT OPS STS page', () => {
     const laptop = new OisLaptop(bus, 1, fakeFailures(new Set()));
     laptop.init();
     laptop.connectAvionicsData(sci.canReceiveFromAvionics);
+    const fltOpsDiode = Subject.create(true);
+    laptop.connectFltOpsDiode(fltOpsDiode);
     const simvars = bus.getPublisher<OitSimvars>();
     simvars.pub('laptopCaptPowered', true);
     simvars.pub('nssAnsu1Healthy', true);
@@ -206,7 +210,7 @@ describe('FMS data on the FLT OPS STS page', () => {
       }
       sci.onUpdate();
     };
-    return { laptop, fms, simvars, loseBothScis };
+    return { laptop, fms, simvars, loseBothScis, fltOpsDiode };
   }
 
   it('SYNCHRO AVIONICS keeps the entries while both SCIs are lost, and takes the FMS data once one is back', () => {
@@ -238,23 +242,33 @@ describe('FMS data on the FLT OPS STS page', () => {
     expect(laptop.data.fltNumber.get()).toBe('AIB456');
   });
 
-  it('does not reload the flight plan of the EFB overlay without the avionics data', () => {
+  it('SYNCHRO AVIONICS writes no L:var for a gauge over the OIT, with or without the avionics data', () => {
     const { laptop, loseBothScis } = setUp();
     loseBothScis(true);
+    laptop.synchroAvionics();
+    loseBothScis(false);
     laptop.synchroAvionics();
     expect(SimVar.SetSimVarValue).not.toHaveBeenCalledWith(
       'L:A32NX_OIS_SYNCHRO_AVIONICS',
       expect.anything(),
       expect.anything(),
     );
+  });
 
-    loseBothScis(false);
+  it('stops following the FMS while NSS AVNCS ARU 2, which holds the link to the FLT OPS network, is lost', () => {
+    const { laptop, fms, fltOpsDiode } = setUp();
+    expect(laptop.data.fltNumber.get()).toBe('AIB123');
+
+    fltOpsDiode.set(false);
+    fms.pub('fmsFlightNumber', 'AIB456');
+    laptop.onUpdate();
+    expect(laptop.data.fltNumber.get()).toBe('AIB123');
     laptop.synchroAvionics();
-    expect(SimVar.SetSimVarValue).toHaveBeenCalledWith(
-      'L:A32NX_OIS_SYNCHRO_AVIONICS',
-      expect.anything(),
-      expect.anything(),
-    );
+    expect(laptop.data.fltNumber.get()).toBe('AIB123');
+
+    fltOpsDiode.set(true);
+    laptop.onUpdate();
+    expect(laptop.data.fltNumber.get()).toBe('AIB456');
   });
 
   it('takes no FMS data at SYNCHRO AVIONICS without an NSS AVNCS server, though both SCIs work', () => {
@@ -264,18 +278,56 @@ describe('FMS data on the FLT OPS STS page', () => {
     simvars.pub('nssAnsu1Healthy', false);
     laptop.synchroAvionics();
     expect(laptop.data.fltNumber.get()).toBe('XX999');
-    expect(SimVar.SetSimVarValue).not.toHaveBeenCalledWith(
-      'L:A32NX_OIS_SYNCHRO_AVIONICS',
-      expect.anything(),
-      expect.anything(),
-    );
   });
 });
 
 describe('REFUEL entries to the FQMS', () => {
-  it('the PFQ, the ZF data and FQMS DEFAULT are not sent without the NSS to avionics link', () => {
-    const page = readFileSync(resolve(__dirname, '../Pages/NssAvncs/Refuel/OitAvncsRefuel.tsx'), 'utf-8');
-    expect(page).toContain('notSentToAvionicsMessage(this.sci.link.get())');
-    expect(page.split('if (!this.checkFqmsReachable(').length - 1).toBe(3);
-  });
+  afterEach(() => vi.restoreAllMocks());
+
+  it.each([
+    ['Lost', NssAvionicsLink.Lost, false],
+    ['AvionicsToNssOnly', NssAvionicsLink.AvionicsToNssOnly, false],
+    ['BothWays', NssAvionicsLink.BothWays, true],
+  ])(
+    'the PFQ, the ZF data and FQMS DEFAULT are sent only with the NSS to avionics link (%s)',
+    (_name, linkState, sent) => {
+      const writes: string[] = [];
+      vi.spyOn(SimVar, 'GetSimVarValue').mockReturnValue(1000);
+      vi.spyOn(SimVar, 'SetSimVarValue').mockImplementation((name: string) => {
+        writes.push(name);
+        return Promise.resolve();
+      });
+      const page = new OitAvncsRefuel({
+        bus: new EventBus(),
+        uiService: fakeUiService().uiService,
+        container: withStandIns({
+          ansu: withStandIns({
+            pageDrafts: new OitPageDrafts(),
+            sci: withStandIns({
+              link: Subject.create(linkState),
+              fqmsFuelQuantity: Subject.create({ valueOr: () => null }),
+            }),
+          }),
+        }),
+      } as any);
+      const internals = page as any;
+      // entries within the limits, in the weight unit of the aircraft
+      const toUnit = (kg: number) => (internals.unit === 'KG' ? kg : kg * 2.20462);
+      internals.preselectedFuelEntry.set('10');
+      internals.zfwEntry.set(String(Math.round(toUnit((minZfw + maxZfw) / 2))));
+      internals.zfcgEntry.set(((minZfwCg + maxZfwCg) / 2).toFixed(1));
+
+      internals.setPreselectedFuel();
+      expect(writes.includes('L:A32NX_FUEL_DESIRED')).toBe(sent);
+      expect(internals.entryMessage.get()).toBe(sent ? '' : notSentToAvionicsMessage(linkState));
+
+      internals.setRefuelZfData();
+      expect(writes.includes('L:A32NX_FUEL_REFUEL_ZFW')).toBe(sent);
+      expect(internals.zfDataMessage.get()).toBe(sent ? '' : notSentToAvionicsMessage(linkState));
+
+      writes.length = 0;
+      internals.clearRefuelZfData();
+      expect(writes.includes('L:A32NX_FUEL_REFUEL_ZFW')).toBe(sent);
+    },
+  );
 });

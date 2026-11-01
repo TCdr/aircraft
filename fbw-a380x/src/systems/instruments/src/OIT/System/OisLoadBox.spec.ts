@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { ISimbriefData } from '@flybywiresim/fbw-sdk';
-import { effExportIdentifier, effFromOfp, effIdentifier, oisDate, OisLoadBox } from './OisLoadBox';
+import { effExportIdentifier, effFolderLabel, effFromOfp, effIdentifier, oisDate, OisLoadBox } from './OisLoadBox';
 
 /**
  * @param flightNumber the flight number without the airline code
@@ -28,6 +28,10 @@ describe('LOAD BOX electronic flight folder', () => {
 
   it('is labelled FLT FOLDER, flight number, city pair, date in the EXPORT BOX', () => {
     expect(effExportIdentifier(effFromOfp(ofp('406')))).toBe('FLT FOLDER AIB406 NRT-TLS 23-SEP-08');
+  });
+
+  it('writes the date in mixed case in the FLT FOLDER label', () => {
+    expect(effFolderLabel(effFromOfp(ofp('406')))).toBe('AIB406 23-Sep-08 NRT-TLS');
   });
 
   it('takes the ICAO codes without IATA codes, and no date without a scheduled departure', () => {
@@ -64,7 +68,8 @@ describe('LOAD BOX', () => {
     const item = box.items.get()[0];
     expect(item.status).toEqual({ CAPT: 'LOADED', FO: 'LOADED', BACKUP: 'LOADED' });
     expect(item.selected).toBe(false);
-    expect(box.loadedEff.get()?.flightNumber).toBe('AIB406');
+    expect(box.loaded.get().map((item) => item.eff.flightNumber)).toEqual(['AIB406']);
+    expect(box.loaded.get()[0].ofp.flightNumber).toBe('406');
   });
 
   it('leaves a laptop that is off, or every other laptop of a stand-alone laptop, NOT LOADED until loaded again', async () => {
@@ -98,5 +103,70 @@ describe('LOAD BOX', () => {
     expect(box.items.get().map((item) => item.eff.flightNumber)).toEqual(['AIB400', 'AIB402']);
     box.removeAll();
     expect(box.items.get()).toHaveLength(0);
+  });
+
+  it('replaces an OFP of the same flight by a newer one, which has to be loaded again', async () => {
+    let generated = 100;
+    const box = new OisLoadBox(() => Promise.resolve({ ...ofp('406'), generatedTime: generated } as ISimbriefData));
+    await box.refresh(true);
+    box.toggle(0);
+    box.load('CAPT', true, true);
+    await box.refresh(true);
+    expect(box.items.get()).toHaveLength(1);
+    generated = 200;
+    await box.refresh(true);
+    expect(box.items.get()).toHaveLength(1);
+    expect(box.items.get()[0].generatedMs).toBe(200000);
+    expect(box.items.get()[0].status.CAPT).toBe('NOT LOADED');
+  });
+
+  it('tells the other laptops what the crew loaded, when it is on the network', async () => {
+    const told: string[] = [];
+    const box = new OisLoadBox(
+      () => Promise.resolve(ofp('406')),
+      (items) => items.forEach((item) => told.push(item.identifier)),
+    );
+    await box.refresh(true);
+    box.toggle(0);
+    box.load('CAPT', false, true);
+    expect(told).toEqual([]);
+    box.toggle(0);
+    box.load('CAPT', true, true);
+    expect(told).toEqual(['AIB406 23-SEP-08 NRT-TLS']);
+  });
+});
+
+describe('LOAD BOX load from the offside laptop', () => {
+  const identifier = 'AIB406 23-SEP-08 NRT-TLS';
+  const generated = (seconds: number) => () =>
+    Promise.resolve({ ...ofp('406'), generatedTime: seconds } as unknown as ISimbriefData);
+
+  it('loads the OFP it fetches itself when it is the one the other laptop loaded', async () => {
+    const box = new OisLoadBox(generated(100));
+    await box.loadFromOffside(identifier, 100000, 'FO', true);
+    expect(box.items.get()[0].status).toEqual({ CAPT: 'LOADED', FO: 'LOADED', BACKUP: 'LOADED' });
+    expect(box.loaded.get()).toHaveLength(1);
+  });
+
+  it('stays NOT LOADED when the ground gives another OFP, or none', async () => {
+    const other = new OisLoadBox(generated(150));
+    await other.loadFromOffside(identifier, 100000, 'FO', true);
+    expect(other.items.get()[0].status.FO).toBe('NOT LOADED');
+    expect(other.loaded.get()).toHaveLength(0);
+
+    const standalone = new OisLoadBox(generated(100));
+    await standalone.loadFromOffside(identifier, 100000, 'FO', false);
+    expect(standalone.items.get()).toHaveLength(0);
+    expect(standalone.loaded.get()).toHaveLength(0);
+  });
+
+  it('waits for a refresh that is running instead of dropping the load from the other laptop', async () => {
+    const box = new OisLoadBox(() =>
+      Promise.resolve({ ...ofp('406'), generatedTime: 100 } as unknown as ISimbriefData),
+    );
+    const running = box.refresh(true);
+    await box.loadFromOffside('AIB406 23-SEP-08 NRT-TLS', 100000, 'FO', true);
+    await running;
+    expect(box.loaded.get()).toHaveLength(1);
   });
 });

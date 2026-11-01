@@ -114,3 +114,94 @@ describe('Performance printouts', () => {
     expect(lines).toContain('REVERSE THRUST CREDIT');
   });
 });
+
+/*
+ * STORE keeps the text PRINT sends to the printer. These are the printouts as they were before the pages split their
+ * print into a printout and its publication: the text of a stored document and of a print must not change.
+ */
+describe('Performance printouts, complete text', () => {
+  it('T.O PERF', () => {
+    expect(takeoffPerfPrintout(content(TAKEOFF)).text).toBe(
+      [
+        'FLT             FBW123',
+        'AIRPORT         LFBO',
+        '',
+        'CONDITIONS',
+        'WIND            (180/10)HD10',
+        'OAT             15 °C',
+        '',
+        'AIRCRAFT STATUS',
+        'NO PERFORMANCE IMPACT',
+        '',
+        'RESULTS',
+        'RWY             14',
+        'TOW             500.0 T',
+        'MTOW(PERF)      540.0 T',
+        'THRUST          FLEX 45',
+        'V1              149 KT',
+        'VR              162 KT',
+        'V2              170 KT',
+        'FLAPS           1+F',
+        'STOP MARGIN     702 m',
+        'T.O SHIFT       0 m',
+        'EO ACCEL        2000 FT',
+        'NO REVERSE THRUST CREDIT',
+        '',
+        'END',
+      ].join('\n'),
+    );
+  });
+
+  it('LDG PERF', () => {
+    const landing: LandingResults = {
+      runway: '27R',
+      lw: 400_000,
+      mlwPerf: 420_000,
+      limitation: LandingLimitation.Lda,
+      flaps: LandingConf.Conf3,
+      goAroundConf: LandingGoAroundConf.Conf2,
+      landingDistance: 2100,
+      actualLandingDistance: 1600,
+      runwayLength: 3900,
+      stopMargin: 1800,
+      goAroundSpeed: 155,
+      goAroundGradient: 2.4,
+      speedIncrement: 5,
+      vapp: 145,
+      overweight: true,
+      reverseThrustCredit: true,
+    };
+    expect(landingPerfPrintout(content(landing)).text).toBe(
+      [
+        'FLT             FBW123',
+        'AIRPORT         LFBO',
+        '',
+        'CONDITIONS',
+        'WIND            (180/10)HD10',
+        'OAT             15 °C',
+        '',
+        'AIRCRAFT STATUS',
+        'NO PERFORMANCE IMPACT',
+        '',
+        'RESULTS',
+        'RWY             27R',
+        'OVERWEIGHT LANDING',
+        'LW              400.0 T',
+        'MLW(PERF)       420.0 T',
+        'LIMITATION CODE LDA',
+        'FLAPS           3',
+        'VAPP            VLS+5 KT (145 KT)',
+        'LDG DIST        2100 m',
+        'STOP MARGIN     1800 m',
+        'GA SPEED        155 KT',
+        'GA CONF         2',
+        'GA GRADIENT     2.400 %',
+        'ACTUAL LDG DIST 1600 m',
+        'RWY LENGTH      3900 m',
+        'REVERSE THRUST CREDIT',
+        '',
+        'END',
+      ].join('\n'),
+    );
+  });
+});
