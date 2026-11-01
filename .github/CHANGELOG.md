@@ -322,6 +322,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FIRE] The amber cargo DISCH lights now also come on while the CARGO SMOKE TEST pb is held - @TCdr
 1. [A380X/FADEC] After a FLEX takeoff the thrust limit goes to CLB when the thrust levers rest in the CL detent, also when a lever sits a hair above it; before, it could stay on FLX and cap the climb thrust at the flex value in the upper part of the climb - @TCdr
 1. [A380X/FG] The autopilot disengages when the speed reaches 15 kt above VMO or Mach 0.04 above MMO; before, it stayed engaged at any overspeed - @TCdr
+1. [FMS] Hold IMMEDIATE EXIT selected during the hold entry leaves the hold at the hold fix instead of flying a further pattern - @TCdr
 1. [A32NX/FUEL SYSTEM] Close center tank valves if they are triggered open with no fuel in center tank - @donstim (donbikes)
 1. [A380X/FUEL SYSTEM] Prevent CG control transfer end from ending normal trim tank transfers - @donstim (donbikes)
 1. [A32NX/FMS] Fixed +/- altitude constraints entered on the F-PLN page being inverted - @shinji1100
