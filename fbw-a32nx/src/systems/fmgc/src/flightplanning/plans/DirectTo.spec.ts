@@ -36,7 +36,7 @@ const ppos = { lat: 0, long: 0 };
 const legs = (fp: ReturnType<typeof emptyFlightPlan>) =>
   fp.allLegs.map((it) => (isDiscontinuity(it) ? 'DISCO' : `${it.ident}/${LegType[it.type]}`));
 
-describe('DIR TO options (A380 FCOM DSC-22-FMS, DIR TO revision)', () => {
+describe('DIR TO options (DIR TO revision)', () => {
   beforeAll(() => {
     // The guidance geometry uses these sim helpers, not in the common test mock
     const utils = (globalThis as any).Avionics.Utils;

@@ -213,7 +213,9 @@ export class FmsPrinter {
     this.subs.forEach((s) => s.destroy());
   }
 
-  /** Flight plan initialization data: the route, then the performance data */
+  // ---- ACTIVE DATA ----------------------------------------------------------------------------------------------------
+
+  /** Flight plan initialization data report: the route, then the performance data */
   public printInitData(
     planIndex: FlightPlanIndex = FlightPlanIndex.Active,
     title = 'FM ACTIVE FLIGHT PLAN INITIALIZATION DATA',
