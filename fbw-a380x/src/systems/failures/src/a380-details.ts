@@ -53,10 +53,20 @@ import { Ata80StartFamilies } from './details/ata80Start';
 import { Ata74IgnitionFamilies } from './details/ata74Ignition';
 import { Ata77VibrationFamilies } from './details/ata77Vibration';
 import { Ata78ReversersFamilies } from './details/ata78Reversers';
+import { Ata31DisplaysEntries, Ata31DisplaysFamilies } from './details/ata31Displays';
+import { Ata31ControlsFamilies } from './details/ata31Controls';
+import { Ata31RecordersEntries } from './details/ata31Recorders';
+import { Ata33LightsEntries } from './details/ata33Lights';
+import { Ata35OxygenEntries } from './details/ata35Oxygen';
+import { Ata22FlightEntries, Ata22FlightFamilies } from './details/ata22Flight';
+import { Ata23AudioEntries, Ata23AudioFamilies } from './details/ata23Audio';
+import { Ata23CabinEntries, Ata23CabinFamilies } from './details/ata23Cabin';
+import { Ata49ApuEntries } from './details/ata49Apu';
+import { Ata46SystemsEntries, Ata46SystemsFamilies } from './details/ata46Systems';
 
 /** Chapters whose failures all have a detail; the coverage spec only demands these. */
 export const A380_DETAIL_CHAPTERS_DONE: readonly AtaChapterNumber[] = [
-  21, 24, 26, 27, 28, 29, 30, 32, 34, 36, 42, 52, 72, 73, 74, 77, 78, 79, 80,
+  21, 22, 23, 24, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 42, 46, 49, 52, 72, 73, 74, 77, 78, 79, 80,
 ];
 
 export const A380FailureDetails: FailureDetailTable = {
@@ -92,6 +102,15 @@ export const A380FailureDetails: FailureDetailTable = {
     ...Ata42CpiomEntries,
     ...Ata52SlidesSystemsEntries,
     ...Ata73FadecEntries,
+    ...Ata31DisplaysEntries,
+    ...Ata31RecordersEntries,
+    ...Ata33LightsEntries,
+    ...Ata35OxygenEntries,
+    ...Ata22FlightEntries,
+    ...Ata23AudioEntries,
+    ...Ata23CabinEntries,
+    ...Ata49ApuEntries,
+    ...Ata46SystemsEntries,
   },
   families: [
     ...Ata21CabinFamilies,
@@ -143,5 +162,11 @@ export const A380FailureDetails: FailureDetailTable = {
     ...Ata74IgnitionFamilies,
     ...Ata77VibrationFamilies,
     ...Ata78ReversersFamilies,
+    ...Ata31DisplaysFamilies,
+    ...Ata31ControlsFamilies,
+    ...Ata22FlightFamilies,
+    ...Ata23AudioFamilies,
+    ...Ata23CabinFamilies,
+    ...Ata46SystemsFamilies,
   ],
 };
