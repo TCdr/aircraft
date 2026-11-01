@@ -513,19 +513,19 @@ The StepType also defines if the step is executed in normal mode, expedited mode
         <!-- SOP: BEFORE PUSHBACK OR START-->
         <Step Name="EXT PWR 4 Off" Type="STEP" Delay="1000">
             <Condition>(L:A32NX_OVHD_ELEC_EXT_PWR_4_PB_IS_ON, BOOL) !</Condition>
-            <Action>(L:A32NX_OVHD_ELEC_EXT_PWR_4_PB_IS_ON, BOOL) if{ 4 (&gt;L:A32NX_OVHD_ELEC_EXT_PWR_4_PB_IS_ON, BOOL) }</Action>
+            <Action>(L:A32NX_OVHD_ELEC_EXT_PWR_4_PB_IS_ON, BOOL) if{ 0 (&gt;L:A32NX_OVHD_ELEC_EXT_PWR_4_PB_IS_ON, BOOL) }</Action>
         </Step>
         <Step Name="EXT PWR 1 Off" Type="STEP" Delay="1000">
             <Condition>(L:A32NX_OVHD_ELEC_EXT_PWR_1_PB_IS_ON, BOOL) !</Condition>
-            <Action>(L:A32NX_OVHD_ELEC_EXT_PWR_1_PB_IS_ON, BOOL) if{ 1 (&gt;L:A32NX_OVHD_ELEC_EXT_PWR_1_PB_IS_ON, BOOL) }</Action>
+            <Action>(L:A32NX_OVHD_ELEC_EXT_PWR_1_PB_IS_ON, BOOL) if{ 0 (&gt;L:A32NX_OVHD_ELEC_EXT_PWR_1_PB_IS_ON, BOOL) }</Action>
         </Step>
         <Step Name="EXT PWR 3 Off" Type="STEP" Delay="1000">
             <Condition>(L:A32NX_OVHD_ELEC_EXT_PWR_3_PB_IS_ON, BOOL) !</Condition>
-            <Action>(L:A32NX_OVHD_ELEC_EXT_PWR_3_PB_IS_ON, BOOL) if{ 3 (&gt;L:A32NX_OVHD_ELEC_EXT_PWR_3_PB_IS_ON, BOOLR) }</Action>
+            <Action>(L:A32NX_OVHD_ELEC_EXT_PWR_3_PB_IS_ON, BOOL) if{ 0 (&gt;L:A32NX_OVHD_ELEC_EXT_PWR_3_PB_IS_ON, BOOL) }</Action>
         </Step>
         <Step Name="EXT PWR 2 Off" Type="STEP" Delay="3000">
             <Condition>(L:A32NX_OVHD_ELEC_EXT_PWR_2_PB_IS_ON, BOOL) !</Condition>
-            <Action>(L:A32NX_OVHD_ELEC_EXT_PWR_2_PB_IS_ON, BOOL) if{ 2 (&gt;L:A32NX_OVHD_ELEC_EXT_PWR_2_PB_IS_ON, BOOL) }</Action>
+            <Action>(L:A32NX_OVHD_ELEC_EXT_PWR_2_PB_IS_ON, BOOL) if{ 0 (&gt;L:A32NX_OVHD_ELEC_EXT_PWR_2_PB_IS_ON, BOOL) }</Action>
         </Step>
 
         <Step Name="Beacon On" Type="STEP" Delay="1000">
@@ -574,7 +574,7 @@ The StepType also defines if the step is executed in normal mode, expedited mode
                 (L:A32NX_ENGINE_STATE:2) 1 ==
                 (L:A32NX_ENGINE_STATE:3) 1 ==
                 (L:A32NX_ENGINE_STATE:4) 1 ==
-                1 &amp;&amp; &amp;&amp; &amp;&amp;
+                &amp;&amp; &amp;&amp; &amp;&amp;
             </Condition>
             <Action>
                 2 (&gt;K:TURBINE_IGNITION_SWITCH_SET1)
@@ -619,7 +619,7 @@ The StepType also defines if the step is executed in normal mode, expedited mode
                 (A:TURB ENG IGNITION SWITCH EX1:2, Number) 1 ==
                 (A:TURB ENG IGNITION SWITCH EX1:3, Number) 1 ==
                 (A:TURB ENG IGNITION SWITCH EX1:4, Number) 1 ==
-                0 || || || ||
+                &amp;&amp; &amp;&amp; &amp;&amp;
             </Condition>
             <Action>
                 1 (&gt;K:TURBINE_IGNITION_SWITCH_SET1)
@@ -659,16 +659,35 @@ The StepType also defines if the step is executed in normal mode, expedited mode
             <Action>2 (&gt;K:TAXI_LIGHTS_ON)</Action>
         </Step>
         <Step Name="RWY TURN OFF Lt On" Type="STEP" Delay="1000">
-            <Condition>(A:LIGHT TAXI:3, Number) 1 == &amp;&amp;</Condition>
+            <Condition>(A:LIGHT TAXI:3, Number) 1 ==</Condition>
             <Action>3 (&gt;K:TAXI_LIGHTS_ON)</Action>
         </Step>
         <Step Name="Autobrake RTO" Type="STEP" Delay="200">
             <Condition>(L:A32NX_OVHD_AUTOBRK_RTO_ARM_IS_PRESSED) 0 ==</Condition>
             <Action>1 (&gt;L:A32NX_OVHD_AUTOBRK_RTO_ARM_IS_PRESSED)</Action>
         </Step>
-        <Step Name="TERR ON ND Capt. On" Type="STEP" Delay="2000">
-            <Condition>(L:A380X_EFIS_L_ACTIVE_OVERLAY) 2 ==</Condition>
-            <Action>2 (&gt;L:A380X_EFIS_L_ACTIVE_OVERLAY)</Action>
+        <!-- The overlay variables are outputs of the FCU, so the EFIS pbs are pushed (from NONE or the other overlay a push selects its own) -->
+        <!-- Before takeoff: WX on the pilot flying side (captain), TERR on the pilot monitoring side (first officer), TRAF on both -->
+        <Step Name="WX ON ND Capt. On" Type="STEP" Delay="1000">
+            <Condition>(L:A380X_EFIS_L_ACTIVE_OVERLAY) 1 ==</Condition>
+            <Action>1 (&gt;K:A32NX.FCU_EFIS_L_WX_PUSH)</Action>
+        </Step>
+        <Step Name="TERR ON ND F/O On" Type="STEP" Delay="1000">
+            <Condition>(L:A380X_EFIS_R_ACTIVE_OVERLAY) 2 ==</Condition>
+            <Action>1 (&gt;K:A32NX.FCU_EFIS_R_TERR_PUSH)</Action>
+        </Step>
+        <Step Name="TRAF ND Capt. On" Type="STEP" Delay="500">
+            <Condition>(L:A32NX_FCU_EFIS_L_TRAF_LIGHT_ON) 0 !=</Condition>
+            <Action>1 (&gt;K:A32NX.FCU_EFIS_L_TRAF_PUSH)</Action>
+        </Step>
+        <Step Name="TRAF ND F/O On" Type="STEP" Delay="1000">
+            <Condition>(L:A32NX_FCU_EFIS_R_TRAF_LIGHT_ON) 0 !=</Condition>
+            <Action>1 (&gt;K:A32NX.FCU_EFIS_R_TRAF_PUSH)</Action>
+        </Step>
+        <!-- XPDR AUTO and TCAS TA/RA are held on the MFD SURV page, the systems host applies this request -->
+        <Step Name="XPDR AUTO, TCAS TA/RA" Type="STEP" Delay="1000">
+            <Condition>(A:TRANSPONDER STATE:1, Enum) 1 &gt;</Condition>
+            <Action>2 (&gt;L:A380X_PRESET_SURV_REQUEST)</Action>
         </Step>
 
         <Step Name="Await Flaps 1+F" Type="COND" Delay="1000">
@@ -698,17 +717,27 @@ The StepType also defines if the step is executed in normal mode, expedited mode
     <!--  TAXI_CONFIG_OFF  -->
     <!--  =========================================================  -->
     <Procedure Name="TAXI_CONFIG_OFF">
-        <Step Name="TERR ON ND Capt. Off" Type="STEP" Delay="2000">
+        <Step Name="WX/TERR ON ND Capt. Off" Type="STEP" Delay="1000">
             <Condition>(L:A380X_EFIS_L_ACTIVE_OVERLAY) 0 ==</Condition>
-            <Action>0 (&gt;L:A380X_EFIS_L_ACTIVE_OVERLAY)</Action>
+            <Action>
+                (L:A380X_EFIS_L_ACTIVE_OVERLAY) 2 == if{ 1 (&gt;K:A32NX.FCU_EFIS_L_TERR_PUSH) }
+                (L:A380X_EFIS_L_ACTIVE_OVERLAY) 1 == if{ 1 (&gt;K:A32NX.FCU_EFIS_L_WX_PUSH) }
+            </Action>
+        </Step>
+        <Step Name="WX/TERR ON ND F/O Off" Type="STEP" Delay="1000">
+            <Condition>(L:A380X_EFIS_R_ACTIVE_OVERLAY) 0 ==</Condition>
+            <Action>
+                (L:A380X_EFIS_R_ACTIVE_OVERLAY) 2 == if{ 1 (&gt;K:A32NX.FCU_EFIS_R_TERR_PUSH) }
+                (L:A380X_EFIS_R_ACTIVE_OVERLAY) 1 == if{ 1 (&gt;K:A32NX.FCU_EFIS_R_WX_PUSH) }
+            </Action>
         </Step>
         <Step Name="Autobrake RTO Off" Type="STEP" Delay="2000">
             <Condition>(L:A32NX_OVHD_AUTOBRK_RTO_ARM_IS_PRESSED) 0 ==</Condition>
             <Action>0 (&gt;L:A32NX_OVHD_AUTOBRK_RTO_ARM_IS_PRESSED)</Action>
         </Step>
         <Step Name="Transponder Off" Type="STEP" Delay="1000">
-            <Condition>(L:A32NX_TRANSPONDER_MODE) 0 ==</Condition>
-            <Action>0 (&gt;L:A32NX_TRANSPONDER_MODE)</Action>
+            <Condition>(A:TRANSPONDER STATE:1, Enum) 2 &lt;</Condition>
+            <Action>1 (&gt;L:A380X_PRESET_SURV_REQUEST)</Action>
         </Step>
         <Step Name="RWY TURN OFF Lt Off" Type="STEP" Delay="200">
             <Condition>(A:LIGHT TAXI:2, Number) 0 ==</Condition>
