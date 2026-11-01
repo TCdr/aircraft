@@ -314,7 +314,7 @@ const compressorStallDetail = (engine: number): FailureDetail => ({
     },
     { where: 'E/WD', text: abnormBleedConfigText(engine) },
     { where: 'SD BLEED', text: BLEED_PAGE_TEXT },
-    { where: 'SD STATUS', text: `Once ENG MASTER is set OFF: ${engineOutStatus(engine)}` },
+    { where: 'SD STATUS', text: `Once ENG ${engine} SHUT DOWN is shown: ${engineOutStatus(engine)}` },
   ],
   notSimulated: [
     'Engine noise, flame at the exhaust or inlet and the sluggish thrust lever response of a real stall are not simulated.',
@@ -369,7 +369,7 @@ const egtOvertemperatureDetail = (engine: number): FailureDetail => ({
     },
     { where: 'E/WD', text: abnormBleedConfigText(engine) },
     { where: 'SD BLEED', text: BLEED_PAGE_TEXT },
-    { where: 'SD STATUS', text: `Once ENG MASTER is set OFF: ${engineOutStatus(engine)}` },
+    { where: 'SD STATUS', text: `Once ENG ${engine} SHUT DOWN is shown: ${engineOutStatus(engine)}` },
   ],
   notSimulated: ['The hot parts of the engine are not damaged by the high EGT, and the engine does not lose any life.'],
   logbook: { required: true, reason: `ENG ${engine} EGT OVER LIMIT caution` },
