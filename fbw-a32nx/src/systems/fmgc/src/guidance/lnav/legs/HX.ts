@@ -41,7 +41,6 @@ export enum HxLegGuidanceState {
   Arc2,
 }
 
-// TODO make sure IMM EXIT works during teardrop/parallel (proceed to HF via that entry then sequence the HM immediately)
 // TODO move HMLeg specific logic to HMLeg
 abstract class HXLeg extends XFLeg {
   // TODO consider different entries for initial state...
@@ -111,6 +110,12 @@ abstract class HXLeg extends XFLeg {
     this.state = initialState;
     this.initialState = initialState;
   }
+
+  /**
+   * Called by the hold entry transition when its entry has brought the aircraft back over the hold fix, on the inbound
+   * course
+   */
+  onEntryFlown(): void {}
 
   get outboundStartPoint(): Coordinates {
     const { fixB } = this.computeGeometry();
@@ -444,8 +449,6 @@ export class HMLeg extends HXLeg {
    * @param
    */
   setImmediateExit(exit: boolean, ppos: LatLongData, tas: Knots): void {
-    // TODO if we're still in the entry transition, HM becomes empty, but still fly the entry
-
     const { legLength, fixA, sweepAngle } = this.geometry;
     if (exit) {
       switch (this.state) {
@@ -473,6 +476,14 @@ export class HMLeg extends HXLeg {
     // if resuming hold, the geometry will be recomputed on the next pass of the hold fix
     if (exit) {
       this.geometry = this.computeGeometry();
+    }
+  }
+
+  // An immediate exit set during the entry: the entry ends over the hold fix, where the hold is left without a further
+  // pattern
+  onEntryFlown(): void {
+    if (this.termConditionMet) {
+      this.state = HxLegGuidanceState.Inbound;
     }
   }
 
