@@ -69,6 +69,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FMS] Disable destination QNH, temperature and wind fields on the PERF APPR page if no destination airport exists - @HendersonTyler
 1. [A380X/MFD] Show dashed placeholders for unset APPR and airport idents on PERF APPR page - @zain-asif-dev
 1. [A380X/MFD] Fix F speed showing CONF3 value instead of F2 on PERF APPR page - @smchuk
+1. [A32NX/FWS] Add `BARO VALUE DISAGREE` master caution, rename `ALTI DISCREPANCY` master caution to `ALT DISCREPANCY` - @FozzieHi (fozzie)
 1. [A380X/LIGHTS] Implement storm light switch function - @heclak (Heclak)
 1. [A380X/LIGHTS] Add side console lights - @heclak (Heclak)
 1. [A380X/RMP] Fixed a bug where the PILOT_TRANSMITTER_SET key event would toggle transmission rather than only setting it on - @tracernz (Mike)
@@ -163,6 +164,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FADEC] After a FLEX takeoff the thrust limit goes to CLB when the thrust levers rest in the CL detent, also when a lever sits a hair above it; before, it could stay on FLX and cap the climb thrust at the flex value in the upper part of the climb - @TCdr
 1. [A380X/FG] The autopilot disengages when the speed reaches 15 kt above VMO or Mach 0.04 above MMO; before, it stayed engaged at any overspeed - @TCdr
 1. [FMS] Hold IMMEDIATE EXIT selected during the hold entry leaves the hold at the hold fix instead of flying a further pattern - @TCdr
+1. [A32NX/FUEL SYSTEM] Close center tank valves if they are triggered open with no fuel in center tank - @donstim (donbikes)
+1. [A380X/FUEL SYSTEM] Prevent CG control transfer end from ending normal trim tank transfers - @donstim (donbikes)
+1. [A32NX/FMS] Fixed +/- altitude constraints entered on the F-PLN page being inverted - @shinji1100
 
 ## 2024.1.0
 
@@ -302,7 +306,6 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/MFD] Fixed PERF APPR QNH entries in inHg being displayed as hPa - @Daboss57 (Daboss57)
 1. [EFB] Add FAA and LIDO charts supplied by MSFS2024 - @tracernz (Mike)
 1. [A32NX/FLIGHT MODEL] Updated A32NX flight model for MSFS 2024 - @donstim (donbikes)
-1. [A32NX/FWS] Add `BARO VALUE DISAGREE` master caution, rename `ALTI DISCREPANCY` master caution to `ALT DISCREPANCY` - @FozzieHi (fozzie)
 
 ## 0.14.0
 
