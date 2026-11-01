@@ -180,6 +180,9 @@ export function isTypeIIMessage(message: McduMessage): message is TypeIIMessage 
   return message instanceof TypeIIMessage;
 }
 
+/**
+ * The ATC COM messages: two lines of 33 characters, separated by a newline
+ */
 export const ATCCOMMessages = {
   cancelAutoUpdateFirst: new ATCCOMMessage('CANCEL AUTO UPDATE FIRST'),
   comDatalinkNotAvail: new ATCCOMMessage('COM DATALINK NOT AVAIL'),

@@ -30,6 +30,8 @@ const NUM_OTHER_ALTERNATES = 2;
 /** The database alternate list has a maximum of 6 airports */
 const NUM_DATABASE_ALTERNATES = 6;
 
+const airportButtonStyle = 'min-width: 116px; padding: 9px 2px 5px 2px; white-space: nowrap;';
+
 /** One alternate line: company route, direct track and distance from the primary destination, extra fuel */
 class AlternateLine {
   readonly ident = Subject.create<string | null>(null);
@@ -231,10 +233,16 @@ export class MfdFmsFplnAlternate extends FmsFlightPlanPage<MfdFmsFplnAlternatePr
     this.update();
   }
 
-  private otherAlternateMenu(line: AlternateLine): Subscribable<ButtonMenuItem[]> {
-    const menu = line.ident.map((ident): ButtonMenuItem[] => [
+  private airportMenuItems(ident: string | null): ButtonMenuItem[] {
+    return [
       { label: 'SELECT AS ALTN', action: () => this.selectAsAlternate(ident ?? undefined) },
       { label: 'DATA AIRPORT', action: () => this.props.mfd.uiService.navigateTo(`fms/data/airport/arpt/${ident}`) },
+    ];
+  }
+
+  private otherAlternateMenu(line: AlternateLine): Subscribable<ButtonMenuItem[]> {
+    const menu = line.ident.map((ident): ButtonMenuItem[] => [
+      ...this.airportMenuItems(ident),
       {
         label: 'RTE SELECTION',
         action: () =>
@@ -270,10 +278,7 @@ export class MfdFmsFplnAlternate extends FmsFlightPlanPage<MfdFmsFplnAlternatePr
   /** A database alternate: the airport ident menu gives SELECT AS ALTN and DATA AIRPORT */
   private renderDatabaseLine(line: AlternateLine, index: number): VNode {
     const label = line.ident.map((it) => it ?? '');
-    const menu = line.ident.map((ident): ButtonMenuItem[] => [
-      { label: 'SELECT AS ALTN', action: () => this.selectAsAlternate(ident ?? undefined) },
-      { label: 'DATA AIRPORT', action: () => this.props.mfd.uiService.navigateTo(`fms/data/airport/arpt/${ident}`) },
-    ]);
+    const menu = line.ident.map((ident) => this.airportMenuItems(ident));
     this.lineSubscriptions.push(line.visible, line.entryVisible, label, menu);
     return (
       <div class="mfd-alternate-line" style={{ visibility: line.visible }}>
@@ -282,7 +287,7 @@ export class MfdFmsFplnAlternate extends FmsFlightPlanPage<MfdFmsFplnAlternatePr
           onClick={() => {}}
           menuItems={menu}
           idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_databaseAltn${index}`}
-          buttonStyle="min-width: 116px; padding: 9px 2px 5px 2px; white-space: nowrap;"
+          buttonStyle={airportButtonStyle}
         />
         {this.renderData(line)}
       </div>
@@ -300,7 +305,7 @@ export class MfdFmsFplnAlternate extends FmsFlightPlanPage<MfdFmsFplnAlternatePr
             onClick={() => {}}
             menuItems={this.otherAlternateMenu(line)}
             idPrefix={`${this.props.mfd.uiService.captOrFo}_MFD_otherAltn${index}`}
-            buttonStyle="min-width: 116px; padding: 9px 2px 5px 2px; white-space: nowrap;"
+            buttonStyle={airportButtonStyle}
           />
           {this.renderData(line)}
         </div>
@@ -360,7 +365,7 @@ export class MfdFmsFplnAlternate extends FmsFlightPlanPage<MfdFmsFplnAlternatePr
               <Button
                 label="NO ALTN"
                 onClick={() => this.selectAsAlternate(undefined)}
-                buttonStyle="min-width: 116px; padding: 9px 2px 5px 2px; white-space: nowrap;"
+                buttonStyle={airportButtonStyle}
               />
               <span class="mfd-alternate-cell no-altn-extra">
                 <span class="mfd-value bigger">{this.noAlternateExtra}</span>

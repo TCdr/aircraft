@@ -71,7 +71,7 @@ class AirportLine {
  * distance from the aircraft present position, and up to three airports entered by the flight crew, with the direct
  * distance, bearing, time and EFOB. Time and EFOB are only computed in the cruise phase.
  *
- * Simplified: the real predictions assume a flight at the CRZ FL down to the ground; here the whole great-circle
+ * Simplified: the aircraft predictions assume a flight at the CRZ FL down to the ground; here the whole great-circle
  * distance is flown level at the CRZ FL (no descent segment). The default effective wind is the INIT trip wind.
  */
 export class MfdFmsFplnClosestAirports extends FmsFlightPlanPage<MfdFmsFplnClosestAirportsProps> {
@@ -148,7 +148,8 @@ export class MfdFmsFplnClosestAirports extends FmsFlightPlanPage<MfdFmsFplnClose
       return;
     }
 
-    line.effectiveWind.set(this.effectiveWind(line));
+    const effectiveWind = this.effectiveWind(line);
+    line.effectiveWind.set(effectiveWind);
     const distance = distanceTo(ppos, line.location);
     const magVar = MagVar.get(ppos);
     const trueBearing = bearingTo(ppos, line.location);
