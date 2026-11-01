@@ -1,7 +1,8 @@
 // Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { EfisNdMode, MathUtils } from '@flybywiresim/fbw-sdk';
+import { EfisNdMode, MathUtils, OansFmsDataStore } from '@flybywiresim/fbw-sdk';
+import { MappedSubject, Subscribable } from '@microsoft/msfs-sdk';
 import { Position } from 'geojson';
 import { clampAngle } from 'msfs-geo';
 
@@ -130,6 +131,28 @@ export function isFmsSelectedRunway(
 }
 
 /**
+ * {@link isFmsSelectedRunway} with the data of the FMS: the runway entries hold the airport ICAO code in front of the
+ * designator (e.g. KBOS04R), and the departure runway belongs to the origin, the landing runway to the destination.
+ * @param airportIcao ICAO code of the airport shown on the OANS
+ * @param fmsData the origin, destination and runway entries of the FMS
+ * @param designators the designators of the runway
+ */
+export function isFmsSelectedRunwayOfFms(
+  airportIcao: string | null,
+  fmsData: Pick<OansFmsDataStore, 'origin' | 'destination' | 'departureRunway' | 'landingRunway'>,
+  designators: readonly string[],
+): boolean {
+  return isFmsSelectedRunway(
+    airportIcao,
+    fmsData.origin.get(),
+    fmsData.destination.get(),
+    fmsData.departureRunway.get()?.substring(4),
+    fmsData.landingRunway.get()?.substring(4),
+    designators,
+  );
+}
+
+/**
  * Whether the OANS shows ARPT NOT IN ACTIVE F-PLN: in PLAN mode, the crew displays an airport that is not the
  * origin, destination or alternate airport.
  * @param ndMode the ND mode
@@ -147,4 +170,27 @@ export function isAirportNotInActiveFpln(
   alternate: string | null,
 ): boolean {
   return ndMode === EfisNdMode.PLAN && airportIcao !== null && ![origin, destination, alternate].includes(airportIcao);
+}
+
+/**
+ * {@link isAirportNotInActiveFpln} followed over the ND mode, the displayed airport and the airports of the FMS flight
+ * plan.
+ * @param ndMode the ND mode
+ * @param airportIcao ICAO code of the airport shown on the OANS, null when none
+ * @param fmsData the FMS origin, destination and alternate
+ */
+export function createAirportNotInActiveFpln(
+  ndMode: Subscribable<EfisNdMode>,
+  airportIcao: Subscribable<string | null>,
+  fmsData: Pick<OansFmsDataStore, 'origin' | 'destination' | 'alternate'>,
+): Subscribable<boolean> {
+  return MappedSubject.create(
+    ([mode, arpt, origin, destination, alternate]) =>
+      isAirportNotInActiveFpln(mode, arpt, origin, destination, alternate),
+    ndMode,
+    airportIcao,
+    fmsData.origin,
+    fmsData.destination,
+    fmsData.alternate,
+  );
 }
