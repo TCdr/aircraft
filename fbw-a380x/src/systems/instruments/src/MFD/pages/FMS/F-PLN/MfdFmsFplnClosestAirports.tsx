@@ -71,7 +71,7 @@ class AirportLine {
  * distance from the aircraft present position, and up to three airports entered by the flight crew, with the direct
  * distance, bearing, time and EFOB. Time and EFOB are only computed in the cruise phase.
  *
- * Simplified: the real predictions assume a flight at the CRZ FL down to the ground; here the whole great-circle
+ * Simplified: the aircraft predictions assume a flight at the CRZ FL down to the ground; here the whole great-circle
  * distance is flown level at the CRZ FL (no descent segment). The default effective wind is the INIT trip wind.
  */
 export class MfdFmsFplnClosestAirports extends FmsFlightPlanPage<MfdFmsFplnClosestAirportsProps> {
