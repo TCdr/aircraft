@@ -2,7 +2,9 @@
 
 Only change the `en.json` file. 
 
-The other files are generated automatically from Localazy and any changes will be overwritten.
+The other files are generated automatically from Localazy and any changes will be overwritten,
+except for the keys that exist in `en.json` but not on Localazy (the keys this fork added): the download
+keeps their local translations (see `mergeTranslations.js`). Translate such a key in every language file.
                                 
 ## Uploading new keys and changed default texts
 
