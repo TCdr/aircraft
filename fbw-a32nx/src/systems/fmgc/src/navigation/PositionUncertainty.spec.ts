@@ -56,6 +56,17 @@ describe('FMS estimated position uncertainty', () => {
     expect(estimator.update(10 * MINUTE, null, null, null).uncertainty).toBeCloseTo(0.03 + 1, 6);
   });
 
+  it('grows the IRS only uncertainty with the elapsed time when fed in 250 ms steps', () => {
+    const estimator = new PositionUncertaintyEstimator();
+    estimator.update(1000, 0.05, null, null);
+    // 10 min of 250 ms steps at +6 NM/h is 1 NM
+    let uncertainty = 0;
+    for (let elapsed = 0; elapsed < 10 * MINUTE; elapsed += 250) {
+      uncertainty = estimator.update(250, null, null, null).uncertainty;
+    }
+    expect(uncertainty).toBeCloseTo(0.05 + 1, 6);
+  });
+
   it('starts at the alignment uncertainty without any earlier position', () => {
     const estimator = new PositionUncertaintyEstimator();
     expect(estimator.update(1000, null, null, null).uncertainty).toBeCloseTo(IRS_ALIGNMENT_UNCERTAINTY, 2);
