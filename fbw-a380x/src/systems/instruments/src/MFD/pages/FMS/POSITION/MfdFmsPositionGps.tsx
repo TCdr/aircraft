@@ -38,7 +38,7 @@ class GpsReceiverData {
   /**
    * The simulator has no satellite constellation model. Until the MMR is modelled, the satellite count and the
    * horizontal figure of merit are stand-in values, drawn once per page view as on the A32NX MCDU GPS MONITOR page
-   * (8 to 12 satellites, 40 to 49 ft of merit; the page shows the accuracy in FT).
+   * (8 to 12 satellites, 40 to 49 ft of merit; the reference figure shows the accuracy in FT).
    */
   readonly standInSatellites = Math.floor(Math.random() * 5) + 8;
 
@@ -46,8 +46,8 @@ class GpsReceiverData {
 }
 
 /**
- * POSITION / GPS page: GPS 1 and GPS 2 position, mode, number of satellites, accuracy (HFOM), true track, UTC time,
- * altitude and ground speed. Both receivers show the simulator's
+ * POSITION / GPS page: GPS 1 and GPS 2 position, mode, number of
+ * satellites, accuracy (HFOM), true track, UTC time, altitude and ground speed. Both receivers show the simulator's
  * single GPS solution until the MMR is modelled.
  */
 export class MfdFmsPositionGps extends FmsPage<MfdFmsPositionGpsProps> {

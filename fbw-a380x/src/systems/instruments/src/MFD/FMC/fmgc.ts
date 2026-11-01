@@ -30,6 +30,7 @@ export enum TakeoffPowerSetting {
   DERATED = 2,
 }
 
+/** The derated takeoff levels, as the index of the MFD list */
 export enum TakeoffDerated {
   D01 = 0,
   D02 = 1,

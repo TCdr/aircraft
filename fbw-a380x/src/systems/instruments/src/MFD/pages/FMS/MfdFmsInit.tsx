@@ -118,15 +118,6 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
     this.loadedFlightPlanIndex,
   );
 
-  /** The ROUTE SELECTION page lists the company routes of the FROM / TO city pair */
-  /**
-   * The (ALTN) RTE SEL buttons always display the ROUTE SELECTION page; only the route entries are limited (company
-   * route: PREFLIGHT phase, alternate route: a primary destination, both: no temporary flight plan). Without a city pair the page shows no route.
-   */
-  private readonly rteSelDisabled = this.cpnyRteDisabled.map((v) => v);
-
-  private readonly altnRteSelDisabled = this.tmpyActive.map((v) => v);
-
   private readonly altnRte = Subject.create<string | null>(null); // FIXME not found
 
   private readonly crzFl = Subject.create<number | null>(null);
@@ -239,8 +230,6 @@ export class MfdFmsInit extends FmsFlightPlanPage<MfdFmsInitProps> {
       this.tripWindDisabled,
       this.cpnyRteMandatory,
       this.cpnyRteDisabled,
-      this.rteSelDisabled,
-      this.altnRteSelDisabled,
       this.departureButtonDisabled,
       this.costIndexModeDisabled,
       this.crzTempDisabled,
