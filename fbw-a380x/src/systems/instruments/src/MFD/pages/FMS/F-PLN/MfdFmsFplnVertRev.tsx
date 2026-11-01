@@ -114,7 +114,7 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
 
   private readonly rtaMessageSuffix = Subject.create('');
 
-  /** RTA NOT ALLOWED IN EO, the panel is empty with this message */
+  /** RTA NOT ALLOWED IN EO: the panel is empty with this message */
   private readonly rtaPanelMessage = Subject.create('');
 
   private readonly rtaPanelVisible = this.rtaPanelMessage.map((m) => m === '');
@@ -1185,12 +1185,16 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
     return `${hh.toFixed(0).padStart(2, '0')}:${mm.toFixed(0).padStart(2, '0')}:${ss.toFixed(0).padStart(2, '0')}`;
   }
 
+  /** The VNAV prediction at a leg of the loaded flight plan, when it is the active one */
+  private activePlanPrediction(legIndex: number) {
+    return this.loadedFlightPlanIndex.get() === FlightPlanIndex.Active
+      ? this.props.fmcService.master.guidanceController?.vnavDriver?.mcduProfile?.waypointPredictions?.get(legIndex)
+      : undefined;
+  }
+
   /** The ETA at a leg of the active flight plan, seconds of the day (a flight time in preflight without ETT) */
   private rtaEtaSeconds(legIndex: number): number | null {
-    const pred =
-      this.loadedFlightPlanIndex.get() === FlightPlanIndex.Active
-        ? this.props.fmcService.master.guidanceController?.vnavDriver?.mcduProfile?.waypointPredictions?.get(legIndex)
-        : undefined;
+    const pred = this.activePlanPrediction(legIndex);
     if (!pred || !Number.isFinite(pred.secondsFromPresent)) {
       return null;
     }
@@ -1228,6 +1232,7 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
         : -1;
     const rtaOnSelected = rta !== null && legIndex !== null && rtaLegIndex === legIndex;
 
+    // RTA message area
     if (
       leg &&
       isLeg(leg) &&
@@ -1235,22 +1240,15 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
     ) {
       this.rtaMessage.set('RTA NOT ALLOWED AT');
       this.rtaMessageIdent.set(leg.ident);
-      this.rtaMessageSuffix.set('');
     } else if (rta && !rtaOnSelected) {
       this.rtaMessage.set('EXISTING RTA AT');
       this.rtaMessageIdent.set(rta.ident);
-      this.rtaMessageSuffix.set('');
     } else {
       this.rtaMessage.set('');
       this.rtaMessageIdent.set('');
-      this.rtaMessageSuffix.set('');
     }
 
-    // Waypoint distance and ETA (P 362)
-    const pred =
-      legIndex !== null && this.loadedFlightPlanIndex.get() === FlightPlanIndex.Active
-        ? fmc.guidanceController?.vnavDriver?.mcduProfile?.waypointPredictions?.get(legIndex)
-        : undefined;
+    const pred = legIndex !== null ? this.activePlanPrediction(legIndex) : undefined;
     this.rtaDistance.set(
       pred && Number.isFinite(pred.distanceFromAircraft) ? Math.max(0, pred.distanceFromAircraft).toFixed(0) : '----',
     );
@@ -1363,9 +1361,7 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
             <span class="mfd-value bigger amber" style="margin-left: 16px;">
               {this.rtaMessageIdent}
             </span>,
-            <span class="mfd-label amber" style="margin-left: 16px;">
-              {this.rtaMessageSuffix}
-            </span>,
+            <span class="mfd-label amber" style="margin-left: 16px;" />,
           ])}
           {fcomRight(96, 217, <span class="mfd-label">RTA AT</span>)}
           {fcomAt(

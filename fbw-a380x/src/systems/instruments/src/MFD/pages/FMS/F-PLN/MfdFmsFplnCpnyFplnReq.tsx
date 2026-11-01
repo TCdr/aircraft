@@ -34,7 +34,7 @@ export class MfdFmsFplnCpnyFplnReq extends FmsFlightPlanPage<MfdFmsFplnCpnyFplnR
     .getCpnyFplnUplinkInProgress()
     .map((pending) => (pending ? 'REQUEST\nPENDING...' : 'SEND F-PLN\nREQUEST'));
 
-  /** One company request at a time; after engine start, only from a secondary flight plan */
+  /** After engine start, a flight plan request can only be sent from a secondary flight plan */
   private readonly sendButtonDisabled = MappedSubject.create(
     ([pending, windPending, enginesStarted, planIndex]) =>
       isCpnyFplnSendDisabled(pending, windPending, enginesStarted, planIndex),

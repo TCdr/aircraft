@@ -28,7 +28,7 @@ export enum StatusItemState {
   Failed = 2,
 }
 
-/** SURV / STATUS & SWITCHING page, laid out on the real page */
+/** SURV / STATUS & SWITCHING page, laid out on the reference figure */
 export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitchingProps> {
   // Make sure to collect all subscriptions here, otherwise page navigation doesn't work.
   private readonly subs = [] as Subscription[];
@@ -214,7 +214,7 @@ export class MfdSurvStatusSwitching extends DisplayComponent<MfdSurvStatusSwitch
       <>
         <ActivePageTitleBar activePage={Subject.create('STATUS & SWITCHING')} offset={Subject.create('')} />
         {/* begin page content */}
-        {/* Positions from the real page, in page container coordinates (display y - 143) */}
+        {/* Positions measured on the reference figure, page container coordinates (display y - 143) */}
         <div class="mfd-page-container">
           <div class="mfd-fcom-canvas mfd-surv-status">
             {wxrTaws('1', 57, this.wxrTaws1Active)}

@@ -161,12 +161,11 @@ export class MfdFmsFplnDirectTo extends FmsFlightPlanPage<MfdFmsFplnDirectToProp
         : legs.findIndex(
             (it) => it instanceof FlightPlanLeg && it.terminationWaypoint()?.ident === this.manualWptIdent,
           );
-    const targetFix =
-      legs[targetIndex] instanceof FlightPlanLeg ? (legs[targetIndex] as FlightPlanLeg).terminationWaypoint() : null;
     const fixAt = (index: number) => {
       const leg = legs[index];
       return leg instanceof FlightPlanLeg ? leg.terminationWaypoint() : null;
     };
+    const targetFix = fixAt(targetIndex);
     const otherFix = option === DirectToOption.CRS_IN ? fixAt(targetIndex - 1) : fixAt(targetIndex + 1);
     if (targetIndex < 0 || !targetFix || !otherFix) {
       this.course.set(null);
