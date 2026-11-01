@@ -8,8 +8,10 @@
 const fs = require('fs');
 const path = require('path');
 const { exec } = require('child_process');
+const { mergeTranslations } = require('./mergeTranslations');
 
 const fileExtension = '.json';
+const sourceFile = 'en.json';
 const localazyConfigFile = 'localazy-flypad-download-config.json';
 const workingDir = path.resolve('data');
 const langFilesPath = 'downloaded';
@@ -60,9 +62,15 @@ function processFile(fileName) {
     return false;
   }
 
+  // Keep the translations of this fork's own keys, which are not on Localazy
+  const localFile = path.join(workingDir, convertedFilesPath, fileName);
+  const english = JSON.parse(fs.readFileSync(path.join(workingDir, convertedFilesPath, sourceFile)));
+  const local = fs.existsSync(localFile) ? JSON.parse(fs.readFileSync(localFile)) : {};
+  const merged = mergeTranslations(english, json, local);
+
   // Write json file to filesystem
   try {
-    fs.writeFileSync(path.join(workingDir, convertedFilesPath, `${fileName}`), JSON.stringify(json, null, 2));
+    fs.writeFileSync(localFile, JSON.stringify(merged, null, 2));
   } catch (e) {
     console.error(`Error while writing file "${fileName}": ${e}`);
     return false;
