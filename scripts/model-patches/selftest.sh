@@ -105,7 +105,8 @@ if [ "$has_base" = true ]; then
 
   # Far from the hunk of the patch that touches this file, so reversing the patches still succeeds.
   sed -i 's/flight_envelope\.beta_target_deg = 0\.0;/flight_envelope.beta_target_deg = 1.0;/' "$copy/$recorded_file"
-  if cmp -s "$repo/$recorded_file" "$copy/$recorded_file"; then echo "NOT OK test setup: the edit outside the hunks changed nothing"; exit 1; fi
+  # The copy is LF while the repo file may be CRLF, so a byte comparison would always differ: look for the edited value.
+  if ! grep -q 'flight_envelope.beta_target_deg = 1.0;' "$copy/$recorded_file"; then echo "NOT OK test setup: the edit outside the hunks changed nothing"; exit 1; fi
   expect "an edit of a patched file outside its hunks" FAIL "$recorded_file"
   restore "$recorded_file"
   sed -i 's/\r$//' "$copy/$recorded_file"

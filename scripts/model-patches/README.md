@@ -42,7 +42,9 @@ weak form is refused in CI.
 ## After an upstream change of the model files
 
 1. Merge upstream. The commit that holds the new, unedited `model/` files is the upstream commit: set `BASE` to it right away,
-   before re-applying anything, so the check compares against the right files.
+   before re-applying anything, so the check compares against the right files. The merge leaves the patched files either
+   merged with our edits or in conflict, and `git apply --3way` needs the index to match the tree, so put the unedited files
+   back first: `git checkout "$(cat scripts/model-patches/BASE)" -- fbw-a32nx/src/wasm/fbw_a320/src/model fbw-a380x/src/wasm/fbw_a380/src/model`.
 2. Re-apply the patches in order on those files, stopping at the first one that does not apply cleanly:
    `for p in scripts/model-patches/*.patch; do git apply --3way "$p" || break; done`.
    The old `BASE` blobs are in the history, so the 3-way merge can place a hunk whose context moved; a conflict is left in the
