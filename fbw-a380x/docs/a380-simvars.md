@@ -655,6 +655,14 @@
     - Position (0-2)
     - 0 is BOTH ON 2, 1 is NORM, 2 is BOTH ON 1
 
+- A32NX_FMC_{fmc}_IS_HEALTHY
+    - Bool
+    - True while the FMC works: it is powered (FMC-A on DC ESS, FMC-B on DC 1, FMC-C on DC 2), its reset pb on the overhead RESET panel is not pulled and it has no flyPad failure
+    - {fmc}
+        - A
+        - B
+        - C
+
 - A380X_FMS_DEST_EFOB_BELOW_MIN
     - Bool
     - Indicates if the FMS predicted fuel at destination is below minimum.
@@ -2497,6 +2505,30 @@ The probe and window heat, ice detectors and drain masts (a380_systems probe_win
     - HEIGHT_{feet}: one word of the intermediate radio height callout below 100 ft (shared/src/AutoCallOuts.ts):
       {feet} 1 to 9 (but 5) and 11 to 19, e.g. HEIGHT_7 for the SEVEN of FORTY SEVEN
 
+- A32NX_FWC_CRC
+  - Bool
+  - True while the FWS plays the continuous repetitive chime of a warning
+
+- A32NX_FWC_SC
+  - Bool
+  - True while the FWS plays the single chime of a caution
+
+- A32NX_FWC_CAVALRY_CHARGE
+  - Bool
+  - True while the FWS plays the cavalry charge, the aural alert of an autopilot disconnection and of the other warnings that call for it
+
+- A32NX_AUDIO_AUTOBRAKE_OFF
+  - Bool
+  - True while the FWS says the synthetic voice AUTO BRK OFF: the autobrake is switched off during the landing roll with a ground speed above 33 kt
+
+- A32NX_EWD_LOWER_{side}_LINE_{number}
+  - String
+  - The message code of line {number} of the left or right column of the lower half of the E/WD, as written by the FWS. Empty for no line
+  - {side}
+    - LEFT
+    - RIGHT
+  - {number}: 1 to 10
+
 ## ECAM Control Panel ATA 31
 
 - A32NX_BTN_{button_name}
@@ -2601,6 +2633,23 @@ The probe and window heat, ice detectors and drain masts (a380_systems probe_win
     - {side} = L or R
     - Not written by any system; the TRAF pb state is A32NX_FCU_EFIS_{side}_TRAF_LIGHT_ON (FCU), read by the TCAS,
       which also pushes the TRAF pbs on (A32NX.FCU_EFIS_{side}_TRAF_PUSH) when a TA or RA starts
+
+- A32NX_FCU_EFIS_{side}_TRAF_LIGHT_ON
+    - Bool
+    - The light of the TRAF pb of the EFIS control panel is on: the traffic is shown on the ND. Written by the FCU, read by the TCAS
+    - {side} = L or R
+
+- A32NX_EFIS_{side}_ND_MODE
+    - Enum
+    - The navigation display mode selected on the EFIS control panel, written by the FCU for the systems that read the ND mode. For use by systems, use the FCU discrete words instead
+    - {side} = L or R
+    - | State    | Value |
+      |----------|-------|
+      | ROSE ILS | 0     |
+      | ROSE VOR | 1     |
+      | ROSE NAV | 2     |
+      | ARC      | 3     |
+      | PLAN     | 4     |
 
 - A380X_EFIS_{side}_BARO_PRESELECTED
     - Number (hPa or inHg)
@@ -2946,12 +2995,73 @@ The probe and window heat, ice detectors and drain masts (a380_systems probe_win
       or the system is selected and the TCAS computer reports a fault (`L:A32NX_TCAS_FAULT`, the single sim TCAS is
       the TCAS of the selected system). Shown on the MFD SURV STATUS & SWITCHING page
 
+- A32NX_EGPWC_PRESENT_LAT
+    - Arinc429<degrees>
+    - Latitude of the present position, taken from ADIRU 1 by the EGPWC for its terrain functions. Invalid while the EGPWC is not powered. Written by the EGPWC
+
+- A32NX_EGPWC_PRESENT_LONG
+    - Arinc429<degrees>
+    - Longitude of the present position, as A32NX_EGPWC_PRESENT_LAT
+
+- A32NX_EGPWC_PRESENT_ALTITUDE
+    - Arinc429<feet>
+    - Altitude of the aircraft from ADIRU 1, as A32NX_EGPWC_PRESENT_LAT
+
+- A32NX_EGPWC_PRESENT_HEADING
+    - Arinc429<degrees>
+    - True heading of the aircraft from ADIRU 1, as A32NX_EGPWC_PRESENT_LAT
+
+- A32NX_EGPWC_PRESENT_VERTICAL_SPEED
+    - Arinc429<feet per minute>
+    - Vertical speed of the aircraft from ADIRU 1, as A32NX_EGPWC_PRESENT_LAT
+
+- A32NX_EGPWC_DEST_LAT
+    - Arinc429<degrees>
+    - Latitude of the destination of the flight plan, passed on by the EGPWC from FM 1. Invalid while the EGPWC is not powered
+
+- A32NX_EGPWC_DEST_LONG
+    - Arinc429<degrees>
+    - Longitude of the destination of the flight plan, as A32NX_EGPWC_DEST_LAT
+
+- A32NX_EGPWC_GEAR_IS_DOWN
+    - Bool
+    - True when the main landing gear is down and locked. False while the EGPWC is not powered. Written by the EGPWC
+
+- A32NX_EGPWC_TERRONND_RENDERING_MODE
+    - Number
+    - How the SimBridge terrain service draws the terrain picture of the ND. A constant of the aircraft type (3 on the A380). Written by the EGPWC
+
+- A32NX_EGPWC_ND_{side}_RANGE
+    - Number
+    - The range of the {side} ND, from the EFIS range knob position (0 to 640 NM). Written by the EGPWC
+    - {side}
+        - L
+        - R
+
+- A32NX_EGPWC_ND_{side}_TERRAIN_ACTIVE
+    - Bool
+    - True while the terrain is shown on the {side} ND: its TERR ON ND selection is on (or the terrain is shown automatically for a terrain alert), the EGPWC is powered and has valid position data. Written by the EGPWC
+    - {side}
+        - L
+        - R
+
+- A32NX_WXR_TAWS_SYS_SELECTED
+    - Number
+    - The WXR/TAWS system selected on the SURV panel (1 or 2). Written by the WXR/TAWS SYS 1 and 2 pbs of the SURV panel and by the MFD SURV STATUS & SWITCHING page
+
 ## Navigation ATA 34
 
 - A32NX_FMGC_{side}_GPS_PRIMARY
     - Bool
     - The FMS navigation is in GPS PRIMARY. Written by the FMS (fmgc navigation/Navigation.ts), read by the PFD for the
       FLS approach capability
+    - {side}
+        - L
+        - R
+
+- A32NX_FMGC_{side}_NAV_ACCURACY_HIGH
+    - Bool
+    - The FMS navigation accuracy is HIGH: the estimated position uncertainty is within the required navigation performance. Written by the FMS (fmgc navigation/Navigation.ts), read by the PFD for the FLS approach capability
     - {side}
         - L
         - R
@@ -3236,6 +3346,14 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
   - The manual control motor of the crossbleed valve has no supply (DC ESS): the XBLEED selector no longer moves it.
     For AIR XBLEED FAULT (XBLEED ... AUTO)
 
+- A32NX_PNEU_XBLEED_VALVE_{valve}_OPEN
+  - Bool
+  - {valve}
+    - L
+    - C
+    - R
+  - The crossbleed valve is open
+
 - A32NX_PNEU_ENG_{number}_HP_VALVE_NOT_OPEN
   - Bool
   - {number}
@@ -3389,6 +3507,10 @@ The oxygen bottles and cabin valves of the systems model (a380_systems oxygen.rs
     pressure, high oil temperature on the ground (A380 FCOM DSC-49-40; the last four from the ATA 49 flyPad failures).
     Drives APU FAULT
 
+- A32NX_APU_IS_EMERGENCY_SHUTDOWN
+  - Bool
+  - True after an emergency shutdown of the APU electronic control box (ECB): the APU FIRE pb released, or an APU fire on the ground. Drives APU FAULT. Ends when the ECB goes off after the APU MASTER SW is set to OFF
+
 - A32NX_APU_LOW_OIL_LEVEL
   - `Arinc429Word<Bool>`
   - The APU ECB detects a low APU oil level: on the ground with the APU not running (flyPad failure "APU oil level
@@ -3476,6 +3598,10 @@ point n: 0-9 MAIN 1L, 1R ... 5L, 5R, 10-15 UPPER 1L, 1R ... 3L, 3R.
 - A32NX_AUTOTHRUST_THRUST_LIMIT_IDLE
   - Number (percent N1)
   - The idle the engines run at: the minimum idle (A32NX_ENGINE_IDLE_N1), raised by the FADEC idle setting (fadec_a380x IdleSetting_A380X.hpp): approach idle in flight with the FLAPS lever at 2, 3 or FULL or the landing gear down, and the normal idle raised for the packs, engine and wing anti-ice and a high oil temperature. The E/WD IDLE indication compares the N1 with it. A32NX_ENGINE_IDLE_N1 / _N3 stay the minimum idle, where the start sequence ends. Written by the FADECs (fadec_a380x)
+
+- A32NX_ENGINE_IDLE_N3
+  - Number (% N3)
+  - Expected idle N3 as a function of temperature and pressure: the minimum idle, where a start ends. Written by the FADECs
 
 - A32NX_ENGINE_{number}_FUEL_CUT
   - Bool
@@ -4006,6 +4132,16 @@ point n: 0-9 MAIN 1L, 1R ... 5L, 5R, 10-15 UPPER 1L, 1R ... 3L, 3R.
       temperature is above 130 C" term of HYD G (Y) SYS TEMP EXCESS HI
     - {SYSTEM} = GREEN, YELLOW
 
+- A32NX_HYD_{SYSTEM}_RESERVOIR_LEVEL_IS_LOW
+    - Boolean
+    - The low level switch of the {SYSTEM} reservoir is in the low state. Read by the FWS
+    - {SYSTEM} = GREEN, YELLOW
+
+- A32NX_HYD_{SYSTEM}_RESERVOIR_AIR_PRESSURE_IS_LOW
+    - Boolean
+    - The low air pressure switch of the {SYSTEM} reservoir is in the low state. Read by the FWS
+    - {SYSTEM} = GREEN, YELLOW
+
 - A32NX_HYD_{SYSTEM}_PUMP_{N}_SECTION_PRESSURE_SWITCH
     - Boolean
     - Pressure switch of the pump section {N}: 1 to 4 the engine pumps (not pressurised below 2 500 PSI, ENG PMP PRESS
@@ -4121,9 +4257,43 @@ point n: 0-9 MAIN 1L, 1R ... 5L, 5R, 10-15 UPPER 1L, 1R ... 3L, 3R.
     powered. While off or without AC 1, nothing is printed: the waiting sheets are dropped, the FMS shows PRINTER NOT
     AVAIL on a print, and the ATC COM print functions show PRINTER NOT AVAIL.
 
+- A32NX_PAGE_ID
+  - Number
+  - Count of the sheets sent to the pedestal printer. The sheet that was just printed is the one with the index A32NX_PAGE_ID - 1; the printer lowers the count when a sheet is discarded. Written by the FMS
+
+- A32NX_PRINT_LINES
+  - Number
+  - The number of lines of the sheet that was just sent to the pedestal printer. Written by the FMS
+
 - `L:A380X_PRINTER_SLEW`, `L:A380X_PRINTER_TEST`, `L:A380X_PRINTER_ABORT`
   - Bool
   - Set to true by the SLEW, TEST and ABORT buttons of the pedestal printer control panel; the FMS printer sets them
     back to false: SLEW feeds out a blank sheet, TEST prints the printer test page, ABORT drops the sheets waiting to be
     printed (the sheet coming out finishes). Ignored while the printer is off or unpowered. Design choices: the A380
     FCOM does not describe these buttons.
+
+- A32NX_PAX_{station}
+  - Bitwise Field
+  - The seats of the station occupied by passengers: bit n is set when seat n is occupied. Written by the flyPad payload page and the boarding
+  - {station}
+    - MAIN_FWD_A, MAIN_FWD_B
+    - MAIN_MID_1A, MAIN_MID_1B, MAIN_MID_1C
+    - MAIN_MID_2A, MAIN_MID_2B, MAIN_MID_2C
+    - MAIN_AFT_A, MAIN_AFT_B
+    - UPPER_FWD, UPPER_MID_A, UPPER_MID_B, UPPER_AFT
+
+- A32NX_PAX_{station}_DESIRED
+  - Bitwise Field
+  - The target layout of the passengers in the station, planned on the flyPad payload page, as A32NX_PAX_{station}
+
+- A32NX_CARGO_{hold}
+  - Number (kg)
+  - The cargo weight in the hold. Written by the flyPad payload page and the boarding
+  - {hold}
+    - FWD: forward baggage and containers
+    - AFT: aft baggage
+    - BULK: aft bulk and loose
+
+- A32NX_CARGO_{hold}_DESIRED
+  - Number (kg)
+  - The planned cargo weight in the hold, set on the flyPad payload page
