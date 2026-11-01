@@ -558,7 +558,6 @@ export class MfdFmsPerf extends FmsFlightPlanPage<MfdFmsPerfProps> {
   /** LRC Mach of the CRZ panel (the LRC is computed as a Mach: its speed is dashed) */
   private readonly lrcMach = Subject.create('.--');
 
-  private readonly lrcSpeed = Subject.create('---');
 
   /** MAX TURB Mach / speed of the CRZ panel */
   private readonly maxTurbMach = Subject.create('.--');

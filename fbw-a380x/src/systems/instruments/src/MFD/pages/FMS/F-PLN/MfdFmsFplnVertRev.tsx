@@ -112,7 +112,6 @@ export class MfdFmsFplnVertRev extends FmsFlightPlanPage<MfdFmsFplnVertRevProps>
 
   private readonly rtaMessageIdent = Subject.create('');
 
-  private readonly rtaMessageSuffix = Subject.create('');
 
   /** RTA NOT ALLOWED IN EO: the panel is empty with this message */
   private readonly rtaPanelMessage = Subject.create('');
