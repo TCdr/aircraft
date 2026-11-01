@@ -243,6 +243,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FUEL SYSTEM] Prevent CG control transfer end from ending normal trim tank transfers - @donstim (donbikes)
 1. [A32NX/FMS] Fixed +/- altitude constraints entered on the F-PLN page being inverted - @shinji1100
 1. [A380X/Presets] Ready for taxi and Ready for takeoff now set XPDR to AUTO and TCAS to TA/RA, the EFIS WX, TERR and TRAF buttons (WX captain, TERR first officer), and the Ready for pushback preset switches the external power off - @TCdr
+1. [A32NX/FUEL SYSTEM] Close center tank valves if they are triggered open with no fuel in center tank - @donstim (donbikes)
+1. [A380X/FUEL SYSTEM] Prevent CG control transfer end from ending normal trim tank transfers - @donstim (donbikes)
+1. [A32NX/FMS] Fixed +/- altitude constraints entered on the F-PLN page being inverted - @shinji1100
 
 ## 2024.1.0
 
