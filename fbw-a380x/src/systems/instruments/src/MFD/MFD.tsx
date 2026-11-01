@@ -367,7 +367,7 @@ export class MfdComponent
       );
     }
 
-    // FMS pages use the display frame of the reference figures, see common/style.scss
+    // FMS pages use the display frame measured on the reference figures, see common/style.scss
     this.activePageRef.getOrDefault()?.classList.toggle('sys-fms', uri.sys === 'fms');
 
     FSComponent.render(this.activeHeader, this.activeHeaderRef.getOrDefault());

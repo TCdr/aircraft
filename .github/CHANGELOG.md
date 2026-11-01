@@ -145,6 +145,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/MFD] PERF page CLB and DES tabs show the time and distance to the PRED TO altitude instead of dashes - @TCdr
 1. [A380X/FMS] The DEPARTURE page shows the EOSID of the runway, and an engine failure in the takeoff phase below the thrust reduction altitude creates the EOSID temporary flight plan - @TCdr
 1. [A380X/WXR] The GAIN and ELEVN knobs of the SURV panel work: pull for manual GAIN, ELEVN (pull again for TILT), push for AUTO, turn to adjust; the MFD SURV CONTROLS page follows them - @TCdr
+1. [A380X/VD] Fix the grey area starting at a waypoint where the route crosses north without turning - @TCdr
+1. [A380X/MFD] In flight, the active leg of the F-PLN page shows the direct track and the distance from the aircraft to the TO waypoint, counting down like the ND - @TCdr
+1. [A380X/MFD] F-PLN: the IMMEDIATE EXIT / RESUME HOLD button of a hold shows its label instead of [object Object] - @TCdr
 1. [A32NX/FUEL SYSTEM] Close center tank valves if they are triggered open with no fuel in center tank - @donstim (donbikes)
 1. [A380X/FUEL SYSTEM] Prevent CG control transfer end from ending normal trim tank transfers - @donstim (donbikes)
 1. [A32NX/FMS] Fixed +/- altitude constraints entered on the F-PLN page being inverted - @shinji1100

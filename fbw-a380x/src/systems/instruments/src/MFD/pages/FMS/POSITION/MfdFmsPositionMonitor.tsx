@@ -309,7 +309,7 @@ export class MfdFmsPositionMonitor extends FmsPage<MfdFmsPositionMonitorPageProp
     }
 
     if (updatePositionSensors) {
-      // navigation mode "N IRS/GPS" or "N IRS", N = 3 or 1 IRS used for the IRS position
+      // Navigation mode "N IRS/GPS" or "N IRS", N = 3 or 1 IRS used for the IRS position
       const validIrs = [this.ir1LatitudeRegister, this.ir2LatitudeRegister, this.ir3LatitudeRegister].filter(
         (r) => !r.isInvalid(),
       ).length;

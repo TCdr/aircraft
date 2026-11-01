@@ -30,6 +30,7 @@ export enum TakeoffPowerSetting {
   DERATED = 2,
 }
 
+/** The derated takeoff levels, as the index of the MFD list */
 export enum TakeoffDerated {
   D01 = 0,
   D02 = 1,
@@ -66,8 +67,8 @@ export enum ClimbDerated {
 export const LOWEST_FUEL_ESTIMATE_KGS = Units.poundToKilogram(A380AircraftConfig.vnavConfig.LOWEST_FUEL_ESTIMATE);
 
 /**
- * Holding fuel flow of the FINAL fuel default, in tonnes per minute (30 min = 6 t). Design choice: the FINAL default is
- * left to the company fuel policy on the aircraft; the EXTRA time is the EXTRA fuel at the same flow.
+ * Holding fuel flow of the FINAL fuel default, in tonnes per minute (30 min = 6 t). The aircraft leaves the FINAL
+ * default to the company fuel policy; the EXTRA time is the EXTRA fuel at the same flow.
  */
 export const FINAL_HOLDING_FUEL_FLOW_T_PER_MIN = 0.2;
 
