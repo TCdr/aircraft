@@ -63,6 +63,15 @@ describe('FM position bias', () => {
     expect(bias.offset.long).toBeCloseTo(0.02, 9);
   });
 
+  it('converges by 63 % in 10 s of elapsed time when fed in 250 ms steps at sea level', () => {
+    const bias = new FmPositionBias();
+    bias.update(0.1, true, null, true, 0);
+    for (let step = 0; step < 40; step++) {
+      bias.update(0.25, true, { lat: 0.01, long: 0 }, true, 0);
+    }
+    expect(bias.offset.lat).toBeCloseTo(0.01 * (1 - Math.exp(-1)), 9);
+  });
+
   it('approaches slower at a higher altitude', () => {
     expect(biasTimeConstant(0)).toBe(10);
     expect(biasTimeConstant(20_000)).toBe(35);
