@@ -1,0 +1,110 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>flyPad failure details - user manual</title><style>
+@page { size: A4; margin: 14mm 13mm 15mm 13mm; }
+* { box-sizing: border-box; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 10pt; color: #1b1f24; line-height: 1.5; margin: 0 auto;
+       max-width: 190mm; background: #fff; }
+h1 { font-size: 21pt; margin: 0 0 2pt 0; color: #0b3d62; }
+h2 { font-size: 13.5pt; margin: 18pt 0 6pt 0; color: #0b3d62; border-bottom: 1.5pt solid #0b3d62; padding-bottom: 2pt;
+     page-break-after: avoid; }
+h4 { font-size: 10pt; margin: 9pt 0 3pt 0; color: #2d4b63; page-break-after: avoid; }
+h3 { font-size: 11pt; margin: 12pt 0 4pt 0; color: #1f5f8b; page-break-after: avoid; }
+p { margin: 4pt 0; }
+ul, ol { margin: 3pt 0 5pt 18pt; padding: 0; }
+li { margin: 2pt 0; }
+code { font-family: Consolas, 'Courier New', monospace; font-size: 8.8pt; background: #eef2f6; padding: 0 2pt; border-radius: 2pt; }
+.key { display: inline-block; font-family: Consolas, monospace; font-size: 8.6pt; border: 0.8pt solid #7b8794; border-radius: 3pt;
+       padding: 0 3pt; background: #f4f6f8; }
+table { border-collapse: collapse; width: 100%; margin: 5pt 0 9pt 0; font-size: 9pt; }
+tr { page-break-inside: avoid; }
+th { background: #0b3d62; color: #fff; text-align: left; padding: 3pt 6pt; font-weight: 600; }
+td { border-bottom: 0.6pt solid #c9d3dd; padding: 3.5pt 6pt; vertical-align: top; }
+tr:nth-child(even) td { background: #f5f8fb; }
+.meta { display: grid; grid-template-columns: 34mm 1fr; gap: 1.5pt 8pt; font-size: 9pt; margin: 8pt 0 10pt 0;
+        background: #f0f5fa; border-left: 3pt solid #0b3d62; padding: 6pt 9pt; }
+.meta b { color: #0b3d62; }
+.subtitle { font-size: 11.5pt; color: #4a5a6a; margin-bottom: 4pt; }
+figure { margin: 7pt 0 10pt 0; text-align: center; page-break-inside: avoid; }
+figure img { max-width: 100%; border: 0.8pt solid #9aa7b4; border-radius: 3pt; }
+figcaption { font-size: 8.8pt; color: #3f4d5b; margin-top: 3pt; text-align: center; }
+figcaption b { color: #0b3d62; }
+.refonly { display: block; margin-top: 2pt; font-style: italic; color: #b36b00; font-size: 8.4pt; }
+.row { display: flex; gap: 8pt; justify-content: center; align-items: flex-start; page-break-inside: avoid; margin: 7pt 0 10pt 0; }
+.row figure { margin: 0; flex: 1 1 0; }
+.note, .tip, .warn { padding: 5pt 9pt; margin: 7pt 0; font-size: 9.2pt; border-radius: 0 3pt 3pt 0; page-break-inside: avoid; }
+.note { background: #eef4fb; border-left: 3pt solid #1f78b4; }
+.tip { background: #eaf7ee; border-left: 3pt solid #3c9a5f; }
+.warn { background: #fff4e5; border-left: 3pt solid #e08a00; }
+.note b.t, .tip b.t, .warn b.t { display: block; font-size: 8.4pt; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 1pt; }
+.note b.t { color: #1f78b4; } .tip b.t { color: #2f7d4b; } .warn b.t { color: #b36b00; }
+table.sit td:first-child { width: 38%; font-weight: 600; color: #0b3d62; }
+table.lim td:first-child { width: 28%; font-weight: 600; }
+table.lim td:nth-child(2) { width: 42%; }
+table.test td:first-child { width: 5%; font-weight: 600; color: #0b3d62; text-align: center; }
+table.test td:nth-child(2) { width: 50%; }
+.fmeta { font-size: 8.8pt; color: #3f4d5b; background: #f6f8fa; border-left: 2pt solid #9aa7b4; padding: 2pt 7pt; margin: 2pt 0 6pt 0; }
+.toc { columns: 2; font-size: 9pt; margin: 4pt 0 8pt 0; }
+.toc div { break-inside: avoid; }
+</style></head><body>
+<h1>flyPad failure details</h1>
+<div class="subtitle">Every failure on the flyPad Failures page opens a detail view that says what the failed part is, what it does to the aircraft, what the crew sees, the procedure to follow (mirrored from the E/WD) and how to clear it; written for all 24 A32NX and all 26 A380X ATA chapters</div>
+<div class="meta">
+<b>Aircraft</b><span>A32NX and A380X</span>
+<b>Where to find it</b><span>flyPad &gt; Failures: tap the name of a failure; A380X: the "Write in tech logbook" button adds it to OIS &gt; NSS AVNCS &gt; Logbook</span>
+<b>Branch</b><span><code>program/efb-failure-details</code>: a fork-only program branch cut from develop <code>9b2228143</code> (it needs develop; it is not an upstream pull request branch). Its own commits sit on top of develop, with FlyByWire master 66021c244 merged in. The failure detail view and the first A32NX chapters (ATA 21 and 72 to 80) were already on develop <code>9b2228143</code>.</span>
+<b>Status</b><span>Fork-only program feature. Sim-tested by the user chapter by chapter, one failure per batch (details in each feature below); not every one of the 1,600 failures was tried. The flyPad audit fixes and the engine shutdown wording were not sim-tested. 34 own commits, 11 of them <code>test(...)</code> commits that replace source-text specs by behaviour specs (no user-visible change; the branch passes 3,861 unit tests).</span>
+<b>Pictures</b><span>No pictures: the detail view is the stock flyPad layout, filled with text per failure.</span>
+</div>
+<div class="toc"><div>1. The failure detail view</div><div>2. A32NX failure details, all chapters</div><div>3. A380X failure details, all chapters</div><div>4. FMS PRED UNRELIABLE line no longer crashes the detail view</div><div>5. Engine shutdown lines in the engine failure details</div><div>6. flyPad instant load, landing wind check and ground pages (audit fixes)</div></div>
+<h2>1. The failure detail view</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX and A380X &nbsp;|&nbsp; <b>Where:</b> flyPad &gt; Failures &nbsp;|&nbsp; <b>Status:</b> Sim-tested by the user on 2026-10-28 (A32NX Pack 1 overheat, A380X Hot Air Valve 1 and the tech logbook button): OK. The view itself is on develop; this branch adds the chapters.</div>
+<h3>What it is for</h3>
+<p>The flyPad Failures page was a list of switches. It did not say what a failure does. Now every failure has a detail view that tells a trainee what to expect and what to do, written from what the simulation really does (an effect the real aircraft has but the sim does not simulate goes on a grey "Not simulated" line).</p>
+<h3>What you see</h3>
+<table><tr><th>Section</th><th>Content</th></tr><tr><td>Header</td><td>Failure name, ATA chapter and aircraft, state (Failed in red, Normal) and a Fail / Restore button.</td></tr><tr><td>What it is</td><td>The part and what it does normally, in two or three plain sentences.</td></tr><tr><td>Impact</td><td>What the failure does to the aircraft and what follows from it.</td></tr><tr><td>What you will see</td><td>One bullet per place (E/WD, PFD, ND, SD page, overhead panel, aural...) with the alert titles in ECAM colours.</td></tr><tr><td>Procedure to follow</td><td>The ECAM procedure of the alert, a <b>mirror of the E/WD</b>: while the alert is on the E/WD the flyPad shows the same lines in the same state (done lines disappear on the A32NX). When the alert is not on the E/WD the lines are grey, reference only, with a line saying so. The flyPad never ticks or acts for you.</td></tr><tr><td>Clearing it</td><td>How the failure is cleared (Restore here, maintenance on the real aircraft) and whether the crew writes it in the technical logbook.</td></tr></table>
+<h3>Limitations and why</h3>
+<table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>A failure whose alert never shows has no procedure.</td><td>The view then says "No ECAM procedure for this failure".</td><td>-</td></tr><tr><td>A32NX: no electronic logbook.</td><td>The A32NX has none; the Clearing section is text only.</td><td>-</td></tr><tr><td>Only effects the code produces are listed.</td><td>A text that disagrees with the sim would be worse than none.</td><td>Findings of each chapter were kept for the next code fixes.</td></tr></table>
+<h3>How to use</h3>
+<ol><li>Open <b>flyPad &gt; Failures</b>, choose the ATA chapter on the left.</li><li>Tap the <b>name</b> of a failure (the Fail / Restore control sits at the right end of the row). The detail view opens in place of the list; the back arrow returns to the list.</li><li>Read the sections; use Fail / Restore in the header to set the failure and watch the procedure follow the E/WD.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX in cruise. flyPad &gt; Failures &gt; ATA 21 &gt; tap <b>Pack 1 overheat (compressor outlet)</b>. Press <b>Fail</b>.</td><td>The header shows Failed. E/WD: AIR PACK 1 OVHT with its lines; the flyPad Procedure section shows the same lines.</td></tr><tr><td>2</td><td>On the overhead AIR COND panel set PACK 1 OFF as the procedure says.</td><td>The done line disappears from the E/WD and from the flyPad list.</td></tr><tr><td>3</td><td>Press <b>Restore</b> in the header.</td><td>The header shows Normal; the alert leaves the E/WD, the procedure turns grey with "The alert is not on the EWD now: reference only".</td></tr><tr><td>4</td><td>A380X on the ground, OIS logbook in on-board control. flyPad &gt; Failures &gt; ATA 21 &gt; tap <b>Hot Air Valve 1</b>, Fail, then press <b>Write in tech logbook</b>.</td><td>The button reports "Added to the OIS technical logbook as a temporary item"; OIS &gt; NSS AVNCS &gt; Logbook shows the temporary item with the failure name.</td></tr></table>
+<h2>2. A32NX failure details, all chapters</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX &nbsp;|&nbsp; <b>Where:</b> flyPad &gt; Failures, 24 chapters &nbsp;|&nbsp; <b>Status:</b> Sim-tested by the user, one failure per batch: ATA 21 Pack 1 overheat, ATA 72-80 ENG 1 BLEED STATUS FAULT with the anti-ice IGN line, ATA 24/26/29 batch, ATA 27 ELAC 1 FAULT (the flyPad follows the E/WD), ATA 32 LGCIU 1 FAULT (appears and clears on both screens), ATA 28 L TK pump 1 LO PR (the whole alert leaves the E/WD and the flyPad when the pump pushbutton goes OFF): all OK. The other failures were reviewed against the code, not tried.</div>
+<h3>What it is for</h3>
+<p>Details for all 477 A32NX failures. This branch adds ATA 24, 26 and 29 (electrical, fire, hydraulic), 27, 30 and 36 (flight controls, ice and rain, pneumatic), 32 and 34 (landing gear, navigation) and the remaining chapters (ATA 22, 23, 28, 31, 35, 46, 49, 52: auto flight, communication, fuel, indicating and recording, oxygen, information systems, APU and doors); ATA 21 and 72 to 80 were already on develop. A coverage test fails when a failure of a finished chapter has no entry.</p>
+<h3>How to use</h3>
+<ol><li>Open flyPad &gt; Failures on the A32NX, choose a chapter, tap a failure name.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX, any phase. Open the chapter ATA 27 and tap <b>ELAC 1</b> (name as listed in the chapter). Fail it.</td><td>ELAC 1 FAULT on the E/WD; the Procedure section of the flyPad shows the E/WD lines and follows them.</td></tr><tr><td>2</td><td>Open ATA 28 and fail the left tank pump 1 in flight; then set the pump pushbutton OFF.</td><td>L TK PUMP 1 LO PR on the E/WD; when the pushbutton goes OFF the whole alert leaves the E/WD and the flyPad list.</td></tr><tr><td>3</td><td>Open any chapter listed above and tap five failures at random.</td><td>Each has the sections; none shows "Details not written yet".</td></tr></table>
+<h2>3. A380X failure details, all chapters</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> flyPad &gt; Failures, 26 chapters &nbsp;|&nbsp; <b>Status:</b> Sim-tested by the user one failure per batch, all OK: Hot Air Valve 1 (ATA 21), the tech logbook button, Fire engine 1 (26), Green HSMU (29), Feed tank 1 main pump (28), SEC 1 (27), nose gear uplock sensor (32), pneumatic leak (36), ENG 1 anti-ice stuck (30), ADR 1 fault (34, redone with a recording), CPIOM D1 (42, without recording), main 3L slide fault (52), FADEC system fault (73), igniter A (74), then ten tests for the last chapters (AFS panel, FWS audio and DU RECONF, RMP 1, captain OIT, APU oil level low, start valve stuck, starter shear, reverser unlocked, oil filter clog, APU overspeed). Open: after the second F/O DU RECONF press the recording showed the F/O ND where the text says SD; not answered.</div>
+<h3>What it is for</h3>
+<p>Details for the 1,180 A380X failures, chapter by chapter: air conditioning (ATA 21), electrical (24), fire and smoke (26), hydraulic (29), fuel (28), flight controls (27), landing gear, brakes, steering and tires (32), pneumatic (36), ice and rain (30), navigation (34), integrated modular avionics (42), doors (52), engine fuel and control (73), engines, oil, start, ignition, vibration and reversers (72, 74, 77, 78, 79, 80) and the remaining ones (22, 23, 31, 33, 35, 46, 49). Procedures come from the same ECAM procedure definitions the E/WD uses, so flyPad and E/WD cannot disagree; the A380X also gets the "Write in tech logbook" button. The A380X systems host also reads its per-frame fuel, door, oxygen and cabin simvars through registered handles, which removes a periodic 45 to 65 ms frame from the garbage collector (performance only).</p>
+<h3>How to use</h3>
+<ol><li>Open flyPad &gt; Failures on the A380X, choose a chapter, tap a failure name.</li><li>To record a defect for the crew, press <b>Write in tech logbook</b> in the detail view and review it in the OIS logbook.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X in cruise. flyPad &gt; Failures &gt; ATA 28 &gt; <b>Feed tank 1 main pump</b>. Fail it.</td><td>Fuel alert for the pump (LO PR) on the E/WD; the flyPad Procedure section mirrors it.</td></tr><tr><td>2</td><td>ATA 27 &gt; <b>SEC 1</b>, Fail, in cruise.</td><td>SEC 1 fault alert; the detail view lists the lost functions and the procedure.</td></tr><tr><td>3</td><td>Open one failure of every chapter you can reach.</td><td>Each opens its detail view without an error page.</td></tr><tr><td>4</td><td>ATA 73 &gt; Engine 1 FADEC system fault on the ground, Fail then Restore.</td><td>ENG 1 FADEC SYS FAULT caution on the E/WD with master caution; both go away after Restore.</td></tr></table>
+<h2>4. FMS PRED UNRELIABLE line no longer crashes the detail view</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> flyPad &gt; Failures &nbsp;|&nbsp; <b>Status:</b> Found in the sim by the user on 2026-10-30 (nose gear uplock sensor failure); sim-tested the same day with the fixed flyPad: OK.</div>
+<h3>What it is for</h3>
+<p>Opening a failure whose alert lists the line FMS PRED UNRELIABLE (ATA 24, 27, 29, 31, 32, 33 and 80) put the whole tablet on the critical error page, because the line was read before the flyPad had defined it. The view now shows that line with its level.</p>
+<h3>How to use</h3>
+<ol><li>Nothing to set.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X. flyPad &gt; Failures &gt; ATA 32 &gt; <b>Proximity sensor damage uplock nose gear #1</b>, tap the name and Fail it in cruise.</td><td>The detail view opens and lists the FMS PRED UNRELIABLE line; no error page.</td></tr></table>
+<h2>5. Engine shutdown lines in the engine failure details</h2>
+<div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> flyPad &gt; Failures &gt; ATA 72, 73 &nbsp;|&nbsp; <b>Status:</b> Not sim-tested (text checked against the alert code).</div>
+<h3>What it is for</h3>
+<p>The details of FADEC network link, FADEC overheat shutdown, FADEC control system, overthrust, max thrust miscalculated, compressor stall and EGT overtemperature said that the engine shuts down, but not what that raises. They now list AIR ABNORM BLEED CONFIG (with the SD BLEED page and, for the outer engines, the wing anti-ice and AVOID ICING lines) and the STATUS lines of an engine out. They follow once ENG n SHUT DOWN is shown: it is held back while taxiing or stopped on the ground.</p>
+<h3>How to use</h3>
+<ol><li>Nothing to set: read the Procedure and What you will see sections of these failures.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A380X in cruise. flyPad &gt; Failures &gt; ATA 73, open the FADEC overheat shutdown entry of engine 1 and read it, then Fail it.</td><td>The text lists ENG 1 SHUT DOWN, AIR ABNORM BLEED CONFIG and the engine-out STATUS lines; the E/WD shows the same alerts.</td></tr></table>
+<h2>6. flyPad instant load, landing wind check and ground pages (audit fixes)</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX and A380X &nbsp;|&nbsp; <b>Where:</b> flyPad &gt; Dashboard, Performance &gt; Landing, Ground &nbsp;|&nbsp; <b>Status:</b> Not sim-tested. 120 flyPad specs passed when written.</div>
+<h3>What it is for</h3>
+<ul><li><b>Instant load keeps your settings.</b> The SimBrief instant load no longer overwrites the boarding rate and the GSX payload sync in the stored settings: it writes the start values to the aircraft variables only and restores your settings when boarding ends or after 30 s; a second import is blocked while one runs. An unset GSX payload sync now counts as off.</li><li><b>Landing wind check uses gusts and LDA.</b> The destination wind check and the banner keep the METAR gust and use the FCOM limits with gust included (A320 38 kt crosswind and 15 kt tailwind, A380 30 kt and 10 kt). A VRB wind loads as a tailwind of that magnitude. The landing uses the landing distance available (length minus displaced threshold), shown in the wind check table.</li><li><b>Ground pages.</b> Doors are closed once, from the captain flyPad only; the GSX arrival rule needs the flight phase DONE and no boarding started, so a new boarding announces the new number; the pushback airport layer draws the newest airport.</li></ul>
+<h3>How to use</h3>
+<ol><li>Nothing to set: use the Dashboard import, Performance and Ground pages as usual.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>Dashboard: import a SimBrief flight with instant boarding; afterwards open Settings &gt; Realism.</td><td>The boarding rate and GSX payload sync are as you set them before the import.</td></tr><tr><td>2</td><td>Performance &gt; Landing: enter a METAR with a gusting wind (for example 27015G30KT) for the destination.</td><td>The wind check includes the gust against the limits and the table shows the LDA.</td></tr></table>
+</body></html>

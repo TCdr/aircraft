@@ -50,7 +50,7 @@ table.test td:nth-child(2) { width: 50%; }
 <div class="meta">
 <b>Aircraft</b><span>A32NX and A380X</span>
 <b>Where to find it</b><span>Exterior lights: overhead EXT LT panel, STROBE and BEACON switches, seen from the outside view; interior lighting presets: flyPad &gt; Presets</span>
-<b>Branch</b><span><code>core/lights</code>, based on <code>master</code> (FlyByWire master 76db0aef1 merged in); independent.</span>
+<b>Branch</b><span><code>core/lights</code>, based on <code>master</code> (FlyByWire master 66021c244 merged in); independent.</span>
 <b>Status</b><span>Strobe and beacon timing checked in the sim by the user at night on both aircraft: OK. Lighting presets tested in the sim on the A32NX (save, load of a saved row, load of an unsaved row at 50 %): OK; the A380X uses the same fixed code but was not sim-tested. A32NX dome light with the DOME switch: native unit test, sim test pending.</span>
 <b>Pictures</b><span>No pictures: a flash timing does not show on a still picture, and the presets page is the stock FBW flyPad page.</span>
 </div>
@@ -79,4 +79,12 @@ table.test td:nth-child(2) { width: 50%; }
 <ol><li>Power the aircraft and set the cockpit lights and display brightness as you like.</li><li>Open flyPad &gt; Presets, optionally rename a row, and press the <b>Save</b> icon button on it.</li><li>Later, press <b>Load</b> on that slot to get the same lighting back.</li></ol>
 <h3>How to test</h3>
 <table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>A32NX (or A380X) powered, on the ground. Set the panel and flood lights and the display brightness to clearly different levels. flyPad &gt; Presets: press the <b>Save</b> icon button on slot 1 and confirm.</td><td>The save completes.</td></tr><tr><td>2</td><td>Change the lights, then press <b>Load</b> on slot 1.</td><td>The lights and displays fade back to the saved levels.</td></tr><tr><td>3</td><td>Press <b>Load</b> on a slot that was never saved.</td><td>Every light and display brightness fades to 50 %: the PFD, ND, ECAM and MCDU stay readable; on the A32NX the dome light stays off.</td></tr><tr><td>4</td><td>A32NX at night: DOME switch at DIM, save slot 2; switch to OFF, load slot 2.</td><td>The dome lamps come on dim and the switch moves to DIM.</td></tr><tr><td>5</td><td>Restart the sim, power the aircraft and load row 1 again.</td><td>The saved levels come back (the presets file was written).</td></tr></table>
+<h2>3. Aircraft presets load reliably</h2>
+<div class="fmeta"><b>Aircraft:</b> A32NX and A380X &nbsp;|&nbsp; <b>Where:</b> flyPad &gt; Presets (aircraft presets) &nbsp;|&nbsp; <b>Status:</b> Not sim-tested. The preset runner has a native unit test.</div>
+<h3>What it is for</h3>
+<p>The aircraft presets (Ready for pushback, taxi, take-off and the like) could run steps out of order or hang. They now run through a state machine: the expedited loading mode is latched when the load starts, so flipping the flyPad switch halfway no longer changes which steps run; after each action the runner waits (at most 2 s) for the expected state before the next step, without repeating toggles; a condition step that never becomes true aborts the preset after 180 s instead of hanging; the quick mode variable is cleared when the aircraft stops being ready in the middle of a load; and the procedure file loader no longer stops the module on a missing Name or Type attribute.</p>
+<h3>How to use</h3>
+<ol><li>Open flyPad &gt; Presets, choose the aircraft preset and press <b>Load</b>.</li></ol>
+<h3>How to test</h3>
+<table class="test"><tr><th>#</th><th>Do this</th><th>Expected result</th></tr><tr><td>1</td><td>Aircraft cold and dark. flyPad &gt; Presets: load the aircraft preset for the first stage, with expedited loading on.</td><td>The steps run one after the other and the preset completes.</td></tr><tr><td>2</td><td>Start another load and flip the expedited loading switch halfway.</td><td>The load keeps the mode it started with.</td></tr></table>
 </body></html>

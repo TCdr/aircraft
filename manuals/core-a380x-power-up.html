@@ -77,6 +77,8 @@ table.test td:nth-child(2) { width: 50%; }
 <table class="sit"><tr><th>Situation</th><th>What you should see</th></tr><tr><td>OIT in use (brightness, power, failure, self test)</td><td>As before: the same pictures and timing.</td></tr><tr><td>SND on the lower ISIS</td><td>As before: on, off and INIT as before.</td></tr><tr><td>Printer with and without a printout</td><td>As before: the paper and the printout are unchanged.</td></tr></table>
 <h3>Limitations and why</h3>
 <table class="lim"><tr><th>Limitation</th><th>Why</th><th>What to do</th></tr><tr><td>No visible feature, and no separate measurement.</td><td>It is less repaint work in the sim's browser renderer; the PresentMon measurement was made with the staggered power-up and these fixes together.</td><td>None.</td></tr></table>
+<h3>Related performance fixes on the branch</h3>
+<p>The ISIS self-test countdown is rendered once per shown second, the React simvar hooks skip unchanged state updates, the msfs-sdk is patched to stop per-publish garbage and the flyPad uses the polyfill-free react-simple-keyboard build: all performance only, no visible change.</p>
 <h3>How to use</h3>
 <ol><li>Nothing to do: the OIT, the SND and the printer work as before, with less background work.</li></ol>
 <h3>How to test</h3>
