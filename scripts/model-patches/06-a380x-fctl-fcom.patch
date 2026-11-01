@@ -1,0 +1,153 @@
+diff --git a/fbw-a380x/src/wasm/fbw_a380/src/model/A380LateralNormalLaw.cpp b/fbw-a380x/src/wasm/fbw_a380/src/model/A380LateralNormalLaw.cpp
+index 808cfdc2c..f96679af0 100644
+--- a/fbw-a380x/src/wasm/fbw_a380/src/model/A380LateralNormalLaw.cpp
++++ b/fbw-a380x/src/wasm/fbw_a380/src/model/A380LateralNormalLaw.cpp
+@@ -187,7 +187,7 @@ void A380LateralNormalLaw::step(const real_T *rtu_In_time_dt, const real_T *rtu_
+   *rtu_In_Phi_deg, const real_T *rtu_In_r_deg_s, const real_T *rtu_In_pk_deg_s, const real_T *rtu_In_beta_deg, const
+   real_T *rtu_In_V_ias_kn, const real_T *rtu_In_V_tas_kn, const real_T *rtu_In_delta_xi_pos, const real_T
+   *rtu_In_delta_zeta_pos, const boolean_T *rtu_In_on_ground, const boolean_T *rtu_In_tracking_mode_on, const boolean_T
+-  *rtu_In_high_aoa_prot_active, const boolean_T *rtu_In_high_speed_prot_active, const real_T *rtu_In_ap_phi_c_deg, const
++  *rtu_In_high_aoa_prot_active, const boolean_T *rtu_In_high_speed_prot_active, const boolean_T *rtu_In_high_lift, const real_T *rtu_In_ap_phi_c_deg, const
+   real_T *rtu_In_ap_beta_c_deg, const boolean_T *rtu_In_any_ap_engaged, real_T *rty_Out_xi_deg, real_T *rty_Out_zeta_deg)
+ {
+   real_T L_xi;
+@@ -228,6 +228,10 @@ void A380LateralNormalLaw::step(const real_T *rtu_In_time_dt, const real_T *rtu_
+ 
+   static const real_T c_1[4]{ 1.2, 1.2, 1.5, 1.5 };
+ 
++  // Bank angle protection in high lift configurations: the clean configuration law moved down to a 60 deg maximum
++  static const real_T highLiftBankAngleProtectionBreakpoints[9]{ -90.0, -65.0, -60.0, -33.0, 0.0, 33.0, 60.0, 65.0, 90.0 };
++  static constexpr real_T HIGH_LIFT_MAX_BANK_DEG{ 60.0 };
++
+   high_i = !*rtu_In_on_ground;
+   if (high_i > A380LateralNormalLaw_rtP.Saturation_UpperSat) {
+     rtb_Sum2 = A380LateralNormalLaw_rtP.Saturation_UpperSat;
+@@ -386,6 +390,9 @@ void A380LateralNormalLaw::step(const real_T *rtu_In_time_dt, const real_T *rtu_
+   } else if (*rtu_In_high_aoa_prot_active) {
+     rtb_uDLookupTable_b = look1_binlxpw(*rtu_In_Phi_deg, A380LateralNormalLaw_rtP.BankAngleProtection_bp01Data,
+       A380LateralNormalLaw_rtP.BankAngleProtection_tableData, 8U);
++  } else if (*rtu_In_high_lift) {
++    rtb_uDLookupTable_b = look1_binlxpw(*rtu_In_Phi_deg, highLiftBankAngleProtectionBreakpoints,
++      A380LateralNormalLaw_rtP.BankAngleProtection1_tableData, 8U);
+   } else {
+     rtb_uDLookupTable_b = look1_binlxpw(*rtu_In_Phi_deg, A380LateralNormalLaw_rtP.BankAngleProtection1_bp01Data,
+       A380LateralNormalLaw_rtP.BankAngleProtection1_tableData, 8U);
+@@ -457,6 +464,11 @@ void A380LateralNormalLaw::step(const real_T *rtu_In_time_dt, const real_T *rtu_
+     A380LateralNormalLaw_DWork.Delay_DSTATE_o = A380LateralNormalLaw_rtP.DiscreteTimeIntegratorVariableTs_LowerLimit_o;
+   }
+ 
++  if (*rtu_In_high_lift) {
++    A380LateralNormalLaw_DWork.Delay_DSTATE_o = std::fmax(-HIGH_LIFT_MAX_BANK_DEG, std::fmin(HIGH_LIFT_MAX_BANK_DEG,
++      A380LateralNormalLaw_DWork.Delay_DSTATE_o));
++  }
++
+   if (*rtu_In_any_ap_engaged) {
+     if (*rtu_In_tracking_mode_on) {
+       rtb_uDLookupTable_b = *rtu_In_Phi_deg;
+diff --git a/fbw-a380x/src/wasm/fbw_a380/src/model/A380LateralNormalLaw.h b/fbw-a380x/src/wasm/fbw_a380/src/model/A380LateralNormalLaw.h
+index 47c1c3040..27caf9309 100644
+--- a/fbw-a380x/src/wasm/fbw_a380/src/model/A380LateralNormalLaw.h
++++ b/fbw-a380x/src/wasm/fbw_a380/src/model/A380LateralNormalLaw.h
+@@ -103,9 +103,10 @@ class A380LateralNormalLaw final
+             *rtu_In_r_deg_s, const real_T *rtu_In_pk_deg_s, const real_T *rtu_In_beta_deg, const real_T *rtu_In_V_ias_kn,
+             const real_T *rtu_In_V_tas_kn, const real_T *rtu_In_delta_xi_pos, const real_T *rtu_In_delta_zeta_pos, const
+             boolean_T *rtu_In_on_ground, const boolean_T *rtu_In_tracking_mode_on, const boolean_T
+-            *rtu_In_high_aoa_prot_active, const boolean_T *rtu_In_high_speed_prot_active, const real_T
+-            *rtu_In_ap_phi_c_deg, const real_T *rtu_In_ap_beta_c_deg, const boolean_T *rtu_In_any_ap_engaged, real_T
+-            *rty_Out_xi_deg, real_T *rty_Out_zeta_deg);
++            *rtu_In_high_aoa_prot_active, const boolean_T *rtu_In_high_speed_prot_active, const boolean_T
++            *rtu_In_high_lift, const real_T *rtu_In_ap_phi_c_deg, const real_T
++            *rtu_In_ap_beta_c_deg, const boolean_T *rtu_In_any_ap_engaged, real_T *rty_Out_xi_deg, real_T
++            *rty_Out_zeta_deg);
+   void reset();
+   A380LateralNormalLaw();
+   ~A380LateralNormalLaw();
+diff --git a/fbw-a380x/src/wasm/fbw_a380/src/model/A380PitchNormalLaw.cpp b/fbw-a380x/src/wasm/fbw_a380/src/model/A380PitchNormalLaw.cpp
+index 7857a359d..63c5e906e 100644
+--- a/fbw-a380x/src/wasm/fbw_a380/src/model/A380PitchNormalLaw.cpp
++++ b/fbw-a380x/src/wasm/fbw_a380/src/model/A380PitchNormalLaw.cpp
+@@ -1406,12 +1406,8 @@ void A380PitchNormalLaw::step(const real_T *rtu_In_time_dt, const real_T *rtu_In
+     *rty_Out_eta_trim_limit_up = A380PitchNormalLaw_rtP.Constant2_Value;
+   }
+ 
+-  if (*rtu_In_flaps_handle_index == 5.0) {
+-    rtb_in_flare = 25;
+-  } else {
+-    rtb_in_flare = 30;
+-  }
+-
++  // The A380 keeps the 30 deg nose-up limit in every configuration (no CONF FULL reduction as on the A320)
++  rtb_in_flare = 30;
+   A380PitchNormalLaw_RateLimiter(static_cast<real_T>(rtb_in_flare) - std::fmin(5.0, std::fmax(0.0, 5.0 -
+     (*rtu_In_V_ias_kn - (*rtu_In_VLS_kn + 5.0)) * 0.25)), A380PitchNormalLaw_rtP.RateLimiterVariableTs6_up,
+     A380PitchNormalLaw_rtP.RateLimiterVariableTs6_lo, rtu_In_time_dt,
+diff --git a/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFctl.cpp b/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFctl.cpp
+index cbd9ad030..f877dea50 100644
+--- a/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFctl.cpp
++++ b/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFctl.cpp
+@@ -1642,7 +1642,7 @@ void A380PrimComputerFctl::step()
+                      ((A380PrimComputerFctl_U.in.general_logic.adr_computation_data.mach > 0.96) ||
+                       (A380PrimComputerFctl_U.in.general_logic.adr_computation_data.mach < 0.1) ||
+                       (A380PrimComputerFctl_U.in.general_logic.adr_computation_data.alpha_deg < -10.0) ||
+-                      (A380PrimComputerFctl_U.in.general_logic.adr_computation_data.alpha_deg > 37.5) ||
++                      (A380PrimComputerFctl_U.in.general_logic.adr_computation_data.alpha_deg > 30.0) ||
+                       (A380PrimComputerFctl_U.in.general_logic.adr_computation_data.V_ias_kn > 420.0) ||
+                       (A380PrimComputerFctl_U.in.general_logic.adr_computation_data.V_ias_kn < 70.0))) ||
+                     ((!A380PrimComputerFctl_U.in.general_logic.triple_ir_failure) &&
+@@ -1665,7 +1665,9 @@ void A380PrimComputerFctl::step()
+       b_nz += c_x[prim3LawCap + 1];
+     }
+ 
+-    if (A380PrimComputerFctl_U.in.general_logic.triple_adr_failure || rtb_AND16_n) {
++    // The three IRs are the PRIMs' gyrometers: losing all three leaves no rate feedback for the normal or alternate laws
++    if (A380PrimComputerFctl_U.in.general_logic.triple_adr_failure ||
++        A380PrimComputerFctl_U.in.general_logic.triple_ir_failure || rtb_AND16_n) {
+       rtb_pitchLawCapability = a380_pitch_efcs_law::DirectLaw;
+       rtb_lateralLawCapability = a380_lateral_efcs_law::DirectLaw;
+     } else if (A380PrimComputerFctl_U.in.general_logic.double_lgciu_failure) {
+@@ -2401,6 +2403,7 @@ void A380PrimComputerFctl::step()
+ 
+     rtb_OR1_l = (A380PrimComputerFctl_B.BusAssignment_nw.fg_logic.ap_1_engaged ||
+                  A380PrimComputerFctl_B.BusAssignment_nw.fg_logic.ap_2_engaged);
++    const boolean_T highLift = A380PrimComputerFctl_U.in.general_logic.flap_handle_index > 0.0F;
+     LawMDLOBJ2.step(&A380PrimComputerFctl_B.BusAssignment_nw.data.time.dt,
+                     &A380PrimComputerFctl_B.BusAssignment_nw.general_logic.ir_computation_data.theta_deg,
+                     &A380PrimComputerFctl_B.BusAssignment_nw.general_logic.ir_computation_data.phi_deg,
+@@ -2412,7 +2415,7 @@ void A380PrimComputerFctl::step()
+                     &A380PrimComputerFctl_B.BusAssignment_nw.data.analog_inputs.rudder_pedal_pos,
+                     &A380PrimComputerFctl_B.BusAssignment_nw.general_logic.on_ground, &rtb_OR_i,
+                     &A380PrimComputerFctl_B.BusAssignment_nw.fctl_logic.high_alpha_prot_active,
+-                    &A380PrimComputerFctl_B.BusAssignment_nw.fctl_logic.high_speed_prot_active, &rtb_Switch_nb,
++                    &A380PrimComputerFctl_B.BusAssignment_nw.fctl_logic.high_speed_prot_active, &highLift, &rtb_Switch_nb,
+                     &rtb_Switch1_d, &rtb_OR1_l, &rtb_xi_deg, &rtb_zeta_deg);
+     LawMDLOBJ1.step(&A380PrimComputerFctl_B.BusAssignment_nw.data.time.dt,
+                     &A380PrimComputerFctl_B.BusAssignment_nw.fctl_logic.total_sidestick_roll_command,
+diff --git a/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFctl_data.cpp b/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFctl_data.cpp
+index 5e87df29c..753c50b74 100644
+--- a/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFctl_data.cpp
++++ b/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFctl_data.cpp
+@@ -4506,20 +4506,20 @@ A380PrimComputerFctl::Parameters_A380PrimComputerFctl_T A380PrimComputerFctl::A3
+ 
+   0.89,
+ 
+-  350.0,
++  365.0,
+ 
+-  0.91,
++  0.94,
+ 
+   0.017453292519943295,
+ 
+ 
+-  { 340.0, 340.0, 348.0, 348.0 },
++  { 350.0, 350.0, 350.0, 350.0 },
+ 
+ 
+   { -4.0, -3.0, -1.0, 0.0 },
+ 
+ 
+-  { 0.89, 0.89, 0.9, 0.9 },
++  { 0.91, 0.91, 0.91, 0.91 },
+ 
+ 
+   { -4.0, -3.0, -1.0, 0.0 },

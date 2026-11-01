@@ -19,7 +19,7 @@ Put aircraft-independent behavior in `fbw-common` when both aircraft genuinely s
 ## Generated sources
 
 - Do not modify generated behavior XML sources in `generated` folders.
-- Do not modify the generated `model/` folders in the fly-by-wire WASM modules: `fbw-a32nx/src/wasm/fbw_a320/src/model/` and `fbw-a380x/src/wasm/fbw_a380/src/model/`.
+- Do not modify the generated `model/` folders in the fly-by-wire WASM modules: `fbw-a32nx/src/wasm/fbw_a320/src/model/` and `fbw-a380x/src/wasm/fbw_a380/src/model/`. The edits this fork already made there are recorded in `scripts/model-patches/` (see its README) and checked by `scripts/check-model-patches.sh`; a regeneration must re-apply them.
 
 ## Environment and build system
 
