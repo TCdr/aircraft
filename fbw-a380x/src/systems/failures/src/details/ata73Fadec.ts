@@ -73,6 +73,35 @@ const TO_THRUST_DISAGREE_ALERT = '701800155';
 
 const position = (engine: number): string => ENGINE_POSITIONS[engine - 1];
 
+const AIR_ABNORM_BLEED_CONFIG = '211800056';
+
+/** The STATUS lines of an engine that is out (ENG FAIL or ENG SHUT DOWN): the engine, its generator and its pumps */
+const engineOutStatus = (engine: number): string =>
+  `GEN ${engine}, ENG ${engine} BLEED and ${engine <= 2 ? 'G' : 'Y'} ENG ${engine} PMP A+B are listed as inoperative in ` +
+  'all phases (the GEN and PMP lines not on the ground before take-off power, after landing below 80 kt or after ' +
+  `engine shutdown; the PMP line is replaced by ${engine <= 2 ? 'G' : 'Y'} HYD SYS when both engines of its side are ` +
+  'out)' +
+  (engine === 2 || engine === 3
+    ? `, and for approach and landing ENG ${engine} REVERSER is listed as inoperative.`
+    : '.') +
+  ' Once ENG SHUT DOWN is shown' +
+  (engine === 2 || engine === 3 ? ', BTV is also inoperative for approach and landing (BTV cannot be armed) and' : '') +
+  ', with the APU off CAT 3 DUAL is inoperative for approach and landing and CAT 3 SINGLE ONLY is information.';
+
+/** AIR ABNORM BLEED CONFIG comes with every ENG SHUT DOWN (the lost bleed); same phase hold-back as ENG SHUT DOWN */
+const abnormBleedConfigText = (engine: number): string =>
+  `With ENG ${engine} SHUT DOWN, AIR ABNORM BLEED CONFIG also appears, an amber caution with master caution and no ` +
+  'chime of its own; a new alert is not shown from V1 to 400 ft. Its lines are XBLEED OPEN while the crossbleed has ' +
+  'not opened by itself and, with the crossbleed open and only this bleed lost, IF MAX THR RQRD: AIR FLOW LO and FWD ' +
+  'CARGO TEMP REGUL OFF' +
+  (engine === 1 || engine === 4
+    ? '; with the crossbleed still closed also WING A-ICE OFF, ENGs A-ICE AS RQRD and AVOID ICING CONDs. The ' +
+      'limitation AVOID ICING CONDs, also on the PFD, shows while the WING A-ICE is off.'
+    : '.') +
+  ' With a second bleed lost PACK 1 OFF or PACK 2 OFF is asked instead.';
+
+const BLEED_PAGE_TEXT = 'The page comes up with AIR ABNORM BLEED CONFIG when no other page is selected.';
+
 // ---------------------------------------------------------------------------------------------------------------------
 // FADEC avionics network link
 // ---------------------------------------------------------------------------------------------------------------------
@@ -93,6 +122,7 @@ const networkLinkDetail = (engine: number): FailureDetail => ({
   alertIds: [
     alertId(FIRST_FADEC_FAULT_ALERT, engine),
     alertId(FIRST_ENG_SHUT_DOWN_ALERT, engine),
+    AIR_ABNORM_BLEED_CONFIG,
     TO_THRUST_DISAGREE_ALERT,
   ],
   effects: [
@@ -122,6 +152,9 @@ const networkLinkDetail = (engine: number): FailureDetail => ({
         `If the crew follows the last line and sets the ENG ${engine} MASTER OFF, ENG ${engine} SHUT DOWN appears, ` +
         `${CAUTION}; ${SHUT_DOWN_TIMING}.`,
     },
+    { where: 'E/WD', text: abnormBleedConfigText(engine) },
+    { where: 'SD BLEED', text: BLEED_PAGE_TEXT },
+    { where: 'SD STATUS', text: `Once ENG ${engine} SHUT DOWN is shown: ${engineOutStatus(engine)}` },
     {
       where: 'E/WD',
       text:
@@ -236,7 +269,11 @@ const overheatShutdownDetail = (engine: number): FailureDetail => ({
     'Everything the engine supplied is lost, as with any engine failure.',
     'The shutdown is latched: it stays until the failure is restored and the crew sets the ENG MASTER OFF.',
   ],
-  alertIds: [alertId(FIRST_ENG_FAIL_ALERT, engine), alertId(FIRST_ENG_SHUT_DOWN_ALERT, engine)],
+  alertIds: [
+    alertId(FIRST_ENG_FAIL_ALERT, engine),
+    alertId(FIRST_ENG_SHUT_DOWN_ALERT, engine),
+    AIR_ABNORM_BLEED_CONFIG,
+  ],
   effects: [
     {
       where: 'E/WD',
@@ -257,6 +294,9 @@ const overheatShutdownDetail = (engine: number): FailureDetail => ({
         `When the crew sets the ENG ${engine} MASTER OFF, ENG ${engine} SHUT DOWN appears as well, ${CAUTION}; ` +
         `${SHUT_DOWN_TIMING}. ENG ${engine} FAIL stays, its lines done, until the engine runs again.`,
     },
+    { where: 'E/WD', text: abnormBleedConfigText(engine) },
+    { where: 'SD BLEED', text: BLEED_PAGE_TEXT },
+    { where: 'SD STATUS', text: `Once the engine is out: ${engineOutStatus(engine)}` },
   ],
   notSimulated: [
     'On the real aircraft the FADEC loses its supply 15 minutes after the shutdown on the ground, and THR LEVER IDLE ' +
@@ -447,7 +487,11 @@ const controlSystemDetail = (engine: number): FailureDetail => ({
     'Its N1, N2, N3 and fuel flow values are marked as less accurate.',
     'On the ground the crew is asked to bring the thrust lever to idle and shut the engine down.',
   ],
-  alertIds: [alertId(FIRST_CTL_SYS_FAULT_ALERT, engine), alertId(FIRST_ENG_SHUT_DOWN_ALERT, engine)],
+  alertIds: [
+    alertId(FIRST_CTL_SYS_FAULT_ALERT, engine),
+    alertId(FIRST_ENG_SHUT_DOWN_ALERT, engine),
+    AIR_ABNORM_BLEED_CONFIG,
+  ],
   effects: [
     {
       where: 'E/WD',
@@ -461,6 +505,9 @@ const controlSystemDetail = (engine: number): FailureDetail => ({
         `If the crew follows the ground line and sets the ENG ${engine} MASTER OFF, ENG ${engine} SHUT DOWN appears, ` +
         `${CAUTION}; ${SHUT_DOWN_TIMING}.`,
     },
+    { where: 'E/WD', text: abnormBleedConfigText(engine) },
+    { where: 'SD BLEED', text: BLEED_PAGE_TEXT },
+    { where: 'SD STATUS', text: `Once ENG ${engine} SHUT DOWN is shown: ${engineOutStatus(engine)}` },
     {
       where: 'E/WD',
       text:

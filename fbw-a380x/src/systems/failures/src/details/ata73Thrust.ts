@@ -45,13 +45,34 @@ const alertId = (first: number, engine: number): string => (first + engine - 1).
 /** @returns where the engine sits: engines 1 and 4 are the outer engines, 2 and 3 the inner ones */
 const enginePosition = (engine: number): string => (engine === 1 || engine === 4 ? 'outer' : 'inner');
 
-/** What the shut-down engine adds to the STATUS page (the reverser and the BTV only for the engines 2 and 3) */
-const engineOutConsequences = (engine: number): string =>
-  `ENG ${engine} BLEED is listed as inoperative in all phases.` +
+const AIR_ABNORM_BLEED_CONFIG = '211800056';
+
+/** The STATUS lines of an engine that is out (ENG FAIL or ENG SHUT DOWN): the engine, its generator and its pumps */
+const engineOutStatus = (engine: number): string =>
+  `GEN ${engine}, ENG ${engine} BLEED and ${engine <= 2 ? 'G' : 'Y'} ENG ${engine} PMP A+B are listed as inoperative in ` +
+  'all phases (the GEN and PMP lines not on the ground before take-off power, after landing below 80 kt or after ' +
+  `engine shutdown; the PMP line is replaced by ${engine <= 2 ? 'G' : 'Y'} HYD SYS when both engines of its side are ` +
+  'out)' +
   (engine === 2 || engine === 3
-    ? ` For approach and landing ENG ${engine} REVERSER and BTV are also listed as inoperative (BTV cannot be armed).`
-    : '') +
-  ' With the APU off, CAT 3 DUAL is listed as inoperative for approach and landing and CAT 3 SINGLE ONLY as information.';
+    ? `, and for approach and landing ENG ${engine} REVERSER is listed as inoperative.`
+    : '.') +
+  ' Once ENG SHUT DOWN is shown' +
+  (engine === 2 || engine === 3 ? ', BTV is also inoperative for approach and landing (BTV cannot be armed) and' : '') +
+  ', with the APU off CAT 3 DUAL is inoperative for approach and landing and CAT 3 SINGLE ONLY is information.';
+
+/** AIR ABNORM BLEED CONFIG comes with every ENG SHUT DOWN (the lost bleed); same phase hold-back as ENG SHUT DOWN */
+const abnormBleedConfigText = (engine: number): string =>
+  `With ENG ${engine} SHUT DOWN, AIR ABNORM BLEED CONFIG also appears, an amber caution with master caution and no ` +
+  'chime of its own; a new alert is not shown from V1 to 400 ft. Its lines are XBLEED OPEN while the crossbleed has ' +
+  'not opened by itself and, with the crossbleed open and only this bleed lost, IF MAX THR RQRD: AIR FLOW LO and FWD ' +
+  'CARGO TEMP REGUL OFF' +
+  (engine === 1 || engine === 4
+    ? '; with the crossbleed still closed also WING A-ICE OFF, ENGs A-ICE AS RQRD and AVOID ICING CONDs. The ' +
+      'limitation AVOID ICING CONDs, also on the PFD, shows while the WING A-ICE is off.'
+    : '.') +
+  ' With a second bleed lost PACK 1 OFF or PACK 2 OFF is asked instead.';
+
+const BLEED_PAGE_TEXT = 'The page comes up with AIR ABNORM BLEED CONFIG when no other page is selected.';
 
 const ENGINE_FADEC_NOTE =
   'The four engines are each controlled by their own FADEC; the failure acts on the FADEC of one engine only.';
@@ -72,7 +93,12 @@ const overthrustDetail = (engine: number): FailureDetail => ({
     'In flight below 15,000 ft and up to Mach 0.4, the fuel cutback gives the alert only: the thrust does not change.',
     'On the ground with the lever above idle, or above 15,000 ft or Mach 0.4, nothing happens.',
   ],
-  alertIds: [alertId(CTL_SYS_FAULT_FIRST, engine), alertId(ENG_FAIL_FIRST, engine), alertId(SHUT_DOWN_FIRST, engine)],
+  alertIds: [
+    alertId(CTL_SYS_FAULT_FIRST, engine),
+    alertId(ENG_FAIL_FIRST, engine),
+    alertId(SHUT_DOWN_FIRST, engine),
+    AIR_ABNORM_BLEED_CONFIG,
+  ],
   effects: [
     {
       where: 'E/WD',
@@ -89,8 +115,11 @@ const overthrustDetail = (engine: number): FailureDetail => ({
     },
     {
       where: 'E/WD',
-      text: `Once ENG MASTER ${engine} is set OFF, ENG ${engine} SHUT DOWN also appears, ${CAUTION}, ${SHUT_DOWN_PHASES}. On the STATUS page: ${engineOutConsequences(engine)}`,
+      text: `Once ENG MASTER ${engine} is set OFF, ENG ${engine} SHUT DOWN also appears, ${CAUTION}, ${SHUT_DOWN_PHASES}.`,
     },
+    { where: 'E/WD', text: abnormBleedConfigText(engine) },
+    { where: 'SD BLEED', text: BLEED_PAGE_TEXT },
+    { where: 'SD STATUS', text: `Once the engine is out: ${engineOutStatus(engine)}` },
     {
       where: 'Pedestal ENG MASTER panel',
       text: `After the ground shutdown, the FAULT light of ENG MASTER ${engine} comes on.`,
@@ -176,7 +205,7 @@ const maxThrustMiscalculatedDetail = (engine: number): FailureDetail => ({
     'The alert compares the engine with the other three: it needs the maximum THR of the engine to be at most 90 % of that of at least two other engines.',
     'With three or four engines affected the healthy engines are too few and the alert does not appear.',
   ],
-  alertIds: [alertId(THRUST_LOSS_FIRST, engine), alertId(SHUT_DOWN_FIRST, engine)],
+  alertIds: [alertId(THRUST_LOSS_FIRST, engine), alertId(SHUT_DOWN_FIRST, engine), AIR_ABNORM_BLEED_CONFIG],
   effects: [
     {
       where: 'E/WD',
@@ -186,8 +215,11 @@ const maxThrustMiscalculatedDetail = (engine: number): FailureDetail => ({
     },
     {
       where: 'E/WD',
-      text: `Once ENG MASTER ${engine} is set OFF, ENG ${engine} SHUT DOWN also appears, ${CAUTION}, ${SHUT_DOWN_PHASES}. On the STATUS page: ${engineOutConsequences(engine)}`,
+      text: `Once ENG MASTER ${engine} is set OFF, ENG ${engine} SHUT DOWN also appears, ${CAUTION}, ${SHUT_DOWN_PHASES}.`,
     },
+    { where: 'E/WD', text: abnormBleedConfigText(engine) },
+    { where: 'SD BLEED', text: BLEED_PAGE_TEXT },
+    { where: 'SD STATUS', text: `Once ENG ${engine} SHUT DOWN is shown: ${engineOutStatus(engine)}` },
   ],
   logbook: { required: true, reason: 'caution, engine thrust lower than commanded' },
   clearing: `${MAINTENANCE_ONLY} The ratings are then computed correctly again at once.`,
