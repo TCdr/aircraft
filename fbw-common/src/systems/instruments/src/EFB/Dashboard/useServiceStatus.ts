@@ -16,6 +16,7 @@ import { boardingSeconds } from '../Ground/Pages/Payload/boardingSeconds';
 import {
   RunService,
   ServiceStatus,
+  boardingStillAhead,
   fuelServiceStatus,
   fuelToleranceKg,
   markServiceRan,
@@ -237,7 +238,12 @@ export const usePayloadLoad = (): PayloadLoad => {
     cargoTargetKg: counts.cargoTargetKg,
     openDoorCount: counts.doorsOpen,
   };
-  if (status.kind !== 'boarding' && status.kind !== 'deboarding' && status.kind !== 'onTheWay') {
+  const timed =
+    status.kind === 'boarding' ||
+    status.kind === 'deboarding' ||
+    status.kind === 'onTheWay' ||
+    boardingStillAhead(status.kind, load);
+  if (!timed) {
     return { status, ...load };
   }
   const seconds = boardingSeconds({
