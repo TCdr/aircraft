@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { describe, expect, it } from 'vitest';
-import { TurnaroundInput, turnaroundLateMinutes, turnaroundRows } from './turnaround';
+import { TurnaroundInput, turnaroundLateMinutes, turnaroundReadyMs, turnaroundRows } from './turnaround';
 import { payloadServiceStatus, ServiceStatus } from './serviceStatus';
 
 const NOW = Date.UTC(2026, 9, 23, 12, 30);
@@ -91,5 +91,32 @@ describe('turnaroundLateMinutes', () => {
   it('is null without a projection or a schedule', () => {
     expect(turnaroundLateMinutes(turnaroundRows(input({})), STD)).toBeNull();
     expect(turnaroundLateMinutes(turnaroundRows(input({ fuel: status('refueling', 5) })), null)).toBeNull();
+  });
+});
+
+describe('turnaroundReadyMs', () => {
+  it('is the latest end of the services that still need time', () => {
+    expect(turnaroundReadyMs({ nowMs: NOW, fuel: status('refueling', 5), payload: status('boarding', 22) })).toBe(
+      NOW + 22 * 60_000,
+    );
+  });
+
+  it('counts a service that has not started with its full time', () => {
+    expect(turnaroundReadyMs({ nowMs: NOW, fuel: status('notStarted', 14), payload: status('complete') })).toBe(
+      NOW + 14 * 60_000,
+    );
+  });
+
+  it('is null when nothing is left to load', () => {
+    expect(turnaroundReadyMs({ nowMs: NOW, fuel: status('complete'), payload: status('notStarted') })).toBeNull();
+    expect(turnaroundReadyMs({ nowMs: NOW, fuel: status('refueling', 0), payload: status('complete', 9) })).toBeNull();
+  });
+});
+
+describe('turnaroundRows with the time of a service still ahead', () => {
+  it('gives a not started row no end', () => {
+    const rows = turnaroundRows(input({ fuel: status('notStarted', 14), payload: status('notStarted', 30) }));
+    rows.forEach((row) => expect(row.endMs).toBeNull());
+    expect(turnaroundLateMinutes(rows, STD)).toBeNull();
   });
 });

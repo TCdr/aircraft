@@ -29,7 +29,7 @@ import {
 import { flightSummary } from './logic/flightLog';
 import { fuelVersusPlanKg } from './logic/fuelPlan';
 import { taxiMinutes } from './logic/taxiTime';
-import { turnaroundLateMinutes, turnaroundRows } from './logic/turnaround';
+import { turnaroundLateMinutes, turnaroundReadyMs, turnaroundRows } from './logic/turnaround';
 import { routeWindComponentKt } from './logic/weatherVerdict';
 import { FlightStrip, StripTile } from './Cards/FlightStrip';
 import { AdvicePanel } from './Cards/AdvicePanel';
@@ -124,6 +124,7 @@ export const Dashboard = () => {
     taxiIn,
     minutesToTod,
     takeoffKnown: takeoffUnixSeconds !== null,
+    turnaroundReadyMs: turnaroundReadyMs({ nowMs, fuel: fuelStatus, payload: payload.status }),
   });
 
   const fuelChip = onGround ? serviceChip(fuelStatus, hasOfp) : null;

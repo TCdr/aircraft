@@ -14,6 +14,10 @@ export interface ServiceStatus {
   kind: ServiceKind;
   /** 0..1, null while there is nothing to measure */
   progress: number | null;
+  /**
+   * Time the service still needs: set while it runs or is on the way, and on a not started service that has load
+   * ahead of it (a refuel above what is on board, a boarding above what is on the aircraft)
+   */
   minutesLeft: number | null;
   /** Passengers boarded (or deboarded), null for fuel and for services that have not started */
   done: number | null;
@@ -102,8 +106,26 @@ export const fuelServiceStatus = (i: FuelServiceInput): ServiceStatus => {
   if ((i.targetKg > 0 || i.ordered) && Math.abs(i.currentKg - i.targetKg) < (i.toleranceKg ?? DEFAULT_TOLERANCE_KG)) {
     return complete;
   }
+  // A refuel still ahead has a duration already; a defuel or a target that is reached has none to wait for
+  if (i.targetKg > i.currentKg + (i.toleranceKg ?? DEFAULT_TOLERANCE_KG)) {
+    return { ...NOT_STARTED, minutesLeft: i.minutesLeft };
+  }
   return NOT_STARTED;
 };
+
+/** Below this the cargo is where it should be; the loading steps are coarser than one kilogram */
+export const CARGO_TOLERANCE_KG = 10;
+
+export interface BoardingLoad {
+  paxOnBoard: number;
+  paxTarget: number;
+  cargoKg: number;
+  cargoTargetKg: number;
+}
+
+/** A boarding that has not started but has passengers or cargo to load, so its duration counts for the departure */
+export const boardingStillAhead = (kind: ServiceKind, load: BoardingLoad): boolean =>
+  kind === 'notStarted' && (load.paxTarget > load.paxOnBoard || load.cargoTargetKg > load.cargoKg + CARGO_TOLERANCE_KG);
 
 export const payloadServiceStatus = (i: PayloadServiceInput): ServiceStatus => {
   const deboarding = i.paxTarget < i.paxOnBoard;

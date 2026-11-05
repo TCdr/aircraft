@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { ServiceStatus } from './serviceStatus';
+import { CARGO_TOLERANCE_KG, ServiceStatus } from './serviceStatus';
 
 export type TurnaroundStep = 'refuel' | 'cargo' | 'boarding' | 'doorsClosed' | 'pushback';
 
@@ -32,8 +32,6 @@ export interface TurnaroundInput {
 }
 
 const MS_PER_MINUTE = 60_000;
-/** Below this the cargo is where it should be; the loading steps are coarser than one kilogram */
-const CARGO_TOLERANCE_KG = 10;
 
 const serviceState = (status: ServiceStatus): TurnaroundStepState => {
   if (status.kind === 'complete') {
@@ -67,6 +65,24 @@ export const turnaroundRows = (i: TurnaroundInput): TurnaroundRow[] => {
     row('doorsClosed', boardingDone && i.openDoorCount === 0 ? 'complete' : 'notStarted', null),
     row('pushback', i.pushbackActive ? 'running' : 'notStarted', null),
   ];
+};
+
+/**
+ * The earliest time the loading services are done, Unix ms: the latest projected end of the services that still need
+ * time (running, on the way, or ahead with their full duration); null when none does
+ */
+export const turnaroundReadyMs = (i: { nowMs: number; fuel: ServiceStatus; payload: ServiceStatus }): number | null => {
+  let latest: number | null = null;
+  [i.fuel, i.payload].forEach((service) => {
+    if (service.kind === 'complete' || service.minutesLeft === null || service.minutesLeft <= 0) {
+      return;
+    }
+    const endMs = i.nowMs + service.minutesLeft * MS_PER_MINUTE;
+    if (latest === null || endMs > latest) {
+      latest = endMs;
+    }
+  });
+  return latest;
 };
 
 /**
