@@ -15,6 +15,7 @@ import { IconButton } from '../../../../MsfsAvionicsCommon/UiWidgets/IconButton'
 import { DataEntryFormat } from '../../../../MFD/pages/common/DataEntryFormats';
 import { InputField } from '../../../../MsfsAvionicsCommon/UiWidgets/InputField';
 import type { OitAvncsContainer } from '../../../OitAvncsContainer';
+import { entryBoxWidth } from '../../../System/CompanyComReportForms';
 import { allRowsTicked } from './LogbookFlows';
 
 interface LogbookClickableProps extends ComponentProps {
@@ -324,6 +325,16 @@ export class LogbookField<T> extends DestroyableComponent<LogbookFieldProps<T>> 
     this.subscriptions.push(this.props.value.sub((v) => this.shown.set(v), true));
   }
 
+  /**
+   * A field that can be mandatory must stay wide enough for the empty-box marks it shows while empty.
+   * @returns the width of the field, px
+   */
+  private boxWidth(): number {
+    const canBeMandatory = this.props.mandatory !== undefined && this.props.mandatory !== false;
+    const emptyEntryLength = (this.props.format.format(null)[0] ?? '').length;
+    return entryBoxWidth(emptyEntryLength, canBeMandatory, this.props.width);
+  }
+
   render(): VNode {
     return (
       <div class={{ 'oit-logbook-avionics': this.fromAvionics }}>
@@ -336,7 +347,7 @@ export class LogbookField<T> extends DestroyableComponent<LogbookFieldProps<T>> 
           mandatory={this.props.mandatory ?? false}
           canBeCleared={true}
           alignText={this.props.alignText ?? 'center'}
-          containerStyle={`width: ${this.props.width}px;`}
+          containerStyle={`width: ${this.boxWidth()}px;`}
           hEventConsumer={this.props.container.hEventConsumer}
           interactionMode={this.props.container.interactionMode}
           errorHandler={() => {}}
