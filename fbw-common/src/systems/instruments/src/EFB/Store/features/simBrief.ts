@@ -254,10 +254,11 @@ export async function fetchSimbriefDataAction(
 }
 
 /**
+ * Compares by reference, because the dashboard calls this on every render and serialising the OFP each time is costly.
+ * Only `setSimbriefData` replaces the data object, and `clearSimbriefData` restores the initial one.
  * @returns Whether or not the SimBrief data has been altered from its original state
  */
-export const isSimbriefDataLoaded = (): boolean =>
-  JSON.stringify((store.getState() as RootState).simbrief.data) !== JSON.stringify(initialState.data);
+export const isSimbriefDataLoaded = (): boolean => (store.getState() as RootState).simbrief.data !== initialState.data;
 
 export const {
   setSimbriefData,
