@@ -37,6 +37,17 @@ describe('FLT FOLDER document pane style', () => {
     }
   });
 
+  it('wraps a line longer than the pane, which has no sideways scroll', () => {
+    const text = declarationsOf(folderStyle, '.oit-eff-text');
+    expect(text).toContain('white-space: pre-wrap;');
+    expect(text).toContain('max-width: 100%;');
+  });
+
+  it('keeps the columns of a printout that its font size fits to the pane on one line', () => {
+    expect(declarationsOf(folderStyle, '.oit-eff-text.printout')).toContain('white-space: pre;');
+    expect(declarationsOf(folderStyle, '.oit-eff-text.printout.wrap')).toContain('white-space: pre-wrap;');
+  });
+
   it('shows the printouts in the shipped monospaced font, which has the degree sign', () => {
     expect(declarationsOf(folderStyle, '.oit-eff-text.printout')).toContain('"OIT-Mono"');
     expect(mainStyle).toContain('font-family: "OIT-Mono";');
