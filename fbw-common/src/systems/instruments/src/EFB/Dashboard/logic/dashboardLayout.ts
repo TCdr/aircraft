@@ -38,6 +38,8 @@ export interface CountdownInput {
   minutesToTod: { minutes: number; planned: boolean } | null;
   /** The flyPad latched this flight's takeoff: without it an airborne ETA is only the schedule */
   takeoffKnown: boolean;
+  /** When the loading services at the gate are done, null when none needs time */
+  turnaroundReadyMs: number | null;
 }
 
 const MS_PER_MINUTE = 60_000;
@@ -51,10 +53,17 @@ const OFF_BLOCKS_LATE_LIMIT_MIN = 60;
 /** The one countdown of the flight strip: what comes next in this phase, null when nothing is known */
 export const dashboardCountdown = (i: CountdownInput): Countdown | null => {
   switch (i.phase) {
-    case 'atGate':
-      return i.stdMs === null || i.nowMs - i.stdMs > OFF_BLOCKS_LATE_LIMIT_MIN * MS_PER_MINUTE
+    case 'atGate': {
+      // Without a service estimate a long passed STD means the OFP schedule does not match the sim time
+      const stdMs = i.stdMs !== null && i.nowMs - i.stdMs <= OFF_BLOCKS_LATE_LIMIT_MIN * MS_PER_MINUTE ? i.stdMs : null;
+      let departureMs = stdMs;
+      if (i.turnaroundReadyMs !== null) {
+        departureMs = stdMs === null ? i.turnaroundReadyMs : Math.max(stdMs, i.turnaroundReadyMs);
+      }
+      return departureMs === null
         ? null
-        : { kind: 'offBlocks', minutes: Math.max(0, (i.stdMs - i.nowMs) / MS_PER_MINUTE), planned: false };
+        : { kind: 'offBlocks', minutes: Math.max(0, (departureMs - i.nowMs) / MS_PER_MINUTE), planned: false };
+    }
     case 'taxiOut':
       return i.taxiOut ? { kind: 'runway', ...i.taxiOut } : null;
     case 'takeoff':

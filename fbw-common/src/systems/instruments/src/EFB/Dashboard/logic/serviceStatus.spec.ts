@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   FuelServiceInput,
+  boardingStillAhead,
   PayloadServiceInput,
   fuelServiceStatus,
   fuelToleranceKg,
@@ -187,5 +188,47 @@ describe('fuelToleranceKg', () => {
       toleranceKg: fuelToleranceKg(false, kilogramsPerGallon),
     });
     expect(status.kind).toBe('complete');
+  });
+});
+
+describe('fuelServiceStatus time of a refuel still ahead', () => {
+  it('keeps the refuel time on a not started refuel', () => {
+    expect(fuel({ currentKg: 10000, targetKg: 20000, minutesLeft: 14 })).toEqual({
+      kind: 'notStarted',
+      progress: null,
+      minutesLeft: 14,
+      done: null,
+      total: null,
+    });
+  });
+
+  it('gives a defuel that has not started no time', () => {
+    expect(fuel({ currentKg: 20000, targetKg: 10000, minutesLeft: 14 }).minutesLeft).toBeNull();
+    expect(fuel({ currentKg: 0, targetKg: 0, minutesLeft: 14 }).minutesLeft).toBeNull();
+  });
+
+  it('gives a target within the tolerance no time', () => {
+    expect(fuel({ currentKg: 19999.5, targetKg: 20000, minutesLeft: 1 }).minutesLeft).toBeNull();
+    expect(fuel({ currentKg: 19995, targetKg: 20000, toleranceKg: 10, minutesLeft: 1 }).kind).toBe('complete');
+  });
+});
+
+describe('boardingStillAhead', () => {
+  const load = { paxOnBoard: 100, paxTarget: 100, cargoKg: 2000, cargoTargetKg: 2000 };
+
+  it('is true for a not started boarding with passengers or cargo to load', () => {
+    expect(boardingStillAhead('notStarted', { ...load, paxTarget: 300 })).toBe(true);
+    expect(boardingStillAhead('notStarted', { ...load, cargoTargetKg: 5000 })).toBe(true);
+  });
+
+  it('is false when nothing is left to load or the load goes the other way', () => {
+    expect(boardingStillAhead('notStarted', load)).toBe(false);
+    expect(boardingStillAhead('notStarted', { ...load, paxTarget: 0, cargoTargetKg: 0 })).toBe(false);
+    expect(boardingStillAhead('notStarted', { ...load, cargoTargetKg: 2005 })).toBe(false);
+  });
+
+  it('is false for every other kind', () => {
+    expect(boardingStillAhead('complete', { ...load, paxTarget: 300 })).toBe(false);
+    expect(boardingStillAhead('boarding', { ...load, paxTarget: 300 })).toBe(false);
   });
 });

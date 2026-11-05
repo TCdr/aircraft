@@ -44,6 +44,7 @@ describe('dashboardCountdown', () => {
     taxiIn: null,
     minutesToTod: { minutes: 18, planned: true },
     takeoffKnown: true,
+    turnaroundReadyMs: null,
     ...overrides,
   });
 
@@ -57,6 +58,29 @@ describe('dashboardCountdown', () => {
     // An OFP planned for 04:45Z in a sim flying at 17:42Z: its schedule says nothing about this flight
     expect(dashboardCountdown(input({ stdMs: NOW - 61 * 60_000 }))).toBeNull();
     expect(dashboardCountdown(input({ stdMs: NOW - 59 * 60_000 }))!.minutes).toBe(0);
+  });
+
+  it('runs to the end of the loading services when they finish after the STD', () => {
+    const std = NOW - 19 * 60_000;
+    expect(dashboardCountdown(input({ stdMs: std, turnaroundReadyMs: NOW + 22 * 60_000 }))).toEqual({
+      kind: 'offBlocks',
+      minutes: 22,
+      planned: false,
+    });
+  });
+
+  it('keeps the STD when the services are done before it', () => {
+    expect(dashboardCountdown(input({ turnaroundReadyMs: NOW + 5 * 60_000 }))!.minutes).toBe(24);
+  });
+
+  it('shows the services estimate although the STD is more than an hour behind', () => {
+    const std = NOW - 90 * 60_000;
+    expect(dashboardCountdown(input({ stdMs: std, turnaroundReadyMs: NOW + 10 * 60_000 }))!.minutes).toBe(10);
+    expect(dashboardCountdown(input({ stdMs: std, turnaroundReadyMs: null }))).toBeNull();
+  });
+
+  it('runs to the services estimate without an STD', () => {
+    expect(dashboardCountdown(input({ stdMs: null, turnaroundReadyMs: NOW + 10 * 60_000 }))!.minutes).toBe(10);
   });
 
   it('shows the taxi time while taxiing, and none to the gate without a route', () => {
