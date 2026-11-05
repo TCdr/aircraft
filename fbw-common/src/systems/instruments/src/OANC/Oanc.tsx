@@ -42,20 +42,12 @@ import {
   PolygonalStructureType,
 } from '@flybywiresim/fbw-sdk';
 
-import {
-  bbox,
-  bboxPolygon,
-  booleanPointInPolygon,
-  centroid,
-  featureCollection,
-  polygon,
-  simplify,
-  union,
-} from '@turf/turf';
+import { centroid, featureCollection, polygon, simplify, union } from '@turf/turf';
 import { Feature, FeatureCollection, Geometry, LineString, Point, Polygon, MultiPolygon, Position } from 'geojson';
 import { bearingTo, clampAngle, Coordinates, distanceTo, placeBearingDistance } from 'msfs-geo';
 
 import { reciprocal } from '@fmgc/guidance/lnav/CommonGeometry';
+import { OancAirportBounds } from './OancAirportBounds';
 import { OansBrakeToVacateSelection } from './OansBrakeToVacateSelection';
 import { LAYER_SPECIFICATIONS } from './style-data';
 import { OancMovingModeOverlay, OancStaticModeOverlay } from './OancMovingModeOverlay';
@@ -175,6 +167,8 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
   public labelContainerRef = FSComponent.createRef<HTMLDivElement>();
 
   public data: AmdbFeatureCollection | undefined;
+
+  private readonly airportBounds = new OancAirportBounds();
 
   private arpCoordinates = Subject.create<Coordinates | null>(null);
 
@@ -630,6 +624,7 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
 
     this.arpCoordinates.set(null);
     this.data = undefined;
+    this.airportBounds.clear();
     this.aircraftWithinAirport.set(false);
 
     if (this.isRwyAheadSource) {
@@ -749,10 +744,10 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
     }
 
     // Figure out the boundaries of the map data
-    const dataBbox = bbox(airportMap);
+    const dataBbox = this.airportBounds.set(airportMap);
 
     if (!this.pposNotAvailable.get()) {
-      this.aircraftWithinAirport.set(booleanPointInPolygon(this.projectedPpos.get(), bboxPolygon(dataBbox)));
+      this.aircraftWithinAirport.set(this.airportBounds.contains(this.projectedPpos.get()));
     } else {
       this.aircraftWithinAirport.set(false);
     }
@@ -1197,7 +1192,7 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
 
     const arpCoordinates = this.arpCoordinates.get();
     if (!this.pposNotAvailable.get() && arpCoordinates) {
-      this.aircraftWithinAirport.set(booleanPointInPolygon(this.projectedPpos.get(), bboxPolygon(bbox(this.data))));
+      this.aircraftWithinAirport.set(this.airportBounds.contains(this.projectedPpos.get()));
 
       const distToArpt = this.arpCoordinates.get() ? distanceTo(this.ppos.get(), arpCoordinates) : 9999;
 
