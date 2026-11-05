@@ -58,9 +58,12 @@ export class LogbookDateFormat implements DataEntryFormat<number> {
 
 /** A whole positive number, e.g. the fuel uplift in litres */
 export class LogbookIntegerFormat implements DataEntryFormat<number> {
-  public readonly placeholder = '----------';
+  public readonly placeholder: string;
 
-  constructor(public readonly maxDigits: number) {}
+  constructor(public readonly maxDigits: number) {
+    // One mark per digit: a mandatory field draws each mark as a wide empty box, so extra marks run out of the frame
+    this.placeholder = '-'.repeat(maxDigits);
+  }
 
   public format(value: number | null): FieldFormatTuple {
     return [value === null ? this.placeholder : value.toFixed(0), null, null];
