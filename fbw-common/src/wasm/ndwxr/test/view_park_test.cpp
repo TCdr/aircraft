@@ -8,13 +8,14 @@
 
 #include "../src/view_park.h"
 
-using ndwxr::noteViewRadiusSent;
+using ndwxr::noteSettingSent;
+using ndwxr::SentSetting;
+using ndwxr::settingSendDue;
 using ndwxr::stepViewPark;
 using ndwxr::takeViewSetupDue;
 using ndwxr::ViewPark;
 using ndwxr::ViewParkStep;
 using ndwxr::ViewVisibilityChange;
-using ndwxr::viewRadiusSendDue;
 
 static int failures = 0;
 
@@ -56,7 +57,7 @@ static void testParking() {
 
 static void testWakeUp() {
   ViewPark park;
-  noteViewRadiusSent(park, 18520.0f, 5.0);
+  noteSettingSent(park.radius, 18520.0f, 5.0);
   parkFresh(park);
   const ViewParkStep wake = stepViewPark(park, true, kParkAfter, kWarmup);
   expect("shown again when wanted", wake.change == ViewVisibilityChange::Show, true);
@@ -64,7 +65,7 @@ static void testWakeUp() {
   // The whole setup is due once after the wake-up, and the radius is sent again even when unchanged.
   expect("setup due after the wake-up", takeViewSetupDue(park), true);
   expect("setup due only once", takeViewSetupDue(park), false);
-  expect("radius sent again after the wake-up (same radius, 0.1 s later)", viewRadiusSendDue(park, 18520.0f, 5.1, kResend), true);
+  expect("radius sent again after the wake-up (same radius, 0.1 s later)", settingSendDue(park.radius, 18520.0f, 5.1, kResend), true);
 
   bool usable = false;
   for (int i = 0; i < kWarmup - 1; ++i) {
@@ -77,15 +78,21 @@ static void testWakeUp() {
 
 static void testRadiusResend() {
   ViewPark park;
-  expect("first radius is sent", viewRadiusSendDue(park, 18520.0f, 10.0, kResend), true);
-  noteViewRadiusSent(park, 18520.0f, 10.0);
-  expect("same radius 0.5 s later: not sent", viewRadiusSendDue(park, 18520.0f, 10.5, kResend), false);
-  expect("changed radius: sent at once", viewRadiusSendDue(park, 37040.0f, 10.5, kResend), true);
+  expect("first radius is sent", settingSendDue(park.radius, 18520.0f, 10.0, kResend), true);
+  noteSettingSent(park.radius, 18520.0f, 10.0);
+  expect("same radius 0.5 s later: not sent", settingSendDue(park.radius, 18520.0f, 10.5, kResend), false);
+  expect("changed radius: sent at once", settingSendDue(park.radius, 37040.0f, 10.5, kResend), true);
   // The same radius is sent again after kResend, in case the engine ignored it.
-  expect("same radius 1 s later: sent again", viewRadiusSendDue(park, 18520.0f, 11.0, kResend), true);
-  expect("sim time went back: sent", viewRadiusSendDue(park, 18520.0f, 2.0, kResend), true);
-  noteViewRadiusSent(park, 18520.0f, 11.0);
-  expect("after the resend: not due again before kResend", viewRadiusSendDue(park, 18520.0f, 11.9, kResend), false);
+  expect("same radius 1 s later: sent again", settingSendDue(park.radius, 18520.0f, 11.0, kResend), true);
+  expect("sim time went back: sent", settingSendDue(park.radius, 18520.0f, 2.0, kResend), true);
+  noteSettingSent(park.radius, 18520.0f, 11.0);
+  expect("after the resend: not due again before kResend", settingSendDue(park.radius, 18520.0f, 11.9, kResend), false);
+  SentSetting window;
+  noteSettingSent(window, 0.0f, 10.0);
+  expect("same value just under kResend later: not due", settingSendDue(window, 0.0f, 10.999, kResend), false);
+  noteSettingSent(window, 500.0f, 10.0);
+  expect("a value of 500, 0.5 s later: not due", settingSendDue(window, 500.0f, 10.5, kResend), false);
+  expect("a forgotten record is due", settingSendDue(SentSetting{}, 500.0f, 10.1, kResend), true);
 }
 
 int main() {
