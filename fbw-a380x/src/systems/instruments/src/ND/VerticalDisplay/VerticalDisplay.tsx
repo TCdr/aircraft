@@ -890,10 +890,8 @@ export class VerticalDisplay extends DisplayComponent<VerticalDisplayProps> {
           <g visibility={this.vdDataVisibility}>
             {this.safetyAltitudeTypeLabels.map((label) => (
               <text
-                // clear of the range origin '0' label
-                x={label.map((l) => (l ? l.x - (l.anchor === 'end' ? 8 : 0) : 0))}
+                x={label.map((l) => l?.x ?? 0)}
                 y={797}
-                text-anchor={label.map((l) => l?.anchor ?? 'start')}
                 class="Magenta FontSmallest"
                 visibility={label.map((l) => (l ? 'inherit' : 'hidden'))}
               >
