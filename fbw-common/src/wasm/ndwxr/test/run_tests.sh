@@ -8,5 +8,7 @@ clang++ -std=c++17 -Wall -Wextra -Werror vd_airports_test.cpp -o ../obj/vd_airpo
 ../obj/vd_airports_test
 clang++ -std=c++17 -Wall -Wextra -Werror view_park_test.cpp -o ../obj/view_park_test
 ../obj/view_park_test
+clang++ -std=c++17 -Wall -Wextra -Werror terrain_reference_test.cpp -o ../obj/terrain_reference_test
+../obj/terrain_reference_test
 clang++ -std=c++17 -Wall -Wextra -Werror gauge_slots_test.cpp -o ../obj/gauge_slots_test
 ../obj/gauge_slots_test
