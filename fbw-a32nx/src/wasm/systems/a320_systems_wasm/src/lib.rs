@@ -54,6 +54,7 @@ use systems::shared::{
     ProximityDetectorId, SmokeDetectionZone,
 };
 use systems_wasm::aspects::ExecuteOn;
+use systems_wasm::runway_database::CommBusRunwayDatabase;
 use systems_wasm::{MsfsSimulationBuilder, Variable};
 use trimmable_horizontal_stabilizer::trimmable_horizontal_stabilizer;
 
@@ -992,6 +993,7 @@ async fn systems(mut gauge: msfs::Gauge) -> Result<(), Box<dyn Error>> {
             terrain_grid::terrain_grid(),
             terrain_grid::obstacle_grid(),
         )
+        .with_runway_database(Box::new(CommBusRunwayDatabase::new()))
     })?;
 
     while let Some(event) = gauge.next_event().await {

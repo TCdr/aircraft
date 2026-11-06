@@ -1404,6 +1404,8 @@ dependencies = [
  "rand_distr",
  "rstest",
  "rustc-hash",
+ "serde",
+ "serde_json",
  "uom",
 ]
 

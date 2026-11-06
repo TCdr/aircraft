@@ -1,6 +1,8 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
+import type { RunwaySurfaceType } from '@microsoft/msfs-sdk';
+
 /** One direction of a runway, as a runway awareness function names and uses it */
 export interface AwarenessRunwayEnd {
   /** The runway number, 1 to 36 */
@@ -29,6 +31,8 @@ export interface AwarenessRunway {
   readonly length: number;
   /** The width, in metres */
   readonly width: number;
+  /** The surface, when the source gives it */
+  readonly surface?: RunwaySurfaceType;
   /** The primary end ([0], its course is the runway direction) and the secondary end ([1]) */
   readonly ends: readonly [AwarenessRunwayEnd, AwarenessRunwayEnd];
 }

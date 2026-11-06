@@ -39,6 +39,8 @@ struct Flight {
     altitude_law: Option<Box<dyn Fn(f64) -> f64>>,
     duration_s: f64,
     runways: Vec<Runway>,
+    /// The runways only shape the flight path (the altitude law, the end of the approach); the EGPWS is not given them
+    runways_unknown_to_egpws: bool,
     /// Gear and landing flaps from the distance to the first runway and the elapsed time
     landing_configuration: Box<dyn Fn(f64, f64) -> bool>,
     /// The takeoff roll ends here
@@ -59,6 +61,7 @@ impl Flight {
             altitude_law: None,
             duration_s: 1_800.,
             runways: Vec::new(),
+            runways_unknown_to_egpws: false,
             landing_configuration: Box::new(|_, _| false),
             on_ground_until_s: 0.,
             radio_altitude_ft: None,
@@ -150,7 +153,11 @@ fn look_ahead(
 
 fn run_flight(flight: &Flight, terrain: &mut TerrainGridCache<InMemoryBlockReader>) -> String {
     let mut alerting = PredictiveTerrainAlerting::new();
-    let runways = StaticRunways(flight.runways.clone());
+    let runways = StaticRunways(if flight.runways_unknown_to_egpws {
+        Vec::new()
+    } else {
+        flight.runways.clone()
+    });
 
     let mut position = flight.start;
     let mut altitude_ft = flight.altitude_ft;
@@ -395,6 +402,15 @@ fn with_known_runway(mut flight: Flight, true_heading_deg: f64, length_m: f64) -
         true_heading_deg,
         length_ft: length_m / 0.3048,
     });
+    flight
+}
+
+/// The same final without a destination in the flight plan: the runway is only known from the runways of the airports
+/// around the aircraft.
+fn from_the_runway_database(mut flight: Flight, true_heading_deg: f64, length_m: f64) -> Flight {
+    flight = with_known_runway(flight, true_heading_deg, length_m);
+    flight.name = flight.name.replace(" (known rwy)", " (database rwy)");
+    flight.runways[0].origin = RunwayOrigin::Database;
     flight
 }
 
@@ -709,6 +725,36 @@ fn scenario_study_real_grid() {
             ));
         }
     }
+    for (name, threshold, elevation_ft, true_heading_deg, length_m) in [
+        ("RJAA 34L", (35.747, 140.387), 135., 343., 4_000.),
+        ("RJOA 28", (34.4385, 132.9355), 1_088., 280., 3_000.),
+        ("LOWI 26", (47.2618, 11.3573), 1_906., 260., 2_000.),
+    ] {
+        for offset_ft in [0., -1_000.] {
+            flights.push(from_the_runway_database(
+                approach(
+                    &format!("D {name} offset {offset_ft:.0} ft"),
+                    threshold,
+                    elevation_ft,
+                    true_heading_deg,
+                    offset_ft,
+                    20.,
+                ),
+                true_heading_deg,
+                length_m,
+            ));
+        }
+    }
+    let mut without_any_runway = approach(
+        "D RJOA 28 no runway",
+        (34.4385, 132.9355),
+        1_088.,
+        280.,
+        0.,
+        20.,
+    );
+    without_any_runway.runways_unknown_to_egpws = true;
+    flights.push(without_any_runway);
     for (name, start, elevation_ft, true_heading_deg, length_m) in [
         ("LOWI rwy 26", (47.2618, 11.3573), 1_906., 260., 2_000.),
         ("LOWI rwy 08", (47.2575, 11.3322), 1_906., 80., 2_000.),

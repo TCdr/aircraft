@@ -14,8 +14,9 @@ use systems::{
     surveillance::{
         egpws::{
             predictive::{
-                AircraftState, PredictiveInputs, PredictiveOutputs, PredictiveTerrainAlerting,
-                ReferenceRunways, Runway, RunwayGeometry, RunwayOrigin,
+                database_runways_from_json, AircraftState, NoRunwayDatabase, PredictiveInputs,
+                PredictiveOutputs, PredictiveTerrainAlerting, ReferenceRunways, Runway,
+                RunwayDatabaseMessages, RunwayGeometry, RunwayOrigin,
             },
             terrain_grid::{GridPosition, TerrainGrid, UnavailableTerrainGrid},
             EgpwsElectricalHarness,
@@ -162,6 +163,8 @@ pub struct A320PredictiveTerrain {
     obstacles: Box<dyn TerrainGrid>,
     alerting: PredictiveTerrainAlerting,
     runways: ReferenceRunways,
+    /// The runways of the airports around the aircraft, from the systems host
+    runway_database: Box<dyn RunwayDatabaseMessages>,
     outputs: PredictiveOutputs,
 
     origin_runway: FmRunwayWords,
@@ -202,6 +205,7 @@ impl A320PredictiveTerrain {
             obstacles,
             alerting: PredictiveTerrainAlerting::new(),
             runways: ReferenceRunways::default(),
+            runway_database: Box::new(NoRunwayDatabase),
             outputs: PredictiveOutputs::default(),
 
             origin_runway: FmRunwayWords::default(),
@@ -212,6 +216,10 @@ impl A320PredictiveTerrain {
                 &Self::DESTINATION_RUNWAY_KEYS,
             ),
         }
+    }
+
+    pub fn set_runway_database(&mut self, database: Box<dyn RunwayDatabaseMessages>) {
+        self.runway_database = database;
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -254,8 +262,10 @@ impl A320PredictiveTerrain {
                 aircraft.ground_speed_kt,
                 aircraft.position,
                 aircraft.geometric_altitude_ft,
+                aircraft.true_track_deg,
             );
         }
+        apply_runway_database_message(&mut self.runways, &mut *self.runway_database);
         self.runways
             .set_origin(fm_runway(&self.origin_runway, RunwayOrigin::Departure));
         self.runways.set_destination(fm_runway(
@@ -285,6 +295,19 @@ impl A320PredictiveTerrain {
 
     pub fn outputs(&self) -> &PredictiveOutputs {
         &self.outputs
+    }
+}
+
+/// A message that cannot be read leaves the runways as they are.
+fn apply_runway_database_message(
+    runways: &mut ReferenceRunways,
+    database: &mut dyn RunwayDatabaseMessages,
+) {
+    if let Some(database_runways) = database
+        .take_latest_message()
+        .and_then(|message| database_runways_from_json(&message))
+    {
+        runways.set_database_runways(database_runways);
     }
 }
 
@@ -442,6 +465,45 @@ pub fn unavailable_terrain_grid() -> Box<dyn TerrainGrid> {
 #[cfg(test)]
 mod predictive_tests {
     use super::*;
+    use systems::surveillance::egpws::predictive::RunwaySource;
+
+    /// Hands out its message once, like the CommBus handle does
+    struct OneMessage(Option<String>);
+
+    impl RunwayDatabaseMessages for OneMessage {
+        fn take_latest_message(&mut self) -> Option<String> {
+            self.0.take()
+        }
+    }
+
+    const ONE_RUNWAY: &str =
+        "[{\"latitude\":34.43612,\"longitude\":132.93549,\"elevationFt\":1086,\
+                              \"trueHeadingDeg\":279.8,\"lengthFt\":9843}]";
+
+    #[test]
+    fn a_runway_database_message_adds_its_runways() {
+        let mut runways = ReferenceRunways::default();
+        apply_runway_database_message(&mut runways, &mut OneMessage(Some(ONE_RUNWAY.to_owned())));
+        let listed = RunwaySource::runways(&runways);
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].origin, RunwayOrigin::Database);
+    }
+
+    #[test]
+    fn a_runway_database_message_that_cannot_be_read_keeps_the_last_runways() {
+        let mut runways = ReferenceRunways::default();
+        apply_runway_database_message(&mut runways, &mut OneMessage(Some(ONE_RUNWAY.to_owned())));
+        apply_runway_database_message(&mut runways, &mut OneMessage(Some("{".to_owned())));
+        assert_eq!(RunwaySource::runways(&runways).len(), 1);
+    }
+
+    #[test]
+    fn no_runway_database_message_keeps_the_last_runways() {
+        let mut runways = ReferenceRunways::default();
+        apply_runway_database_message(&mut runways, &mut OneMessage(Some(ONE_RUNWAY.to_owned())));
+        apply_runway_database_message(&mut runways, &mut OneMessage(None));
+        assert_eq!(RunwaySource::runways(&runways).len(), 1);
+    }
 
     fn word<T: Copy>(value: T, status: SignStatus) -> Arinc429Word<T> {
         Arinc429Word::new(value, status)

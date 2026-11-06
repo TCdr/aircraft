@@ -12,6 +12,7 @@ mod manoeuvre;
 mod mountainous_approach;
 mod phase;
 mod runway;
+mod runway_database;
 #[cfg(test)]
 mod scenario_study;
 mod tad_scan;
@@ -25,6 +26,7 @@ pub use alert_logic::{PredictiveVoice, TerrainAheadMessage};
 pub use runway::{
     DepartureRunwayLatch, ReferenceRunways, Runway, RunwayGeometry, RunwayOrigin, RunwaySource,
 };
+pub use runway_database::{database_runways_from_json, NoRunwayDatabase, RunwayDatabaseMessages};
 pub use threat_areas::{GridCell, ThreatAreas, ThreatCell, ThreatLevel};
 
 use super::{
@@ -240,13 +242,18 @@ impl PredictiveTerrainAlerting {
                     _ => None,
                 },
             );
-        let runway = aircraft.and_then(|aircraft| {
-            RunwayContext::nearest(
-                &runways.runways(),
-                aircraft.position,
-                aircraft.geometric_altitude_ft,
-            )
-        });
+        let runways_around: Vec<RunwayContext> = aircraft
+            .map(|aircraft| {
+                runways
+                    .runways()
+                    .iter()
+                    .map(|runway| {
+                        RunwayContext::of(runway, aircraft.position, aircraft.geometric_altitude_ft)
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        let runway = RunwayContext::nearest_reference_runway(&runways_around);
         // The terrain is scanned whenever there is terrain to scan, also while the functions are not operative: how
         // much of the ribbon is missing from the grid decides whether they can become operative
         if self.fresh_scan_needed && !inputs.on_ground && !inputs.terrain_off {
@@ -277,7 +284,7 @@ impl PredictiveTerrainAlerting {
 
         let alerts = match aircraft {
             Some(aircraft) if operative && !inputs.on_ground => {
-                self.alert(delta, inputs, &aircraft, runway)
+                self.alert(delta, inputs, &aircraft, runway, &runways_around)
             }
             _ => self.reset_alerts(inputs),
         };
@@ -295,18 +302,18 @@ impl PredictiveTerrainAlerting {
         inputs: &PredictiveInputs,
         aircraft: &AircraftState,
         runway: Option<RunwayContext>,
+        runways_around: &[RunwayContext],
     ) -> PredictiveAlertOutputs {
-        let inside_landing_tunnel = runway.as_ref().is_some_and(|runway| {
-            landing_tunnel::is_inhibiting(
-                runway,
-                &landing_tunnel::LandingTunnelInputs {
-                    aircraft_position: aircraft.position,
-                    true_track_deg: aircraft.true_track_deg,
-                    gear_downlocked: inputs.gear_downlocked,
-                    landing_flaps: inputs.landing_flaps,
-                },
-            )
-        });
+        let tunnel_inputs = landing_tunnel::LandingTunnelInputs {
+            aircraft_position: aircraft.position,
+            true_track_deg: aircraft.true_track_deg,
+            gear_downlocked: inputs.gear_downlocked,
+            landing_flaps: inputs.landing_flaps,
+        };
+        // The aircraft may land on a runway that is not the nearest one, a staggered parallel runway for example
+        let inside_landing_tunnel = runways_around
+            .iter()
+            .any(|runway| landing_tunnel::is_inhibiting(runway, &tunnel_inputs));
 
         let no_threats = TadScan::default();
         let threats = if inside_landing_tunnel {
@@ -326,7 +333,7 @@ impl PredictiveTerrainAlerting {
                 radio_altitude_ft: inputs.radio_altitude_ft,
                 height_above_runway_ft: runway.height_above_runway_ft,
                 distance_to_runway_nm: runway.distance_nm,
-                is_destination_runway: runway.runway.origin == RunwayOrigin::Destination,
+                is_landing_runway: runway.runway.origin != RunwayOrigin::Departure,
             });
         self.terrain_clearance_floor
             .update(delta, floor_evaluation.as_ref());
@@ -463,7 +470,7 @@ mod tests {
         alerting: &mut PredictiveTerrainAlerting,
         inputs: &PredictiveInputs,
         terrain: &TestTerrain,
-        runways: &StaticRunways,
+        runways: &dyn RunwaySource,
         seconds: f64,
     ) -> PredictiveOutputs {
         let mut outputs = PredictiveOutputs::default();
@@ -887,6 +894,184 @@ mod tests {
         inputs.landing_flaps = false;
         let outputs = run(&mut alerting(), &inputs, &hill, &runways, 3.);
         assert!(outputs.alerts.warning_light || outputs.alerts.caution_light);
+    }
+
+    /// A final that crosses a valley 45 ft above the sea to a runway on a plateau at 1086 ft, whose edge is 1 NM before
+    /// the threshold.
+    const VALLEY_FT: f64 = 45.;
+    const PLATEAU_FT: f64 = 1_086.;
+    const GLIDE_PATH_FT_PER_NM: f64 = 318.4; // 3 degrees
+    const PLATEAU_FINAL_SPEED_KT: f64 = 125.;
+
+    /// 8 NM north of START, which puts the plateau edge on a cell boundary of the test terrain
+    fn plateau_threshold() -> GridPosition {
+        offset_position(START, 0., 8.)
+    }
+
+    fn plateau_edge_latitude() -> f64 {
+        plateau_threshold().latitude_degrees - 1. / 60.
+    }
+
+    fn plateau_terrain() -> TestTerrain {
+        TestTerrain::wall_north_of(plateau_edge_latitude(), VALLEY_FT, PLATEAU_FT)
+    }
+
+    /// 3000 m, towards the north
+    fn plateau_runway(origin: RunwayOrigin) -> Runway {
+        Runway {
+            reference_point: plateau_threshold(),
+            elevation_ft: PLATEAU_FT,
+            origin,
+            geometry: Some(RunwayGeometry {
+                true_heading_deg: 0.,
+                length_ft: 9_843.,
+            }),
+        }
+    }
+
+    /// The runways known when the plateau runway comes only from the runway database
+    fn plateau_runway_from_database() -> ReferenceRunways {
+        let mut runways = ReferenceRunways::default();
+        runways.set_database_runways(vec![plateau_runway(RunwayOrigin::Database)]);
+        runways
+    }
+
+    /// Flies the 3 degree final at 125 kt, gear down and landing flaps, from 8 NM to the touchdown 0.15 NM past the
+    /// threshold, and hands every step's distance to the threshold (negative past it) and outputs to `check`.
+    fn fly_plateau_final(
+        runways: &dyn RunwaySource,
+        mut check: impl FnMut(f64, &PredictiveOutputs),
+    ) {
+        let mut alerting = alerting();
+        let terrain = plateau_terrain();
+        let nm_per_step = PLATEAU_FINAL_SPEED_KT / 3600. * STEP.as_secs_f64();
+        let mut distance_nm = 8.;
+        while distance_nm > -0.15 {
+            let height_ft = if distance_nm >= 0. {
+                50. + GLIDE_PATH_FT_PER_NM * distance_nm
+            } else {
+                50. * (1. + distance_nm / 0.15) // flare to the touchdown
+            };
+            let position = offset_position(plateau_threshold(), 180., distance_nm);
+            let ground_ft = if position.latitude_degrees < plateau_edge_latitude() {
+                VALLEY_FT
+            } else {
+                PLATEAU_FT
+            };
+            let mut inputs = flying(PLATEAU_FT + height_ft);
+            inputs.radio_altitude_ft = Some(PLATEAU_FT + height_ft - ground_ft);
+            inputs.gear_downlocked = true;
+            inputs.landing_flaps = true;
+            inputs.aircraft = inputs.aircraft.map(|aircraft| AircraftState {
+                position,
+                ground_speed_kt: PLATEAU_FINAL_SPEED_KT,
+                vertical_speed_fpm: -GLIDE_PATH_FT_PER_NM * PLATEAU_FINAL_SPEED_KT / 60.,
+                ..aircraft
+            });
+            let outputs = alerting.update(
+                STEP,
+                &inputs,
+                &terrain,
+                &TestTerrain::no_obstacles(),
+                runways,
+            );
+            check(distance_nm, &outputs);
+            distance_nm -= nm_per_step;
+        }
+    }
+
+    /// Without any runway the plateau is terrain like any other. This also guards against hiding the alerts with a
+    /// radio height floor or a latch.
+    #[test]
+    fn without_a_known_runway_the_plateau_final_is_warned_down_to_the_touchdown() {
+        let mut warned_close_in = false;
+        fly_plateau_final(&no_runways(), |distance_nm, outputs| {
+            if distance_nm <= 0.5 {
+                assert!(
+                    outputs.alerts.warning_light,
+                    "no warning {distance_nm:.2} NM from the threshold"
+                );
+                warned_close_in |= outputs.alerts.voice == PredictiveVoice::AvoidTerrain;
+            }
+        });
+        assert!(warned_close_in);
+    }
+
+    #[test]
+    fn a_runway_known_only_from_the_runway_database_gives_no_alert_on_the_plateau_final() {
+        fly_plateau_final(&plateau_runway_from_database(), |distance_nm, outputs| {
+            assert_eq!(
+                outputs.alerts,
+                PredictiveAlertOutputs::default(),
+                "alert {distance_nm:.2} NM from the threshold"
+            );
+        });
+    }
+
+    #[test]
+    fn a_low_approach_far_below_a_database_runway_on_a_plateau_is_alerted() {
+        let mut inputs = flying(VALLEY_FT + 300.);
+        inputs.radio_altitude_ft = Some(300.);
+        inputs.gear_downlocked = true;
+        inputs.landing_flaps = true;
+        inputs.aircraft = inputs.aircraft.map(|aircraft| AircraftState {
+            position: offset_position(plateau_threshold(), 180., 3.),
+            ground_speed_kt: 125.,
+            ..aircraft
+        });
+        let mut alerting = alerting();
+        let outputs = run(
+            &mut alerting,
+            &inputs,
+            &plateau_terrain(),
+            &plateau_runway_from_database(),
+            1.,
+        );
+        assert!(outputs.alerts.caution_light);
+        assert!(alerting.terrain_clearance_floor.is_alerting());
+    }
+
+    #[test]
+    fn the_landing_tunnel_of_a_runway_that_is_not_the_nearest_inhibits_the_alerts() {
+        let (inputs, _, hill) = final_approach();
+        let long_runway = |reference_point| Runway {
+            reference_point,
+            elevation_ft: 0.,
+            origin: RunwayOrigin::Database,
+            geometry: Some(RunwayGeometry {
+                true_heading_deg: 0.,
+                length_ft: 2. * runway::FEET_PER_NAUTICAL_MILE,
+            }),
+        };
+        let landed_on = long_runway(offset_position(START, 0., 2.));
+        // Nearer to the aircraft than the runway it lands on, but far to the side of its own tunnel
+        let staggered_parallel =
+            long_runway(offset_position(offset_position(START, 0., 1.), 90., 1.35));
+        let runways = StaticRunways(vec![staggered_parallel, landed_on]);
+        let outputs = run(&mut alerting(), &inputs, &hill, &runways, 3.);
+        assert_eq!(outputs.alerts, PredictiveAlertOutputs::default());
+    }
+
+    /// The plateau runway as the database holds it when it is listed from its far end, in the opposite direction
+    fn plateau_runway_from_database_in_the_secondary_direction() -> ReferenceRunways {
+        let primary = plateau_runway(RunwayOrigin::Database);
+        let mut runways = ReferenceRunways::default();
+        runways.set_database_runways(vec![primary.reciprocal().unwrap()]);
+        runways
+    }
+
+    #[test]
+    fn a_database_runway_listed_from_its_far_end_gives_no_alert_on_the_plateau_final() {
+        fly_plateau_final(
+            &plateau_runway_from_database_in_the_secondary_direction(),
+            |distance_nm, outputs| {
+                assert_eq!(
+                    outputs.alerts,
+                    PredictiveAlertOutputs::default(),
+                    "alert {distance_nm:.2} NM from the threshold"
+                );
+            },
+        );
     }
 
     #[test]
