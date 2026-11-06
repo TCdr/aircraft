@@ -4,7 +4,7 @@
 import { FeatureType } from '@flybywiresim/fbw-sdk';
 
 import { booleanPointInPolygon } from '@turf/turf';
-import { Polygon } from 'geojson';
+import { Polygon, Position } from 'geojson';
 import { Oanc } from './Oanc';
 
 const OANC_VALID_POSITION_INDICATION_FEATURE_TYPES = [
@@ -19,11 +19,36 @@ const OANC_VALID_POSITION_INDICATION_FEATURE_TYPES = [
 export class OancPositionComputer<T extends number> {
   constructor(private readonly oanc: Oanc<T>) {}
 
+  private lastData?: Oanc<T>['data'];
+
+  private lastX = NaN;
+
+  private lastY = NaN;
+
+  private lastPosition?: string;
+
+  /** Scanning every feature is costly, and the answer only changes when the aircraft moves or the map is replaced. */
   public computePosition(): string | undefined {
-    if (!this.oanc.data) {
+    const data = this.oanc.data;
+    if (!data) {
+      this.lastData = undefined;
       return;
     }
-    const features = this.oanc.data.features;
+
+    const ppos = this.oanc.projectedPpos.get();
+    const [x, y] = ppos;
+    if (data !== this.lastData || x !== this.lastX || y !== this.lastY) {
+      this.lastData = data;
+      this.lastX = x;
+      this.lastY = y;
+      this.lastPosition = this.scanFeatures(data, ppos);
+    }
+
+    return this.lastPosition;
+  }
+
+  private scanFeatures(data: NonNullable<Oanc<T>['data']>, ppos: Position): string | undefined {
+    const features = data.features;
 
     for (const feature of features) {
       if (!OANC_VALID_POSITION_INDICATION_FEATURE_TYPES.includes(feature.properties.feattype)) {
@@ -36,7 +61,7 @@ export class OancPositionComputer<T extends number> {
 
       const polygon = feature.geometry as Polygon;
 
-      if (booleanPointInPolygon(this.oanc.projectedPpos.get(), polygon)) {
+      if (booleanPointInPolygon(ppos, polygon)) {
         switch (feature.properties.feattype) {
           case FeatureType.ParkingStandArea:
             return feature.properties.idstd;
