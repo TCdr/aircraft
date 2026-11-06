@@ -96,3 +96,59 @@ describe('LegacySoundManager priorities', () => {
     expect(count(soundList.glideslope_quiet.name)).toBeGreaterThanOrEqual(2);
   });
 });
+
+describe('LegacySoundManager queued sounds', () => {
+  let played: string[];
+
+  beforeEach(() => {
+    played = [];
+    vi.stubGlobal('Coherent', {
+      call: (_: string, name: string) => {
+        played.push(name);
+        return Promise.resolve();
+      },
+    });
+    vi.spyOn(SimVar, 'SetSimVarValue').mockImplementation(() => Promise.resolve());
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  /** Runs the manager for the seconds, in steps of 0.1 s */
+  const run = (soundManager: LegacySoundManager, seconds: number) => {
+    for (let i = 0; i < seconds * 10; i++) {
+      soundManager.update(100);
+    }
+  };
+
+  const count = (name: string) => played.filter((playedName) => playedName === name).length;
+
+  it('a sound asked while another plays waits, then plays', () => {
+    const soundManager = new LegacySoundManager();
+    soundManager.tryPlaySound(soundList.sink_rate);
+    expect(() => soundManager.tryPlaySound(soundList.terrain, true)).not.toThrow();
+    run(soundManager, 2);
+    expect(played).toEqual([soundList.sink_rate.name, soundList.terrain.name]);
+  });
+
+  it('a repeated callout sounds twice', () => {
+    const soundManager = new LegacySoundManager();
+    expect(() => soundManager.tryPlaySound(soundList.terrain, true, true)).not.toThrow();
+    run(soundManager, 3);
+    expect(count(soundList.terrain.name)).toBe(2);
+  });
+
+  it('a due GPWS sound plays before a queued sound', () => {
+    const soundManager = new LegacySoundManager();
+    const gpws = new LegacyGpws(new EventBus(), soundManager);
+    gpws.modes[0].current = 2;
+    gpws.GPWSComputeLightsAndCallouts();
+    run(soundManager, 0.1);
+    soundManager.tryPlaySound(soundList.terrain, true);
+    run(soundManager, 3);
+    expect(played[0]).toBe(soundList.pull_up.name);
+    expect(count(soundList.terrain.name)).toBeGreaterThanOrEqual(1);
+  });
+});

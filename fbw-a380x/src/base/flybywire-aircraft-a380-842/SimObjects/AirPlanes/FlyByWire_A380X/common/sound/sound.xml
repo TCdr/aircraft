@@ -1170,6 +1170,11 @@
 
         </Sound>
 
+        <Sound WwiseEvent="aural_speed" WwiseData="true" NodeName="SOUND_WIPER_L" LocalVar="A32NX_FWS_AUDIO_SPEED" Continuous="true">
+            <Range LowerBound="1"/>
+
+        </Sound>
+
         <Sound WwiseEvent="autobrake_off" WwiseData="true" NodeName="SOUND_WIPER_L" LocalVar="A32NX_AUDIO_AUTOBRAKE_OFF" Continuous="false">
             <Range LowerBound="1"/>
 
