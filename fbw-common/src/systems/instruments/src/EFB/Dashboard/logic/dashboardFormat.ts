@@ -23,6 +23,15 @@ export const simbriefWeightSumKg = (values: (number | string | undefined)[], ofp
 const roundedUserWeight = (kg: number, metric: boolean): number =>
   Math.round((metric ? kg : kg / KG_PER_LB) / WEIGHT_STEP) * WEIGHT_STEP;
 
+/**
+ * A weight as the page shows it (whole tens of the user's unit), as kilograms again: formatting it gives the same text
+ * as formatting the original weight
+ */
+export const weightAsShownKg = (kg: number, metric: boolean): number => {
+  const shown = roundedUserWeight(kg, metric);
+  return metric ? shown : shown * KG_PER_LB;
+};
+
 export const weightUnitLabel = (metric: boolean): string => (metric ? 'kg' : 'lb');
 
 /** Thousands separated by commas; the sim browser's toLocaleString does not follow the user's locale */

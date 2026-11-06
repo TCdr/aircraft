@@ -23,6 +23,9 @@ import {
   payloadServiceStatus,
   serviceRan,
 } from './logic/serviceStatus';
+import { isStructurallyEqual } from './logic/structuralEquality';
+import { numberReader } from './registeredReads';
+import { FuelQuantities } from './readFuelQuantities';
 import { useOfpKey } from './useDashboardPhase';
 import { readStoredValue } from './readStoredValue';
 
@@ -95,7 +98,8 @@ const useValueAtStart = (running: boolean, value: number): number => {
   return startValue.current;
 };
 
-export const useFuelStatus = (): ServiceStatus => {
+/** @param fuel the fuel vars as the dashboard's live figures polled them */
+export const useFuelStatus = (fuel: FuelQuantities): ServiceStatus => {
   const isA380 = useAppSelector((state) => state.config.airframeInfo.variant) === AirframeType.A380_842;
 
   const [gsxSync] = usePersistentNumberProperty('GSX_FUEL_SYNC', 0);
@@ -104,12 +108,15 @@ export const useFuelStatus = (): ServiceStatus => {
   const [refuelRate] = usePersistentProperty('REFUEL_RATE_SETTING', 'REAL');
 
   // A32NX: gallons per tank and the weight of one gallon
-  const [kilogramsPerGallon] = useSimVar('FUEL WEIGHT PER GALLON', 'kilograms', 1_000);
-  const [center] = useSimVar('FUEL TANK CENTER QUANTITY', 'Gallons', 1_000);
-  const [leftMain] = useSimVar('FUEL TANK LEFT MAIN QUANTITY', 'Gallons', 1_000);
-  const [leftAux] = useSimVar('FUEL TANK LEFT AUX QUANTITY', 'Gallons', 1_000);
-  const [rightMain] = useSimVar('FUEL TANK RIGHT MAIN QUANTITY', 'Gallons', 1_000);
-  const [rightAux] = useSimVar('FUEL TANK RIGHT AUX QUANTITY', 'Gallons', 1_000);
+  const {
+    kilogramsPerGallon,
+    centerGallons: center,
+    leftMainGallons: leftMain,
+    leftAuxGallons: leftAux,
+    rightMainGallons: rightMain,
+    rightAuxGallons: rightAux,
+    a380TotalKg: a380OnBoardKg,
+  } = fuel;
   const [totalTargetGallons] = useSimVar('L:A32NX_FUEL_TOTAL_DESIRED', 'Number', 1_000);
   const [centerTargetGallons] = useSimVar('L:A32NX_FUEL_CENTER_DESIRED', 'Number', 1_000);
   const [leftMainTarget] = useSimVar('L:A32NX_FUEL_LEFT_MAIN_DESIRED', 'Number', 1_000);
@@ -118,7 +125,6 @@ export const useFuelStatus = (): ServiceStatus => {
   const [rightAuxTarget] = useSimVar('L:A32NX_FUEL_RIGHT_AUX_DESIRED', 'Number', 1_000);
 
   // A380X: kilograms
-  const [a380OnBoardKg] = useSimVar('L:A32NX_TOTAL_FUEL_QUANTITY', 'Number', 1_000);
   const [a380TargetKg] = useSimVar('L:A32NX_FUEL_DESIRED', 'Kilograms', 1_000);
 
   const wingGallons = Math.max(leftMain + leftAux + rightMain + rightAux, 0);
@@ -187,29 +193,39 @@ export const usePayloadLoad = (): PayloadLoad => {
   // The seat and cargo vars are one bit field per station, so they are read together instead of one hook each
   const [counts, setCounts] = useState({ onBoard: 0, target: 0, cargoKg: 0, cargoTargetKg: 0, doorsOpen: 0 });
   useEffect(() => {
-    const countPassengers = (suffix: string) =>
-      cabinInfo.seatMap.reduce((sum, station) => {
-        const flags = new SeatFlags(SimVar.GetSimVarValue(`L:${station.simVar}${suffix}`, 'number'), station.capacity);
+    // Registered ids, created once per cabin: a by-name read makes garbage on every poll
+    const seatStations = cabinInfo.seatMap.map((station) => ({
+      capacity: station.capacity,
+      readOnBoard: numberReader(`L:${station.simVar}`, 'number'),
+      readTarget: numberReader(`L:${station.simVar}_DESIRED`, 'number'),
+    }));
+    const cargoStations = cabinInfo.cargoMap.map((station) => ({
+      readOnBoard: numberReader(`L:${station.simVar}`, 'number'),
+      readTarget: numberReader(`L:${station.simVar}_DESIRED`, 'number'),
+    }));
+    const readDoorOpenFractions = (isA380 ? A380_DOOR_INDICES : A32NX_DOOR_INDICES).map((index) =>
+      numberReader(`A:INTERACTIVE POINT OPEN:${index}`, 'Percent over 100'),
+    );
+    const countPassengers = (target: boolean) =>
+      seatStations.reduce((sum, station) => {
+        const flags = new SeatFlags(target ? station.readTarget() : station.readOnBoard(), station.capacity);
         return sum + flags.getTotalFilledSeats();
       }, 0);
-    const cargoKg = (suffix: string) =>
-      cabinInfo.cargoMap.reduce(
-        (sum, station) => sum + SimVar.GetSimVarValue(`L:${station.simVar}${suffix}`, 'number'),
-        0,
-      );
-    const doorIndices = isA380 ? A380_DOOR_INDICES : A32NX_DOOR_INDICES;
+    const cargoKg = (target: boolean) =>
+      cargoStations.reduce((sum, station) => sum + (target ? station.readTarget() : station.readOnBoard()), 0);
 
-    const read = () => {
-      setCounts({
-        onBoard: countPassengers(''),
-        target: countPassengers('_DESIRED'),
-        cargoKg: cargoKg(''),
-        cargoTargetKg: cargoKg('_DESIRED'),
-        doorsOpen: doorIndices.filter(
-          (index) => SimVar.GetSimVarValue(`A:INTERACTIVE POINT OPEN:${index}`, 'Percent over 100') > 0,
-        ).length,
+    // The same counts keep the previous object, so an unchanged poll does not render the dashboard
+    const read = () =>
+      setCounts((previous) => {
+        const next = {
+          onBoard: countPassengers(false),
+          target: countPassengers(true),
+          cargoKg: cargoKg(false),
+          cargoTargetKg: cargoKg(true),
+          doorsOpen: readDoorOpenFractions.filter((readOpenFraction) => readOpenFraction() > 0).length,
+        };
+        return isStructurallyEqual(previous, next) ? previous : next;
       });
-    };
     read();
     const timer = window.setInterval(read, PAYLOAD_POLL_MS);
     return () => window.clearInterval(timer);
