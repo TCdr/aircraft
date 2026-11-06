@@ -1022,6 +1022,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] The C chord when approaching the selected altitude lasts 1.5 s - @TCdr
 1. [A380X/FWS] New SPEED SPEED SPEED low energy voice in CONF 2 to FULL below 2500 ft, repeated every 5 s until thrust is added - @TCdr
 1. [A380X/FWS] The master warning chime no longer waits behind the altitude alert chord - @TCdr
+1. [A380X/OANS] RWY AHEAD names the runway the aircraft is about to enter: with an airport map it named the same runway of the airport (e.g. 07L-25R at KLAX while crossing 24L) whichever runway was ahead - @TCdr
 
 ## 2024.1.0
 
