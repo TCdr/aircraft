@@ -5,6 +5,7 @@ import { ClockEvents, EventBus, Subject } from '@microsoft/msfs-sdk';
 import { FailuresConsumer } from '@flybywiresim/fbw-sdk';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { OitSimvars } from '../OitSimvarPublisher';
+import { mockRegisteredSimVars } from '../OitSpecSupport';
 import { AircraftNetworkServerUnit } from './AircraftNetworkServerUnit';
 import { ARU_START_DURATION_MS, AruStartup, isNssAvncsAvailable } from './AnsuLogic';
 import { AvncsRouterUnit, SecureInterfaceRouterUnit } from './NssRouterUnits';
@@ -36,7 +37,7 @@ const COLD_START_MS = AruStartup.FLIGHT_LOAD_WINDOW_MS + 5_000;
  */
 function setUp(initialBuses: SimVars = ALL_BUSES_POWERED) {
   const simVars: SimVars = { ...initialBuses };
-  vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) => simVars[name] ?? 0);
+  mockRegisteredSimVars((name) => simVars[name] ?? 0);
   vi.spyOn(SimVar, 'SetSimVarValue').mockImplementation((name: string, _unit: string, value: number) => {
     simVars[name] = Number(value);
     return Promise.resolve();
