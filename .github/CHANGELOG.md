@@ -2939,3 +2939,4 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] Flight warning loop reads the simulation time once per cycle instead of once per alert (less display thread load) - @TCdr
 1. [A380X/PFD] PFD no longer searches the page for its own side on every frame - @TCdr
 1. [OANS] Airport map labels, layers and position text are only recomputed when something changed (better frame rate at large airports) - @TCdr
+1. [A380X/FWS] Flight warning loop no longer rebuilds its alert lists on every cycle (fewer stutters) - @TCdr
