@@ -69,11 +69,13 @@ export class NearbyRunwayProvider {
    * @param bus the instrument's event bus
    * @param radiusNm the search radius around the aircraft, in nautical miles
    * @param maxAirports the most airports kept
+   * @param minRunwayLengthM airports whose longest runway is shorter than this are not searched, in metres
    */
   constructor(
     bus: EventBus,
     private readonly radiusNm = 8,
     private readonly maxAirports = 20,
+    private readonly minRunwayLengthM = NearbyRunwayProvider.MIN_RUNWAY_LENGTH_M,
   ) {
     this.loader = new FacilityLoader(FacilityRepository.getRepository(bus));
   }
@@ -149,7 +151,7 @@ export class NearbyRunwayProvider {
         NearestAirportSearchSession.Defaults.SurfaceTypeMask,
         NearestAirportSearchSession.Defaults.ApproachTypeMask,
         NearestAirportSearchSession.Defaults.ToweredMask,
-        NearbyRunwayProvider.MIN_RUNWAY_LENGTH_M,
+        this.minRunwayLengthM,
       );
       this.session = session;
     } catch (e) {
@@ -183,6 +185,7 @@ export class NearbyRunwayProvider {
           longitude: runway.longitude,
           length: runway.length,
           width: runway.width,
+          surface: runway.surface,
           ends,
         });
       }

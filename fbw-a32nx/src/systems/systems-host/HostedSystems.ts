@@ -4,6 +4,7 @@
 import { EventBus, Instrument } from '@microsoft/msfs-sdk';
 import { TawsStatusBridge } from './systems/TawsStatusBridge';
 import { RaasSystem } from './systems/Raas/RaasSystem';
+import { EgpwcRunwayDatabase } from './systems/Egpwc/EgpwcRunwayDatabase';
 import { Transponder } from './systems/Transponder/Transponder';
 import { RadioCommunicationFailures } from './systems/Communications/RadioCommunicationFailures';
 import { NavigationReceiverFailures } from './systems/Navigation/NavigationReceiverFailures';
@@ -22,6 +23,7 @@ export function createHostedSystems(bus: EventBus): [name: string, instrument: I
   return [
     ['TawsStatusBridge', new TawsStatusBridge()],
     ['Raas', new RaasSystem(bus)],
+    ['EgpwcRunwayDatabase', new EgpwcRunwayDatabase(bus)],
     ['Transponder', new Transponder()],
     ['RadioCommunicationFailures', new RadioCommunicationFailures()],
     ['NavigationReceiverFailures', new NavigationReceiverFailures()],

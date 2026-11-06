@@ -4,6 +4,7 @@
 import { EventBus } from '@microsoft/msfs-sdk';
 import { describe, expect, it } from 'vitest';
 import { createHostedSystems } from './HostedSystems';
+import { EgpwcRunwayDatabase } from './systems/Egpwc/EgpwcRunwayDatabase';
 import { DoorFailures } from './systems/Doors/DoorFailures';
 import { PaxOxygenMasks } from './systems/Oxygen/PaxOxygenMasks';
 
@@ -17,6 +18,10 @@ describe('the systems the A32NX systems host runs', () => {
 
   it('runs the door proximity sensor and cockpit door failures', () => {
     expect(systemNamed('DoorFailures')).toBeInstanceOf(DoorFailures);
+  });
+
+  it('runs the EGPWC runway database', () => {
+    expect(systemNamed('EgpwcRunwayDatabase')).toBeInstanceOf(EgpwcRunwayDatabase);
   });
 
   it('gives each system its own backplane name and instance', () => {

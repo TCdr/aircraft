@@ -1,10 +1,11 @@
 //! The runways the terrain functions know about.
 //!
-//! There is no runway database in the aircraft. The terrain functions work with what the aircraft does have: the
-//! origin and destination runways of the flight plan the FMGC sends to the EGPWC, and the place the aircraft took off
-//! from. Anything that can name runways (a future database) plugs in through [`RunwaySource`].
+//! The runways of the airports around the aircraft (the runway database), the origin and destination runways of the
+//! flight plan the FMGC sends to the EGPWC, and the place the aircraft took off from. Anything that can name runways
+//! plugs in through [`RunwaySource`].
 
 use super::geometry::{bearing_deg, distance_nm, offset_position, signed_angle_difference_deg};
+use super::phase::TerrainPhase;
 use crate::surveillance::egpws::terrain_grid::GridPosition;
 
 pub(super) const FEET_PER_NAUTICAL_MILE: f64 = 6_076.12;
@@ -15,6 +16,8 @@ pub enum RunwayOrigin {
     Destination,
     /// The runway the aircraft takes off from
     Departure,
+    /// A runway of an airport around the aircraft, from the runway database
+    Database,
 }
 
 /// The direction and length of a runway, from its reference point to its far end.
@@ -106,6 +109,27 @@ impl Runway {
         }
     }
 
+    /// The angle between the runway line and a true heading, whichever direction the runway is used in, 0 to 90
+    /// degrees. None without a geometry.
+    fn angle_to_line_deg(&self, true_heading_deg: f64) -> Option<f64> {
+        let geometry = self.geometry?;
+        let difference_deg =
+            signed_angle_difference_deg(geometry.true_heading_deg, true_heading_deg).abs();
+        Some(difference_deg.min(180. - difference_deg))
+    }
+
+    /// Design choice: a runway that holds the reference point of the other and lies within 10 degrees of its line is
+    /// the same runway, whatever the direction of use. The sources give the headings a little differently, but a
+    /// runway that starts at the side of another one and crosses it is another runway.
+    fn is_same_runway_as(&self, other: &Self) -> bool {
+        const SAME_LINE_TOLERANCE_DEG: f64 = 10.;
+        self.holds(other.reference_point)
+            && other
+                .geometry
+                .and_then(|geometry| self.angle_to_line_deg(geometry.true_heading_deg))
+                .is_some_and(|angle_deg| angle_deg <= SAME_LINE_TOLERANCE_DEG)
+    }
+
     /// Design choice: a point within a tenth of a nautical mile of the runway, sideways or before its start, is on
     /// it. That holds the start of a rolling takeoff from a taxiway entry and keeps out the parallel taxiways.
     fn holds(&self, position: GridPosition) -> bool {
@@ -155,19 +179,39 @@ impl RunwayContext {
         }
     }
 
-    pub(super) fn nearest(
-        runways: &[Runway],
-        position: GridPosition,
-        geometric_altitude_ft: f64,
-    ) -> Option<Self> {
-        runways
+    pub(super) fn of(runway: &Runway, position: GridPosition, geometric_altitude_ft: f64) -> Self {
+        Self {
+            runway: *runway,
+            distance_nm: runway.distance_nm_from(position),
+            height_above_runway_ft: geometric_altitude_ft - runway.elevation_ft,
+        }
+    }
+
+    pub(super) fn nearest_of(contexts: &[Self]) -> Option<Self> {
+        contexts
             .iter()
-            .map(|runway| Self {
-                runway: *runway,
-                distance_nm: runway.distance_nm_from(position),
-                height_above_runway_ft: geometric_altitude_ft - runway.elevation_ft,
-            })
             .min_by(|a, b| a.distance_nm.total_cmp(&b.distance_nm))
+            .copied()
+    }
+
+    /// The runway the phase, the floors and the terrain scan refer to. While the aircraft is departing it leaves out
+    /// the runways of the database: the other runways of the departure airport are known too, and a parallel or
+    /// crossing one can be nearer just after lift-off, which would end the departure phase and bring the landing
+    /// floors in. Otherwise, and when there are no database runways, it is the nearest runway.
+    pub(super) fn nearest_reference_runway(contexts: &[Self]) -> Option<Self> {
+        let is_departing = contexts.iter().any(|context| {
+            context.runway.origin == RunwayOrigin::Departure
+                && TerrainPhase::determine(Some(context)) == TerrainPhase::Departure
+        });
+        if !is_departing {
+            return Self::nearest_of(contexts);
+        }
+        let without_database: Vec<Self> = contexts
+            .iter()
+            .filter(|context| context.runway.origin != RunwayOrigin::Database)
+            .copied()
+            .collect();
+        Self::nearest_of(&without_database)
     }
 }
 
@@ -178,6 +222,9 @@ impl RunwayContext {
 #[derive(Default)]
 pub struct DepartureRunwayLatch {
     runway: Option<Runway>,
+    /// The true track of the aircraft rolling fast from the latched point, which tells the runway of the roll at an
+    /// intersection
+    roll_true_track_deg: Option<f64>,
 }
 
 impl DepartureRunwayLatch {
@@ -190,14 +237,20 @@ impl DepartureRunwayLatch {
         ground_speed_kt: f64,
         position: GridPosition,
         geometric_altitude_ft: f64,
+        true_track_deg: f64,
     ) {
-        if on_ground && (ground_speed_kt < Self::SLOW_GROUND_SPEED_KT || self.runway.is_none()) {
+        let is_slow = ground_speed_kt < Self::SLOW_GROUND_SPEED_KT;
+        if on_ground && (is_slow || self.runway.is_none()) {
             self.runway = Some(Runway {
                 reference_point: position,
                 elevation_ft: geometric_altitude_ft,
                 origin: RunwayOrigin::Departure,
                 geometry: None,
             });
+            self.roll_true_track_deg = None;
+        }
+        if on_ground && !is_slow && self.runway.is_some() {
+            self.roll_true_track_deg = Some(true_track_deg);
         }
     }
 
@@ -206,11 +259,13 @@ impl DepartureRunwayLatch {
     }
 }
 
-/// The runways of the A320: the origin and destination of the flight plan and the departure latch.
+/// The runways of the A320: the origin and destination of the flight plan, the runway database and the departure
+/// latch.
 #[derive(Default)]
 pub struct ReferenceRunways {
     origin: Option<Runway>,
     destination: Option<Runway>,
+    database: Vec<Runway>,
     departure_latch: DepartureRunwayLatch,
 }
 
@@ -223,30 +278,66 @@ impl ReferenceRunways {
         self.destination = destination;
     }
 
+    /// The runways of the airports around the aircraft. They replace the previous list.
+    pub fn set_database_runways(&mut self, runways: Vec<Runway>) {
+        self.database = runways;
+    }
+
     pub fn departure_latch_mut(&mut self) -> &mut DepartureRunwayLatch {
         &mut self.departure_latch
     }
 
-    /// The origin runway of the flight plan, as long as the takeoff roll started on it. A takeoff from another runway
-    /// than the planned one keeps the latch.
+    /// The runway the takeoff roll started on: the origin runway of the flight plan, else a runway of the database,
+    /// else the point the roll started at. A takeoff from another runway than the planned one keeps the latch. Where
+    /// several runways hold the point the roll started at, the one along the track of the roll is taken.
     fn departure(&self) -> Option<Runway> {
-        let latched = self.departure_latch.runway();
-        match (self.origin, latched) {
-            (Some(origin), Some(latched)) if !origin.holds(latched.reference_point) => {
-                Some(latched)
-            }
-            (Some(origin), _) => Some(origin),
-            (None, latched) => latched,
-        }
+        /// Design choice: wide enough for the wind crab and a line-up that is still turning, narrow enough to tell
+        /// crossing runways apart.
+        const ALIGNED_WITH_ROLL_DEG: f64 = 20.;
+
+        let Some(latched) = self.departure_latch.runway() else {
+            return self.origin;
+        };
+        let holding: Vec<&Runway> = self
+            .origin
+            .iter()
+            .chain(&self.database)
+            .filter(|runway| runway.holds(latched.reference_point))
+            .collect();
+        let along_the_roll = holding.iter().find(|runway| {
+            self.departure_latch
+                .roll_true_track_deg
+                .and_then(|track_deg| runway.angle_to_line_deg(track_deg))
+                .is_some_and(|angle_deg| angle_deg <= ALIGNED_WITH_ROLL_DEG)
+        });
+        along_the_roll
+            .or(holding.first())
+            .map(|runway| Runway {
+                origin: RunwayOrigin::Departure,
+                ..**runway
+            })
+            .or(Some(latched))
     }
 }
 
 impl RunwaySource for ReferenceRunways {
     fn runways(&self) -> Vec<Runway> {
-        self.destination
+        let mut runways: Vec<Runway> = self
+            .destination
             .into_iter()
             .chain(self.departure())
-            .collect()
+            .collect();
+        // The database also holds the runways of the flight plan, and the departure runway may come from it
+        let plan_runways = runways.len();
+        for database_runway in &self.database {
+            if !runways[..plan_runways]
+                .iter()
+                .any(|runway| runway.is_same_runway_as(database_runway))
+            {
+                runways.push(*database_runway);
+            }
+        }
+        runways
     }
 }
 
@@ -304,7 +395,11 @@ mod tests {
             runway_at(47.5, RunwayOrigin::Destination),
             runway_at(47.1, RunwayOrigin::Departure),
         ];
-        let context = RunwayContext::nearest(&runways, GridPosition::new(47., 8.), 1_100.).unwrap();
+        let contexts: Vec<RunwayContext> = runways
+            .iter()
+            .map(|runway| RunwayContext::of(runway, GridPosition::new(47., 8.), 1_100.))
+            .collect();
+        let context = RunwayContext::nearest_of(&contexts).unwrap();
         assert_eq!(context.runway.origin, RunwayOrigin::Departure);
         assert!((context.distance_nm - 6.).abs() < 0.1);
         assert_eq!(context.height_above_runway_ft, 1_000.);
@@ -312,7 +407,7 @@ mod tests {
 
     #[test]
     fn there_is_no_nearest_runway_without_runways() {
-        assert!(RunwayContext::nearest(&[], GridPosition::new(0., 0.), 0.).is_none());
+        assert!(RunwayContext::nearest_of(&[]).is_none());
     }
 
     #[test]
@@ -386,8 +481,8 @@ mod tests {
         let mut latch = DepartureRunwayLatch::default();
         assert!(latch.runway().is_none());
 
-        latch.update(true, 10., GridPosition::new(1., 2.), 50.);
-        latch.update(true, 20., GridPosition::new(1.001, 2.), 52.);
+        latch.update(true, 10., GridPosition::new(1., 2.), 50., 0.);
+        latch.update(true, 20., GridPosition::new(1.001, 2.), 52., 0.);
         let runway = latch.runway().unwrap();
         assert_eq!(runway.reference_point, GridPosition::new(1.001, 2.));
         assert_eq!(runway.elevation_ft, 52.);
@@ -398,9 +493,9 @@ mod tests {
     #[test]
     fn the_latch_keeps_the_takeoff_point_during_the_roll_and_the_flight() {
         let mut latch = DepartureRunwayLatch::default();
-        latch.update(true, 5., GridPosition::new(1., 2.), 50.);
-        latch.update(true, 80., GridPosition::new(1.02, 2.), 50.);
-        latch.update(false, 150., GridPosition::new(1.1, 2.), 600.);
+        latch.update(true, 5., GridPosition::new(1., 2.), 50., 0.);
+        latch.update(true, 80., GridPosition::new(1.02, 2.), 50., 0.);
+        latch.update(false, 150., GridPosition::new(1.1, 2.), 600., 0.);
         assert_eq!(
             latch.runway().unwrap().reference_point,
             GridPosition::new(1., 2.)
@@ -411,9 +506,9 @@ mod tests {
     fn without_an_earlier_point_the_first_ground_position_is_latched_at_any_speed() {
         // After a flight is loaded on the runway the GPS position can become valid only during the takeoff roll
         let mut latch = DepartureRunwayLatch::default();
-        latch.update(true, 90., GridPosition::new(1., 2.), 50.);
-        latch.update(true, 120., GridPosition::new(1.01, 2.), 50.);
-        latch.update(false, 150., GridPosition::new(1.02, 2.), 200.);
+        latch.update(true, 90., GridPosition::new(1., 2.), 50., 0.);
+        latch.update(true, 120., GridPosition::new(1.01, 2.), 50., 0.);
+        latch.update(false, 150., GridPosition::new(1.02, 2.), 200., 0.);
         assert_eq!(
             latch.runway().unwrap().reference_point,
             GridPosition::new(1., 2.)
@@ -423,7 +518,7 @@ mod tests {
     #[test]
     fn a_first_position_in_the_air_is_not_latched() {
         let mut latch = DepartureRunwayLatch::default();
-        latch.update(false, 150., GridPosition::new(1., 2.), 600.);
+        latch.update(false, 150., GridPosition::new(1., 2.), 600., 0.);
         assert!(latch.runway().is_none());
     }
 
@@ -432,7 +527,7 @@ mod tests {
         let mut runways = ReferenceRunways::default();
         runways
             .departure_latch_mut()
-            .update(true, 80., GridPosition::new(1., 2.), 0.);
+            .update(true, 80., GridPosition::new(1., 2.), 0., 0.);
         assert_eq!(runways.runways().len(), 1);
     }
 
@@ -443,7 +538,7 @@ mod tests {
 
         runways
             .departure_latch_mut()
-            .update(true, 0., GridPosition::new(1., 2.), 0.);
+            .update(true, 0., GridPosition::new(1., 2.), 0., 0.);
         assert_eq!(runways.runways().len(), 1);
 
         runways.set_destination(Some(runway_at(47., RunwayOrigin::Destination)));
@@ -479,7 +574,7 @@ mod tests {
         let lined_up = offset_position(offset_position(NORTH_RUNWAY_START, 0., 0.16), 90., 0.01);
         runways
             .departure_latch_mut()
-            .update(true, 5., lined_up, 100.);
+            .update(true, 5., lined_up, 100., 0.);
         assert_eq!(
             departure_of(&runways),
             north_runway(RunwayOrigin::Departure)
@@ -497,7 +592,7 @@ mod tests {
         ] {
             runways
                 .departure_latch_mut()
-                .update(true, 5., position, 100.);
+                .update(true, 5., position, 100., 0.);
             let departure = departure_of(&runways);
             assert_eq!(departure.reference_point, position);
             assert!(departure.geometry.is_none());
@@ -509,7 +604,7 @@ mod tests {
         let mut runways = ReferenceRunways::default();
         runways
             .departure_latch_mut()
-            .update(true, 5., NORTH_RUNWAY_START, 100.);
+            .update(true, 5., NORTH_RUNWAY_START, 100., 0.);
         assert!(departure_of(&runways).geometry.is_none());
     }
 
@@ -526,5 +621,224 @@ mod tests {
             ..latched
         };
         assert!(!known_runway.is_in_departure_runway_area());
+    }
+
+    fn reference_runways_with_database(database: Vec<Runway>) -> ReferenceRunways {
+        let mut runways = ReferenceRunways::default();
+        runways.set_database_runways(database);
+        runways
+    }
+
+    #[test]
+    fn the_database_runways_are_listed_with_the_flight_plan_runways() {
+        let mut runways =
+            reference_runways_with_database(vec![runway_at(48., RunwayOrigin::Database)]);
+        runways.set_destination(Some(north_runway(RunwayOrigin::Destination)));
+        let listed = runways.runways();
+        assert_eq!(listed.len(), 2);
+        assert_eq!(listed[0].origin, RunwayOrigin::Destination);
+        assert_eq!(listed[1].origin, RunwayOrigin::Database);
+    }
+
+    #[test]
+    fn the_database_copy_of_the_destination_runway_is_left_out() {
+        let destination = north_runway(RunwayOrigin::Destination);
+        let same_direction = north_runway(RunwayOrigin::Database);
+        let opposite_direction = Runway {
+            origin: RunwayOrigin::Database,
+            ..north_runway(RunwayOrigin::Database).reciprocal().unwrap()
+        };
+        for copy in [same_direction, opposite_direction] {
+            let mut runways = reference_runways_with_database(vec![copy]);
+            runways.set_destination(Some(destination));
+            assert_eq!(runways.runways(), vec![destination]);
+        }
+    }
+
+    #[test]
+    fn a_parallel_runway_of_the_destination_airport_is_kept() {
+        let destination = north_runway(RunwayOrigin::Destination);
+        let parallel = Runway {
+            reference_point: offset_position(NORTH_RUNWAY_START, 90., 0.12),
+            ..north_runway(RunwayOrigin::Database)
+        };
+        let mut runways = reference_runways_with_database(vec![parallel]);
+        runways.set_destination(Some(destination));
+        assert_eq!(runways.runways(), vec![destination, parallel]);
+    }
+
+    #[test]
+    fn a_roll_started_on_a_database_runway_makes_it_the_departure_runway() {
+        let mut runways =
+            reference_runways_with_database(vec![north_runway(RunwayOrigin::Database)]);
+        runways
+            .departure_latch_mut()
+            .update(true, 5., NORTH_RUNWAY_START, 100., 0.);
+        let listed = runways.runways();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].origin, RunwayOrigin::Departure);
+        assert_eq!(
+            listed[0].geometry,
+            north_runway(RunwayOrigin::Database).geometry
+        );
+    }
+
+    #[test]
+    fn the_planned_origin_runway_wins_over_its_database_copy() {
+        let origin = north_runway(RunwayOrigin::Departure);
+        let mut runways =
+            reference_runways_with_database(vec![north_runway(RunwayOrigin::Database)]);
+        runways.set_origin(Some(origin));
+        runways
+            .departure_latch_mut()
+            .update(true, 5., NORTH_RUNWAY_START, 100., 0.);
+        assert_eq!(runways.runways(), vec![origin]);
+    }
+
+    #[test]
+    fn a_roll_started_off_every_known_runway_keeps_the_latch() {
+        let mut runways =
+            reference_runways_with_database(vec![north_runway(RunwayOrigin::Database)]);
+        let off_the_runway = offset_position(NORTH_RUNWAY_START, 90., 0.5);
+        runways
+            .departure_latch_mut()
+            .update(true, 5., off_the_runway, 100., 0.);
+        let listed = runways.runways();
+        assert_eq!(listed.len(), 2);
+        let latch = listed
+            .iter()
+            .find(|runway| runway.origin == RunwayOrigin::Departure)
+            .unwrap();
+        assert_eq!(latch.reference_point, off_the_runway);
+        assert!(latch.geometry.is_none());
+    }
+
+    /// 2 NM towards the east
+    fn east_runway_from(start: GridPosition) -> Runway {
+        Runway {
+            reference_point: start,
+            geometry: Some(RunwayGeometry {
+                true_heading_deg: 90.,
+                length_ft: 2. * FEET_PER_NAUTICAL_MILE,
+            }),
+            ..north_runway(RunwayOrigin::Database)
+        }
+    }
+
+    /// The north runway and an east runway cross 0.5 NM from the start of the north runway
+    fn crossing_runways() -> (ReferenceRunways, GridPosition) {
+        let crossing = offset_position(NORTH_RUNWAY_START, 0., 0.5);
+        let runways = reference_runways_with_database(vec![
+            north_runway(RunwayOrigin::Database),
+            east_runway_from(offset_position(crossing, 270., 1.)),
+        ]);
+        (runways, crossing)
+    }
+
+    fn departure_heading_deg(runways: &ReferenceRunways) -> f64 {
+        departure_of(runways).geometry.unwrap().true_heading_deg
+    }
+
+    #[test]
+    fn at_a_crossing_the_runway_along_the_roll_is_the_departure_runway() {
+        for roll_track_deg in [90., 270., 85.] {
+            let (mut runways, crossing) = crossing_runways();
+            let latch = runways.departure_latch_mut();
+            latch.update(true, 5., crossing, 100., 0.);
+            latch.update(true, 60., crossing, 100., roll_track_deg);
+            assert_eq!(
+                departure_heading_deg(&runways),
+                90.,
+                "track {roll_track_deg}"
+            );
+        }
+    }
+
+    #[test]
+    fn at_a_crossing_without_a_roll_track_the_first_runway_is_the_departure_runway() {
+        let (mut runways, crossing) = crossing_runways();
+        runways
+            .departure_latch_mut()
+            .update(true, 5., crossing, 100., 90.);
+        assert_eq!(departure_heading_deg(&runways), 0.);
+    }
+
+    #[test]
+    fn a_roll_track_along_no_runway_keeps_the_first_runway() {
+        let (mut runways, crossing) = crossing_runways();
+        let latch = runways.departure_latch_mut();
+        latch.update(true, 5., crossing, 100., 0.);
+        latch.update(true, 60., crossing, 100., 45.);
+        assert_eq!(departure_heading_deg(&runways), 0.);
+    }
+
+    #[test]
+    fn the_roll_track_is_forgotten_when_the_aircraft_is_slow_again() {
+        let (mut runways, crossing) = crossing_runways();
+        let latch = runways.departure_latch_mut();
+        latch.update(true, 60., crossing, 100., 90.);
+        latch.update(true, 5., crossing, 100., 90.);
+        assert_eq!(departure_heading_deg(&runways), 0.);
+    }
+
+    #[test]
+    fn a_database_runway_that_starts_at_the_side_of_the_destination_runway_is_kept() {
+        let destination = north_runway(RunwayOrigin::Destination);
+        let crossing_runway = east_runway_from(offset_position(NORTH_RUNWAY_START, 0., 0.5));
+        let mut runways = reference_runways_with_database(vec![crossing_runway]);
+        runways.set_destination(Some(destination));
+        assert_eq!(runways.runways(), vec![destination, crossing_runway]);
+    }
+
+    /// A departure runway the aircraft has just lifted off from, and a database runway that is nearer to it
+    fn lift_off_contexts(height_ft: f64) -> [RunwayContext; 2] {
+        let departure = RunwayContext {
+            runway: north_runway(RunwayOrigin::Departure),
+            distance_nm: 0.3,
+            height_above_runway_ft: height_ft,
+        };
+        let staggered_parallel = RunwayContext {
+            runway: north_runway(RunwayOrigin::Database),
+            distance_nm: 0.2,
+            height_above_runway_ft: height_ft,
+        };
+        [departure, staggered_parallel]
+    }
+
+    #[test]
+    fn while_departing_the_reference_runway_is_not_a_database_runway() {
+        let contexts = lift_off_contexts(60.);
+        assert_eq!(
+            RunwayContext::nearest_reference_runway(&contexts),
+            Some(contexts[0])
+        );
+    }
+
+    #[test]
+    fn when_not_departing_the_reference_runway_is_the_nearest_runway() {
+        // High above the departure runway the departure phase is over
+        let contexts = lift_off_contexts(3_000.);
+        assert_eq!(
+            RunwayContext::nearest_reference_runway(&contexts),
+            Some(contexts[1])
+        );
+    }
+
+    #[test]
+    fn without_database_runways_the_reference_runway_is_the_nearest_runway() {
+        for height_ft in [60., 3_000.] {
+            let [departure, _] = lift_off_contexts(height_ft);
+            let destination = RunwayContext {
+                runway: north_runway(RunwayOrigin::Destination),
+                distance_nm: 0.1,
+                ..departure
+            };
+            for contexts in [vec![departure], vec![departure, destination]] {
+                assert_eq!(
+                    RunwayContext::nearest_reference_runway(&contexts),
+                    RunwayContext::nearest_of(&contexts)
+                );
+            }
+        }
     }
 }
