@@ -7,7 +7,9 @@ import {
   ForGaSetTogaInputs,
   isDisconnectApForLdg,
   isForGaSetToga,
+  isNonPrecisionApproachFlown,
   isSetGreenDotSpeed,
+  NonPrecisionApproachInputs,
   SetGreenDotSpeedInputs,
 } from './FmaLine3Messages';
 
@@ -73,6 +75,47 @@ describe('FMA DISCONNECT AP FOR LDG', () => {
   it('does not show with the AP off or on a precision approach', () => {
     expect(isDisconnectApForLdg(disconnect({ apEngaged: false }))).toBe(false);
     expect(isDisconnectApForLdg(disconnect({ nonPrecisionApproach: false }))).toBe(false);
+  });
+});
+
+function approach(over: Partial<NonPrecisionApproachInputs> = {}): NonPrecisionApproachInputs {
+  return {
+    fmgcFlightPhase: 5,
+    finalMode: false,
+    fpaMode: false,
+    vsMode: false,
+    glideSlopeMode: false,
+    flsVerticalActive: false,
+    ...over,
+  };
+}
+
+describe('FMA non precision approach', () => {
+  it('counts the G/S modes of an FLS approach (F-G/S)', () => {
+    expect(isNonPrecisionApproachFlown(approach({ glideSlopeMode: true, flsVerticalActive: true }))).toBe(true);
+  });
+
+  it('does not count the G/S of a real ILS', () => {
+    expect(isNonPrecisionApproachFlown(approach({ glideSlopeMode: true, flsVerticalActive: false }))).toBe(false);
+  });
+
+  it('does not count F-G/S without the G/S mode engaged', () => {
+    expect(isNonPrecisionApproachFlown(approach({ flsVerticalActive: true }))).toBe(false);
+  });
+
+  it.each(['finalMode', 'fpaMode', 'vsMode'] as const)('counts %s in the approach phase', (mode) => {
+    expect(isNonPrecisionApproachFlown(approach({ [mode]: true }))).toBe(true);
+  });
+
+  it('needs the approach phase', () => {
+    expect(isNonPrecisionApproachFlown(approach({ fmgcFlightPhase: 4, finalMode: true }))).toBe(false);
+    expect(
+      isNonPrecisionApproachFlown(approach({ fmgcFlightPhase: 4, glideSlopeMode: true, flsVerticalActive: true })),
+    ).toBe(false);
+  });
+
+  it('does not count without a vertical mode of a non precision approach', () => {
+    expect(isNonPrecisionApproachFlown(approach())).toBe(false);
   });
 });
 

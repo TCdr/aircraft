@@ -32,6 +32,7 @@ import { ClockIsTakeoffTime } from './ClockIsTakeoffTime';
 import { LateralDiscontinuityAhead } from './LateralDiscontinuityAhead';
 import { GpsIsDeselected } from './GpsIsDeselected';
 import { CheckApproachSelection } from './CheckApproachSelection';
+import { NoFlsForThisApproach } from './NoFlsForThisApproach';
 import { AreaRnp, ProcedureRnp } from './RnpMessages';
 import { CheckIrsAirportPosition, IrsOnlyNavigation } from './IrsPositionMessages';
 import { CabinRateExceeded } from './CabinRateExceeded';
@@ -88,6 +89,7 @@ export class FmsMessages implements FmgcComponent {
     new NoVertPathIntercept(),
     new SpeedErrorAtWaypoint(),
     new MoreDrag(),
+    new NoFlsForThisApproach(),
   ];
 
   constructor(private readonly bus: EventBus) {}

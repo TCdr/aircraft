@@ -340,6 +340,75 @@ export function isCheckEoSpeedSetting(
   );
 }
 
+const DISCONNECT_AP_BELOW_MINIMUM_FT = 50;
+
+const DISCONNECT_AP_NO_MINIMUM_ABOVE_LANDING_ELEVATION_FT = 350;
+
+/**
+ * Design choice: the PFD does not receive the FMS approach type, so a non precision approach is the approach phase
+ * flown in one of these vertical modes. A G/S on a real ILS glide slope is the precision case.
+ * @param b1 the vertical mode message
+ * @returns whether the vertical mode is one of a non precision approach
+ */
+export function isNonPrecisionVerticalMode(b1: B1Messages): boolean {
+  return (
+    b1 === B1Messages.DES ||
+    b1 === B1Messages.OP_DES ||
+    b1 === B1Messages.FPA ||
+    b1 === B1Messages.VS ||
+    b1 === B1Messages.APP_DES ||
+    b1 === B1Messages.F_GS ||
+    b1 === B1Messages.F_GS_STAR
+  );
+}
+
+export interface DisconnectApForLdgInputs {
+  apEngaged: boolean;
+  /** the FMS flight phase is approach */
+  approachPhase: boolean;
+  nonPrecisionVerticalMode: boolean;
+  /** NO DH is selected: the minimum is ignored */
+  noDhSelected: boolean;
+  /** baro corrected altitude in feet, null when invalid */
+  baroAltitudeFt: number | null;
+  /** MDA (BARO minimum) in feet, null when none is entered or the data is not valid */
+  mdaFt: number | null;
+  /** DH (RADIO minimum) in feet, null when none is entered or the data is not valid */
+  dhFt: number | null;
+  /** radio altitude in feet, null when invalid */
+  radioAltitudeFt: number | null;
+  /** landing elevation in feet, null when invalid */
+  landingElevationFt: number | null;
+}
+
+/**
+ * DISCONNECT AP FOR LDG: an AP engaged in the approach phase of a non precision approach, at the minimum minus 50 ft,
+ * or at 350 ft above the landing elevation without a minimum (or with NO DH selected). A RADIO minimum is checked on
+ * the radio altitude, a BARO minimum on the baro altitude. Design choice: invalid data on the check that applies gives
+ * false, there is no fallback to the other altitude. Design choice: without a valid landing elevation the radio
+ * altitude is the closest measure of the height above the runway, so the no-minimum rule uses it.
+ * @param i the inputs
+ * @returns whether the message shows
+ */
+export function isDisconnectApForLdg(i: DisconnectApForLdgInputs): boolean {
+  if (!i.apEngaged || !i.approachPhase || !i.nonPrecisionVerticalMode) {
+    return false;
+  }
+  if (!i.noDhSelected && i.dhFt !== null) {
+    return i.radioAltitudeFt !== null && i.radioAltitudeFt <= i.dhFt - DISCONNECT_AP_BELOW_MINIMUM_FT;
+  }
+  if (!i.noDhSelected && i.mdaFt !== null) {
+    return i.baroAltitudeFt !== null && i.baroAltitudeFt <= i.mdaFt - DISCONNECT_AP_BELOW_MINIMUM_FT;
+  }
+  if (i.landingElevationFt === null) {
+    return i.radioAltitudeFt !== null && i.radioAltitudeFt <= DISCONNECT_AP_NO_MINIMUM_ABOVE_LANDING_ELEVATION_FT;
+  }
+  return (
+    i.baroAltitudeFt !== null &&
+    i.baroAltitudeFt - i.landingElevationFt <= DISCONNECT_AP_NO_MINIMUM_ABOVE_LANDING_ELEVATION_FT
+  );
+}
+
 /** The speed brake message of the FMA line 3 */
 export enum SpeedBrakeMessage {
   NONE,

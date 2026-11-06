@@ -7,7 +7,7 @@ import { FMMessageTypes } from './FmMessages';
 
 describe('FM message ids', () => {
   // The MCDU recalls a cleared message by its id: an id shared with another message recalls the wrong one
-  it.each(['CabinRateExceeded', 'NoVertPathIntercept', 'SpeedErrorAtWaypoint', 'MoreDrag'])(
+  it.each(['CabinRateExceeded', 'NoVertPathIntercept', 'SpeedErrorAtWaypoint', 'MoreDrag', 'NoFlsForThisApproach'])(
     '%s has an id of its own',
     (name) => {
       const messages: Record<string, { id: number }> = FMMessageTypes;

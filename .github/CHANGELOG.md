@@ -1024,6 +1024,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] The master warning chime no longer waits behind the altitude alert chord - @TCdr
 1. [A380X/OANS] RWY AHEAD names the runway the aircraft is about to enter: with an airport map it named the same runway of the airport (e.g. 07L-25R at KLAX while crossing 24L) whichever runway was ahead - @TCdr
 1. [EFB] Services page linked to GSX: a jet bridge or stairs Release that GSX ignores offers Retry after 10 s (counted from the answer when GSX asks to confirm), a jet bridge or stairs GSX is stuck on offers Force (GSX "Complete now"), GSX questions show at once, and a Request or Release pressed right after the jet bridge or stairs finished moving is held until GSX takes it - @TCdr
+1. [FMS] NO FLS FOR THIS APPR message when the selected non precision approach has no FLS beam (LDA, SDF, TACAN, final course more than 50° off the runway) - @TCdr
+1. [PFD] DISCONNECT AP FOR LDG also shows on FLS approaches (F-G/S) - @TCdr
+1. [A380X/PFD] DISCONNECT AP FOR LDG shows at the minimum - 50 ft (350 ft above the landing elevation without a minimum) in the approach phase, instead of at 150 ft radio height - @TCdr
 
 ## 2024.1.0
 

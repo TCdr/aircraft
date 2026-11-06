@@ -193,6 +193,8 @@ export const NXSystemMessages = {
   checkEoSpdSetting: new TypeIIMessage('CHECK EO SPD SETTING', true),
   // The selected HDG/TRACK does not intercept the flight plan before the TO waypoint
   noNavInterception: new TypeIIMessage('NO NAV INTERCEPTION', true),
+  // The selected non precision approach has no FLS beam. Design choice: amber, a navigation message
+  noFlsForThisAppr: new TypeIIMessage('NO FLS FOR THIS APPR', true),
   // A temporary flight plan (not a direct to) is pending, and the DIR key of the KCCU is pressed
   insertOrEraseTmpyFirst: new TypeIMessage('INSERT OR ERASE TMPY F-PLN FIRST'),
   // The received flight number of the up linked flight plan data is not valid
