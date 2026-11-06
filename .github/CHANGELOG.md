@@ -2936,3 +2936,4 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FCU] Fixed bug where the FCU selected altitude would immediately switch to 1000s on selecting the 1000ft inteval knob - @elliot747 (Elliot)
 1. [OANS] Airport map no longer recomputes its bounds every frame (better frame rate at large airports) - @TCdr
 1. [EFB] Status bar clock no longer redraws the flyPad on every frame (fewer stutters) - @TCdr
+1. [A380X/FWS] Flight warning loop reads the simulation time once per cycle instead of once per alert (less display thread load) - @TCdr
