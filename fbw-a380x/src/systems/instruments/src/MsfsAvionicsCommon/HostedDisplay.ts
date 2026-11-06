@@ -31,16 +31,25 @@ export function parseHostDisplayUnit(url: string | null | undefined): DisplayUni
 }
 
 /**
- * The URL of the gauge of an instrument in this document. All gauges of a panel.cfg block share the document, so the
+ * The gauge element of an instrument in this document. All gauges of a panel.cfg block share the document, so the
  * first one is not always this instrument's (a hosted gauge comes after the DU's own gauge).
+ * @param folder the instrument folder in the URL (PFD, ND, EWD)
+ * @returns the gauge element of that folder, else the first gauge that is not a WASM gauge
+ */
+export function findInstrumentGauge(folder: string): Element | null {
+  const gauges = Array.from(document.querySelectorAll('vcockpit-panel > *'));
+  const own = gauges.find((it) => (it.getAttribute('url') ?? '').includes(`/${folder}/`));
+  const first = gauges.find((it) => it.tagName.toLowerCase() !== 'wasm-instrument');
+  return own ?? first ?? null;
+}
+
+/**
+ * The URL of the gauge of an instrument in this document.
  * @param folder the instrument folder in the URL (PFD, ND, EWD)
  * @returns the URL of the gauge of that folder, else of the first gauge that is not a WASM gauge
  */
 export function findInstrumentUrl(folder: string): string | null {
-  const gauges = Array.from(document.querySelectorAll('vcockpit-panel > *'));
-  const own = gauges.find((it) => (it.getAttribute('url') ?? '').includes(`/${folder}/`));
-  const first = gauges.find((it) => it.tagName.toLowerCase() !== 'wasm-instrument');
-  return (own ?? first)?.getAttribute('url') ?? null;
+  return findInstrumentGauge(folder)?.getAttribute('url') ?? null;
 }
 
 /**
