@@ -23,6 +23,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 
 ## 2024.2.0
 
+1. [A380X/FWS] The stall warning sounds the cricket and STALL voice instead of BRAKE MAX BRAKING - @TCdr
+1. [A380X/FWS] The stall aural has priority over all other aural alerts and cuts any continuous alert, which sounds again after the stall - @TCdr
+1. [A380X/FWS] The stall warning is no longer lost below 1500 ft radio height - @TCdr
+1. [A380X/FWS] The stall warning now sounds at all in the sim: the A380X systems host did not give it the angle of attack and on-ground inputs - @TCdr
 1. [EFB] All flyPad pages of this fork are translated into the 34 languages of the flyPad language picker (Settings > flyPad > Language); a translation refresh keeps these texts - @TCdr
 1. [A380X] Displays, radio panels, OITs and ISIS power up one after another instead of in the same frame, less stutter at power-up - @TCdr
 1. [EFB] The flyPad onscreen keyboard no longer slows down text handling and sorting in the flyPad and the A380X OITs, less stutter at the first A380X power-up - @TCdr
