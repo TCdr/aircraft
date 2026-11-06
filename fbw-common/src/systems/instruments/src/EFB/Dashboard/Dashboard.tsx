@@ -10,7 +10,7 @@ import { useFailuresOrchestrator } from '../failures-orchestrator-provider';
 import { GSX_BAGGAGE_VARS, GsxBaggageId, gsxTurnaround } from '../Ground/Pages/Services/gsxTurnaround';
 import { useDashboardPhase } from './useDashboardPhase';
 import { useFuelStatus, usePayloadLoad } from './useServiceStatus';
-import { useMinutesToTod, useSimUnixSeconds, useTakeoffUnixSeconds } from './useMinutesToTod';
+import { useMinutesToTod, useTakeoffUnixSeconds } from './useMinutesToTod';
 import { useTripWeather } from './useTripWeather';
 import { useLiveFigures } from './useLiveFigures';
 import { useAircraftState } from './useAircraftState';
@@ -66,17 +66,16 @@ export const Dashboard = () => {
   const fmsHasFlightPlan = useFmsFlightPlan(phase === 'atGate' && hasOfp);
 
   const live = useLiveFigures();
+  const { nowUnixSeconds } = live;
   const aircraftState = useAircraftState();
-  const fuelStatus = useFuelStatus();
+  const fuelStatus = useFuelStatus(live.fuel);
   const payload = usePayloadLoad();
-  const minutesToTod = useMinutesToTod();
+  const minutesToTod = useMinutesToTod(nowUnixSeconds);
   const takeoffUnixSeconds = useTakeoffUnixSeconds();
-  const nowUnixSeconds = useSimUnixSeconds();
   const log = useFlightLog();
   const weather = useTripWeather();
   const { activeFailures } = useFailuresOrchestrator();
 
-  const [zuluSecondsOfDay] = useSimVar('E:ZULU TIME', 'seconds', 5_000);
   const [registration] = useSimVar('ATC ID', 'string', 10_000);
   const [destQnh] = useSimVar('L:A32NX_DESTINATION_QNH', 'number', 2_000);
   const [mda] = useSimVar('L:AIRLINER_MINIMUM_DESCENT_ALTITUDE', 'number', 2_000);
@@ -190,7 +189,7 @@ export const Dashboard = () => {
       nowUnixSeconds,
       live.latitudeDeg,
       live.longitudeDeg,
-      localOffsetSeconds(live.localSecondsOfDay, zuluSecondsOfDay),
+      localOffsetSeconds(live.localSecondsOfDay, live.zuluSecondsOfDay),
     );
     const registrationText = typeof registration === 'string' && registration ? ` · ${registration}` : '';
     stripTiles = [

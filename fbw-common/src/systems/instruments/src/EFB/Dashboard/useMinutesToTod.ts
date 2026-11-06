@@ -4,6 +4,8 @@
 import { useEffect, useRef } from 'react';
 import { usePersistentProperty, useSimVar } from '@flybywiresim/fbw-sdk-react';
 import { useAppSelector } from '@flybywiresim/flypad';
+import { numberReader } from './registeredReads';
+import { usePolledReading } from './usePolledReading';
 import { plannedMinutesToTod } from './logic/timeToTod';
 import { readStoredValue } from './readStoredValue';
 
@@ -19,6 +21,24 @@ export const useSimUnixSeconds = (): number => {
   const [absoluteTime] = useSimVar('E:ABSOLUTE TIME', 'seconds', 5_000);
   return absoluteTime - SIM_CLOCK_TO_UNIX_SECONDS;
 };
+
+const readAbsoluteSeconds = numberReader('E:ABSOLUTE TIME', 'seconds');
+const readLocalSeconds = numberReader('E:LOCAL TIME', 'seconds');
+const readZuluSeconds = numberReader('E:ZULU TIME', 'seconds');
+
+/**
+ * The sim's time as Unix seconds with the local and zulu clock, read together. The dashboard shows them at the pace of
+ * this poll, so they are not rounded.
+ */
+export const useSimClock = () =>
+  usePolledReading(
+    () => ({
+      nowUnixSeconds: readAbsoluteSeconds() - SIM_CLOCK_TO_UNIX_SECONDS,
+      localSecondsOfDay: readLocalSeconds(),
+      zuluSecondsOfDay: readZuluSeconds(),
+    }),
+    5_000,
+  );
 
 const useStoredTakeoff = () => {
   const { flightNum, schedOut } = useAppSelector((state) => state.simbrief.data);
@@ -58,8 +78,7 @@ export const useTakeoffUnixSeconds = (): number | null => useStoredTakeoff().tak
  * destination, so the figure is the SimBrief T/D time counted from the actual takeoff time and always planned.
  * Null before takeoff.
  */
-export const useMinutesToTod = (): { minutes: number; planned: boolean } | null => {
-  const nowUnixSeconds = useSimUnixSeconds();
+export const useMinutesToTod = (nowUnixSeconds: number): { minutes: number; planned: boolean } | null => {
   const topOfDescent = useAppSelector((state) => state.simbrief.data.topOfDescent);
   const { takeoffUnixSeconds } = useStoredTakeoff();
 

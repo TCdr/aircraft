@@ -15,6 +15,8 @@ import {
   simbriefWeightKg,
   simbriefWeightSumKg,
   sunsetLocal,
+  weightAsShownKg,
+  formatWeightValue,
 } from './dashboardFormat';
 import { sunsetUtc } from './sunset';
 
@@ -142,5 +144,15 @@ describe('ofpRouteText', () => {
 
   it('leaves out a missing runway or route', () => {
     expect(ofpRouteText({ ...ofp, departingRunway: '', route: '' })).toBe('LFPG EGLL/27R');
+  });
+});
+
+describe('weightAsShownKg', () => {
+  it('formats to the same text as the weight it came from, in both units', () => {
+    for (let kg = 0; kg < 15_000; kg += 0.37) {
+      [true, false].forEach((metric) => {
+        expect(formatWeightValue(weightAsShownKg(kg, metric), metric)).toBe(formatWeightValue(kg, metric));
+      });
+    }
   });
 });
