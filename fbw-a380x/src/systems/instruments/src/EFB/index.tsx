@@ -4,7 +4,8 @@
 import React from 'react';
 import { render } from '@instruments/common/index';
 import { AircraftContext, EfbWrapper, syncSettingsFromPersistentStorage } from '@flybywiresim/flypad';
-import { A380FailureDefinitions, A380FailureDetails } from '../../../failures';
+import { A380FailureDefinitions } from '../../../failures';
+import { A380FailureDetails } from '../../../failures/src/a380-details';
 import { AutomaticCallOutsPage } from './Pages/AutomaticCallOutsPage';
 import { a380xSyncedSettings } from './settingsSync';
 import { useA380xAlertProcedures } from './FailureDetails/useA380xAlertProcedures';
