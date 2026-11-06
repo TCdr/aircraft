@@ -121,6 +121,7 @@ const FT_PER_M = 3.28084;
 const KT_TO_MPS = 1_852 / 3_600;
 const NM_M = 1_852;
 const ALIGNMENT_TOLERANCE = 20;
+const NEW_APPROACH_HEIGHT_FT = 1_000;
 /** Lateral limit of an aligned approach: 200 ft plus the runway width from the centreline */
 const LATERAL_MARGIN_M = 200 / FT_PER_M;
 
@@ -145,9 +146,11 @@ export class Raas {
 
   private taxiwayLandingGiven = false;
 
-  private readonly airApproachGiven = new Set<string>();
+  /** The runway ends the approaching runway in air advisory was issued for, with their threshold elevation in ft */
+  private readonly airApproachGiven = new Map<string, number>();
 
-  private airApproachRunwaysGiven = false;
+  /** The highest threshold elevation, in ft, when Approaching Runways was issued, or null when not issued */
+  private airApproachRunwaysElevation: number | null = null;
 
   private readonly airShortCautionGiven = new Set<string>();
 
@@ -166,7 +169,7 @@ export class Raas {
     this.onTaxiwayGiven = false;
     this.taxiwayLandingGiven = false;
     this.airApproachGiven.clear();
-    this.airApproachRunwaysGiven = false;
+    this.airApproachRunwaysElevation = null;
     this.airShortCautionGiven.clear();
     this.lastAirborneTime = -Infinity;
   }
@@ -185,7 +188,7 @@ export class Raas {
       this.updateOccupancy(inputs, runways, now);
       this.updateOnGround(inputs, runways, now, add);
       this.airApproachGiven.clear();
-      this.airApproachRunwaysGiven = false;
+      this.airApproachRunwaysElevation = null;
       this.airShortCautionGiven.clear();
       this.taxiwayLandingGiven = false;
     } else {
@@ -414,13 +417,28 @@ export class Raas {
     }
   }
 
-  private updateInAir(inputs: RaasInputs, runways: readonly AwarenessRunway[], add: AddCallout): void {
-    if (inputs.radioAltitude > 1_000) {
-      // A new approach
-      this.airApproachGiven.clear();
-      this.airApproachRunwaysGiven = false;
-      this.airShortCautionGiven.clear();
+  /**
+   * A new approach starts once the aircraft is back above 1000 ft over the runway. The height comes from the altitude
+   * and the threshold elevation, not the radio altitude: over a valley under the final the radio altitude stays above
+   * 1000 ft while the aircraft is already in the advisory window.
+   */
+  private rearmAirApproaches(altitude: number): void {
+    for (const [key, elevation] of this.airApproachGiven) {
+      if (altitude - elevation > NEW_APPROACH_HEIGHT_FT) {
+        this.airApproachGiven.delete(key);
+        this.airShortCautionGiven.delete(key);
+      }
     }
+    if (
+      this.airApproachRunwaysElevation !== null &&
+      altitude - this.airApproachRunwaysElevation > NEW_APPROACH_HEIGHT_FT
+    ) {
+      this.airApproachRunwaysElevation = null;
+    }
+  }
+
+  private updateInAir(inputs: RaasInputs, runways: readonly AwarenessRunway[], add: AddCallout): void {
+    this.rearmAirApproaches(inputs.altitude);
 
     // Approaching Runway in air, approaching short runway and its caution
     const candidates: { runway: AwarenessRunway; end: AwarenessRunwayEnd; heightAbove: number }[] = [];
@@ -447,8 +465,8 @@ export class Raas {
     const [windowUpper, windowLower] = this.config.suppressWindow;
     const inWindow = (heightAbove: number) => heightAbove <= windowUpper && heightAbove > windowLower;
     if (candidates.length > 1) {
-      if (!this.airApproachRunwaysGiven && !candidates.some((c) => inWindow(c.heightAbove))) {
-        this.airApproachRunwaysGiven = true;
+      if (this.airApproachRunwaysElevation === null && !candidates.some((c) => inWindow(c.heightAbove))) {
+        this.airApproachRunwaysElevation = Math.max(...candidates.map((c) => c.end.elevation * FT_PER_M));
         add(RaasAdvisory.ApproachingRunwayInAir, ['approaching', 'runways']);
       }
     } else if (candidates.length === 1) {
@@ -457,7 +475,7 @@ export class Raas {
       const available = runway.length - end.displacedThreshold;
       const short = this.config.landingNominalLength !== null && available < this.config.landingNominalLength;
       if (!this.airApproachGiven.has(key) && !inWindow(heightAbove)) {
-        this.airApproachGiven.add(key);
+        this.airApproachGiven.set(key, end.elevation * FT_PER_M);
         if (short) {
           add(RaasAdvisory.ApproachingShortRunwayInAir, [
             'approaching',
