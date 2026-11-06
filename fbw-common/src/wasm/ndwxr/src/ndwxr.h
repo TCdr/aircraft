@@ -150,7 +150,8 @@
 #include "vd_airports.h"  // VdCutSegment, the airport stretches of the A380X VD (pure geometry)
 #include "cds_display.h"  // the A380X CDS reconfiguration check (pure logic)
 #include "wxr_controls.h"  // the A380X WXR GAIN and ELEVN/TILT selections (pure logic)
-#include "view_park.h"  // ViewPark, the parking of the MapViews and the re-sending of their settings (pure logic)
+#include "terrain_reference.h"  // the TERR ON ND reference altitude: the look-ahead shared by the NDs (pure logic)
+#include "view_park.h"  // ViewPark, SentSetting, the parking of the MapViews and the re-sending of their settings (pure logic)
 #include "gauge_slots.h"  // GaugeSlots, the gauge instances' slots and the module's MapView budget (pure logic)
 #include "vd_ra_zone.h"  // the VD column under the amber radio altitude zone (pure geometry)
 #include "threat_areas.h"  // the A32NX terrain alert areas sent by the GPWS (pure decoding and geometry)
@@ -247,6 +248,8 @@ struct Instance {
   int threatHatchImage = 0;
   int terrainGearState = -1;
   int terrainListMode = -1;
+  // The altitude window last sent to the terrain view; forgotten whenever the colour list is set again.
+  SentSetting terrainWindowSent;
   // The weather radar's mode text for the JS ND (0 none, 1 WX, 2 WX+T, 3 TURB, 4 MAP): the LVar the
   // ND reads (A32NX_WXR_ND_{L,R}_MODE) and the value last written to it.
   ID wxrLabelVar = -1;
@@ -404,7 +407,7 @@ Instance* findInstance(FsContext ctx);
 // its owner sends its whole setup again (see view_park.h).
 bool updateViewPark(FsContext ctx, FsTextureId view, ViewPark& park, bool wanted);
 // fsMapViewSet2DViewRadiusInMeters on a change of the radius, and again every kViewRadiusResendSeconds (see
-// viewRadiusSendDue); nowSeconds is the gauge draw's sim time.
+// settingSendDue); nowSeconds is the gauge draw's sim time.
 void setViewRadius(FsContext ctx, FsTextureId view, ViewPark& park, float radiusMetres, double nowSeconds);
 // True when the picture is due: at once when its key changed (or on the first call, or when the sim time went
 // back), else once periodSeconds have passed since the last redraw. Records the redraw when it returns true.
