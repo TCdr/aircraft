@@ -58,4 +58,12 @@ describe('A380X sound.xml entries of the new voices', () => {
       expect(avionicSounds).toContain(`WwiseEvent="${soundList[sound].name}"`);
     },
   );
+
+  it('the stall aural plays the continuous stall warning sound', () => {
+    const entry = /<Sound [^>]*WwiseEvent="aural_stall_new"[^>]*LocalVar="[^"]*"[^>]*>/.exec(soundXml)?.[0];
+    expect(entry).toBeDefined();
+    expect(FwsAuralsList.stall.localVarName).toBe(attribute(entry!, 'LocalVar'));
+    expect(attribute(entry!, 'Continuous')).toBe('true');
+    expect(FwsAuralsList.stall.continuous).toBe(true);
+  });
 });
