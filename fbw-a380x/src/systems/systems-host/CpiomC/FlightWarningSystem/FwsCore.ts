@@ -5639,13 +5639,13 @@ export class FwsCore {
     let newScKey = false;
     let anyScKeyActive = false;
 
+    const simTime = this.simTime.get();
+
     const itemIsActiveConsideringFaultSuppression = (
       item: FwsSuppressableItem,
       key: keyof FwsSuppressableItemDict,
       defaultMonitorConfirmTime: number = 0.6,
     ) => {
-      const simTime = this.simTime.get();
-
       if (
         !item.simVarIsActive.get() ||
         simTime < (this.failureActivationTime.get(key) ?? 0) + (item.monitorConfirmTime ?? defaultMonitorConfirmTime)
