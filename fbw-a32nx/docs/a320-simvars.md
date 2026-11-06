@@ -5865,6 +5865,11 @@ Use the `A32NXEcpBusPublisher` and `A32NXEcpBusEvents` for these in A32NX code.
       TA | 1
       RA | 2
 
+- A32NX_TCAS_AURAL_ACTIVE
+    - Bool
+    - Read-Only
+    - A TCAS voice message is being said
+
 - A32NX_TCAS_RA_CORRECTIVE
     - boolean
     - Read-Only
