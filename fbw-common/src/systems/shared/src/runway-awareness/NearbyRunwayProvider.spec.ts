@@ -116,8 +116,16 @@ async function settle(): Promise<void> {
   }
 }
 
-/** Starts the session of a provider (25 NM, 24 airports, as the A380X VD airports), then searches at a position */
-async function runwayAirportsAt(airports: readonly FakeAirport[], latitude: number, longitude: number) {
+/**
+ * Starts the session of a provider (25 NM, 24 airports, as the A380X VD airports), then searches at a position
+ * @param minRunwayLengthM airports whose longest runway is shorter than this are not searched, in metres, when the test sets it
+ */
+async function providerAt(
+  airports: readonly FakeAirport[],
+  latitude: number,
+  longitude: number,
+  minRunwayLengthM?: number,
+) {
   vi.spyOn(FacilityLoader.prototype, 'startNearestSearchSessionWithIcaoStructs').mockResolvedValue(
     new FakeNearestAirportSession(
       airports,
@@ -128,12 +136,22 @@ async function runwayAirportsAt(airports: readonly FakeAirport[], latitude: numb
       airports.find((a) => a.icao.ident === icao.ident).facility) as unknown as FacilityLoader['getFacility'],
   );
 
-  const provider = new NearbyRunwayProvider(new EventBus(), 25, 24);
+  const provider = new NearbyRunwayProvider(new EventBus(), 25, 24, minRunwayLengthM);
   provider.update(latitude, longitude, 0);
   await settle();
   provider.update(latitude, longitude, 0);
   await settle();
 
+  return provider;
+}
+
+async function runwayAirportsAt(
+  airports: readonly FakeAirport[],
+  latitude: number,
+  longitude: number,
+  minRunwayLengthM?: number,
+) {
+  const provider = await providerAt(airports, latitude, longitude, minRunwayLengthM);
   return new Set(provider.runways.map((runway) => runway.airport));
 }
 
@@ -182,5 +200,19 @@ describe('NearbyRunwayProvider', () => {
     );
 
     expect([...airports].sort()).toEqual(['RJTA', 'RJTT']);
+  });
+
+  it('searches only the airports whose longest runway is as long as asked', async () => {
+    const strip = fakeAirport('RJXX', RJTT.latitude + 0.05, RJTT.longitude, 900);
+
+    const airports = await runwayAirportsAt([RJTT, strip], RJTT.latitude, RJTT.longitude, 1_067);
+
+    expect([...airports]).toEqual(['RJTT']);
+  });
+
+  it('keeps the runway surface', async () => {
+    const provider = await providerAt([RJTT], RJTT.latitude, RJTT.longitude);
+
+    expect(provider.runways.map((runway) => runway.surface)).toEqual([RunwaySurfaceType.Asphalt]);
   });
 });

@@ -6,14 +6,14 @@
 //! with the examples of the later patent (a design choice, not a published curve).
 //!
 //! The runway field clearance floor (RFCF) is the part of the function that protects the field itself: a floor over
-//! the destination runway that works from the geometric altitude instead of the radio altitude, so that it also
-//! catches an aircraft that is too low over a field where the radio altitude is high (a valley approach).
+//! the runways the aircraft may land on, working from the geometric altitude instead of the radio altitude, so that it
+//! also catches an aircraft that is too low over a field where the radio altitude is high (a valley approach).
 
 use std::time::Duration;
 
-/// Design choice: the floor is only applied within the distance where the figure of the guide ends (15 NM). Further
-/// out the runways of other airports would have to take over, and the aircraft only knows its destination and
-/// departure runways. A floor extended to infinity would alert on every low flight past another airport.
+/// Design choice: the floor is only applied within the distance where the figure of the guide ends (15 NM). The
+/// runways known are those of the airports around the aircraft and of the flight plan; a floor extended to infinity
+/// would alert on low flights past airports the list does not hold.
 const FLOOR_RADIUS_NM: f64 = 15.;
 
 /// Envelope bias factor (high integrity position data): the floor starts this far from the runway. The distance is
@@ -77,8 +77,8 @@ pub(super) struct FloorEvaluation {
     pub(super) radio_altitude_ft: Option<f64>,
     pub(super) height_above_runway_ft: f64,
     pub(super) distance_to_runway_nm: f64,
-    /// The field floor protects the destination runway only
-    pub(super) is_destination_runway: bool,
+    /// The field floor protects the runways the aircraft may land on, not the one it takes off from
+    pub(super) is_landing_runway: bool,
 }
 
 impl FloorEvaluation {
@@ -98,7 +98,7 @@ impl FloorEvaluation {
                 floor_height_ft(self.distance_to_runway_nm),
             )
         });
-        let under_field_floor = (self.is_destination_runway
+        let under_field_floor = (self.is_landing_runway
             && is_under(
                 self.height_above_runway_ft,
                 field_clearance_floor_ft(self.distance_to_runway_nm),
@@ -161,7 +161,7 @@ mod tests {
             radio_altitude_ft: Some(radio_altitude_ft),
             height_above_runway_ft: 5_000.,
             distance_to_runway_nm: distance_nm,
-            is_destination_runway: true,
+            is_landing_runway: true,
         }
     }
 
@@ -241,7 +241,7 @@ mod tests {
             radio_altitude_ft: Some(2_000.),
             height_above_runway_ft: 200.,
             distance_to_runway_nm: 3.,
-            is_destination_runway: true,
+            is_landing_runway: true,
         };
         floor.update(STEP, Some(&evaluation));
         assert!(floor.is_alerting());
@@ -254,7 +254,7 @@ mod tests {
             radio_altitude_ft: Some(2_000.),
             height_above_runway_ft: 200.,
             distance_to_runway_nm: 3.,
-            is_destination_runway: false,
+            is_landing_runway: false,
         };
         floor.update(STEP, Some(&evaluation));
         assert!(!floor.is_alerting());
@@ -275,7 +275,7 @@ mod tests {
             radio_altitude_ft: None,
             height_above_runway_ft: -10.,
             distance_to_runway_nm: RFCF_OFFSET_NM / 2.,
-            is_destination_runway: true,
+            is_landing_runway: true,
         };
         floor.update(STEP, Some(&evaluation));
         assert!(!floor.is_alerting());
@@ -368,7 +368,7 @@ mod tests {
             radio_altitude_ft: None,
             height_above_runway_ft: height_ft,
             distance_to_runway_nm: RFCF_OFFSET_NM + 0.5,
-            is_destination_runway: true,
+            is_landing_runway: true,
         };
         floor.update(STEP, Some(&evaluation(-100.)));
         for _ in 0..15 {

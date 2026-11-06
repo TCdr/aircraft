@@ -52,7 +52,7 @@ use systems::{
     enhanced_gpwc::{EnhancedGroundProximityWarningComputer, PredictiveFunctionsLink},
     surveillance::{
         egpws::{
-            terrain_grid::TerrainGrid, EgpwsElectricalHarness,
+            predictive::RunwayDatabaseMessages, terrain_grid::TerrainGrid, EgpwsElectricalHarness,
             EnhancedGroundProximityWarningComputer as EnhancedGroundProximityWarningComputer2,
         },
         taws::TerrainAwarenessWarningSystemDiscreteOutput,
@@ -179,6 +179,13 @@ impl A320 {
             unavailable_terrain_grid(),
             unavailable_terrain_grid(),
         )
+    }
+
+    /// The A320 with the runways of the airports around it for its predictive terrain functions. Without them only
+    /// the runways of the flight plan and the takeoff point are known.
+    pub fn with_runway_database(mut self, database: Box<dyn RunwayDatabaseMessages>) -> Self {
+        self.predictive_terrain.set_runway_database(database);
+        self
     }
 
     /// The A320 with the terrain grid its predictive terrain functions read, and the obstacle grid of the same layout.
