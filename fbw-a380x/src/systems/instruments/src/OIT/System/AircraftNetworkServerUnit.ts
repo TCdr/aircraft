@@ -15,20 +15,42 @@ import { FailuresConsumer } from '@flybywiresim/fbw-sdk';
 import { A380Failure } from '@failures';
 import { ResetPanelSimvars } from '../../MsfsAvionicsCommon/providers/ResetPanelPublisher';
 import { OitSimvars } from '../OitSimvarPublisher';
+import { BooleanSimVarReader } from './BooleanSimVarReader';
 import { SecureCommunicationInterface } from './SecureCommunicationInterface';
 import { AnsuIndex, AnsuSupplies, AnsuType, isAnsuAcSupplied, isAnsuPowered, NssAutoShutdown } from './AnsuLogic';
 
-/** @returns the state of the busbars that supply the ANSUs */
-export function readAnsuSupplies(): AnsuSupplies {
-  // The A380 busbar names come from the A320: AC_ESS_SHED is the A380 AC ESS (400XP), AC_ESS the AC EMER (491XP)
-  return {
-    ac1: SimVar.GetSimVarValue('L:A32NX_ELEC_AC_1_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
-    ac2: SimVar.GetSimVarValue('L:A32NX_ELEC_AC_2_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
-    acEss: SimVar.GetSimVarValue('L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
-    acEmer: SimVar.GetSimVarValue('L:A32NX_ELEC_AC_ESS_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
-    dcHot1: SimVar.GetSimVarValue('L:A32NX_ELEC_DC_HOT_1_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
-    dcHot2: SimVar.GetSimVarValue('L:A32NX_ELEC_DC_HOT_2_BUS_IS_POWERED', SimVarValueType.Bool) > 0,
-  };
+// The A380 busbar names come from the A320: AC_ESS_SHED is the A380 AC ESS (400XP), AC_ESS the AC EMER (491XP)
+const ansuBusbars = {
+  ac1: new BooleanSimVarReader('L:A32NX_ELEC_AC_1_BUS_IS_POWERED'),
+  ac2: new BooleanSimVarReader('L:A32NX_ELEC_AC_2_BUS_IS_POWERED'),
+  acEss: new BooleanSimVarReader('L:A32NX_ELEC_AC_ESS_SHED_BUS_IS_POWERED'),
+  acEmer: new BooleanSimVarReader('L:A32NX_ELEC_AC_ESS_BUS_IS_POWERED'),
+  dcHot1: new BooleanSimVarReader('L:A32NX_ELEC_DC_HOT_1_BUS_IS_POWERED'),
+  dcHot2: new BooleanSimVarReader('L:A32NX_ELEC_DC_HOT_2_BUS_IS_POWERED'),
+};
+
+/** Refilled by every read: the ANSUs read it every frame, and a new object each time would be garbage */
+const ansuSupplies: AnsuSupplies = {
+  ac1: false,
+  ac2: false,
+  acEss: false,
+  acEmer: false,
+  dcHot1: false,
+  dcHot2: false,
+};
+
+/**
+ * @returns the state of the busbars that supply the ANSUs; the same object every time, valid until the next read, so a
+ * caller must not keep it
+ */
+export function readAnsuSupplies(): Readonly<AnsuSupplies> {
+  ansuSupplies.ac1 = ansuBusbars.ac1.get();
+  ansuSupplies.ac2 = ansuBusbars.ac2.get();
+  ansuSupplies.acEss = ansuBusbars.acEss.get();
+  ansuSupplies.acEmer = ansuBusbars.acEmer.get();
+  ansuSupplies.dcHot1 = ansuBusbars.dcHot1.get();
+  ansuSupplies.dcHot2 = ansuBusbars.dcHot2.get();
+  return ansuSupplies;
 }
 
 export class AircraftNetworkServerUnit implements Instrument {
