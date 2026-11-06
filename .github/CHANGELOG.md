@@ -313,6 +313,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FMS] Fixed +/- altitude constraints entered on the F-PLN page being inverted - @shinji1100
 1. [EFB] Status bar clock no longer redraws the flyPad on every frame (fewer stutters) - @TCdr
 1. [EFB] Services page linked to GSX: a jet bridge or stairs Release that GSX ignores offers Retry after 10 s (counted from the answer when GSX asks to confirm), a jet bridge or stairs GSX is stuck on offers Force (GSX "Complete now"), GSX questions show at once, and a Request or Release pressed right after the jet bridge or stairs finished moving is held until GSX takes it - @TCdr
+1. [A380X/MFD] FMS sends "no computed data" for the landing elevation and destination position when the flight plan has no destination - @TCdr
 
 ## 2024.1.0
 
