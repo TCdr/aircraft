@@ -1666,8 +1666,14 @@ void A380PrimComputerFctl::step()
     }
 
     // The three IRs are the PRIMs' gyrometers: losing all three leaves no rate feedback for the normal or alternate laws
+    // With the four AC busbars lost only the emergency network is left and the PRIMs fly direct law, in flight only: on the
+    // ground the busbars are also unpowered with just the batteries on
+    // Design choice: not latched, the law returns when an AC busbar is powered again. Nothing says it must stay in direct law
+    // after a generator is recovered, and the other direct law conditions are not latched either
     if (A380PrimComputerFctl_U.in.general_logic.triple_adr_failure ||
-        A380PrimComputerFctl_U.in.general_logic.triple_ir_failure || rtb_AND16_n) {
+        A380PrimComputerFctl_U.in.general_logic.triple_ir_failure || rtb_AND16_n ||
+        (A380PrimComputerFctl_U.in.data.discrete_inputs.elec_emer_config &&
+         (!A380PrimComputerFctl_U.in.general_logic.on_ground))) {
       rtb_pitchLawCapability = a380_pitch_efcs_law::DirectLaw;
       rtb_lateralLawCapability = a380_lateral_efcs_law::DirectLaw;
     } else if (A380PrimComputerFctl_U.in.general_logic.double_lgciu_failure) {

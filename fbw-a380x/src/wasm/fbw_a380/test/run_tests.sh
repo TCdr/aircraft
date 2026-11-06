@@ -92,3 +92,8 @@ clang++ -std=c++20 -Wall -Wextra $FLAGS -I ../src -I ../src/model -I ../../../..
 # (ThrustReverseSignals.h). With WITHOUT_THE_FIX=1 a failed PRIM still gives its signal and the test must fail.
 clang++ -std=c++20 -Wall -Wextra -Werror $FLAGS -I ../src thrust_reverse_signals_test.cpp -o ../obj/thrust_reverse_signals_test
 ../obj/thrust_reverse_signals_test
+# Direct law in the electrical emergency configuration (all four AC busbars lost in flight): the generated A380PrimComputerFctl
+# model, as every PRIM runs it. With WITHOUT_THE_FIX=1 the input is left unset and the test must fail.
+clang++ -std=c++20 -Wall -Wextra $FLAGS -I ../src -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src \
+  elec_emer_direct_law_test.cpp ../src/model/*.cpp -o ../obj/elec_emer_direct_law_test
+../obj/elec_emer_direct_law_test
