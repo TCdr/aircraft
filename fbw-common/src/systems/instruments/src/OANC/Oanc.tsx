@@ -49,6 +49,7 @@ import { bearingTo, clampAngle, Coordinates, distanceTo, placeBearingDistance } 
 import { reciprocal } from '@fmgc/guidance/lnav/CommonGeometry';
 import { OancAirportBounds } from './OancAirportBounds';
 import { OansBrakeToVacateSelection } from './OansBrakeToVacateSelection';
+import { oansRunwayAheadFeatures } from './OansRunwayAheadFeatures';
 import { LAYER_SPECIFICATIONS } from './style-data';
 import { OancMovingModeOverlay, OancStaticModeOverlay } from './OancMovingModeOverlay';
 import { OancAircraftIcon } from './OancAircraftIcon';
@@ -213,6 +214,8 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
     featureCollection([]), // Layer 3: TAXIWAY GUIDANCE LINES (unscaled width)
     featureCollection([]), // Layer 4: TAXIWAY GUIDANCE LINES (scaled width), HOLD SHORT LINES
   ];
+
+  private runwayAheadFeatures: FeatureCollection<Geometry, AmdbProperties> = featureCollection([]);
 
   public readonly amdbClient = new NavigraphAmdbClient();
 
@@ -791,6 +794,7 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
     this.canvasCenterCoordinates = this.calculateCanvasCenterCoordinates();
 
     this.sortDataIntoLayers(this.data);
+    this.runwayAheadFeatures = oansRunwayAheadFeatures(this.data);
     this.generateAllLabels(this.data);
 
     this.dataLoading = false;
@@ -1266,7 +1270,7 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
           this.ppos.get(),
           arpCoordinates,
           this.trueHeadingWord.get().value,
-          this.layerFeatures[2],
+          this.runwayAheadFeatures,
         );
       }
     } else {
@@ -1437,6 +1441,7 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
     for (const layer of this.layerFeatures) {
       layer.features.length = 0;
     }
+    this.runwayAheadFeatures = featureCollection([]);
 
     this.labelManager.clearLabels();
     this.markerManager.eraseAllFlags();
