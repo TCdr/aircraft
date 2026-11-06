@@ -6,7 +6,7 @@ import { FailuresConsumer, FmsData } from '@flybywiresim/fbw-sdk';
 import { A380Failure } from '@failures';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { maxZfw, maxZfwCg, minZfw, minZfwCg } from '@shared/PerformanceConstants';
-import { fakeUiService, withStandIns } from '../OitSpecSupport';
+import { fakeUiService, mockRegisteredSimVars, withStandIns } from '../OitSpecSupport';
 import { OitAvncsRefuel } from '../Pages/NssAvncs/Refuel/OitAvncsRefuel';
 import { OitPageDrafts } from './OitPageDrafts';
 import { OisLaptop } from '../OisLaptop';
@@ -175,7 +175,7 @@ describe('FMS data on the FLT OPS STS page', () => {
       'L:A32NX_ELEC_DC_1_BUS_IS_POWERED': 1,
       'L:A32NX_FLTOPS_ANSU_1_IS_HEALTHY': 1,
     };
-    vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) => simVarValues[name] ?? 0);
+    mockRegisteredSimVars((name) => simVarValues[name] ?? 0);
     vi.spyOn(SimVar, 'SetSimVarValue').mockImplementation((name: string, _unit: string, value: number) => {
       simVarValues[name] = value;
       return Promise.resolve();
