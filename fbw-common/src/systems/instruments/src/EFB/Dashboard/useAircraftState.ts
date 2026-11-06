@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AirframeType, useSimVar } from '@flybywiresim/fbw-sdk-react';
 import { useAppSelector } from '@flybywiresim/flypad';
 import { A380_SERVICE_DOORS } from '../Ground/Pages/Services/A380_842/A380ServiceDoors';
@@ -16,6 +16,8 @@ import {
   PowerSource,
   powerSource,
 } from './logic/aircraftState';
+import { isStructurallyEqual } from './logic/structuralEquality';
+import { booleanReader, numberReader } from './registeredReads';
 
 const POLL_MS = 1_000;
 
@@ -42,41 +44,55 @@ export interface AircraftState {
   acPowered: boolean;
 }
 
-const readDoors = (isA380: boolean): DoorReading[] => {
-  const point = (index: number) => SimVar.GetSimVarValue(`A:INTERACTIVE POINT OPEN:${index}`, 'Percent over 100');
+/** Reads the doors through registered ids, created once for the aircraft variant */
+const createDoorsReader = (isA380: boolean): (() => DoorReading[]) => {
+  const pointReader = (index: number) => numberReader(`A:INTERACTIVE POINT OPEN:${index}`, 'Percent over 100');
   if (!isA380) {
-    return A32NX_DOORS.map((door) => ({ name: door.name, openFraction: point(door.point) }));
+    const doors = A32NX_DOORS.map((door) => ({ name: door.name, readOpenFraction: pointReader(door.point) }));
+    return () => doors.map((door) => ({ name: door.name, openFraction: door.readOpenFraction() }));
   }
-  const doors: DoorReading[] = Object.keys(A380_SERVICE_DOORS).map((key) => {
+  const doors = Object.keys(A380_SERVICE_DOORS).map((key) => {
     const door = A380_SERVICE_DOORS[key as keyof typeof A380_SERVICE_DOORS];
-    return { name: door.door, openFraction: point(door.interactivePoint) };
+    return { name: door.door, readOpenFraction: pointReader(door.interactivePoint) };
   });
   // The cargo doors are hydraulic: the systems' position, not the ground crew request of the interactive point
-  doors.push({
-    name: 'FWD CARGO',
-    openFraction: Math.max(SimVar.GetSimVarValue(FWD_CARGO_DOOR_POSITION_VAR, 'number') / 100, 0),
-  });
-  doors.push({
-    name: 'AFT CARGO',
-    openFraction: Math.max(SimVar.GetSimVarValue(AFT_CARGO_DOOR_POSITION_VAR, 'number') / 100, 0),
-  });
-  return doors;
+  const readFwdCargoPosition = numberReader(FWD_CARGO_DOOR_POSITION_VAR, 'number');
+  const readAftCargoPosition = numberReader(AFT_CARGO_DOOR_POSITION_VAR, 'number');
+  return () => {
+    const readings: DoorReading[] = doors.map((door) => ({
+      name: door.name,
+      openFraction: door.readOpenFraction(),
+    }));
+    readings.push({ name: 'FWD CARGO', openFraction: Math.max(readFwdCargoPosition() / 100, 0) });
+    readings.push({ name: 'AFT CARGO', openFraction: Math.max(readAftCargoPosition() / 100, 0) });
+    return readings;
+  };
 };
 
-const readPower = (isA380: boolean) => {
-  const bool = (name: string) => SimVar.GetSimVarValue(name, 'bool') > 0;
+/** Reads the power state through registered ids, created once for the aircraft variant */
+const createPowerReader = (isA380: boolean) => {
   const units = isA380 ? [1, 2, 3, 4] : [1];
-  const available = units.filter((unit) => bool(`L:A32NX_EXT_PWR_AVAIL:${unit}`));
-  const online = available.filter((unit) =>
-    bool(isA380 ? `L:A32NX_OVHD_ELEC_EXT_PWR_${unit}_PB_IS_ON` : 'L:A32NX_OVHD_ELEC_EXT_PWR_PB_IS_ON'),
+  const extPwrUnits = units.map((unit) => ({
+    isAvailable: booleanReader(`L:A32NX_EXT_PWR_AVAIL:${unit}`),
+    isOnline: booleanReader(
+      isA380 ? `L:A32NX_OVHD_ELEC_EXT_PWR_${unit}_PB_IS_ON` : 'L:A32NX_OVHD_ELEC_EXT_PWR_PB_IS_ON',
+    ),
+  }));
+  const apuGenerators = (isA380 ? [1, 2] : [1]).map((gen) =>
+    booleanReader(`L:A32NX_ELEC_APU_GEN_${gen}_POTENTIAL_NORMAL`),
   );
-  const apuGens = isA380 ? [1, 2] : [1];
-  return {
-    acPowered: bool('L:A32NX_ELEC_AC_1_BUS_IS_POWERED'),
-    extPwrOnline: online.length,
-    extPwrAvailable: available.length,
-    apuGenOnline: apuGens.some((gen) => bool(`L:A32NX_ELEC_APU_GEN_${gen}_POTENTIAL_NORMAL`)),
-    batteryBusPowered: bool('L:A32NX_ELEC_DC_ESS_BUS_IS_POWERED'),
+  const isAcPowered = booleanReader('L:A32NX_ELEC_AC_1_BUS_IS_POWERED');
+  const isBatteryBusPowered = booleanReader('L:A32NX_ELEC_DC_ESS_BUS_IS_POWERED');
+
+  return () => {
+    const available = extPwrUnits.filter((unit) => unit.isAvailable());
+    return {
+      acPowered: isAcPowered(),
+      extPwrOnline: available.filter((unit) => unit.isOnline()).length,
+      extPwrAvailable: available.length,
+      apuGenOnline: apuGenerators.some((isOnline) => isOnline()),
+      batteryBusPowered: isBatteryBusPowered(),
+    };
   };
 };
 
@@ -100,13 +116,23 @@ export const useAircraftState = (): AircraftState => {
   const engineRunning = engine1 > 0 || engine2 > 0 || engine3 > 0 || engine4 > 0;
 
   // Doors and power are several vars per aircraft variant, read together instead of one hook each
-  const [readings, setReadings] = useState(() => ({ doors: readDoors(isA380), power: readPower(isA380) }));
+  const readAircraft = useMemo(() => {
+    const readDoors = createDoorsReader(isA380);
+    const readPower = createPowerReader(isA380);
+    return () => ({ doors: readDoors(), power: readPower() });
+  }, [isA380]);
+  const [readings, setReadings] = useState(readAircraft);
   useEffect(() => {
-    const read = () => setReadings({ doors: readDoors(isA380), power: readPower(isA380) });
+    // The same readings keep the previous object, so an unchanged poll does not render the dashboard
+    const read = () =>
+      setReadings((previous) => {
+        const next = readAircraft();
+        return isStructurallyEqual(previous, next) ? previous : next;
+      });
     read();
     const timer = window.setInterval(read, POLL_MS);
     return () => window.clearInterval(timer);
-  }, [isA380]);
+  }, [readAircraft]);
 
   const adirs = adirsSummary([adiru1, adiru2, adiru3], [irMode1, irMode2, irMode3], alignSeconds);
   return {
