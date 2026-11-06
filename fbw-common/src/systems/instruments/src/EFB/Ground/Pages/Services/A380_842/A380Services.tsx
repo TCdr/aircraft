@@ -769,6 +769,7 @@ export const A380Services: React.FC = () => {
         gsxStatus: jetBridgeGsx.text,
         progress: jetBridgeGsx.progress,
         requestable: jetBridgeGsx.requestable,
+        releaseAction: jetBridgeGsx.releaseAction,
       },
     ),
     equipmentRow(
@@ -781,6 +782,7 @@ export const A380Services: React.FC = () => {
         gsxStatus: stairsGsx.text,
         progress: stairsGsx.progress,
         requestable: stairsGsx.requestable,
+        releaseAction: stairsGsx.releaseAction,
       },
     ),
     equipmentRow(

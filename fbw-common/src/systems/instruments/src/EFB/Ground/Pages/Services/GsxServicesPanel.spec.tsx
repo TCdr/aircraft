@@ -4,7 +4,7 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { GsxMenuBox, GsxServicesPanel, gsxServiceStatus } from './GsxServicesPanel';
+import { GsxMenuBox, GsxServicesPanel, MENU_SETTLE_MS, gsxServiceStatus } from './GsxServicesPanel';
 import { GsxRemoteState, GsxService, withTurnaroundMemory } from './GsxRemote';
 import { gsxTurnaround } from './gsxTurnaround';
 import { gsxPaxProgress } from './gsxPassengers';
@@ -342,5 +342,11 @@ describe('GSX panel in the card height of the Services page', () => {
     const closeLink = blocks[3];
     expect(closeLink.tagName).toBe('BUTTON');
     expect(closeLink.textContent).toBe('CloseMenu');
+  });
+});
+
+describe('GSX questions on the panel', () => {
+  it('shows a GSX menu soon enough to answer it before GSX closes it on its own after 5 s', () => {
+    expect(MENU_SETTLE_MS).toBeLessThanOrEqual(500);
   });
 });

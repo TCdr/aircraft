@@ -70,7 +70,8 @@ export function doorRow(
  * A ground equipment row: its chip requests or releases the service; the status line is GSX's when the page is
  * linked to GSX, else the state of the sim service (or `status`, for rows that are not a sim service). `action` names
  * the request on the chip (default "Request"). `requestable` false (a GSX service GSX does not let be triggered, e.g.
- * completed) leaves an idle row without its Request chip.
+ * completed) leaves an idle row without its Request chip. `releaseAction` names the release on the chip of a connected
+ * row (default "Release").
  */
 export function equipmentRow(
   key: string,
@@ -86,6 +87,7 @@ export function equipmentRow(
     progress?: number | null;
     detail?: string;
     requestable?: boolean;
+    releaseAction?: string;
   } = {},
 ): ServiceRowSpec {
   const tone: M3Tone = look === 'active' ? 'active' : look === 'called' || look === 'released' ? 'busy' : 'idle';
@@ -112,7 +114,7 @@ export function equipmentRow(
   let action: string;
   switch (look) {
     case 'active':
-      action = t('Ground.Services.Release');
+      action = options.releaseAction ?? t('Ground.Services.Release');
       break;
     case 'called':
       action = t('Ground.Services.Called');
