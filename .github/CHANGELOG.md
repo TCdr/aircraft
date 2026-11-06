@@ -2937,3 +2937,4 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [OANS] Airport map no longer recomputes its bounds every frame (better frame rate at large airports) - @TCdr
 1. [EFB] Status bar clock no longer redraws the flyPad on every frame (fewer stutters) - @TCdr
 1. [A380X/FWS] Flight warning loop reads the simulation time once per cycle instead of once per alert (less display thread load) - @TCdr
+1. [A380X/PFD] PFD no longer searches the page for its own side on every frame - @TCdr
