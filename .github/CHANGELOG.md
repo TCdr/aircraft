@@ -1015,6 +1015,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FMS] Fixed +/- altitude constraints entered on the F-PLN page being inverted - @shinji1100
 1. [A380X/TCAS] TCAS voice alerts that come while another voice plays, and repeated RA callouts, now sound instead of being lost - @TCdr
 1. [A380X/FWS] The C chord when approaching the selected altitude lasts 1.5 s - @TCdr
+1. [A380X/FWS] New SPEED SPEED SPEED low energy voice in CONF 2 to FULL below 2500 ft, repeated every 5 s until thrust is added - @TCdr
 1. [A380X/FWS] The master warning chime no longer waits behind the altitude alert chord - @TCdr
 
 ## 2024.1.0
