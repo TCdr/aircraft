@@ -34,14 +34,18 @@ const CONFIG: RaasConfig = {
 };
 
 /** The latitude and longitude of a point given in the runway frame */
-function position(along: number, cross: number): { latitude: number; longitude: number } {
-  const course = (RUNWAY.ends[0].course * Math.PI) / 180;
+function position(
+  along: number,
+  cross: number,
+  runway: AwarenessRunway = RUNWAY,
+): { latitude: number; longitude: number } {
+  const course = (runway.ends[0].course * Math.PI) / 180;
   const east = along * Math.sin(course) + cross * Math.cos(course);
   const north = along * Math.cos(course) - cross * Math.sin(course);
   return {
-    latitude: RUNWAY.latitude + (north / EARTH_RADIUS_M) * (180 / Math.PI),
+    latitude: runway.latitude + (north / EARTH_RADIUS_M) * (180 / Math.PI),
     longitude:
-      RUNWAY.longitude + (east / (EARTH_RADIUS_M * Math.cos((RUNWAY.latitude * Math.PI) / 180))) * (180 / Math.PI),
+      runway.longitude + (east / (EARTH_RADIUS_M * Math.cos((runway.latitude * Math.PI) / 180))) * (180 / Math.PI),
   };
 }
 
@@ -262,5 +266,122 @@ describe('Raas', () => {
     const raas = new Raas({ ...CONFIG, distanceUnit: 'meters' });
     raas.update(ground(1_400, 0, 90, 10), [RUNWAY], 0);
     expect(words(raas.update(ground(1_475, 0, 90, 10), [RUNWAY], 1_000))).toEqual(['thirty remaining']);
+  });
+});
+
+describe('Raas approaching runway at a hilltop airport', () => {
+  /** Hiroshima (RJOA) 10/28, 3000 m by 60 m, on a plateau with valleys under the finals (approximate values) */
+  const RJOA: AwarenessRunway = {
+    airport: 'RJOA',
+    latitude: 34.4361,
+    longitude: 132.9194,
+    length: 3_000,
+    width: 60,
+    ends: [
+      { number: 10, designator: '', ident: '10', course: 93.4, displacedThreshold: 0, elevation: 321 },
+      { number: 28, designator: '', ident: '28', course: 273.4, displacedThreshold: 0, elevation: 331 },
+    ],
+  };
+  const THRESHOLD_28_FT = RJOA.ends[1].elevation * FT_PER_M;
+  const KT_TO_MPS = 1_852 / 3_600;
+  const FRAME_MS = 100;
+
+  /** The ground under the runway 28 final, in ft below the threshold: a 450 ft deep valley from 1 NM out */
+  function valleyDepth(fromThreshold: number): number {
+    const nm = fromThreshold / 1_852;
+    return nm >= 1 ? 450 : Math.max(0, ((nm - 0.5) / 0.5) * 450);
+  }
+
+  /** A 3 degree final to runway 28 at 140 kt, from a height above the threshold down to a lower one */
+  function finalTo28(raas: Raas, fromHeight: number, toHeight: number, startTime: number, all: RaasCallout[]): number {
+    const threshold = RJOA.length / 2;
+    const tanGlide = Math.tan((3 * Math.PI) / 180);
+    let fromThreshold = (fromHeight - 50) / FT_PER_M / tanGlide;
+    let t = startTime;
+    for (;;) {
+      const heightAbove = 50 + fromThreshold * tanGlide * FT_PER_M;
+      if (heightAbove < toHeight) {
+        return t;
+      }
+      all.push(
+        ...raas.update(
+          {
+            ...position(threshold + fromThreshold, 0, RJOA),
+            trueHeading: 273.4,
+            trueTrack: 273.4,
+            groundSpeed: 140,
+            onGround: false,
+            altitude: THRESHOLD_28_FT + heightAbove,
+            radioAltitude: heightAbove + valleyDepth(fromThreshold),
+            verticalSpeed: -750,
+          },
+          [RJOA],
+          t,
+        ),
+      );
+      fromThreshold -= 140 * KT_TO_MPS * (FRAME_MS / 1_000);
+      t += FRAME_MS;
+    }
+  }
+
+  function approaching(all: RaasCallout[]): string[] {
+    return words(all.filter((c) => c.advisory === RaasAdvisory.ApproachingRunwayInAir));
+  }
+
+  it('gives Approaching Runway once on a final over a valley, where the radio altitude is above 1000 ft', () => {
+    const all: RaasCallout[] = [];
+    finalTo28(new Raas(CONFIG), 1_000, 50, 0, all);
+    expect(approaching(all)).toEqual(['approaching two eight']);
+  });
+
+  it('gives it again on the next approach after a go-around above 1000 ft over the runway', () => {
+    const raas = new Raas(CONFIG);
+    const all: RaasCallout[] = [];
+    let t = finalTo28(raas, 1_000, 300, 0, all);
+    // Go-around: climbing through 1000 ft above the runway
+    raas.update(
+      {
+        ...position(0, 0, RJOA),
+        trueHeading: 273.4,
+        trueTrack: 273.4,
+        groundSpeed: 160,
+        onGround: false,
+        altitude: THRESHOLD_28_FT + 1_100,
+        radioAltitude: 1_100,
+        verticalSpeed: 1_500,
+      },
+      [RJOA],
+      t,
+    );
+    t = finalTo28(raas, 1_000, 300, t + 300_000, all);
+    expect(approaching(all)).toEqual(['approaching two eight', 'approaching two eight']);
+  });
+
+  it('gives Approaching Runway on the ground once when taxiing to the runway 28 holding point at 15 kt', () => {
+    const raas = new Raas(CONFIG);
+    const all: RaasCallout[] = [];
+    // South of the runway, near the 28 end, taxiing north to a holding point 90 m from the centreline, then holding
+    let cross = 400;
+    for (let t = 0; t <= 120_000; t += FRAME_MS) {
+      const groundSpeed = cross > 90 ? 15 : 0;
+      all.push(
+        ...raas.update(
+          {
+            ...position(1_200, cross, RJOA),
+            trueHeading: 3.4,
+            trueTrack: 3.4,
+            groundSpeed,
+            onGround: true,
+            altitude: THRESHOLD_28_FT,
+            radioAltitude: 0,
+            verticalSpeed: 0,
+          },
+          [RJOA],
+          t,
+        ),
+      );
+      cross -= groundSpeed * KT_TO_MPS * (FRAME_MS / 1_000);
+    }
+    expect(words(all)).toEqual(['approaching two eight']);
   });
 });
