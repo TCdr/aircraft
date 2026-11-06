@@ -77,7 +77,7 @@ import { HoldType } from '@fmgc/flightplanning/data/flightplan';
 import { SpeedLimit } from '@fmgc/guidance/vnav/SpeedLimit';
 import { cruiseSpeedRestriction, ManagedCruiseSpeedInfo } from './PerfCruiseSpeedTable';
 import { managedCruiseTarget, ManagedCruiseTarget } from './ManagedCruiseTarget';
-import { DestinationWords } from './DestinationWords';
+import { DestinationWords, destinationDataOf } from './DestinationWords';
 
 /** A hold speed, with the limits that lowered it */
 interface HoldingSpeed {
@@ -740,31 +740,14 @@ export class FmcAircraftInterface {
   );
 
   async updateDestinationData() {
-    let landingElevation: number | null = null;
-    let latitude: number | null = null;
-    let longitude: number | null = null;
+    const data = destinationDataOf(
+      this.flightPlanService.active.destinationRunway,
+      this.flightPlanService.active.destinationAirport,
+    );
 
-    const runway = this.flightPlanService.active.destinationRunway;
-
-    if (runway) {
-      landingElevation = runway.thresholdLocation.alt;
-      latitude = runway.thresholdLocation.lat;
-      longitude = runway.thresholdLocation.long;
-    } else {
-      const airport = this.flightPlanService.active.destinationAirport;
-
-      if (airport) {
-        const ele = airport.location.alt;
-
-        landingElevation = Number.isFinite(ele) ? ele : null;
-        latitude = airport.location.lat;
-        longitude = airport.location.long;
-      }
-    }
-
-    if (this.destinationWords.update({ landingElevation, latitude, longitude })) {
+    if (this.destinationWords.update(data)) {
       // FIXME CPCs should use the FM ARINC vars, and transmit their own vars as well
-      SimVar.SetSimVarValue('L:A32NX_PRESS_AUTO_LANDING_ELEVATION', 'feet', landingElevation || 0);
+      SimVar.SetSimVarValue('L:A32NX_PRESS_AUTO_LANDING_ELEVATION', 'feet', data.landingElevation ?? 0);
     }
   }
 
