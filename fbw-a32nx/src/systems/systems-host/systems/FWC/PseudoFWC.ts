@@ -443,6 +443,9 @@ import {
 /** The longest power-up self test of a radio altimeter, in seconds (4 to 6 s in the systems RA model, ala52b.rs) */
 const RA_POWER_UP_SELF_TEST_MAX_S = 6;
 
+/** The L:A32NX_TCAS_STATE value of a resolution advisory (the TCAS constants module is not part of this bundle) */
+const TCAS_STATE_RA = 2;
+
 export function xor(a: boolean, b: boolean): boolean {
   return !!((a ? 1 : 0) ^ (b ? 1 : 0));
 }
@@ -6960,6 +6963,7 @@ export class PseudoFWC {
     this.altAlertInhibitMtrig2.write(selectedAltChanged, deltaTime);
 
     const apFdTcasModeEngaged = apVerticalMode === VerticalMode.TCAS;
+    const tcasRaActive = SimVar.GetSimVarValue('L:A32NX_TCAS_STATE', SimVarValueType.Enum) === TCAS_STATE_RA;
     this.altAlertInhibitMemory.write(
       apFdTcasModeEngaged && (this.altAlertInhibitPulse1.read() || this.altAlertInhibitPulse2.read()),
       this.altAlertInhibitPulse3.read() ||
@@ -6968,7 +6972,7 @@ export class PseudoFWC {
         this.altAlertInhibitMtrig2.read(),
     );
 
-    const groundOrTcasMode = apFdTcasModeEngaged || onGround;
+    const groundOrTcasMode = apFdTcasModeEngaged || tcasRaActive || onGround;
     const altAlertBetween200And750 = altDeltaBelow750 && !altDeltaBelow200 && !altAlertGeneralInhibit;
     const altAlertBelow200And750 = altDeltaBelow750 && altDeltaBelow200 && !altAlertGeneralInhibit;
     const altAlertAbove200And750 = !altDeltaBelow750 && !altDeltaBelow200 && !altAlertGeneralInhibit;
