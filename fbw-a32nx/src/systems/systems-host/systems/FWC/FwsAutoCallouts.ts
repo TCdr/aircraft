@@ -195,7 +195,9 @@ export class FwsAutoCallouts {
   private readonly gpwsMtrig = new NXLogicTriggeredMonostableNode(2);
   private gpwsActive = false;
 
-  private tcasAudio = false; // TODO
+  private readonly tcasAuralActive = RegisteredSimVar.createBoolean('L:A32NX_TCAS_AURAL_ACTIVE', SimVarValueType.Bool);
+
+  private tcasAudio = false;
 
   private readonly tcasAudioMrtrigNode = new NXLogicTriggeredMonostableNode(5, true, true);
 
@@ -458,7 +460,11 @@ export class FwsAutoCallouts {
     const gpwsAlert = this.gpwsAlertLightOn.get();
     const gpwsMtrig = this.gpwsMtrig.write(gpwsWarning || gpwsAlert, deltaTime);
     this.gpwsActive = gpwsWarning || gpwsAlert || gpwsMtrig;
-    this.tcasAudio = this.tcasAudioMrtrigNode.write(false, deltaTime); // TODO
+    const tcasAuralActive = this.tcasAuralActive.get();
+    const tcasAudioMtrig = this.tcasAudioMrtrigNode.write(tcasAuralActive, deltaTime);
+    // Design choice: the live aural next to the monostable, as the GPWS line above does. Back-to-back TCAS voices
+    // give no falling edge, so the monostable alone would release the FWC voices in the middle of a long RA.
+    this.tcasAudio = tcasAuralActive || tcasAudioMtrig;
   }
 
   private computeRaAndMinimumsInhibits(

@@ -27,6 +27,8 @@ export class TcasSoundManager {
 
   private playingSoundRemaining: number = NaN;
 
+  private auralActiveWritten: boolean | null = null;
+
   init(): void {
     // do nothing
   }
@@ -53,6 +55,13 @@ export class TcasSoundManager {
         element.timeSinceLastPlayed += deltaTime / 1000;
       }
     });
+
+    const auralActive = this.playingSound !== null;
+    // Read by the FWC: its voices wait while a TCAS voice is said
+    if (auralActive !== this.auralActiveWritten) {
+      this.auralActiveWritten = auralActive;
+      SimVar.SetSimVarValue('L:A32NX_TCAS_AURAL_ACTIVE', 'bool', auralActive);
+    }
   }
 
   addPeriodicSound(sound: RaSound, period: number = NaN) {
