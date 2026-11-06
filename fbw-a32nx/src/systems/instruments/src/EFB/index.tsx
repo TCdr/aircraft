@@ -10,7 +10,8 @@ import {
   EfbWrapper,
   syncSettingsFromPersistentStorage,
 } from '@flybywiresim/flypad';
-import { A320FailureDefinitions, A320FailureDetails } from '@failures';
+import { A320FailureDefinitions } from '@failures';
+import { A320FailureDetails } from '../../../failures/src/a320-details';
 import { A320251NLandingCalculator } from '@shared/performance/a32nx_landing';
 import { A320AircraftConfig } from '@fmgc/flightplanning/A320AircraftConfig';
 import { FmsDescentPerformanceCalculator } from '@fmgc/performance/FmsDescentPerformanceCalculator';
