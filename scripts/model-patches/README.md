@@ -20,6 +20,7 @@ change of the model files" below).
 | `06-a380x-fctl-fcom.patch` | A380X normal law protection values and direct law triggers | `A380PrimComputerFctl.cpp/_data.cpp`, `A380LateralNormalLaw.cpp/.h`, `A380PitchNormalLaw.cpp` | A380 FCOM, normal law protections and direct law | `fbw_a380/test/fctl_protection_values_test.cpp` |
 | `07-fls-no-land.patch` | LAND never engages on an FLS approach (new input `fls_approach_active`) | `FmgcComputer.cpp/_data.cpp/_types.h`, `A380PrimComputerFg.cpp`, `_types.h`/`_data.cpp` of Fctl, Fe, Fg, GeneralLogic | Feature not in upstream | None on the model edit itself (`fbw_a320/test/fls_guidance_test.cpp` covers the shared FLS receiver only); `check-model-patches.sh` is its guard |
 | `08-a380x-hsp-dive.patch` | A380X holds the 15 degree nose-down limit and VD in a full forward sidestick dive | `A380PitchNormalLaw.cpp`, `A380PrimComputerFctl_data.cpp` | Tuning from sim recordings | `fbw_a380/test/hsp_dive_response_test.cpp` |
+| `09-a380x-elec-emer-direct-law.patch` | A380X direct law in ELEC EMER CONFIG (new PRIM discrete input `elec_emer_config`, all four AC busbars lost in flight) | `A380PrimComputerFctl.cpp`, `_types.h`/`_data.cpp` of Fctl, Fe, Fg, GeneralLogic | A380 FCOM, ELEC EMER CONFIG and flight control reconfiguration laws | `fbw_a380/test/elec_emer_direct_law_test.cpp` |
 
 The patches apply in numeric order and must stay in that order: some files carry two features. A patch may only modify
 files that exist in `BASE`; creating or deleting a model file is not supported by the check.

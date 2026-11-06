@@ -1,0 +1,116 @@
+diff --git a/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFctl.cpp b/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFctl.cpp
+index f877dea50..90782793c 100644
+--- a/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFctl.cpp
++++ b/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFctl.cpp
+@@ -1666,8 +1666,14 @@ void A380PrimComputerFctl::step()
+     }
+ 
+     // The three IRs are the PRIMs' gyrometers: losing all three leaves no rate feedback for the normal or alternate laws
++    // With the four AC busbars lost only the emergency network is left and the PRIMs fly direct law, in flight only: on the
++    // ground the busbars are also unpowered with just the batteries on
++    // Design choice: not latched, the law returns when an AC busbar is powered again. Nothing says it must stay in direct law
++    // after a generator is recovered, and the other direct law conditions are not latched either
+     if (A380PrimComputerFctl_U.in.general_logic.triple_adr_failure ||
+-        A380PrimComputerFctl_U.in.general_logic.triple_ir_failure || rtb_AND16_n) {
++        A380PrimComputerFctl_U.in.general_logic.triple_ir_failure || rtb_AND16_n ||
++        (A380PrimComputerFctl_U.in.data.discrete_inputs.elec_emer_config &&
++         (!A380PrimComputerFctl_U.in.general_logic.on_ground))) {
+       rtb_pitchLawCapability = a380_pitch_efcs_law::DirectLaw;
+       rtb_lateralLawCapability = a380_lateral_efcs_law::DirectLaw;
+     } else if (A380PrimComputerFctl_U.in.general_logic.double_lgciu_failure) {
+diff --git a/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFctl_data.cpp b/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFctl_data.cpp
+index 928670a0e..e30ddb4d4 100644
+--- a/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFctl_data.cpp
++++ b/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFctl_data.cpp
+@@ -653,6 +653,7 @@ A380PrimComputerFctl::Parameters_A380PrimComputerFctl_T A380PrimComputerFctl::A3
+         false,
+         false,
+         false,
++        false,
+         false
+       },
+ 
+diff --git a/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFctl_types.h b/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFctl_types.h
+index 590c225fc..b57143261 100644
+--- a/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFctl_types.h
++++ b/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFctl_types.h
+@@ -561,6 +561,7 @@ struct base_prim_discrete_inputs
+   boolean_T pitch_trim_down_pressed;
+   boolean_T green_low_pressure;
+   boolean_T yellow_low_pressure;
++  boolean_T elec_emer_config;
+ };
+ 
+ #endif
+diff --git a/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFe_data.cpp b/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFe_data.cpp
+index 5d19b636c..fdb7d85b5 100644
+--- a/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFe_data.cpp
++++ b/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFe_data.cpp
+@@ -75,6 +75,7 @@ A380PrimComputerFe::Parameters_A380PrimComputerFe_T A380PrimComputerFe::A380Prim
+         false,
+         false,
+         false,
++        false,
+         false
+       },
+ 
+diff --git a/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFe_types.h b/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFe_types.h
+index 7f7e26530..6f50b63b9 100644
+--- a/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFe_types.h
++++ b/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFe_types.h
+@@ -438,6 +438,7 @@ struct base_prim_discrete_inputs
+   boolean_T pitch_trim_down_pressed;
+   boolean_T green_low_pressure;
+   boolean_T yellow_low_pressure;
++  boolean_T elec_emer_config;
+ };
+ 
+ #endif
+diff --git a/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFg_data.cpp b/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFg_data.cpp
+index 4a08bd962..397b19f41 100644
+--- a/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFg_data.cpp
++++ b/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFg_data.cpp
+@@ -746,6 +746,7 @@ A380PrimComputerFg::Parameters_A380PrimComputerFg_T A380PrimComputerFg::A380Prim
+         false,
+         false,
+         false,
++        false,
+         false
+       },
+ 
+diff --git a/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFg_types.h b/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFg_types.h
+index 40afd3a46..ba45d6483 100644
+--- a/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFg_types.h
++++ b/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerFg_types.h
+@@ -767,6 +767,7 @@ struct base_prim_discrete_inputs
+   boolean_T pitch_trim_down_pressed;
+   boolean_T green_low_pressure;
+   boolean_T yellow_low_pressure;
++  boolean_T elec_emer_config;
+ };
+ 
+ #endif
+diff --git a/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerGeneralLogic_data.cpp b/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerGeneralLogic_data.cpp
+index 86a527b70..4562948b6 100644
+--- a/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerGeneralLogic_data.cpp
++++ b/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerGeneralLogic_data.cpp
+@@ -128,6 +128,7 @@ A380PrimComputerGeneralLogic::Parameters_A380PrimComputerGeneralLogic_T A380Prim
+         false,
+         false,
+         false,
++        false,
+         false
+       },
+ 
+diff --git a/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerGeneralLogic_types.h b/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerGeneralLogic_types.h
+index 68cd4943f..8e8d223e5 100644
+--- a/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerGeneralLogic_types.h
++++ b/fbw-a380x/src/wasm/fbw_a380/src/model/A380PrimComputerGeneralLogic_types.h
+@@ -333,6 +333,7 @@ struct base_prim_discrete_inputs
+   boolean_T pitch_trim_down_pressed;
+   boolean_T green_low_pressure;
+   boolean_T yellow_low_pressure;
++  boolean_T elec_emer_config;
+ };
+ 
+ #endif
