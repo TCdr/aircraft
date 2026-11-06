@@ -9,8 +9,12 @@ import { filterLabel, labelStyle, OancLabelFilter } from './OancLabelFilter';
 import { Label, LabelStyle, LABEL_VISIBILITY_RULES, Oanc, OANC_RENDER_HEIGHT, OANC_RENDER_WIDTH } from './Oanc';
 import { intersectLineWithRectangle, isPointInRectangle, midPoint, pointAngle } from './OancMapUtils';
 
+type LabelStyleProperty = 'left' | 'top' | 'transform' | 'visibility';
+
 export class OancLabelManager<T extends number> {
-  constructor(public oanc: Oanc<T>) {}
+  constructor(public oanc: Oanc<T>) {
+    this.visibleLabels.sub(() => this.labelSetRevision++);
+  }
 
   public showLabels = false;
 
@@ -21,6 +25,36 @@ export class OancLabelManager<T extends number> {
   public visibleLabels = ArraySubject.create<Label>([]);
 
   public visibleLabelElements = new Map<Label, HTMLDivElement>();
+
+  /** Counts every change of the label set or of a label's style, which the reflow inputs below cannot see. */
+  private labelSetRevision = 0;
+
+  /** Numeric inputs of the last reflow: offset x/y, heading, scale, pan x/y, mode animation x/y, shown, revision. */
+  private readonly lastReflowNumbers: number[] = [];
+
+  private readonly reflowNumbers: number[] = [];
+
+  private lastReflowFilter?: OancLabelFilter;
+
+  private readonly lastReflowRunways: (string | undefined)[] = [];
+
+  /** The style values last written per element; a style write is a native call even when the value is the same. */
+  private readonly writtenStyles = new WeakMap<HTMLElement, Partial<Record<LabelStyleProperty, string>>>();
+
+  private lastContainerVisibility?: string;
+
+  private setLabelStyle(element: HTMLElement, property: LabelStyleProperty, value: string) {
+    let written = this.writtenStyles.get(element);
+    if (!written) {
+      written = {};
+      this.writtenStyles.set(element, written);
+    }
+
+    if (written[property] !== value) {
+      written[property] = value;
+      element.style[property] = value;
+    }
+  }
 
   public reflowLabels(
     fmsDepRunway?: string,
@@ -38,8 +72,44 @@ export class OancLabelManager<T extends number> {
 
     const rotate = -mapCurrentHeading;
 
-    if (this.oanc.doneDrawing && this.showLabels && LABEL_VISIBILITY_RULES[this.oanc.zoomLevelIndex.get()]) {
-      this.oanc.labelContainerRef.instance.style.visibility = 'inherit';
+    const labelsShown =
+      this.oanc.doneDrawing && this.showLabels && LABEL_VISIBILITY_RULES[this.oanc.zoomLevelIndex.get()];
+
+    // The runway axis labels are placed with projectPoint, which reads the same map inputs
+    const numbers = this.reflowNumbers;
+    numbers[0] = offsetX;
+    numbers[1] = offsetY;
+    numbers[2] = mapCurrentHeading;
+    numbers[3] = this.oanc.getZoomLevelInverseScale();
+    numbers[4] = this.oanc.panOffsetX.get();
+    numbers[5] = this.oanc.panOffsetY.get();
+    numbers[6] = this.oanc.modeAnimationOffsetX.get();
+    numbers[7] = this.oanc.modeAnimationOffsetY.get();
+    numbers[8] = labelsShown ? 1 : 0;
+    numbers[9] = this.labelSetRevision;
+
+    if (
+      this.lastReflowFilter === this.currentFilter &&
+      this.lastReflowRunways[0] === fmsDepRunway &&
+      this.lastReflowRunways[1] === fmsLdgRunway &&
+      this.lastReflowRunways[2] === btvSelectedRunway &&
+      this.lastReflowRunways[3] === btvSelectedExit &&
+      this.reflowNumbersUnchanged()
+    ) {
+      return;
+    }
+
+    this.lastReflowFilter = this.currentFilter;
+    this.lastReflowRunways[0] = fmsDepRunway;
+    this.lastReflowRunways[1] = fmsLdgRunway;
+    this.lastReflowRunways[2] = btvSelectedRunway;
+    this.lastReflowRunways[3] = btvSelectedExit;
+    for (let i = 0; i < numbers.length; i++) {
+      this.lastReflowNumbers[i] = numbers[i];
+    }
+
+    if (labelsShown) {
+      this.setContainerVisibility('inherit');
 
       for (const label of this.visibleLabels.getArray()) {
         const element = this.visibleLabelElements.get(label);
@@ -61,10 +131,10 @@ export class OancLabelManager<T extends number> {
         }
 
         if (!labelVisible) {
-          element.style.visibility = 'hidden';
+          this.setLabelStyle(element, 'visibility', 'hidden');
           continue;
         } else if ([LabelStyle.BtvSelectedRunwayArrow, LabelStyle.FmsSelectedRunwayEnd].includes(label.style)) {
-          element.style.visibility = 'inherit';
+          this.setLabelStyle(element, 'visibility', 'inherit');
         }
 
         const [labelX, labelY] = label.position;
@@ -91,24 +161,36 @@ export class OancLabelManager<T extends number> {
             labelScreenY < 0 ||
             labelScreenY > OANC_RENDER_HEIGHT
           ) {
-            element.style.visibility = 'hidden';
+            this.setLabelStyle(element, 'visibility', 'hidden');
             continue;
           } else {
-            element.style.visibility = 'inherit';
+            this.setLabelStyle(element, 'visibility', 'inherit');
           }
 
-          element.style.left = `${labelScreenX}px`;
-          element.style.top = `${labelScreenY}px`;
+          this.setLabelStyle(element, 'left', `${labelScreenX}px`);
+          this.setLabelStyle(element, 'top', `${labelScreenY}px`);
           const labelRotation = label.rotation ?? 0;
 
           if (label.style === LabelStyle.RunwayEnd || label.style === LabelStyle.BtvSelectedRunwayEnd) {
-            element.style.transform = `translate(-50%, -50%) rotate(${labelRotation - mapCurrentHeading}deg) translate(0px, 50px)`;
+            this.setLabelStyle(
+              element,
+              'transform',
+              `translate(-50%, -50%) rotate(${labelRotation - mapCurrentHeading}deg) translate(0px, 50px)`,
+            );
           } else if (label.style === LabelStyle.BtvSelectedRunwayArrow) {
-            element.style.transform = `translate(-50%, -50%) rotate(${labelRotation - mapCurrentHeading}deg) translate(0px, -100px) rotate(-180deg)`;
+            this.setLabelStyle(
+              element,
+              'transform',
+              `translate(-50%, -50%) rotate(${labelRotation - mapCurrentHeading}deg) translate(0px, -100px) rotate(-180deg)`,
+            );
           } else if (label.style === LabelStyle.FmsSelectedRunwayEnd) {
-            element.style.transform = `translate(-50%, -50%) rotate(${labelRotation - mapCurrentHeading}deg) translate(0px, 82.5px)`;
+            this.setLabelStyle(
+              element,
+              'transform',
+              `translate(-50%, -50%) rotate(${labelRotation - mapCurrentHeading}deg) translate(0px, 82.5px)`,
+            );
           } else {
-            element.style.transform = 'translate(-50%, -50%)';
+            this.setLabelStyle(element, 'transform', 'translate(-50%, -50%)');
           }
         } else {
           const runway = label.associatedFeature as Feature<LineString>;
@@ -186,18 +268,38 @@ export class OancLabelManager<T extends number> {
           x += this.oanc.modeAnimationOffsetX.get();
           y += this.oanc.modeAnimationOffsetY.get();
 
-          element.style.left = `${x}px`;
-          element.style.top = `${y}px`;
+          this.setLabelStyle(element, 'left', `${x}px`);
+          this.setLabelStyle(element, 'top', `${y}px`);
 
           // console.log('runway line heading: ', label.text, label.rotation);
 
-          element.style.transform = `translate(-50%, -50%) rotate(${rwyAngle + (rwyAngle > 180 ? 90 : -90)}deg)`;
+          this.setLabelStyle(
+            element,
+            'transform',
+            `translate(-50%, -50%) rotate(${rwyAngle + (rwyAngle > 180 ? 90 : -90)}deg)`,
+          );
 
           // console.log(`Runway intersections (${label.text}):`, intersections);
         }
       }
     } else {
-      this.oanc.labelContainerRef.instance.style.visibility = 'hidden';
+      this.setContainerVisibility('hidden');
+    }
+  }
+
+  private reflowNumbersUnchanged(): boolean {
+    for (let i = 0; i < this.reflowNumbers.length; i++) {
+      if (this.reflowNumbers[i] !== this.lastReflowNumbers[i]) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private setContainerVisibility(visibility: string) {
+    if (this.lastContainerVisibility !== visibility) {
+      this.lastContainerVisibility = visibility;
+      this.oanc.labelContainerRef.instance.style.visibility = visibility;
     }
   }
 
@@ -221,6 +323,7 @@ export class OancLabelManager<T extends number> {
       val.classList.add(`oanc-label-style-${newLabelStyle}`);
       key.style = newLabelStyle;
     });
+    this.labelSetRevision++;
   }
 
   public clearLabels() {
@@ -232,5 +335,6 @@ export class OancLabelManager<T extends number> {
     }
 
     this.visibleLabelElements.clear();
+    this.labelSetRevision++;
   }
 }

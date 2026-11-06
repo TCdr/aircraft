@@ -312,6 +312,9 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
     show: false,
   });
 
+  /** The standalone OANC instrument never receives the visibility event and keeps its position text without it */
+  private oansVisibilityPublished = false;
+
   private readonly efisNDModeSub = ConsumerSubject.create<EfisNdMode>(null, EfisNdMode.PLAN);
 
   private readonly efisOansRangeSub = ConsumerSubject.create<number>(null, 4);
@@ -417,6 +420,7 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
     this.labelContainerRef.instance.addEventListener('mouseup', this.handleCursorPanStop.bind(this));
 
     this.oansVisible.setConsumer(this.sub.on('nd_show_oans'));
+    this.oansVisible.sub(() => (this.oansVisibilityPublished = true));
     this.oansNotAvailable.setConsumer(this.sub.on('oans_not_avail'));
     this.efisNDModeSub.setConsumer(this.sub.on('ndMode'));
 
@@ -1147,6 +1151,9 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
     }
   }
 
+  /** Inputs of the last layer style write: offset x/y, rotation, scale, canvas width/height. */
+  private readonly layerTransformInputs: number[] = [];
+
   private lastLayerDrawnIndex = 0;
 
   private lastFeatureDrawnIndex = 0;
@@ -1220,14 +1227,20 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
       this.referencePos = arpCoordinates;
     }
 
-    if (!this.pposNotAvailable.get() && arpCoordinates) {
-      const position = this.positionComputer.computePosition();
+    const mapShown = !(this.oansVisible.get().side === this.props.side && !this.oansVisible.get().show);
 
-      if (position) {
-        this.positionVisible.set(true);
-        this.positionString.set(position);
-      } else {
-        this.positionVisible.set(false);
+    if (!this.pposNotAvailable.get() && arpCoordinates) {
+      // The position text is only drawn on the map; a hidden map keeps the text it had and recomputes it in the
+      // frame it is shown again, because the computer remembers the position it last answered for.
+      if (mapShown || !this.oansVisibilityPublished) {
+        const position = this.positionComputer.computePosition();
+
+        if (position) {
+          this.positionVisible.set(true);
+          this.positionString.set(position);
+        } else {
+          this.positionVisible.set(false);
+        }
       }
 
       if (this.isRwyAheadSource && this.aircraftWithinAirport.get()) {
@@ -1243,7 +1256,7 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
     }
 
     // If OANS is not visible on this side (i.e. range selector is not on ZOOM), don't continue here to save runtime
-    if (this.oansVisible.get().side === this.props.side && !this.oansVisible.get().show) {
+    if (!mapShown) {
       return;
     }
 
@@ -1293,22 +1306,38 @@ export class Oanc<T extends number> extends DisplayComponent<OancProps<T>> {
     const rotate = -mapCurrentHeading;
 
     // Transform layers
+    const scale = this.getZoomLevelInverseScale();
+    const layerInputs = this.layerTransformInputs;
+    const layerTransformUnchanged =
+      layerInputs[0] === offsetX &&
+      layerInputs[1] === offsetY &&
+      layerInputs[2] === rotate &&
+      layerInputs[3] === scale &&
+      layerInputs[4] === this.canvasWidth.get() &&
+      layerInputs[5] === this.canvasHeight.get();
+    layerInputs[0] = offsetX;
+    layerInputs[1] = offsetY;
+    layerInputs[2] = rotate;
+    layerInputs[3] = scale;
+    layerInputs[4] = this.canvasWidth.get();
+    layerInputs[5] = this.canvasHeight.get();
+
     for (let i = 0; i < this.layerCanvasRefs.length; i++) {
       const layerSpec = LAYER_SPECIFICATIONS[i];
 
       const canvas = this.layerCanvasRefs[i].instance;
       const canvasScaleContainer = this.layerCanvasScaleContainerRefs[i].instance;
 
-      const scale = this.getZoomLevelInverseScale();
+      if (!layerTransformUnchanged) {
+        const translateX = -((this.canvasWidth.get() * layerSpec.renderScale) / 2) + OANC_RENDER_WIDTH / 2;
+        const translateY = -((this.canvasHeight.get() * layerSpec.renderScale) / 2) + OANC_RENDER_HEIGHT / 2;
 
-      const translateX = -((this.canvasWidth.get() * layerSpec.renderScale) / 2) + OANC_RENDER_WIDTH / 2;
-      const translateY = -((this.canvasHeight.get() * layerSpec.renderScale) / 2) + OANC_RENDER_HEIGHT / 2;
+        canvas.style.transform = `translate(${-offsetX}px, ${offsetY}px) scale(${1 / layerSpec.renderScale}) rotate(${rotate}deg)`;
 
-      canvas.style.transform = `translate(${-offsetX}px, ${offsetY}px) scale(${1 / layerSpec.renderScale}) rotate(${rotate}deg)`;
-
-      canvasScaleContainer.style.left = `${translateX}px`;
-      canvasScaleContainer.style.top = `${translateY}px`;
-      canvasScaleContainer.style.transform = `scale(${scale})`;
+        canvasScaleContainer.style.left = `${translateX}px`;
+        canvasScaleContainer.style.top = `${translateY}px`;
+        canvasScaleContainer.style.transform = `scale(${scale})`;
+      }
 
       const context = canvas.getContext('2d');
       if (context) {
