@@ -58,7 +58,7 @@ import { FcuEfisCpBusEvents } from '@shared/publishers/EfisCpBusPublisher';
 import { PrimChoiceProvider } from '@shared/publishers/PrimChoiceProvider';
 import { PrimFgBusBaseEvents } from '@shared/publishers/PrimFgPublisher';
 import { qnhToMillibar } from '../shared/QnhUtils';
-import { DestinationWords } from './DestinationWords';
+import { DestinationWords, destinationDataOf } from './DestinationWords';
 
 /**
  * Interface between FMS and rest of aircraft through SimVars and ARINC values (mostly data being sent here)
@@ -711,31 +711,14 @@ export class FmcAircraftInterface {
   );
 
   async updateDestinationData() {
-    let landingElevation: number | null = null;
-    let latitude: number | null = null;
-    let longitude: number | null = null;
+    const data = destinationDataOf(
+      this.flightPlanService.active.destinationRunway,
+      this.flightPlanService.active.destinationAirport,
+    );
 
-    const runway = this.flightPlanService.active.destinationRunway;
-
-    if (runway) {
-      landingElevation = runway.thresholdLocation.alt;
-      latitude = runway.thresholdLocation.lat;
-      longitude = runway.thresholdLocation.long;
-    } else {
-      const airport = this.flightPlanService.active.destinationAirport;
-
-      if (airport) {
-        const ele = airport.location.alt;
-
-        landingElevation = Number.isFinite(ele) ? ele : null;
-        latitude = airport.location.lat;
-        longitude = airport.location.long;
-      }
-    }
-
-    if (this.destinationWords.update({ landingElevation, latitude, longitude })) {
+    if (this.destinationWords.update(data)) {
       // FIXME CPCs should use the FM ARINC vars, and transmit their own vars as well
-      SimVar.SetSimVarValue('L:A32NX_PRESS_AUTO_LANDING_ELEVATION', 'feet', landingElevation || 0);
+      SimVar.SetSimVarValue('L:A32NX_PRESS_AUTO_LANDING_ELEVATION', 'feet', data.landingElevation ?? 0);
     }
   }
 
