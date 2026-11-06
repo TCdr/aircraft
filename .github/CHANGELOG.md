@@ -442,6 +442,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FUEL SYSTEM] Prevent CG control transfer end from ending normal trim tank transfers - @donstim (donbikes)
 1. [A32NX/FMS] Fixed +/- altitude constraints entered on the F-PLN page being inverted - @shinji1100
 1. [A380X/FWS] Flight warning loop reads the simulation time once per cycle instead of once per alert (less display thread load) - @TCdr
+1. [A380X/PFD] PFD no longer searches the page for its own side on every frame - @TCdr
 
 ## 2024.1.0
 
