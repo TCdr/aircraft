@@ -452,6 +452,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] The C chord when approaching the selected altitude lasts 1.5 s - @TCdr
 1. [A380X/FWS] New SPEED SPEED SPEED low energy voice in CONF 2 to FULL below 2500 ft, repeated every 5 s until thrust is added - @TCdr
 1. [A380X/FWS] The master warning chime no longer waits behind the altitude alert chord - @TCdr
+1. [A380X/PFD] PFD no longer searches the page for its own side on every frame - @TCdr
 1. [A380X/MFD] FMS sends "no computed data" for the landing elevation and destination position when the flight plan has no destination - @TCdr
 
 ## 2024.1.0
