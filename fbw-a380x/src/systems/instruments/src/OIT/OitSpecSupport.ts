@@ -98,3 +98,23 @@ export function fakeCompanyComAnsu(unread = 0, outbox: unknown[] = []) {
     } as unknown as AnsuOps,
   };
 }
+
+const registeredNames: string[] = [];
+
+/**
+ * Serves the vars the OIT reads through registered ids. The ids stay the same for the whole spec file, as the readers
+ * of the OIT keep the ids they got on their first read.
+ * @param read gives the value of a var by name, called at each read
+ * @returns the spies of the by id read and of the registration, to count the reads
+ */
+export function mockRegisteredSimVars(read: (name: string) => number) {
+  if (!SimVar.GetSimVarValueFastReg) {
+    SimVar.GetSimVarValueFastReg = () => 0;
+  }
+  const registrations = vi.spyOn(SimVar, 'GetRegisteredId').mockImplementation((name: string) => {
+    const known = registeredNames.indexOf(name);
+    return known >= 0 ? known : registeredNames.push(name) - 1;
+  });
+  const reads = vi.spyOn(SimVar, 'GetSimVarValueFastReg').mockImplementation((id: number) => read(registeredNames[id]));
+  return { registrations, reads };
+}

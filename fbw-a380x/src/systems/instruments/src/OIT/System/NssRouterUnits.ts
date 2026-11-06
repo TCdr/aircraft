@@ -14,21 +14,33 @@ import {
 import { NXDataStore } from '@flybywiresim/fbw-sdk';
 import { OitSimvars } from '../OitSimvarPublisher';
 import { AnsuIndex, aruStartDurationMs, AruStartup, isAnsuPowered, sampleFrameStepMs } from './AnsuLogic';
+import { BooleanSimVarReader } from './BooleanSimVarReader';
 import { readAnsuSupplies } from './AircraftNetworkServerUnit';
 import { isAvncsRouterSupplied, isSiruSupplied, RouterSupplies, SupplyHoldUp } from './NssRouterLogic';
 
-/** @returns the state of the busbars that supply the NSS AVNCS routers */
-function readRouterSupplies(): RouterSupplies {
-  const isPowered = (busbar: string) =>
-    SimVar.GetSimVarValue(`L:A32NX_ELEC_${busbar}_BUS_IS_POWERED`, SimVarValueType.Bool) > 0;
-  return {
-    ac1: isPowered('AC_1'),
-    ac2: isPowered('AC_2'),
-    // The A380 busbar names come from the A320: AC_ESS is the A380 AC EMER (491XP)
-    acEmer: isPowered('AC_ESS'),
-    dc1: isPowered('DC_1'),
-    dc2: isPowered('DC_2'),
-  };
+const routerBusbars = {
+  ac1: new BooleanSimVarReader('L:A32NX_ELEC_AC_1_BUS_IS_POWERED'),
+  ac2: new BooleanSimVarReader('L:A32NX_ELEC_AC_2_BUS_IS_POWERED'),
+  // The A380 busbar names come from the A320: AC_ESS is the A380 AC EMER (491XP)
+  acEmer: new BooleanSimVarReader('L:A32NX_ELEC_AC_ESS_BUS_IS_POWERED'),
+  dc1: new BooleanSimVarReader('L:A32NX_ELEC_DC_1_BUS_IS_POWERED'),
+  dc2: new BooleanSimVarReader('L:A32NX_ELEC_DC_2_BUS_IS_POWERED'),
+};
+
+/** Refilled by every read: the routers read it every frame, and a new object each time would be garbage */
+const routerSupplies: RouterSupplies = { ac1: false, ac2: false, acEmer: false, dc1: false, dc2: false };
+
+/**
+ * @returns the state of the busbars that supply the NSS AVNCS routers; the same object every time, valid until the next
+ * read, so a caller must not keep it
+ */
+export function readRouterSupplies(): Readonly<RouterSupplies> {
+  routerSupplies.ac1 = routerBusbars.ac1.get();
+  routerSupplies.ac2 = routerBusbars.ac2.get();
+  routerSupplies.acEmer = routerBusbars.acEmer.get();
+  routerSupplies.dc1 = routerBusbars.dc1.get();
+  routerSupplies.dc2 = routerBusbars.dc2.get();
+  return routerSupplies;
 }
 
 /** A supplied NSS unit: the supply held through a short loss, and cut by the NSS MASTER sw OFF */

@@ -38,6 +38,7 @@ import {
   PowerCycleRecovery,
   sampleFrameStepMs,
 } from './System/AnsuLogic';
+import { BooleanSimVarReader } from './System/BooleanSimVarReader';
 import { OisMessageToolbar } from './System/OisMessageToolbar';
 import { FltOpsPerformanceSession } from './System/Performance/FltOpsPerformanceSession';
 import { A380_CERTIFIED_WEIGHTS } from './System/Performance/A380PerformanceCalculators';
@@ -92,6 +93,12 @@ export class OisLaptop implements Instrument {
   private readonly failureKey = this.index === 1 ? A380Failure.CaptainLaptop : A380Failure.FirstOfficerLaptop;
 
   private readonly powered = Subject.create(false);
+
+  private readonly dc1Powered = new BooleanSimVarReader('L:A32NX_ELEC_DC_1_BUS_IS_POWERED');
+  private readonly dc2Powered = new BooleanSimVarReader('L:A32NX_ELEC_DC_2_BUS_IS_POWERED');
+  private readonly dcHot2Powered = new BooleanSimVarReader('L:A32NX_ELEC_DC_HOT_2_BUS_IS_POWERED');
+  private readonly fltOpsAnsuHealthy = new BooleanSimVarReader('L:A32NX_FLTOPS_ANSU_1_IS_HEALTHY');
+  private readonly simOnGround = new BooleanSimVarReader('SIM ON GROUND');
 
   private readonly _isHealthy = Subject.create(false);
   public readonly isHealthy = this._isHealthy as Subscribable<boolean>;
@@ -406,15 +413,9 @@ export class OisLaptop implements Instrument {
   /** @inheritdoc */
   onUpdate(): void {
     if (this.index === 1) {
-      this.powered.set(
-        SimVar.GetSimVarValue('L:A32NX_ELEC_DC_1_BUS_IS_POWERED', SimVarValueType.Bool) && this.laptopSwitchedOn.get(),
-      );
+      this.powered.set(this.dc1Powered.get() && this.laptopSwitchedOn.get());
     } else {
-      this.powered.set(
-        (SimVar.GetSimVarValue('L:A32NX_ELEC_DC_2_BUS_IS_POWERED', SimVarValueType.Bool) ||
-          SimVar.GetSimVarValue('L:A32NX_ELEC_DC_HOT_2_BUS_IS_POWERED', SimVarValueType.Bool)) &&
-          this.laptopSwitchedOn.get(),
-      );
+      this.powered.set((this.dc2Powered.get() || this.dcHot2Powered.get()) && this.laptopSwitchedOn.get());
     }
 
     const now = this.simTime.get();
@@ -433,7 +434,7 @@ export class OisLaptop implements Instrument {
     const deltaTimeMs = sampleFrameStepMs(this.lastUpdateSimTime, now);
     this.lastUpdateSimTime = now;
     // the FLT OPS ANSU of this OIT instrument (AircraftNetworkServerUnit 'flt-ops')
-    const fltOpsAnsuHealthy = SimVar.GetSimVarValue('L:A32NX_FLTOPS_ANSU_1_IS_HEALTHY', SimVarValueType.Bool) > 0;
+    const fltOpsAnsuHealthy = this.fltOpsAnsuHealthy.get();
     const aruOperating = this.aru.update(fltOpsAnsuHealthy, deltaTimeMs);
     this._standalone.set(
       this.networkConnection.update(this._isHealthy.get(), aruOperating, this.aru.isFlightLoading()),
@@ -503,7 +504,7 @@ export class OisLaptop implements Instrument {
   }
 
   private isOnGround(): boolean {
-    return SimVar.GetSimVarValue('SIM ON GROUND', SimVarValueType.Bool) > 0;
+    return this.simOnGround.get();
   }
 
   /** @returns whether data from the ground (the LOAD BOX) can reach this laptop: gatelink on the ground, SATCOM in flight */
