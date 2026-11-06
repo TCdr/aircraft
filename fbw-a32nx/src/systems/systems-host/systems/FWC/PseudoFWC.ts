@@ -2727,8 +2727,10 @@ export class PseudoFWC {
     this.stallWarning.sub((v) => this.fwcOut126.setBitValue(17, v), true);
     // The STALL aural is an FWC level 3 warning: lost without FWC
     MappedSubject.create(this.stallWarning, this.anyFwcOperative).sub(([stall, fwcOperative]) => {
-      // set the sound on/off
-      SimVar.SetSimVarValue('L:A32NX_AUDIO_STALL_WARNING', 'bool', stall && fwcOperative);
+      const stallAural = stall && fwcOperative;
+      SimVar.SetSimVarValue('L:A32NX_AUDIO_STALL_WARNING', 'bool', stallAural);
+      // Design choice: the stall is the top aural, the other FWC aurals wait while it sounds
+      this.soundManager.setAuralsInhibited(stallAural);
     }, true);
     this.aircraftOnGround.sub((v) => this.fwcOut126.setBitValue(28, v), true);
 
@@ -5269,14 +5271,7 @@ export class PseudoFWC {
     // we need to check this since the MSFS SDK stall warning does not.
     const isCasAbove60 =
       this.adr1Cas.get().valueOr(0) > 60 || this.adr2Cas.get().valueOr(0) > 60 || adr3Cas.valueOr(0) > 60;
-    this.stallWarning.set(
-      !isNormalLaw &&
-        isCasAbove60 &&
-        this.stallWarningRaw.get() &&
-        this.flightPhase567.get() &&
-        radioHeight1.valueOr(Infinity) > 1500 &&
-        radioHeight2.valueOr(Infinity) > 1500,
-    );
+    this.stallWarning.set(!isNormalLaw && isCasAbove60 && this.stallWarningRaw.get() && this.flightPhase567.get());
 
     /* FIRE */
 

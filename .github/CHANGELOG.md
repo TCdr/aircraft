@@ -329,6 +329,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FUEL SYSTEM] Close center tank valves if they are triggered open with no fuel in center tank - @donstim (donbikes)
 1. [A380X/FUEL SYSTEM] Prevent CG control transfer end from ending normal trim tank transfers - @donstim (donbikes)
 1. [A32NX/FMS] Fixed +/- altitude constraints entered on the F-PLN page being inverted - @shinji1100
+1. [A32NX/FWC] The stall warning (cricket and STALL) also sounds below 1500 ft radio height, in alternate and direct law - @TCdr
+1. [A32NX/FWC] While the stall warning sounds, the GPWS voices are silenced and the other FWC sounds (chimes, cavalry charge, C chord, callouts) wait until it ends - @TCdr
 
 ## 2024.1.0
 

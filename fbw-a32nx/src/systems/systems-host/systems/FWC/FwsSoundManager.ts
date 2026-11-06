@@ -309,6 +309,8 @@ export class FwsSoundManager {
 
   private singleChimesPending = 0;
 
+  private auralsInhibited = false;
+
   private currentSoundPlaying: keyof typeof FwsAuralsList | null = null;
 
   /** The sound to be repeated next cycle (only for non continuous sounds). Cannot be interrupted */
@@ -431,6 +433,11 @@ export class FwsSoundManager {
     SimVar.SetSimVarValue('L:A32NX_FWS_AUDIO_VOLUME', SimVarValueType.Enum, volume);
   }
 
+  /** While inhibited no aural starts and a continuous one stops, to be played again once the inhibition ends */
+  setAuralsInhibited(inhibited: boolean) {
+    this.auralsInhibited = inhibited;
+  }
+
   /** Play now, not to be called from the outside */
   private playSound(soundKey: keyof typeof FwsAuralsList) {
     const sound = FwsAuralsList[soundKey];
@@ -503,7 +510,7 @@ export class FwsSoundManager {
 
   onUpdate(deltaTime: number) {
     // Enforce one cycle delay before repeating
-    if (this.repeatNextCycleSound) {
+    if (this.repeatNextCycleSound && !this.auralsInhibited) {
       const soundKey = this.repeatNextCycleSound;
       this.repeatNextCycleSound = null;
       this.playSound(soundKey);
@@ -540,7 +547,7 @@ export class FwsSoundManager {
       }
 
       // Interrupt if sound with higher category is present in queue and current sound is continuous
-      let shouldInterrupt = false;
+      let shouldInterrupt = this.auralsInhibited && !!currentSound?.continuous;
       let rescheduleSound: keyof typeof FwsAuralsList | null = null;
       if (currentSound?.continuous) {
         this.soundQueue.forEach((sk) => {
@@ -563,7 +570,7 @@ export class FwsSoundManager {
           }
         }
       }
-    } else {
+    } else if (!this.auralsInhibited) {
       // Play next sound
       this.selectAndPlayMostImportantSound(deltaTime);
     }

@@ -25,6 +25,8 @@ pub struct A320EgpwsElectricalHarness {
     ecam_cp_emer_canc_id: VariableIdentifier,
 
     slew_active_id: VariableIdentifier,
+
+    fwc_stall_warning_id: VariableIdentifier,
 }
 
 impl A320EgpwsElectricalHarness {
@@ -38,6 +40,7 @@ impl A320EgpwsElectricalHarness {
     const SFCC_1_FAP_5_KEY: &str = "SFCC_1_FAP_5";
     const ECP_DISCRETE_OUT_EMER_CANC_KEY: &str = "ECP_DISCRETE_OUT_EMER_CANC";
     const IS_SLEW_ACTIVE_KEY: &str = "IS SLEW ACTIVE";
+    const FWC_STALL_WARNING_KEY: &str = "AUDIO_STALL_WARNING";
 
     pub fn new(context: &mut InitContext) -> Self {
         Self {
@@ -60,6 +63,8 @@ impl A320EgpwsElectricalHarness {
                 .get_identifier(Self::ECP_DISCRETE_OUT_EMER_CANC_KEY.to_owned()),
 
             slew_active_id: context.get_identifier(Self::IS_SLEW_ACTIVE_KEY.to_owned()),
+
+            fwc_stall_warning_id: context.get_identifier(Self::FWC_STALL_WARNING_KEY.to_owned()),
         }
     }
 
@@ -70,7 +75,6 @@ impl A320EgpwsElectricalHarness {
         self.discrete_inputs.terrain_display_select_1 = false; // TODO
         self.discrete_inputs.terrain_display_select_2 = false; // TODO
         self.discrete_inputs.steep_approach_mode = false; // TODO
-        self.discrete_inputs.audio_inhibit = false; // TODO: Comes from FWC during e.g. STALL STALL
     }
 }
 impl EgpwsElectricalHarness for A320EgpwsElectricalHarness {
@@ -98,5 +102,7 @@ impl SimulationElement for A320EgpwsElectricalHarness {
         self.discrete_inputs.gs_cancel = reader.read(&self.gs_cancel_self_test_id);
         self.discrete_inputs.terrain_awareness_inhibit = reader.read(&self.terr_off_id);
         self.discrete_inputs.sim_reposition_active = reader.read(&self.slew_active_id);
+        // The FWCs silence the GPWS while the stall aural sounds
+        self.discrete_inputs.audio_inhibit = reader.read(&self.fwc_stall_warning_id);
     }
 }
