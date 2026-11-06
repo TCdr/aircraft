@@ -7,6 +7,7 @@ import { A380Failure } from '@failures';
 import { FmsAocMessages } from '@datalink/aoc';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { OitSimvars } from '../OitSimvarPublisher';
+import { mockRegisteredSimVars } from '../OitSpecSupport';
 import { AnsuOps } from './AnsuOps';
 
 // The ECAM alert tables fail on their circular import in a test; the logbook only names the alerts with them
@@ -34,7 +35,7 @@ function groundWord(onGround = true): number {
  * messages the AOC gets
  */
 function setUp(routerOperating: Subject<boolean> | null = null) {
-  vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) => (name.startsWith('L:A32NX_ELEC') ? 1 : 0));
+  mockRegisteredSimVars((name) => (name.startsWith('L:A32NX_ELEC') ? 1 : 0));
   vi.spyOn(SimVar, 'SetSimVarValue').mockImplementation(() => Promise.resolve());
   const bus = new EventBus();
   const failed = new Set<number>();

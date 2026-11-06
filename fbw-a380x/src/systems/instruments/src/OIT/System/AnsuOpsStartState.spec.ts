@@ -6,6 +6,7 @@ import { Arinc429Register, Arinc429SignStatusMatrix, FailuresConsumer, FwcBusEve
 import { FqmsBusEvents } from '@shared/publishers/FqmsBusPublisher';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { OitSimvars } from '../OitSimvarPublisher';
+import { mockRegisteredSimVars } from '../OitSpecSupport';
 import { AnsuOps } from './AnsuOps';
 
 // The ECAM alert tables fail on their circular import in a test; the logbook only names the alerts with them
@@ -36,7 +37,7 @@ const ON_GROUND_BIT = 28;
  * @returns an NSS AVNCS ANSU on a powered aircraft, and the publishers of what the avionics send to it
  */
 function setUp() {
-  vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) => (name.startsWith('L:A32NX_ELEC') ? 1 : 0));
+  mockRegisteredSimVars((name) => (name.startsWith('L:A32NX_ELEC') ? 1 : 0));
   vi.spyOn(SimVar, 'SetSimVarValue').mockImplementation(() => Promise.resolve());
   const bus = new EventBus();
   const failures = { isActive: () => false, register: () => {}, update: () => {} } as unknown as FailuresConsumer;

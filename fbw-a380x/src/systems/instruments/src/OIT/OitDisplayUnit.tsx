@@ -24,6 +24,7 @@ import { A380Failure } from '@failures';
 import { PowerUpGate, POWER_UP_SLOT_SECONDS } from '@shared/PowerUpStagger';
 import { OisDomain } from './OIT';
 import { OIT_RESTART_OFF_MS, PowerCycleRecovery } from './System/AnsuLogic';
+import { BooleanSimVarReader } from './System/BooleanSimVarReader';
 import {
   DisplayUnitState,
   getOitDisplayVisibility,
@@ -131,9 +132,15 @@ export class OitDisplayUnit extends DisplayComponent<DisplayUnitProps & Componen
 
   private readonly failedDisplay = this.failed.map((v) => (v ? 'block' : 'none'));
 
-  private readonly bus1Simvar = `L:A32NX_ELEC_${DisplayUnitToDCBus[this.props.displayUnitId][0]}_BUS_IS_POWERED`;
-  private readonly bus2Simvar = `L:A32NX_ELEC_${DisplayUnitToDCBus[this.props.displayUnitId][1]}_BUS_IS_POWERED`;
-  private readonly bus3Simvar = `L:A32NX_ELEC_${DisplayUnitToDCBus[this.props.displayUnitId][2]}_BUS_IS_POWERED`;
+  private readonly bus1Powered = new BooleanSimVarReader(
+    `L:A32NX_ELEC_${DisplayUnitToDCBus[this.props.displayUnitId][0]}_BUS_IS_POWERED`,
+  );
+  private readonly bus2Powered = new BooleanSimVarReader(
+    `L:A32NX_ELEC_${DisplayUnitToDCBus[this.props.displayUnitId][1]}_BUS_IS_POWERED`,
+  );
+  private readonly bus3Powered = new BooleanSimVarReader(
+    `L:A32NX_ELEC_${DisplayUnitToDCBus[this.props.displayUnitId][2]}_BUS_IS_POWERED`,
+  );
 
   public onAfterRender(node: VNode): void {
     super.onAfterRender(node);
@@ -192,15 +199,9 @@ export class OitDisplayUnit extends DisplayComponent<DisplayUnitProps & Componen
   }
 
   public update() {
-    const poweredByBus1 = DisplayUnitToDCBus[this.props.displayUnitId][0]
-      ? SimVar.GetSimVarValue(this.bus1Simvar, 'Bool')
-      : false;
-    const poweredByBus2 = DisplayUnitToDCBus[this.props.displayUnitId][1]
-      ? SimVar.GetSimVarValue(this.bus2Simvar, 'Bool')
-      : false;
-    const poweredByBus3 = DisplayUnitToDCBus[this.props.displayUnitId][2]
-      ? SimVar.GetSimVarValue(this.bus3Simvar, 'Bool')
-      : false;
+    const poweredByBus1 = DisplayUnitToDCBus[this.props.displayUnitId][0] ? this.bus1Powered.get() : false;
+    const poweredByBus2 = DisplayUnitToDCBus[this.props.displayUnitId][1] ? this.bus2Powered.get() : false;
+    const poweredByBus3 = DisplayUnitToDCBus[this.props.displayUnitId][2] ? this.bus3Powered.get() : false;
     const supplied = poweredByBus1 || poweredByBus2 || poweredByBus3;
     // The brightness knob at OFF switches the OIT off
     const failed = this.failureRecovery.update(
