@@ -351,6 +351,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/FWS] The stall aural has priority over all other aural alerts and cuts any continuous alert, which sounds again after the stall - @TCdr
 1. [A380X/FWS] The stall warning is no longer lost below 1500 ft radio height - @TCdr
 1. [A380X/FWS] The stall warning now sounds at all in the sim: the A380X systems host did not give it the angle of attack and on-ground inputs - @TCdr
+1. [A380X/TCAS] TCAS voice alerts that come while another voice plays, and repeated RA callouts, now sound instead of being lost - @TCdr
+1. [A380X/FWS] The C chord when approaching the selected altitude lasts 1.5 s - @TCdr
+1. [A380X/FWS] The master warning chime no longer waits behind the altitude alert chord - @TCdr
 
 ## 2024.1.0
 
