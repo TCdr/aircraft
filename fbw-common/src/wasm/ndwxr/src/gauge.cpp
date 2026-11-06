@@ -27,6 +27,9 @@ Instance* findInstance(FsContext ctx) {
   return g_slots.find(ctx);
 }
 
+// The look-ahead of the terrain's reference altitude, shared by the NDs (see terrain_reference.h).
+static TerrainLookAhead g_terrainLookAhead;
+
 bool updateViewPark(FsContext ctx, FsTextureId view, ViewPark& park, bool wanted) {
   if (view == 0) {
     return false;
@@ -39,9 +42,9 @@ bool updateViewPark(FsContext ctx, FsTextureId view, ViewPark& park, bool wanted
 }
 
 void setViewRadius(FsContext ctx, FsTextureId view, ViewPark& park, float radiusMetres, double nowSeconds) {
-  if (viewRadiusSendDue(park, radiusMetres, nowSeconds, kViewRadiusResendSeconds)) {
+  if (settingSendDue(park.radius, radiusMetres, nowSeconds, kViewRadiusResendSeconds)) {
     fsMapViewSet2DViewRadiusInMeters(ctx, view, radiusMetres);
-    noteViewRadiusSent(park, radiusMetres, nowSeconds);
+    noteSettingSent(park.radius, radiusMetres, nowSeconds);
   }
 }
 
@@ -207,6 +210,9 @@ static bool installInstance(FsContext ctx, const sGaugeInstallData* installData)
   if (instance == nullptr) {
     return false;
   }
+
+  // A new flight must not start with the last flight's look-ahead.
+  g_terrainLookAhead = TerrainLookAhead{};
 
   registerSimVars();
   registerInstanceVars(*instance);
@@ -379,11 +385,16 @@ static NdFrame readNdFrame(Instance& instance, bool terrainViewsReady) {
   frame.showPrecip = active && instance.mapViewReady && (wxrMode == kWxrModeWx || wxrMode == kWxrModeWxTurb);
   frame.showTurb = active && instance.mapViewHotReady && (wxrMode == kWxrModeWxTurb || wxrMode == kWxrModeTurb);
   frame.showMap = active && terrainViewsReady && wxrMode == kWxrModeMap && headingWord.isNo();
-  // The terrain's reference altitude looks ahead in a fast descent (see kTerrainLookAheadSeconds).
-  const auto verticalSpeedWord = types::Arinc429Word<float>::fromSimVar(g_adirsVerticalSpeed[ir - 1].read());
-  if (verticalSpeedWord.isNo() && verticalSpeedWord.value() < -kTerrainLookAheadFromFpm) {
-    frame.terrainLookAheadFeet = -verticalSpeedWord.value() * (kTerrainLookAheadSeconds / 60.0f);
+  // The terrain's reference altitude looks ahead in a fast descent (see kTerrainLookAheadSeconds), the same on both NDs.
+  IrVerticalSpeed irVerticalSpeeds[kIrCount];
+  for (int i = 0; i < kIrCount; ++i) {
+    const auto word = types::Arinc429Word<float>::fromSimVar(g_adirsVerticalSpeed[i].read());
+    irVerticalSpeeds[i] = IrVerticalSpeed{word.isNo(), word.value()};
   }
+  const IrVerticalSpeed verticalSpeed = selectVerticalSpeed(irVerticalSpeeds);
+  frame.terrainLookAheadFeet =
+      updateTerrainLookAhead(g_terrainLookAhead, verticalSpeed.valid, verticalSpeed.fpm, kTerrainLookAheadFromFpm,
+                             kTerrainLookAheadOffFpm, kTerrainLookAheadSeconds, kTerrainLookAheadStepFeet);
   // The ROSE pages show half the range of ARC around the aircraft.
   frame.isRose = ndMode != kNdModeArc;
   frame.rangeNmForMode = frame.isRose ? rangeNm / 2.0f : rangeNm;
@@ -506,8 +517,8 @@ static ViewReadiness updateViewRoles(FsContext ctx, Instance& instance, const Nd
     instance.terrainListMode = -1;
     instance.ndRole = 1;
     instance.roleWarmupLeft = kRoleWarmupFrames;
-    instance.mapViewPark.radiusSent = -1.0f;
-    instance.mapViewHotPark.radiusSent = -1.0f;
+    instance.mapViewPark.radius = SentSetting{};
+    instance.mapViewHotPark.radius = SentSetting{};
   } else if (weatherWanted && instance.ndRole != 0) {
     const RadarThresholds thresholds = radarThresholdsForGain(kCalibratedThresholds, frame.gainDb);
     configurePrecipView(ctx, instance.mapView, thresholds);
@@ -515,8 +526,8 @@ static ViewReadiness updateViewRoles(FsContext ctx, Instance& instance, const Nd
     instance.appliedGainDb = frame.gainDb;
     instance.ndRole = 0;
     instance.roleWarmupLeft = kRoleWarmupFrames;
-    instance.mapViewPark.radiusSent = -1.0f;
-    instance.mapViewHotPark.radiusSent = -1.0f;
+    instance.mapViewPark.radius = SentSetting{};
+    instance.mapViewHotPark.radius = SentSetting{};
   }
   // A manual GAIN change while the pair holds the weather: only its colour tables are sent again.
   if (weatherWanted && instance.ndRole == 0 && frame.gainDb != instance.appliedGainDb) {
@@ -649,12 +660,18 @@ static void drawTerrainLayer(FsContext ctx,
         setTerrainColors(ctx, views.terrain, gearState == 1);
         instance.terrainGearState = gearState;
         instance.terrainListMode = 0;
+        // Whatever made the colour list due again (a wake-up, the peaks or MAP mode) also set the view's window, so the
+        // standard window has to be sent again.
+        instance.terrainWindowSent = SentSetting{};
       }
       // The bands shifted by the look-ahead (the view colours by the aircraft's own altitude, see kTerrainLookAheadSeconds).
       bands.gearDown = gearState == 1;
       bands.minFeet = kTerrainMinFeet + frame.terrainLookAheadFeet;
       bands.maxFeet = kTerrainMaxFeet + frame.terrainLookAheadFeet;
-      fsMapViewSetAltitudeRangeInFeet(ctx, views.terrain, static_cast<double>(bands.minFeet), static_cast<double>(bands.maxFeet));
+      if (settingSendDue(instance.terrainWindowSent, frame.terrainLookAheadFeet, nowSeconds, kViewRadiusResendSeconds)) {
+        fsMapViewSetAltitudeRangeInFeet(ctx, views.terrain, static_cast<double>(bands.minFeet), static_cast<double>(bands.maxFeet));
+        noteSettingSent(instance.terrainWindowSent, frame.terrainLookAheadFeet, nowSeconds);
+      }
     }
     setViewRadius(ctx, views.terrain, *views.terrainPark, radiusMetres, nowSeconds);
     setViewRadius(ctx, views.water, *views.waterPark, radiusMetres, nowSeconds);

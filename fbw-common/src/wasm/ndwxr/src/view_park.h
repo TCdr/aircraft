@@ -15,14 +15,19 @@
 
 namespace ndwxr {
 
+// A setting last sent to a view and when: the base of "send on a change and again at an interval".
+struct SentSetting {
+  float value = -1.0f;    // the value last sent, -1 = nothing sent since the view (re)started
+  double seconds = -1.0;  // when it was sent (sim time, s), -1 = never
+};
+
 // The parking state of one MapView and what was last sent to it.
 struct ViewPark {
   bool parked = false;
   int idleFrames = 0;
   int warmupLeft = 0;
-  float radiusSent = -1.0f;         // the radius last sent (m), -1 = none since the view (re)started
-  double radiusSentSeconds = -1.0;  // when it was sent (sim time, s), -1 = never
-  bool setupDue = false;            // the view woke up: its whole setup is to be sent again (see takeViewSetupDue)
+  SentSetting radius;      // the radius last sent (m)
+  bool setupDue = false;   // the view woke up: its whole setup is to be sent again (see takeViewSetupDue)
 };
 
 // The visibility call a frame of the parking asks for.
@@ -54,8 +59,7 @@ inline ViewParkStep stepViewPark(ViewPark& park, bool wanted, int parkAfterFrame
   if (park.parked) {
     park.parked = false;
     park.warmupLeft = warmupFrames;
-    park.radiusSent = -1.0f;
-    park.radiusSentSeconds = -1.0;
+    park.radius = SentSetting{};
     park.setupDue = true;
     return ViewParkStep{ViewVisibilityChange::Show, warmupFrames == 0};
   }
@@ -69,18 +73,18 @@ inline bool takeViewSetupDue(ViewPark& park) {
   return due;
 }
 
-// Whether the radius is to be sent now: on a change, on the first call (or after a wake-up), when the sim time went
-// back, and again once resendSeconds have passed since it was last sent.
-inline bool viewRadiusSendDue(const ViewPark& park, float radiusMetres, double nowSeconds, double resendSeconds) {
-  if (radiusMetres != park.radiusSent || park.radiusSentSeconds < 0.0 || nowSeconds < park.radiusSentSeconds) {
+// Whether the setting is to be sent now: on a change, on the first call (or after the record was forgotten), when the
+// sim time went back, and again once resendSeconds have passed since it was last sent.
+inline bool settingSendDue(const SentSetting& sent, float value, double nowSeconds, double resendSeconds) {
+  if (value != sent.value || sent.seconds < 0.0 || nowSeconds < sent.seconds) {
     return true;
   }
-  return nowSeconds - park.radiusSentSeconds >= resendSeconds;
+  return nowSeconds - sent.seconds >= resendSeconds;
 }
 
-inline void noteViewRadiusSent(ViewPark& park, float radiusMetres, double nowSeconds) {
-  park.radiusSent = radiusMetres;
-  park.radiusSentSeconds = nowSeconds;
+inline void noteSettingSent(SentSetting& sent, float value, double nowSeconds) {
+  sent.value = value;
+  sent.seconds = nowSeconds;
 }
 
 }  // namespace ndwxr

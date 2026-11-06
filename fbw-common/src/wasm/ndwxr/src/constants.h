@@ -336,11 +336,17 @@ constexpr float kTerrainRedFromFeet = 2000.0f;
 constexpr float kTerrainDenseYellowFromFeet = 1000.0f;
 constexpr float kTerrainLightGreenFromFeet = -2000.0f;
 
-// "The reference altitude is computed based on the current aircraft altitude or, if descending
-// more than 1 000 ft/min, the altitude expected in 30 s" (A320 FCOM DSC-31-45, GPWS terrain
-// picture). The view colours by the aircraft's own altitude, so the bands are shifted instead by
-// the altitude the aircraft loses in that time (see the ND draw).
+// GPWS terrain picture: the reference altitude is the aircraft's altitude or, when descending
+// faster than 1000 ft/min, the altitude expected in 30 s. The view colours by the aircraft's own altitude, so the bands are shifted instead by
+// the altitude the aircraft loses in that time, kept steady by the thresholds below (see terrain_reference.h).
 constexpr float kTerrainLookAheadFromFpm = 1000.0f;
+// Design choice: once active, the look-ahead stays active until the descent is slower than this, so a vertical speed
+// hovering at the limit does not move the bands by 500 ft back and forth.
+constexpr float kTerrainLookAheadOffFpm = 900.0f;
+// Design choice: the look-ahead is given in steps of this size and changes only when the distance is a full step
+// away from the one in use. Hand-flown vertical speed noise of about 200 ft/min is 100 ft of look-ahead; the bands are
+// 250 ft wide, so the picture stays right to less than half a band.
+constexpr float kTerrainLookAheadStepFeet = 100.0f;
 constexpr float kTerrainLookAheadSeconds = 30.0f;
 
 // Design choice: at most 3000 obstacle runs are drawn per frame (one quad each, grouped by colour into a few fills), so the
@@ -460,9 +466,10 @@ constexpr int kVdWarmupFrames = 15;
 constexpr int kParkAfterFrames = 120;
 constexpr int kUnparkWarmupFrames = 60;
 
-// A view's radius is sent on a change and again at this interval while the view is in use (see view_park.h): a
-// setting the engine ignored once (a view just woken up) is not left wrong for the rest of the flight. The setter is a
-// plain call; once a second keeps it out of the per-frame work.
+// A view's radius, and the terrain view's altitude window, are sent on a change and again at this interval while the
+// view is in use (see view_park.h): a setting the engine ignored once (a view just woken up) is
+// not left wrong for the rest of the flight. The setters are plain calls; once a second keeps them out of the per-frame
+// work.
 constexpr double kViewRadiusResendSeconds = 1.0;
 
 // Redraw pacing (see RedrawPacer): the pictures are drawn into a surface that keeps them between frames
