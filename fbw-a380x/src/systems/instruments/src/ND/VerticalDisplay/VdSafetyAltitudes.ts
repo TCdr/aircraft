@@ -27,9 +27,8 @@ export interface VdSafetyAltitudeInputs {
 }
 
 export interface VdSafetyAltitudeLabel {
+  /** Left edge of the label */
   x: number;
-  /** 'end' for the label of the start of the plot, which stands left of the range origin */
-  anchor: 'start' | 'end';
   text: string;
 }
 
@@ -54,6 +53,8 @@ export interface VdSafetyAltitudeDrawing {
 /** Design choice: the highest safety altitude indication stays this far inside the plot */
 const HIGHEST_MARGIN_LEFT = 6;
 const HIGHEST_WIDTH = 50;
+/** Design choice: the label at the start of the plot stands right of the range origin '0', clear of the altitude tape */
+const ORIGIN_LABEL_CLEARANCE = 10;
 
 const NO_DRAWING: VdSafetyAltitudeDrawing = { profilePath: '', typeLabels: [], highest: null, partlyDisplayed: false };
 
@@ -113,7 +114,8 @@ export function drawVdSafetyAltitudes(inputs: VdSafetyAltitudeInputs): VdSafetyA
     path += ` H ${x(segment.endNm).toFixed(1)}`;
 
     if (previous === null || previous.type !== segment.type) {
-      typeLabels.push({ x: x(segment.startNm), anchor: segment.startNm === 0 ? 'end' : 'start', text: segment.type });
+      const labelX = x(segment.startNm) + (segment.startNm === 0 ? ORIGIN_LABEL_CLEARANCE : 0);
+      typeLabels.push({ x: labelX, text: segment.type });
     }
     previous = segment;
   }

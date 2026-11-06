@@ -42,8 +42,8 @@ describe('VD safety altitudes', () => {
       }),
     );
     expect(drawing.typeLabels).toEqual([
-      { x: 150, anchor: 'end', text: 'MSA' },
-      { x: 285, anchor: 'start', text: 'MORA' },
+      { x: 160, text: 'MSA' },
+      { x: 285, text: 'MORA' },
     ]);
   });
 
