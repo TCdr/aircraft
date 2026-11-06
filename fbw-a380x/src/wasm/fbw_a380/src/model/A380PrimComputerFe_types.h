@@ -438,6 +438,7 @@ struct base_prim_discrete_inputs
   boolean_T pitch_trim_down_pressed;
   boolean_T green_low_pressure;
   boolean_T yellow_low_pressure;
+  boolean_T elec_emer_config;
 };
 
 #endif

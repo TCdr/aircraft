@@ -777,7 +777,10 @@ void FlyByWireInterface::setupLocalVariables() {
   idElecDcEhaBusPowered = std::make_unique<LocalVariable>("A32NX_ELEC_247PP_BUS_IS_POWERED");
   idElecDc1BusPowered = std::make_unique<LocalVariable>("A32NX_ELEC_DC_1_BUS_IS_POWERED");
   idElecDc2BusPowered = std::make_unique<LocalVariable>("A32NX_ELEC_DC_2_BUS_IS_POWERED");
+  idElecAc1BusPowered = std::make_unique<LocalVariable>("A32NX_ELEC_AC_1_BUS_IS_POWERED");
   idElecAc2BusPowered = std::make_unique<LocalVariable>("A32NX_ELEC_AC_2_BUS_IS_POWERED");
+  idElecAc3BusPowered = std::make_unique<LocalVariable>("A32NX_ELEC_AC_3_BUS_IS_POWERED");
+  idElecAc4BusPowered = std::make_unique<LocalVariable>("A32NX_ELEC_AC_4_BUS_IS_POWERED");
   idRatContactorClosed = std::make_unique<LocalVariable>("A32NX_ELEC_CONTACTOR_5XE_IS_CLOSED");
   idRatPosition = std::make_unique<LocalVariable>("A32NX_RAT_STOW_POSITION");
 
@@ -1590,6 +1593,9 @@ bool FlyByWireInterface::updatePrim(double sampleTime, int primIndex) {
   modelInputs.in.discrete_inputs.adr_3_on_fo = idAirDataSwtgKnob->get() == 2;
   modelInputs.in.discrete_inputs.rat_deployed = primIndex == 0 ? idRatPosition->get() > 0.9 : false;
   modelInputs.in.discrete_inputs.rat_contactor_closed = primIndex == 0 ? idRatContactorClosed->get() : false;
+  // every PRIM gets it: the PRIM with the best law is the active one, so one left in normal law would take over
+  modelInputs.in.discrete_inputs.elec_emer_config = !idElecAc1BusPowered->get() && !idElecAc2BusPowered->get() &&
+                                                    !idElecAc3BusPowered->get() && !idElecAc4BusPowered->get();
   modelInputs.in.discrete_inputs.athr_instinctive_disc = athr_instinctive_disc;
   modelInputs.in.discrete_inputs.pitch_trim_up_pressed = primIndex == 1 ? false : pitchTrimInput.pitchTrimSwitchUp;
   modelInputs.in.discrete_inputs.pitch_trim_down_pressed = primIndex == 1 ? false : pitchTrimInput.pitchTrimSwitchDown;

@@ -853,6 +853,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/PFD] FMA shows MAN DTO instead of MAN FLX +0 for a derated takeoff - @TCdr
 1. [A32NX/SD] BLEED and HYD pages: the engine numbers and the bleed ducts no longer turn amber with the engines at idle - @TCdr
 1. [A32NX/GPWS] The terrain alerts know the hard runways of the airports around the aircraft from the sim's airport database, so an approach to a runway that is not in the flight plan no longer gives TERRAIN AHEAD and PULL UP alerts down to the touchdown - @TCdr
+1. [A380X/FBW] The flight controls go to direct law in ELEC EMER CONFIG (all four AC busbars lost in flight), with F/CTL DIRECT LAW and USE MAN PITCH TRIM - @TCdr
 
 ## 2024.1.0
 

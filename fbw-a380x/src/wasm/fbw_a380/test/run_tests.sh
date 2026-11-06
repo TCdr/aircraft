@@ -61,3 +61,8 @@ clang++ -std=c++20 -Wall -Wextra $FLAGS -I ../src -I ../src/model -I ../../../..
 clang++ -std=c++20 -Wall -Wextra $FLAGS -I ../src -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src \
   hsp_dive_response_test.cpp ../src/model/*.cpp -o ../obj/hsp_dive_response_test
 ../obj/hsp_dive_response_test
+# Direct law in the electrical emergency configuration (all four AC busbars lost in flight): the generated A380PrimComputerFctl
+# model, as every PRIM runs it. With WITHOUT_THE_FIX=1 the input is left unset and the test must fail.
+clang++ -std=c++20 -Wall -Wextra $FLAGS -I ../src -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src \
+  elec_emer_direct_law_test.cpp ../src/model/*.cpp -o ../obj/elec_emer_direct_law_test
+../obj/elec_emer_direct_law_test
