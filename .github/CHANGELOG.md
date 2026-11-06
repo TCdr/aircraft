@@ -2949,3 +2949,5 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/PFD] PFD no longer searches the page for its own side on every frame - @TCdr
 1. [OANS] Airport map labels, layers and position text are only recomputed when something changed (better frame rate at large airports) - @TCdr
 1. [A380X/FWS] Flight warning loop no longer rebuilds its alert lists on every cycle (fewer stutters) - @TCdr
+1. [A32NX/FWC] The stall warning (cricket and STALL) also sounds below 1500 ft radio height, in alternate and direct law - @TCdr
+1. [A32NX/FWC] While the stall warning sounds, the GPWS voices are silenced and the other FWC sounds (chimes, cavalry charge, C chord, callouts) wait until it ends - @TCdr
