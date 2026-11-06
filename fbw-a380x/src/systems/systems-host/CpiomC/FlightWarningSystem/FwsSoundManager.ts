@@ -10,11 +10,13 @@ export interface FwsSoundManagerControlEvents {
   dequeueSound: string;
 }
 
-// Synthetic voice has priority over everything, SC is least important
+// The stall warning has priority over everything, then synthetic voice; SC is least important.
+// Design choice: the stall is the top aural, so it also cuts continuous synthetic voices.
 enum FwsAuralWarningType {
   SingleChime,
   AuralWarning,
   SyntheticVoice,
+  StallWarning,
 }
 
 export enum FwsAuralVolume {
@@ -36,6 +38,8 @@ interface FwsAural {
   /** If this is set, this sound is repeated periodically with the specified pause in seconds */
   periodicWithPause?: number;
   continuous?: boolean;
+  /** If set, a non-continuous sound is played this many times in a row */
+  repeatFor?: number;
 
   /** If true, sound is immediately stopped upon request */
   immediateStop?: boolean;
@@ -125,15 +129,14 @@ export const FwsAuralsList: Record<string, FwsAural> = {
     continuous: true,
   },
   stall: {
-    localVarName: 'A32NX_AUDIO_ROP_MAX_BRAKING',
-    length: 3.0,
-    priority: 5,
-    type: FwsAuralWarningType.SyntheticVoice,
+    localVarName: 'A32NX_AUDIO_STALL_WARNING',
+    priority: 0,
+    type: FwsAuralWarningType.StallWarning,
     continuous: true,
   },
   cChordOnce: {
     localVarName: 'A32NX_ALT_DEVIATION',
-    length: 1.0,
+    length: 1.5,
     priority: 3,
     type: FwsAuralWarningType.AuralWarning,
     continuous: false,
@@ -501,6 +504,15 @@ export const FwsAuralsList: Record<string, FwsAural> = {
     priority: 30,
     type: FwsAuralWarningType.SyntheticVoice,
   },
+  // SPEED SPEED SPEED sounds three times, one word per play (FwsLowEnergyAural). Design choice: same rank among the
+  // voices as the A32NX.
+  speedSpeedSpeed: {
+    localVarName: 'A32NX_FWS_AUDIO_SPEED',
+    length: 0.56,
+    repeatFor: 3,
+    priority: 26,
+    type: FwsAuralWarningType.SyntheticVoice,
+  },
 };
 
 // FIXME Not all sounds are added to this yet (e.g. CIDS chimes), consider adding them in the future
@@ -511,6 +523,10 @@ export class FwsSoundManager {
   private singleChimesPending = 0;
 
   private currentSoundPlaying: keyof typeof FwsAuralsList | null = null;
+  /** The sound to be repeated next cycle (only for non continuous sounds). Cannot be interrupted */
+  private repeatNextCycleSound: keyof typeof FwsAuralsList | null = null;
+  /** The number of times the sound shall be repeated after the initial play */
+  private numberOfTimesToRepeatSound: number | null = null;
 
   /** in seconds */
   private currentSoundPlayTimeRemaining = 0;
@@ -543,7 +559,11 @@ export class FwsSoundManager {
       return;
     }
 
-    if (sound.type === FwsAuralWarningType.SyntheticVoice || sound.type === FwsAuralWarningType.AuralWarning) {
+    if (
+      sound.type === FwsAuralWarningType.StallWarning ||
+      sound.type === FwsAuralWarningType.SyntheticVoice ||
+      sound.type === FwsAuralWarningType.AuralWarning
+    ) {
       this.soundQueue.add(soundKey);
     } else if (sound.type === FwsAuralWarningType.SingleChime) {
       this.singleChimesPending++;
@@ -552,6 +572,11 @@ export class FwsSoundManager {
 
   /** Remove sound from queue, e.g. when condition doesn't apply anymore. If sound is currently playing, stops sound immediately */
   dequeueSound(soundKey: keyof typeof FwsAuralsList) {
+    // EMER CANC must stop the rest of a series, as well as the word that plays
+    if (this.currentSoundPlaying === soundKey || this.repeatNextCycleSound === soundKey) {
+      this.repeatNextCycleSound = null;
+      this.numberOfTimesToRepeatSound = null;
+    }
     // Check if this sound is currently playing
     if (this.currentSoundPlaying === soundKey) {
       const sound = FwsAuralsList[this.currentSoundPlaying];
@@ -568,7 +593,14 @@ export class FwsSoundManager {
    * @returns whether there was a sound to cancel
    */
   cancelAll(): boolean {
-    const anySound = this.currentSoundPlaying !== null || this.soundQueue.size > 0 || this.singleChimesPending > 0;
+    const anySound =
+      this.currentSoundPlaying !== null ||
+      this.repeatNextCycleSound !== null ||
+      this.soundQueue.size > 0 ||
+      this.singleChimesPending > 0;
+    if (this.repeatNextCycleSound !== null) {
+      this.dequeueSound(this.repeatNextCycleSound);
+    }
     for (const soundKey of [...this.soundQueue]) {
       this.dequeueSound(soundKey);
     }
@@ -629,6 +661,9 @@ export class FwsSoundManager {
     }
     this.currentSoundPlaying = soundKey;
     this.currentSoundPlayTimeRemaining = sound.continuous ? Infinity : sound.length ?? 0;
+    if (this.numberOfTimesToRepeatSound === null && !sound.continuous) {
+      this.numberOfTimesToRepeatSound = sound.repeatFor ? sound.repeatFor - 1 : null; // Subtract one for subsequent plays
+    }
     this.soundQueue.delete(soundKey);
   }
 
@@ -673,8 +708,18 @@ export class FwsSoundManager {
       // A sound that cannot be stopped plays to its end: the countdown below finishes it, and no new sound starts
       this.stopCurrentSound();
       if (this.currentSoundPlaying === null) {
+        this.repeatNextCycleSound = null;
+        this.numberOfTimesToRepeatSound = null;
         return;
       }
+    }
+
+    // Enforce one cycle delay before repeating
+    if (this.repeatNextCycleSound) {
+      const soundKey = this.repeatNextCycleSound;
+      this.repeatNextCycleSound = null;
+      this.playSound(soundKey);
+      return;
     }
 
     // Either wait for the current sound to finish, or schedule the next sound
@@ -689,24 +734,34 @@ export class FwsSoundManager {
           SimVar.SetSimVarValue(`L:${sound.localVarName}`, SimVarValueType.Bool, false);
           this.setAudioOutputSignals(sound.localVarName, false);
         }
+        const finishedSoundKey = this.currentSoundPlaying;
         this.currentSoundPlaying = null;
         this.currentSoundPlayTimeRemaining = 0;
+        // Enforce one cycle delay before repeating the sound if applicable, otherwise sim won't interrupt the sound.
+        if (!sound.continuous && this.numberOfTimesToRepeatSound !== null && this.numberOfTimesToRepeatSound > 0) {
+          this.numberOfTimesToRepeatSound--;
+          this.repeatNextCycleSound = finishedSoundKey;
+          return;
+        }
+        this.numberOfTimesToRepeatSound = null;
       }
 
       // Interrupt if sound with higher category is present in queue and current sound is continuous
       let shouldInterrupt = false;
       let rescheduleSound: keyof typeof FwsAuralsList | null = null;
-      this.soundQueue.forEach((sk) => {
-        const s = FwsAuralsList[sk];
-        if (
-          s &&
-          this.currentSoundPlaying &&
-          FwsAuralsList[this.currentSoundPlaying]?.continuous &&
-          s.type > FwsAuralsList[this.currentSoundPlaying].type
-        ) {
-          shouldInterrupt = true;
-        }
-      });
+      const currentSound = this.currentSoundPlaying ? FwsAuralsList[this.currentSoundPlaying] : undefined;
+      if (currentSound?.continuous) {
+        // Same rule as the selection of the next sound: type first, then priority
+        this.soundQueue.forEach((sk) => {
+          const s = FwsAuralsList[sk];
+          if (
+            s &&
+            (s.type > currentSound.type || (s.type === currentSound.type && s.priority > currentSound.priority))
+          ) {
+            shouldInterrupt = true;
+          }
+        });
+      }
 
       if (shouldInterrupt) {
         if (this.currentSoundPlaying && FwsAuralsList[this.currentSoundPlaying]?.continuous) {

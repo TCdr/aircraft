@@ -2009,6 +2009,7 @@ The wing and engine anti-ice of the systems model (a380_systems ice_rain_protect
     - PRIORITY_LEFT: the CAPT holds the sidestick pb (CpiomC/FlightWarningSystem/FwsSidestickPriority.ts)
     - PRIORITY_RIGHT: the F/O holds the sidestick pb
     - WINDSHEAR: WINDSHEAR said three times, at the reactive windshear warning (FlightWarningSystem/FwsWindshearAural.ts)
+    - SPEED: SPEED SPEED SPEED, at the low energy alert (FlightWarningSystem/FwsLowEnergyAural.ts); a sound bank event, not a WAV clip
     - PITCH: PITCH PITCH, at the pitch attitude alert of a manual landing (FlightWarningSystem/FwsPitchAural.ts)
     - COMPANY_MESSAGE: COMPANY MESSAGE, when a company message is received (FlightWarningSystem/FwsCompanyMessageAural.ts)
     - HEIGHT_{feet}: one word of the intermediate radio height callout below 100 ft (shared/src/AutoCallOuts.ts):

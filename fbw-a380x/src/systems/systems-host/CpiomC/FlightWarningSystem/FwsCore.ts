@@ -81,6 +81,7 @@ import { FwsAuralVolume, FwsSoundManager } from './FwsSoundManager';
 import { FwsSidestickPriority } from './FwsSidestickPriority';
 import { FwsWindshearAural } from './FwsWindshearAural';
 import { FwsPitchAural } from './FwsPitchAural';
+import { FwsLowEnergyAural, selectLowSpeedLimit } from './FwsLowEnergyAural';
 import { FwsCompanyMessageAural } from './FwsCompanyMessageAural';
 import { FwcFlightPhase, FwsFlightPhases } from './FwsFlightPhases';
 import { A380Failure } from '@failures';
@@ -3023,6 +3024,8 @@ export class FwsCore {
 
   public readonly allThrottleToga = Subject.create(false);
 
+  public readonly anyThrottleToga = Subject.create(false);
+
   public readonly allThrottleMct = Subject.create(false);
 
   public readonly allThrottleClb = Subject.create(false);
@@ -3283,6 +3286,8 @@ export class FwsCore {
   private readonly windshearAural = new FwsWindshearAural();
   /** PITCH PITCH voice, see FwsPitchAural */
   private readonly pitchAural = new FwsPitchAural();
+  /** SPEED SPEED SPEED voice, see FwsLowEnergyAural */
+  private readonly lowEnergyAural = new FwsLowEnergyAural();
   /** COMPANY MESSAGE voice, see FwsCompanyMessageAural */
   private readonly companyMessageAural = new FwsCompanyMessageAural();
   public ewdAbnormal: EwdAbnormalDict;
@@ -4201,6 +4206,12 @@ export class FwsCore {
         this.throttle3Position.get() >= 45 &&
         this.throttle4Position.get() >= 45,
     );
+    this.anyThrottleToga.set(
+      this.throttle1Position.get() >= 45 ||
+        this.throttle2Position.get() >= 45 ||
+        this.throttle3Position.get() >= 45 ||
+        this.throttle4Position.get() >= 45,
+    );
     this.allThrottleMct.set(
       this.throttle1Position.get() >= 35 &&
         this.throttle1Position.get() < 45 &&
@@ -4685,6 +4696,43 @@ export class FwsCore {
       })
     ) {
       this.soundManager.enqueueSound('pitchPitch');
+    }
+
+    /* SPEED SPEED SPEED */
+    const lowEnergyPrim = [1, 2, 3]
+      .map((prim) => ({
+        vls: Arinc429Word.fromSimVarValue(`L:A32NX_PRIM_${prim}_V_LS`),
+        lowSpeedLimitKt: selectLowSpeedLimit(
+          Arinc429Word.fromSimVarValue(`L:A32NX_PRIM_${prim}_V_ALPHA_PROT`),
+          Arinc429Word.fromSimVarValue(`L:A32NX_PRIM_${prim}_V_STALL_WARN`),
+        ),
+        flightPathAngle: Arinc429Word.fromSimVarValue(`L:A32NX_PRIM_${prim}_GAMMA_T`),
+        speedTrend: Arinc429Word.fromSimVarValue(`L:A32NX_PRIM_${prim}_SPEED_TREND`),
+      }))
+      .find((words) => words.vls.isNormalOperation() && words.lowSpeedLimitKt !== null);
+    const lowEnergyCas = [this.adr1Cas.get(), this.adr2Cas.get(), this.adr3Cas.get()].find((w) =>
+      w.isNormalOperation(),
+    );
+    const lowEnergyAction = this.lowEnergyAural.update(
+      {
+        casKt: lowEnergyCas !== undefined ? lowEnergyCas.value : null,
+        vlsKt: lowEnergyPrim !== undefined ? lowEnergyPrim.vls.value : null,
+        lowSpeedLimitKt: lowEnergyPrim !== undefined ? lowEnergyPrim.lowSpeedLimitKt : null,
+        flightPathAngleDeg: lowEnergyPrim !== undefined ? lowEnergyPrim.flightPathAngle.valueOr(0) : null,
+        speedTrendKt: lowEnergyPrim !== undefined ? lowEnergyPrim.speedTrend.valueOr(0) : null,
+        radioHeightFt: pitchRa !== undefined ? pitchRa.value : null,
+        flightPhase: this.flightPhase.get(),
+        flapsConfIndex: this.flapsIndex.get(),
+        anyThrustLeverToga: this.anyThrottleToga.get(),
+        alphaFloorActive: this.autoThrustMode.get() === AutoThrustMode.A_FLOOR,
+      },
+      gpwsAlertActive,
+      deltaTime / 1000,
+    );
+    if (lowEnergyAction === 'say') {
+      this.soundManager.enqueueSound('speedSpeedSpeed');
+    } else if (lowEnergyAction === 'stop') {
+      this.soundManager.dequeueSound('speedSpeedSpeed');
     }
 
     /* COMPANY MESSAGE */
@@ -6585,15 +6633,7 @@ export class FwsCore {
     // we need to check this since the MSFS SDK stall warning does not.
     const isCasAbove60 =
       this.adr1Cas.get().valueOr(0) > 60 || this.adr2Cas.get().valueOr(0) > 60 || this.adr3Cas.get().valueOr(0) > 60;
-    this.stallWarning.set(
-      !isNormalLaw &&
-        isCasAbove60 &&
-        this.stallWarningRaw.get() &&
-        flightPhase6789 &&
-        this.radioHeight1.valueOr(Infinity) > 1500 &&
-        this.radioHeight2.valueOr(Infinity) > 1500 &&
-        this.radioHeight3.valueOr(Infinity) > 1500,
-    );
+    this.stallWarning.set(!isNormalLaw && isCasAbove60 && this.stallWarningRaw.get() && flightPhase6789);
 
     // TAWS
     const taws1Powered = this.acESSBusPowered.get();

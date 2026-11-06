@@ -27,6 +27,7 @@ export class LegacySoundManager {
 
   constructor() {
     this.periodicList = [];
+    this.soundQueue = [];
 
     this.playingSound = null;
     this.playingSoundRemaining = NaN;
@@ -113,6 +114,11 @@ export class LegacySoundManager {
         element.timeSinceLastPlayed += throttledT / 1000;
       }
     });
+
+    // Design choice: a due TAWS sound takes the channel before a queued TCAS sound
+    if (this.playingSound === null && this.soundQueue.length > 0) {
+      this.tryPlaySound(this.soundQueue.shift());
+    }
   }
 }
 
