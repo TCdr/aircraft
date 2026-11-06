@@ -17,6 +17,7 @@ import { t, TooltipWrapper, initialState, useTroubleshooting, pathify } from '@f
 import { BatteryStatus } from './BatteryStatus';
 import { useAppSelector } from '../Store/store';
 import { QuickControls } from './QuickControls';
+import { useStatusBarClock } from './useStatusBarClock';
 
 interface StatusBarProps {
   batteryLevel: number;
@@ -26,11 +27,13 @@ interface StatusBarProps {
 }
 
 export const StatusBar = ({ batteryLevel, isCharging, compact = false }: StatusBarProps) => {
-  const [currentUTC] = useSimVar('E:ZULU TIME', 'seconds');
-  const [currentLocalTime] = useSimVar('E:LOCAL TIME', 'seconds');
-  const [dayOfWeek] = useSimVar('E:ZULU DAY OF WEEK', 'number');
-  const [monthOfYear] = useSimVar('E:ZULU MONTH OF YEAR', 'number');
-  const [dayOfMonth] = useSimVar('E:ZULU DAY OF MONTH', 'number');
+  const {
+    zuluSeconds: currentUTC,
+    localSeconds: currentLocalTime,
+    dayOfWeek,
+    monthOfYear,
+    dayOfMonth,
+  } = useStatusBarClock();
   const [showStatusBarFlightProgress] = usePersistentNumberProperty('EFB_SHOW_STATUSBAR_FLIGHTPROGRESS', 1);
 
   const [timeDisplayed] = usePersistentProperty('EFB_TIME_DISPLAYED', 'utc');
