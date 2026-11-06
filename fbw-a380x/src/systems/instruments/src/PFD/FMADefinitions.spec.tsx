@@ -17,8 +17,11 @@ import {
   computeC1Message,
   computeD1D2Message,
   D1D2Messages,
+  DisconnectApForLdgInputs,
   getD1D2Lines,
   isCheckEoSpeedSetting,
+  isDisconnectApForLdg,
+  isNonPrecisionVerticalMode,
   isSpeedAtUpperMargin,
   manualTakeoffThrustLabel,
   SpeedBrakeMessage,
@@ -269,5 +272,100 @@ describe('A380X FMA modes on an FLS approach', () => {
     expect(d1d2(FlsCapability.FAppRaw)).toBe(D1D2Messages.F_APP_RAW);
     expect(d1d2(FlsCapability.RawOnly)).toBe(D1D2Messages.RAW_ONLY);
     expect(computeD1D2Message(word(), word(), word(), true, FlsCapability.None)).toBe(D1D2Messages.APPR_1);
+  });
+});
+
+describe('A380X DISCONNECT AP FOR LDG', () => {
+  const landing = (over: Partial<DisconnectApForLdgInputs> = {}): DisconnectApForLdgInputs => ({
+    apEngaged: true,
+    approachPhase: true,
+    nonPrecisionVerticalMode: true,
+    noDhSelected: false,
+    baroAltitudeFt: 2_000,
+    mdaFt: 1_100,
+    dhFt: null,
+    radioAltitudeFt: 1_500,
+    landingElevationFt: 500,
+    ...over,
+  });
+
+  it('shows at the MDA minus 50 ft with a BARO minimum', () => {
+    expect(isDisconnectApForLdg(landing({ baroAltitudeFt: 1_051 }))).toBe(false);
+    expect(isDisconnectApForLdg(landing({ baroAltitudeFt: 1_050 }))).toBe(true);
+  });
+
+  it('shows at the DH minus 50 ft with a RADIO minimum', () => {
+    const radio = (radioAltitudeFt: number) => landing({ mdaFt: null, dhFt: 250, radioAltitudeFt });
+    expect(isDisconnectApForLdg(radio(201))).toBe(false);
+    expect(isDisconnectApForLdg(radio(200))).toBe(true);
+  });
+
+  it('shows at 350 ft above the landing elevation without a minimum', () => {
+    const noMinimum = (baroAltitudeFt: number) => landing({ mdaFt: null, dhFt: null, baroAltitudeFt });
+    expect(isDisconnectApForLdg(noMinimum(851))).toBe(false);
+    expect(isDisconnectApForLdg(noMinimum(850))).toBe(true);
+  });
+
+  it('does not use the old 150 ft radio height without a minimum', () => {
+    expect(isDisconnectApForLdg(landing({ mdaFt: null, baroAltitudeFt: 850, radioAltitudeFt: 400 }))).toBe(true);
+    expect(isDisconnectApForLdg(landing({ mdaFt: null, baroAltitudeFt: 900, radioAltitudeFt: 100 }))).toBe(false);
+  });
+
+  it('gives false when the data of the minimum that applies is invalid', () => {
+    expect(isDisconnectApForLdg(landing({ baroAltitudeFt: null }))).toBe(false);
+    expect(isDisconnectApForLdg(landing({ mdaFt: null, dhFt: 250, radioAltitudeFt: null }))).toBe(false);
+    expect(isDisconnectApForLdg(landing({ mdaFt: null, baroAltitudeFt: null }))).toBe(false);
+    expect(isDisconnectApForLdg(landing({ mdaFt: null, landingElevationFt: null }))).toBe(false);
+  });
+
+  it('treats NO DH as no minimum, even with an MDA or DH', () => {
+    const noDh = (over: Partial<DisconnectApForLdgInputs>) => landing({ noDhSelected: true, mdaFt: 1_100, ...over });
+    expect(isDisconnectApForLdg(noDh({ baroAltitudeFt: 850 }))).toBe(true);
+    expect(isDisconnectApForLdg(noDh({ baroAltitudeFt: 1_000, landingElevationFt: 500 }))).toBe(false);
+    expect(isDisconnectApForLdg(noDh({ baroAltitudeFt: 851 }))).toBe(false);
+    expect(isDisconnectApForLdg(noDh({ mdaFt: null, dhFt: 250, baroAltitudeFt: 1_000, radioAltitudeFt: 150 }))).toBe(
+      false,
+    );
+  });
+
+  it('uses the no-minimum rule when the minimum data is not valid', () => {
+    expect(isDisconnectApForLdg(landing({ mdaFt: null, baroAltitudeFt: 1_000 }))).toBe(false);
+    expect(isDisconnectApForLdg(landing({ mdaFt: null, baroAltitudeFt: 850 }))).toBe(true);
+  });
+
+  it('gives false when the altitude is not valid', () => {
+    expect(isDisconnectApForLdg(landing({ baroAltitudeFt: null }))).toBe(false);
+    expect(isDisconnectApForLdg(landing({ noDhSelected: true, baroAltitudeFt: null }))).toBe(false);
+  });
+
+  it('uses 350 ft radio height without a minimum and without a valid landing elevation', () => {
+    const noElevation = (radioAltitudeFt: number | null) =>
+      landing({ mdaFt: null, landingElevationFt: null, radioAltitudeFt });
+    expect(isDisconnectApForLdg(noElevation(400))).toBe(false);
+    expect(isDisconnectApForLdg(noElevation(340))).toBe(true);
+    expect(isDisconnectApForLdg(noElevation(null))).toBe(false);
+  });
+
+  it('needs the AP, the approach phase and a non precision vertical mode', () => {
+    expect(isDisconnectApForLdg(landing({ baroAltitudeFt: 1_000, apEngaged: false }))).toBe(false);
+    expect(isDisconnectApForLdg(landing({ baroAltitudeFt: 1_000, approachPhase: false }))).toBe(false);
+    expect(isDisconnectApForLdg(landing({ baroAltitudeFt: 1_000, nonPrecisionVerticalMode: false }))).toBe(false);
+  });
+
+  it('counts the vertical modes of a non precision approach, F-G/S included', () => {
+    for (const mode of [
+      B1Messages.DES,
+      B1Messages.OP_DES,
+      B1Messages.FPA,
+      B1Messages.VS,
+      B1Messages.APP_DES,
+      B1Messages.F_GS,
+      B1Messages.F_GS_STAR,
+    ]) {
+      expect(isNonPrecisionVerticalMode(mode)).toBe(true);
+    }
+    for (const mode of [B1Messages.GS, B1Messages.GS_STAR, B1Messages.NONE, B1Messages.ALT, B1Messages.SRS]) {
+      expect(isNonPrecisionVerticalMode(mode)).toBe(false);
+    }
   });
 });

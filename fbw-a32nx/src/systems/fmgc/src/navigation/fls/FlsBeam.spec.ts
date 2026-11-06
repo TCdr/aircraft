@@ -5,7 +5,15 @@ import { describe, expect, it } from 'vitest';
 import { ApproachType, ApproachWaypointDescriptor } from '@flybywiresim/fbw-sdk';
 import { bearingTo, distanceTo, placeBearingDistance } from 'msfs-geo';
 import { ReadonlyFlightPlan } from '@fmgc/flightplanning/plans/ReadonlyFlightPlan';
-import { computeFlsBeam, flsBeamInputs, FlsBeamInputs, flsBeamOfPlan, missedApproachPointLegIndex } from './FlsBeam';
+import {
+  computeFlsBeam,
+  flsBeamInputs,
+  FlsBeamInputs,
+  flsBeamOfPlan,
+  isNoFlsForApproach,
+  noFlsApproachKey,
+  missedApproachPointLegIndex,
+} from './FlsBeam';
 
 const FEET_PER_NM = 6076.12;
 const threshold = { lat: 43.6, long: 1.37 };
@@ -202,5 +210,91 @@ describe('FLS beam inputs of a flight plan', () => {
 
   it('builds the beam of the plan', () => {
     expect(flsBeamOfPlan(plan(1))).toMatchObject({ lateral: true, ident: 'LFBO33L', course: bearingTo(faf, map) });
+  });
+});
+
+describe('NO FLS FOR THIS APPR', () => {
+  const map = onFinal(1);
+  const leg = (ident: string, location: typeof map, descriptor?: ApproachWaypointDescriptor) => ({
+    isDiscontinuity: false,
+    ident,
+    definition: { approachWaypointDescriptor: descriptor, altitude1: 900, verticalAngle: -3.1, waypoint: { location } },
+  });
+  /** a plan whose final leg runs into the MAP along a course the given number of degrees off the runway */
+  const planWith = (approachType: ApproachType | undefined, courseOffset = 0, mapAhead = true) =>
+    ({
+      approach: approachType === undefined ? undefined : { type: approachType, ident: `A${approachType}` },
+      destinationRunway: {
+        ident: 'RW33L',
+        bearing: runwayBearing,
+        thresholdLocation: { ...threshold, alt: 499 },
+        thresholdCrossingHeight: 52,
+      },
+      destinationAirport: { ident: 'LFBO', location: { ...threshold, alt: 500 } },
+      allLegs: [
+        leg('FAF33', placeBearingDistance(map, runwayBearing + courseOffset + 180, 4)),
+        leg('MAP33', map, ApproachWaypointDescriptor.MissedApproachPoint),
+      ],
+      activeLegIndex: mapAhead ? 0 : 2,
+      performanceData: { approachTemperature: { get: () => null } },
+    }) as unknown as ReadonlyFlightPlan;
+
+  it.each([ApproachType.Lda, ApproachType.Sdf, ApproachType.Tacan])('is raised for a %s approach', (type) => {
+    expect(isNoFlsForApproach(planWith(type))).toBe(true);
+  });
+
+  it('is raised when the final course is more than 50° off the runway, not at 40°', () => {
+    expect(isNoFlsForApproach(planWith(ApproachType.Vor, 60))).toBe(true);
+    expect(isNoFlsForApproach(planWith(ApproachType.Vor, -60))).toBe(true);
+    expect(isNoFlsForApproach(planWith(ApproachType.Vor, 40))).toBe(false);
+  });
+
+  it.each([
+    ApproachType.Vor,
+    ApproachType.VorDme,
+    ApproachType.Vortac,
+    ApproachType.Ndb,
+    ApproachType.NdbDme,
+    ApproachType.Rnav,
+    ApproachType.Gps,
+    ApproachType.Fms,
+    ApproachType.Loc,
+    ApproachType.LocBackcourse,
+  ])('is not raised for a %s approach with a normal geometry', (type) => {
+    expect(isNoFlsForApproach(planWith(type))).toBe(false);
+  });
+
+  it.each([
+    ApproachType.Ils,
+    ApproachType.Gls,
+    ApproachType.Mls,
+    ApproachType.MlsTypeA,
+    ApproachType.MlsTypeBC,
+    ApproachType.Igs,
+  ])('is not raised for a %s precision approach, whatever its geometry', (type) => {
+    expect(isNoFlsForApproach(planWith(type))).toBe(false);
+    expect(isNoFlsForApproach(planWith(type, 60))).toBe(false);
+  });
+
+  it('is not raised without an approach or a plan, nor for an unknown type', () => {
+    expect(isNoFlsForApproach(planWith(undefined))).toBe(false);
+    expect(isNoFlsForApproach(null)).toBe(false);
+    expect(isNoFlsForApproach(planWith(ApproachType.Unknown))).toBe(false);
+  });
+
+  it('is not claimed from missing data: no MAP ahead means no course check', () => {
+    expect(isNoFlsForApproach(planWith(ApproachType.Vor, 60, false))).toBe(false);
+  });
+
+  it('is still raised for a type without a beam when the geometry cannot be read', () => {
+    expect(isNoFlsForApproach(planWith(ApproachType.Lda, 0, false))).toBe(true);
+  });
+
+  it('has a key of the airport and approach, null when there is no message', () => {
+    expect(noFlsApproachKey(planWith(ApproachType.Lda))).toBe(`LFBO/A${ApproachType.Lda}`);
+    expect(noFlsApproachKey(planWith(ApproachType.Sdf))).not.toBe(noFlsApproachKey(planWith(ApproachType.Lda)));
+    expect(noFlsApproachKey(planWith(ApproachType.Rnav))).toBe(null);
+    expect(noFlsApproachKey(planWith(undefined))).toBe(null);
+    expect(noFlsApproachKey(null)).toBe(null);
   });
 });

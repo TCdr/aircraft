@@ -267,4 +267,11 @@ export const FMMessageTypes: Readonly<Record<string, FMMessage>> = {
     color: 'Amber',
     clearable: true,
   },
+  /** Type II amber */
+  NoFlsForThisApproach: {
+    id: 33,
+    text: 'NO FLS FOR THIS APPR',
+    color: 'Amber',
+    clearable: true,
+  },
 };

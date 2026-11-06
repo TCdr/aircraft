@@ -1026,6 +1026,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [EFB] Services page linked to GSX: a jet bridge or stairs Release that GSX ignores offers Retry after 10 s (counted from the answer when GSX asks to confirm), a jet bridge or stairs GSX is stuck on offers Force (GSX "Complete now"), GSX questions show at once, and a Request or Release pressed right after the jet bridge or stairs finished moving is held until GSX takes it - @TCdr
 1. [A32NX/GPWS] The terrain alerts know the hard runways of the airports around the aircraft from the sim's airport database, so an approach to a runway that is not in the flight plan no longer gives TERRAIN AHEAD and PULL UP alerts down to the touchdown - @TCdr
 1. [A380X/FBW] The flight controls go to direct law in ELEC EMER CONFIG (all four AC busbars lost in flight), with F/CTL DIRECT LAW and USE MAN PITCH TRIM - @TCdr
+1. [FMS] NO FLS FOR THIS APPR message when the selected non precision approach has no FLS beam (LDA, SDF, TACAN, final course more than 50° off the runway) - @TCdr
+1. [PFD] DISCONNECT AP FOR LDG also shows on FLS approaches (F-G/S) - @TCdr
+1. [A380X/PFD] DISCONNECT AP FOR LDG shows at the minimum - 50 ft (350 ft above the landing elevation without a minimum) in the approach phase, instead of at 150 ft radio height - @TCdr
 
 ## 2024.1.0
 

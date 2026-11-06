@@ -22,6 +22,7 @@ import { PILeg } from '@fmgc/guidance/lnav/legs/PI';
 import { distanceToTopOfDescent } from '@fmgc/components/fms-messages/TopOfDescentDistance';
 import { ArmedLateralMode, isArmed, LateralMode, VerticalMode } from '@shared/autopilot';
 import { LegType } from '@flybywiresim/fbw-sdk';
+import { noFlsApproachKey } from '@fmgc/navigation/fls/FlsBeam';
 import { Coordinates } from 'msfs-geo';
 
 import { NXSystemMessages, TypeIIMessage } from '../shared/NXSystemMessages';
@@ -94,6 +95,9 @@ export class FmsAdvisoryMessages {
 
   private checkApprSelOnPfd = false;
 
+  /** The approach NO FLS FOR THIS APPR was sent for, null while there is no message */
+  private noFlsApproachKeyShown: string | null = null;
+
   private readonly engineOutSpeedLatch = new MessageTextLatch();
 
   private readonly noNavInterceptionLatch = new MessageTextLatch();
@@ -148,6 +152,15 @@ export class FmsAdvisoryMessages {
     );
     this.apply(this.checkApprSelLatch, checkApprSel ? NXSystemMessages.checkApprSel : null);
     this.setCheckApprSelOnPfd(checkApprSel);
+
+    const noFlsKey = noFlsApproachKey(flightPlanService.active);
+    if (noFlsKey !== this.noFlsApproachKeyShown) {
+      this.noFlsApproachKeyShown = noFlsKey;
+      this.fmc.removeMessageFromQueue(NXSystemMessages.noFlsForThisAppr.text);
+      if (noFlsKey !== null) {
+        this.fmc.addMessageToQueue(NXSystemMessages.noFlsForThisAppr, undefined, undefined);
+      }
+    }
 
     // AREA RNP IS XX.XX / PROC RNP IS XX.XX
     const rnp = activeRnpMessage(navigation, flightPlanService);

@@ -22,6 +22,19 @@ const FLS_LATERAL_BY_APPROACH_TYPE: Partial<Record<ApproachType, boolean>> = {
   [ApproachType.LocBackcourse]: false,
 };
 
+/**
+ * The approaches that are precision approaches and so never raise NO FLS FOR THIS APPR.
+ * Design choice: IGS counts as precision, the database does not say whether its glide slope is out.
+ */
+const PRECISION_APPROACH_TYPES: ApproachType[] = [
+  ApproachType.Ils,
+  ApproachType.Gls,
+  ApproachType.Mls,
+  ApproachType.MlsTypeA,
+  ApproachType.MlsTypeBC,
+  ApproachType.Igs,
+];
+
 /** No FLS beam when the final approach course is more than this away from the runway course, in degrees */
 const MAX_COURSE_TO_RUNWAY_ANGLE = 50;
 
@@ -239,4 +252,31 @@ export function flsBeamInputs(plan: ReadonlyFlightPlan): FlsBeamInputs | null {
 export function flsBeamOfPlan(plan: ReadonlyFlightPlan | null): FlsBeamGeometry | null {
   const inputs = plan ? flsBeamInputs(plan) : null;
   return inputs ? computeFlsBeam(inputs) : null;
+}
+
+/**
+ * NO FLS FOR THIS APPR: the selected non precision approach cannot get an FLS beam, because its type has none or its
+ * final course is too far from the runway. Never raised from missing data.
+ */
+export function isNoFlsForApproach(plan: ReadonlyFlightPlan | null): boolean {
+  const approachType = plan?.approach?.type;
+  if (!plan || approachType === undefined || approachType === ApproachType.Unknown) {
+    return false;
+  }
+  if (PRECISION_APPROACH_TYPES.includes(approachType)) {
+    return false;
+  }
+  if (FLS_LATERAL_BY_APPROACH_TYPE[approachType] === undefined) {
+    return true;
+  }
+  const inputs = flsBeamInputs(plan);
+  return inputs !== null && computeFlsBeam(inputs) === null;
+}
+
+/**
+ * @returns the airport and approach that raise NO FLS FOR THIS APPR, null when the message does not apply. The message
+ * belongs to each approach selection, so a new key is a new message.
+ */
+export function noFlsApproachKey(plan: ReadonlyFlightPlan | null): string | null {
+  return plan && isNoFlsForApproach(plan) ? `${plan.destinationAirport?.ident}/${plan.approach?.ident}` : null;
 }

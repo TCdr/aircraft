@@ -34,7 +34,7 @@ export function withStubbedSimVars(simVars: Record<string, unknown>, run: () => 
 interface AdvisoryScenario {
   flightPhase: FmgcFlightPhase;
   /** The approach of the active flight plan, null without one */
-  approach?: { type: ApproachType; finalLegNavaidIdent: string | null } | null;
+  approach?: { type: ApproachType; finalLegNavaidIdent: string | null; ident?: string } | null;
   /** The ILS tuned on the POSITION/NAVAIDS page, null when the MMR is auto tuned */
   manuallyTunedIls?: { ident: string; frequency: number } | null;
   baroAltitudeFt?: number | null;
@@ -54,6 +54,7 @@ export function createAdvisoryMessages(scenario: AdvisoryScenario) {
   const approach = scenario.approach
     ? {
         type: scenario.approach.type,
+        ident: scenario.approach.ident ?? 'APPROACH',
         legs: [{ recommendedNavaid: { ident: scenario.approach.finalLegNavaidIdent, frequency: 110.3 } }],
       }
     : undefined;
@@ -63,7 +64,7 @@ export function createAdvisoryMessages(scenario: AdvisoryScenario) {
       hasActive: true,
       active: {
         approach,
-        destinationAirport: { location: { alt: 0 } },
+        destinationAirport: { ident: 'LFBO', location: { alt: 0 } },
         activeLeg: undefined,
         activeLegIndex: 0,
         maybeElementAt: () => undefined,
@@ -102,6 +103,8 @@ export function createAdvisoryMessages(scenario: AdvisoryScenario) {
   };
   return {
     advisoryMessages: new FmsAdvisoryMessages(fmc as unknown as FlightManagementComputer),
+    /** the active plan, for a spec that changes the approach between two updates */
+    activePlan: fmc.flightPlanInterface.active as { approach: unknown },
     queued,
     removedTexts,
   };

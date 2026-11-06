@@ -10,6 +10,8 @@ const TLA_MCT_DEGREES = 35;
 /** Thrust lever angle of the TOGA detent, degrees (PseudoFWC thr1TLA >= 45) */
 const TLA_TOGA_DEGREES = 45;
 
+const FMGC_APPROACH_PHASE = 5;
+
 const FOR_GA_SET_TOGA_MAX_RA_FT = 1_000;
 
 const DISCONNECT_AP_BELOW_MINIMUM_FT = 50;
@@ -44,12 +46,36 @@ export function isForGaSetToga(i: ForGaSetTogaInputs): boolean {
   );
 }
 
+export interface NonPrecisionApproachInputs {
+  fmgcFlightPhase: number;
+  /** FINAL mode engaged */
+  finalMode: boolean;
+  /** FPA mode engaged */
+  fpaMode: boolean;
+  /** V/S mode engaged */
+  vsMode: boolean;
+  /** G/S or G/S* engaged */
+  glideSlopeMode: boolean;
+  /** the G/S modes fly the FLS beam (F-G/S) instead of an ILS glide slope */
+  flsVerticalActive: boolean;
+}
+
+/**
+ * Design choice: the PFD does not receive the FMS approach type, so a non precision approach is the FMGC approach
+ * phase with FINAL, FPA, V/S or the F-G/S of an FLS approach. A G/S on a real ILS glide slope is the precision case.
+ * @param i the inputs
+ * @returns whether a non precision approach is flown
+ */
+export function isNonPrecisionApproachFlown(i: NonPrecisionApproachInputs): boolean {
+  return (
+    i.fmgcFlightPhase === FMGC_APPROACH_PHASE &&
+    (i.finalMode || i.fpaMode || i.vsMode || (i.glideSlopeMode && i.flsVerticalActive))
+  );
+}
+
 export interface DisconnectApForLdgInputs {
   apEngaged: boolean;
-  /**
-   * a non precision approach is flown: FMGC approach phase with a non precision vertical mode (FINAL, FPA or V/S).
-   * Design choice: the PFD does not receive the FMS approach type; an ILS flown with G/S or LAND is the precision case.
-   */
+  /** a non precision approach is flown, see isNonPrecisionApproachFlown */
   nonPrecisionApproach: boolean;
   /** baro corrected altitude in feet, null when invalid */
   baroAltitudeFt: number | null;

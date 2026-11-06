@@ -26,7 +26,12 @@ import { FcuBus } from './shared/FcuBusProvider';
 import { Arinc429Values } from './shared/ArincValueProvider';
 import { PFDSimvars } from './shared/PFDSimvarPublisher';
 import { FlashOneHertz } from '../MsfsAvionicsCommon/FlashingElementUtils';
-import { isDisconnectApForLdg, isForGaSetToga, isSetGreenDotSpeed } from './FmaLine3Messages';
+import {
+  isDisconnectApForLdg,
+  isForGaSetToga,
+  isNonPrecisionApproachFlown,
+  isSetGreenDotSpeed,
+} from './FmaLine3Messages';
 import { flsCapabilityLines, lsModeText } from './FmaLsModes';
 import { FlsCapability, flsCapability } from '@flybywiresim/pfd';
 
@@ -108,6 +113,8 @@ export class FMA extends DisplayComponent<{ bus: ArincEventBus; isAttExcessive: 
   private readonly engineRunning = [true, true];
 
   private fmgcFlightPhase = 0;
+
+  private flsVerticalActive = false;
 
   private readonly forGaSetToga = Subject.create(false);
 
@@ -251,10 +258,14 @@ export class FMA extends DisplayComponent<{ bus: ArincEventBus; isAttExcessive: 
       word1.bitValueOr(23, false) ||
       word1.bitValueOr(25, false) ||
       word4.bitValueOr(14, false);
-    // Non precision approach: FMGC approach phase (5) with FINAL (bit 23), FPA (bit 18) or V/S (bit 17)
-    const nonPrecisionApproach =
-      this.fmgcFlightPhase === 5 &&
-      (word1.bitValueOr(23, false) || word1.bitValueOr(18, false) || word1.bitValueOr(17, false));
+    const nonPrecisionApproach = isNonPrecisionApproachFlown({
+      fmgcFlightPhase: this.fmgcFlightPhase,
+      finalMode: word1.bitValueOr(23, false),
+      fpaMode: word1.bitValueOr(18, false),
+      vsMode: word1.bitValueOr(17, false),
+      glideSlopeMode: word1.bitValueOr(22, false),
+      flsVerticalActive: this.flsVerticalActive,
+    });
     // ALT (bits 19 + 20) or ALT* (bits 19 + 21)
     const altOrAltStarActive =
       word1.bitValueOr(19, false) && (word1.bitValueOr(20, false) || word1.bitValueOr(21, false));
@@ -431,6 +442,13 @@ export class FMA extends DisplayComponent<{ bus: ArincEventBus; isAttExcessive: 
       this.fmgcFlightPhase = phase;
       this.updateLine3Messages();
     });
+    sub
+      .on('flsVerticalActive')
+      .whenChanged()
+      .handle((active) => {
+        this.flsVerticalActive = !!active;
+        this.updateLine3Messages();
+      });
     this.fwcFlightPhase.sub(() => this.updateLine3Messages());
   }
 

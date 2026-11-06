@@ -18,6 +18,7 @@ import {
   Arinc429ConsumerSubject,
   Arinc429LocalVarConsumerSubject,
   Arinc429Word,
+  Arinc429WordData,
   ArincEventBus,
 } from '@flybywiresim/fbw-sdk';
 import { DmcLogicEvents } from '../MsfsAvionicsCommon/providers/DmcPublisher';
@@ -42,6 +43,8 @@ import {
   D1D2Messages,
   manualTakeoffThrustLabel,
   isCheckEoSpeedSetting,
+  isDisconnectApForLdg,
+  isNonPrecisionVerticalMode,
   isSpeedAtUpperMargin,
   speedBrakeMessage,
 } from './FMADefinitions';
@@ -197,24 +200,38 @@ export class FMA extends DisplayComponent<{
     this.flsVerticalActive,
   );
 
+  /** bit 29 is NO DH selection */
+  private readonly fmEisDiscrete2 = Arinc429LocalVarConsumerSubject.create(this.sub.on('fmEisDiscreteWord2Raw'));
+
+  private readonly mda = Arinc429LocalVarConsumerSubject.create(this.sub.on('fmMdaRaw'));
+
+  private readonly dh = Arinc429LocalVarConsumerSubject.create(this.sub.on('fmDhRaw'));
+
   private readonly disconnectApForLdg = MappedSubject.create(
-    ([ap1, ap2, ra, altitude, landingElevation, B1Message]) => {
-      return (
-        (ap1 || ap2) &&
-        (ra.isNormalOperation() ? ra.value <= 150 : altitude.valueOr(Infinity) - landingElevation.valueOr(0) <= 150) &&
-        (B1Message === B1Messages.DES ||
-          B1Message === B1Messages.OP_DES ||
-          B1Message === B1Messages.FPA ||
-          B1Message === B1Messages.VS ||
-          B1Message === B1Messages.APP_DES)
-      );
+    ([ap1, ap2, phase, B1Message, ra, altitude, landingElevation, fmEisDiscrete2, mda, dh]) => {
+      const minimumValid = (word: Arinc429WordData) => !word.isNoComputedData() && !word.isFailureWarning();
+      return isDisconnectApForLdg({
+        apEngaged: ap1 || ap2,
+        approachPhase: phase === FmgcFlightPhase.Approach,
+        nonPrecisionVerticalMode: isNonPrecisionVerticalMode(B1Message),
+        noDhSelected: fmEisDiscrete2.bitValueOr(29, false),
+        baroAltitudeFt: altitude.isNormalOperation() ? altitude.value : null,
+        mdaFt: minimumValid(mda) ? mda.value : null,
+        dhFt: minimumValid(dh) ? dh.value : null,
+        radioAltitudeFt: ra.isNormalOperation() ? ra.value : null,
+        landingElevationFt: landingElevation.isNormalOperation() ? landingElevation.value : null,
+      });
     },
     this.ap1Engaged,
     this.ap2Engaged,
+    this.fmgcFlightPhase,
+    this.B1Message,
     this.radioHeight,
     this.altitude,
     this.landingElevation,
-    this.B1Message,
+    this.fmEisDiscrete2,
+    this.mda,
+    this.dh,
   );
 
   private readonly checkEoSpeedSetting = MappedSubject.create(
