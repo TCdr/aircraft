@@ -6535,15 +6535,7 @@ export class FwsCore {
     // we need to check this since the MSFS SDK stall warning does not.
     const isCasAbove60 =
       this.adr1Cas.get().valueOr(0) > 60 || this.adr2Cas.get().valueOr(0) > 60 || this.adr3Cas.get().valueOr(0) > 60;
-    this.stallWarning.set(
-      !isNormalLaw &&
-        isCasAbove60 &&
-        this.stallWarningRaw.get() &&
-        flightPhase6789 &&
-        this.radioHeight1.valueOr(Infinity) > 1500 &&
-        this.radioHeight2.valueOr(Infinity) > 1500 &&
-        this.radioHeight3.valueOr(Infinity) > 1500,
-    );
+    this.stallWarning.set(!isNormalLaw && isCasAbove60 && this.stallWarningRaw.get() && flightPhase6789);
 
     // TAWS
     const taws1Powered = this.acESSBusPowered.get();

@@ -347,6 +347,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FMS] Fixed +/- altitude constraints entered on the F-PLN page being inverted - @shinji1100
 1. [A380X/FWS] Flight warning loop reads the simulation time once per cycle instead of once per alert (less display thread load) - @TCdr
 1. [A380X/FWS] Flight warning loop no longer rebuilds its alert lists on every cycle (fewer stutters) - @TCdr
+1. [A380X/FWS] The stall warning sounds the cricket and STALL voice instead of BRAKE MAX BRAKING - @TCdr
+1. [A380X/FWS] The stall aural has priority over all other aural alerts and cuts any continuous alert, which sounds again after the stall - @TCdr
+1. [A380X/FWS] The stall warning is no longer lost below 1500 ft radio height - @TCdr
+1. [A380X/FWS] The stall warning now sounds at all in the sim: the A380X systems host did not give it the angle of attack and on-ground inputs - @TCdr
 
 ## 2024.1.0
 

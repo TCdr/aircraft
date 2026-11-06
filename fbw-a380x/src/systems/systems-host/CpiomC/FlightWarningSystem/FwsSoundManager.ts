@@ -10,11 +10,13 @@ export interface FwsSoundManagerControlEvents {
   dequeueSound: string;
 }
 
-// Synthetic voice has priority over everything, SC is least important
+// The stall warning has priority over everything, then synthetic voice; SC is least important.
+// Design choice: the stall is the top aural, so it also cuts continuous synthetic voices.
 enum FwsAuralWarningType {
   SingleChime,
   AuralWarning,
   SyntheticVoice,
+  StallWarning,
 }
 
 export enum FwsAuralVolume {
@@ -125,10 +127,9 @@ export const FwsAuralsList: Record<string, FwsAural> = {
     continuous: true,
   },
   stall: {
-    localVarName: 'A32NX_AUDIO_ROP_MAX_BRAKING',
-    length: 3.0,
-    priority: 5,
-    type: FwsAuralWarningType.SyntheticVoice,
+    localVarName: 'A32NX_AUDIO_STALL_WARNING',
+    priority: 0,
+    type: FwsAuralWarningType.StallWarning,
     continuous: true,
   },
   cChordOnce: {
@@ -543,7 +544,11 @@ export class FwsSoundManager {
       return;
     }
 
-    if (sound.type === FwsAuralWarningType.SyntheticVoice || sound.type === FwsAuralWarningType.AuralWarning) {
+    if (
+      sound.type === FwsAuralWarningType.StallWarning ||
+      sound.type === FwsAuralWarningType.SyntheticVoice ||
+      sound.type === FwsAuralWarningType.AuralWarning
+    ) {
       this.soundQueue.add(soundKey);
     } else if (sound.type === FwsAuralWarningType.SingleChime) {
       this.singleChimesPending++;

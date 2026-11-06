@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import {
+  AdcPublisher,
   HEventPublisher,
   InstrumentBackplane,
   Clock,
@@ -139,6 +140,9 @@ class SystemsHost extends BaseInstrument {
 
   private readonly fqmsPublisher = new FqmsBusPublisher(this.bus);
 
+  // The stall warning publisher reads its angle of attack and on-ground inputs from this one
+  private readonly adcPublisher = new AdcPublisher(this.bus);
+
   private readonly stallWarningPublisher = new StallWarningPublisher(this.bus, 0.9);
 
   private readonly pseudoFwcPublisher = new PseudoFwcSimvarPublisher(this.bus);
@@ -238,6 +242,7 @@ class SystemsHost extends BaseInstrument {
     this.backplane.addPublisher('Weightpublisher', this.weightAndBalancePublisher);
     this.backplane.addPublisher('FuelPublisher', this.fuelSystemPublisher);
     this.backplane.addPublisher('fqmsPublisher', this.fqmsPublisher);
+    this.backplane.addPublisher('Adc', this.adcPublisher);
     this.backplane.addPublisher('StallWarning', this.stallWarningPublisher);
     this.backplane.addPublisher('PseudoFwc', this.pseudoFwcPublisher);
     this.backplane.addPublisher('Fcdc', this.fcdcPublisher);
