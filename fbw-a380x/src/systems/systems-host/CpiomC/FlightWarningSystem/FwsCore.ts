@@ -68,6 +68,7 @@ import { isStatusMoreAvailable } from '@shared/EcamSdMore';
 // FIXME should not import from instruments
 import { ChecklistState, FwsEvents } from '../../../instruments/src/MsfsAvionicsCommon/providers/FwsPublisher';
 import { FwsMemos } from './FwsMemos';
+import { cachedEntries, cachedEntriesOfBoth } from './FwsDictEntries';
 import { FwsEmerCancel } from './FwsEmerCancel';
 import { FwsNormalChecklists } from './FwsNormalChecklists';
 import { EwdAbnormalDict, EwdAbnormalItem, FwsAbnormalSensed } from './FwsAbnormalSensed';
@@ -8550,10 +8551,12 @@ export class FwsCore {
     };
 
     // Update memos and failures list in case failure has been resolved
-    for (const [key, value] of Object.entries(this.ewdAbnormal)) {
+    for (const [key, value] of cachedEntries(this.ewdAbnormal)) {
       if (!itemIsActiveConsideringFaultSuppression(value, key, 0.6)) {
-        failureKeys = failureKeys.filter((e) => e !== key);
-        recallFailureKeys = recallFailureKeys.filter((e) => e !== key);
+        failureKeys = failureKeys.includes(key) ? failureKeys.filter((e) => e !== key) : failureKeys;
+        recallFailureKeys = recallFailureKeys.includes(key)
+          ? recallFailureKeys.filter((e) => e !== key)
+          : recallFailureKeys;
       }
     }
 
@@ -8562,11 +8565,11 @@ export class FwsCore {
     this.nonCancellableWarningCount = 0;
 
     // Abnormal sensed procedures
-    const ewdAbnormalEntries: [string, EwdAbnormalItem][] = Object.entries(this.ewdAbnormal);
-    const ewdDeferredEntries = [
-      ...Object.entries(this.abnormalSensed.ewdDeferredProcs),
-      ...Object.entries(this.abnormalNonSensed.ewdDeferredProcs),
-    ];
+    const ewdAbnormalEntries: readonly [string, EwdAbnormalItem][] = cachedEntries(this.ewdAbnormal);
+    const ewdDeferredEntries = cachedEntriesOfBoth(
+      this.abnormalSensed.ewdDeferredProcs,
+      this.abnormalNonSensed.ewdDeferredProcs,
+    );
     this.abnormalUpdatedItems.clear();
     this.deferredUpdatedItems.clear();
     for (const [key, value] of ewdAbnormalEntries) {
@@ -8909,7 +8912,7 @@ export class FwsCore {
     this.allEngFlameOutPresented.set(this.presentedFailures.includes('701800151'));
 
     // MEMOs (except T.O and LDG)
-    for (const [, value] of Object.entries(this.memos.ewdMemos)) {
+    for (const [, value] of cachedEntries(this.memos.ewdMemos)) {
       if (
         value.simVarIsActive.get() &&
         !value.memoInhibit() &&
@@ -8927,7 +8930,7 @@ export class FwsCore {
     }
 
     // T.O and LDG MEMOs
-    for (const [, value] of Object.entries(this.memos.ewdToLdgMemos)) {
+    for (const [, value] of cachedEntries(this.memos.ewdToLdgMemos)) {
       if (
         value.simVarIsActive.get() &&
         !value.memoInhibit() &&
@@ -8947,7 +8950,7 @@ export class FwsCore {
     const memoOrderLeft: string[] = [];
     const memoOrderRight: string[] = [];
 
-    for (const [, value] of Object.entries(this.memos.ewdToLdgMemos)) {
+    for (const [, value] of cachedEntries(this.memos.ewdToLdgMemos)) {
       if (value.leftSide) {
         memoOrderLeft.push(...value.codesToReturn);
       } else {
@@ -8961,7 +8964,7 @@ export class FwsCore {
     );
 
     // INOP SYS
-    for (const [key, value] of Object.entries(this.inopSys.inopSys)) {
+    for (const [key, value] of cachedEntries(this.inopSys.inopSys)) {
       if (itemIsActiveConsideringFaultSuppression(value, key, 1.0)) {
         if (
           !value.redundancyLoss &&
@@ -8982,14 +8985,14 @@ export class FwsCore {
     }
 
     // INFO
-    for (const [key, value] of Object.entries(this.information.info)) {
+    for (const [key, value] of cachedEntries(this.information.info)) {
       if (itemIsActiveConsideringFaultSuppression(value, key, 1.0) && !stsInfoKeys.includes(key)) {
         stsInfoKeys.push(key);
       }
     }
 
     // LIMITATIONS
-    for (const [key, value] of Object.entries(this.limitations.limitations)) {
+    for (const [key, value] of cachedEntries(this.limitations.limitations)) {
       if (itemIsActiveConsideringFaultSuppression(value, key, 1.0)) {
         if (value.phase === FwsLimitationsPhases.AllPhases && !ewdLimitationsAllPhasesKeys.includes(key)) {
           ewdLimitationsAllPhasesKeys.push(key);
