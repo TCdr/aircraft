@@ -638,6 +638,7 @@ export const A320Services: React.FC = () => {
         gsxStatus: jetBridgeGsx.text,
         progress: jetBridgeGsx.progress,
         requestable: jetBridgeGsx.requestable,
+        releaseAction: jetBridgeGsx.releaseAction,
       },
     ),
     equipmentRow(
@@ -650,6 +651,7 @@ export const A320Services: React.FC = () => {
         gsxStatus: stairsGsx.text,
         progress: stairsGsx.progress,
         requestable: stairsGsx.requestable,
+        releaseAction: stairsGsx.releaseAction,
       },
     ),
     equipmentRow(

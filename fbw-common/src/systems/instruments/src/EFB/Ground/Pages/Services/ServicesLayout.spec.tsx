@@ -1,7 +1,7 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import React from 'react';
+import React, { ReactElement } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { equipmentRow } from './ServicesLayout';
 
@@ -24,5 +24,16 @@ describe('Ground equipment rows of the Services page linked to GSX', () => {
   it('keeps the Release and Called chips of a running service', () => {
     expect(row('active', false).trailing).not.toBeNull();
     expect(row('called', false).trailing).not.toBeNull();
+  });
+
+  it('names the release chip of a connected row as asked (Retry after GSX ignored a release)', () => {
+    const chipLabel = (releaseAction?: string) =>
+      (
+        equipmentRow('jetBridge', 'Jet Bridge', <span />, 'active', () => {}, { releaseAction })
+          .trailing as ReactElement
+      ).props.children;
+
+    expect(chipLabel('Retry')).toBe('Retry');
+    expect(chipLabel()).toBe('Release');
   });
 });

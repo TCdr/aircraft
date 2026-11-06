@@ -1,26 +1,35 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { usePersistentNumberProperty } from '@flybywiresim/fbw-sdk-react';
+import { toast } from 'react-toastify';
 import {
+  GSX_STUCK_MS,
   GsxServiceId,
+  gsxDocked,
   gsxRefuelFuelKg,
   gsxRefuelProgress,
   gsxRequestable,
+  gsxRemote,
   gsxServiceLook,
+  gsxStuck,
+  gsxTriggerHoldMs,
   useGsxRemote,
 } from './GsxRemote';
 import { gsxServiceStatus, triggerGsxService } from './GsxServicesPanel';
 import { RefuelTimeLeft } from './refuelTimeLeft';
-import { equipmentStillThere, useReleasePending } from './releasePending';
+import { GSX_REACTION_TIMEOUT_MS, GsxMoveSigns, equipmentStillThere, useReleasePending } from './releasePending';
 import type { ServiceLook } from './ServicesLayout';
+import { t } from '../../../Localization/translation';
 
 /** The GSX status line of a service row, and whether it may offer Request */
 export interface GsxRowStatus {
   text: string;
   progress: number | null;
   requestable: boolean;
+  /** The label of the release chip in place of Release: Retry after GSX ignored a release, Force while GSX is stuck */
+  releaseAction?: string;
 }
 
 const NO_GSX_STATUS: GsxRowStatus = { text: '', progress: null, requestable: true };
@@ -63,8 +72,44 @@ export function useGsxServiceLink<B extends number>(
   // The Release presses on the GPU, jet bridge and stairs, shown until the equipment is gone (releasePending)
   const releasePending = useReleasePending();
 
+  // Once GSX closes its menu (e.g. a release question answered), a jet bridge or stairs it still has not moved
+  // GSX_REACTION_TIMEOUT_MS later offers Retry: draw the page again then, as nothing GSX reports would
+  const [, setRedraws] = useState(0);
+  const redraw = () => setRedraws((redraws) => redraws + 1);
+  useEffect(() => {
+    if (!gsx.menuClosedAt) {
+      return undefined;
+    }
+    const timer = setTimeout(redraw, GSX_REACTION_TIMEOUT_MS + 500);
+    return () => clearTimeout(timer);
+  }, [gsx.menuClosedAt]);
+
   const linkedService = (button: B) => (gsxReady ? links.serviceOf[button] : undefined);
   const serviceState = (id: GsxServiceId) => gsx.services.find((s) => s.id === id);
+
+  // GSX reports nothing new while it is stuck on a jet bridge or stairs: draw the page again once the same phase has
+  // lasted GSX_STUCK_MS, so that the row offers Force
+  const nextStuckAt = Math.min(
+    ...[GsxServiceId.OperateJetways, GsxServiceId.OperateStairs].map((id) => {
+      const service = serviceState(id);
+      return service?.state === 'performing' && service.phaseSince !== undefined
+        ? service.phaseSince + GSX_STUCK_MS
+        : Infinity;
+    }),
+  );
+  useEffect(() => {
+    if (!Number.isFinite(nextStuckAt)) {
+      return undefined;
+    }
+    const timer = setTimeout(redraw, Math.max(0, nextStuckAt - Date.now()) + 500);
+    return () => clearTimeout(timer);
+  }, [nextStuckAt]);
+
+  /** GSX is stuck on the jet bridge or stairs of a button (gsxStuck): its row offers Force */
+  const stuck = (button: B): boolean => {
+    const id = linkedService(button);
+    return id !== undefined && gsxStuck(serviceState(id), Date.now());
+  };
 
   const refuelTimeLeft = useRef(new RefuelTimeLeft());
   const refuelFuel = gsxRefuelFuelKg(serviceState(GsxServiceId.Refueling));
@@ -119,6 +164,10 @@ export function useGsxServiceLink<B extends number>(
       return simLook;
     }
     const look = gsxServiceLook(serviceState(id));
+    // a Request that waits for GSX to be ready (GsxRemote.trigger) looks requested until GSX reports its own state
+    if (look === 'inactive' && gsx.heldTriggers?.includes(id)) {
+      return 'called';
+    }
     // GSX is idle on the jet bridge, stairs and GPU once their operation is done: the sim knows whether they are connected
     const simShowsIt = simLook !== 'hidden' && simLook !== 'disabled';
     if (links.connectable.includes(button) && (look === 'inactive' || look === 'disabled') && simShowsIt) {
@@ -136,6 +185,14 @@ export function useGsxServiceLink<B extends number>(
     if (id === undefined) {
       return false;
     }
+    if (stuck(button)) {
+      gsxRemote.completeStuckService(id).then((completed) => {
+        if (!completed) {
+          toast.error(t('Ground.Services.Gsx.ForceFailed'));
+        }
+      });
+      return true;
+    }
     triggerGsxService(id, serviceState(id)?.displayName ?? id).then((accepted) => {
       // a release GSX did not accept: the row shows again what GSX says
       const releaseRow = links.releaseRowOf[button];
@@ -152,23 +209,71 @@ export function useGsxServiceLink<B extends number>(
   const equipmentThere = (button: B, simLook: ServiceLook) =>
     equipmentStillThere(shownLook(button, simLook), button === links.gpu && gpuPowered);
 
-  /** The look of an equipment row, 'released' while its release is on its way */
-  const equipmentLook = (button: B, simLook: ServiceLook): ServiceLook => {
-    const releaseRow = links.releaseRowOf[button];
-    return releaseRow === undefined
-      ? shownLook(button, simLook)
-      : releasePending.look(releaseRow, shownLook(button, simLook), equipmentThere(button, simLook), Date.now());
+  // Whether GSX has started moving its jet bridge or stairs, and its menu (a release question): a release it has not
+  // reacted to in time was ignored (releasePending), the row then offers Retry
+  const gsxMoveSigns = (button: B): GsxMoveSigns => {
+    const id = linkedService(button);
+    return {
+      stillDocked: id !== undefined && gsxDocked(serviceState(id)),
+      menuShown: gsx.menuShown,
+      menuClosedAt: gsx.menuClosedAt ?? 0,
+    };
   };
 
-  /** The GSX status line of an equipment row, none while its release is shown on its way (the row reads "Leaving") */
-  const equipmentGsxStatus = (button: B, simLook: ServiceLook): GsxRowStatus =>
-    equipmentLook(button, simLook) !== shownLook(button, simLook) ? NO_GSX_STATUS : gsxStatus(button);
+  /** The look of an equipment row, 'released' while its release is on its way, unless GSX got stuck on it */
+  const equipmentLook = (button: B, simLook: ServiceLook): ServiceLook => {
+    const releaseRow = links.releaseRowOf[button];
+    return releaseRow === undefined || stuck(button)
+      ? shownLook(button, simLook)
+      : releasePending.look(
+          releaseRow,
+          shownLook(button, simLook),
+          equipmentThere(button, simLook),
+          Date.now(),
+          gsxMoveSigns(button),
+        );
+  };
 
-  /** A Release press is remembered (a Request is not); the page then handles the press as usual */
-  const rememberRelease = (button: B, simLook: ServiceLook) => {
+  /**
+   * The GSX status line of an equipment row, none while its release is shown on its way (the row reads "Leaving"), a
+   * pointer to the GSX question while GSX asks to confirm the release, the Retry offer once GSX ignored it, and the
+   * Force offer while GSX is stuck on it
+   */
+  const equipmentGsxStatus = (button: B, simLook: ServiceLook): GsxRowStatus => {
+    if (stuck(button)) {
+      return { ...gsxStatus(button), releaseAction: t('Ground.Services.Force') };
+    }
     const releaseRow = links.releaseRowOf[button];
     if (releaseRow !== undefined) {
-      releasePending.click(releaseRow, shownLook(button, simLook), Date.now());
+      const stillThere = equipmentThere(button, simLook);
+      const now = Date.now();
+      const gsxSigns = gsxMoveSigns(button);
+      if (releasePending.asking(releaseRow, stillThere, now, gsxSigns)) {
+        return { text: t('Ground.Services.Gsx.AsksQuestion'), progress: null, requestable: true };
+      }
+      if (releasePending.ignored(releaseRow, stillThere, now, gsxSigns)) {
+        return {
+          text: t('Ground.Services.Gsx.NoReaction'),
+          progress: null,
+          requestable: true,
+          releaseAction: t('Ground.Services.Retry'),
+        };
+      }
+    }
+    return equipmentLook(button, simLook) !== shownLook(button, simLook) ? NO_GSX_STATUS : gsxStatus(button);
+  };
+
+  /**
+   * A Release press is remembered (a Request or a Force is not), watched for GSX starting to move a docked jet bridge
+   * or stairs from the moment the trigger is sent, after its hold if any; the page then handles the press as usual
+   */
+  const rememberRelease = (button: B, simLook: ServiceLook) => {
+    const releaseRow = links.releaseRowOf[button];
+    if (releaseRow !== undefined && !stuck(button)) {
+      const id = linkedService(button);
+      const now = Date.now();
+      const holdMs = id === undefined ? 0 : gsxTriggerHoldMs(serviceState(id), now);
+      releasePending.click(releaseRow, shownLook(button, simLook), now, gsxMoveSigns(button).stillDocked, holdMs);
     }
   };
 

@@ -70,8 +70,12 @@ const EXTRA_SERVICES: GsxServiceId[] = [
   GsxServiceId.Cleaning,
 ];
 
-/** A GSX menu is shown on the panel once open this long: the menus service.trigger scripts open and close at once */
-const MENU_SETTLE_MS = 1_500;
+/**
+ * A GSX menu is shown on the panel once open this long: the menus service.trigger scripts open and close at once.
+ * Design choice: 0.5 s. GSX closes its menus on its own 5 s after opening them, so a question must show at once;
+ * the menus GSX answers by itself close within the same second.
+ */
+export const MENU_SETTLE_MS = 500;
 
 const LOOK_TONES: Record<GsxServiceLook, M3Tone> = {
   disabled: 'idle',
