@@ -133,7 +133,7 @@ export const FwsAuralsList: Record<string, FwsAural> = {
   },
   cChordOnce: {
     localVarName: 'A32NX_ALT_DEVIATION',
-    length: 1.0,
+    length: 1.5,
     priority: 3,
     type: FwsAuralWarningType.AuralWarning,
     continuous: false,
@@ -696,17 +696,19 @@ export class FwsSoundManager {
       // Interrupt if sound with higher category is present in queue and current sound is continuous
       let shouldInterrupt = false;
       let rescheduleSound: keyof typeof FwsAuralsList | null = null;
-      this.soundQueue.forEach((sk) => {
-        const s = FwsAuralsList[sk];
-        if (
-          s &&
-          this.currentSoundPlaying &&
-          FwsAuralsList[this.currentSoundPlaying]?.continuous &&
-          s.type > FwsAuralsList[this.currentSoundPlaying].type
-        ) {
-          shouldInterrupt = true;
-        }
-      });
+      const currentSound = this.currentSoundPlaying ? FwsAuralsList[this.currentSoundPlaying] : undefined;
+      if (currentSound?.continuous) {
+        // Same rule as the selection of the next sound: type first, then priority
+        this.soundQueue.forEach((sk) => {
+          const s = FwsAuralsList[sk];
+          if (
+            s &&
+            (s.type > currentSound.type || (s.type === currentSound.type && s.priority > currentSound.priority))
+          ) {
+            shouldInterrupt = true;
+          }
+        });
+      }
 
       if (shouldInterrupt) {
         if (this.currentSoundPlaying && FwsAuralsList[this.currentSoundPlaying]?.continuous) {
