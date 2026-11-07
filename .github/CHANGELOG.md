@@ -1035,6 +1035,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/AP] The LOC and G/S modes, LAND, FLARE and ROLL OUT fly a GLS approach, for the CAT 1 or the autoland capability - @TCdr
 1. [A380X/PFD] GLS approaches: GLS title, RPI, channel and distance to the threshold, LOC and G/S deviations from the GLS, and CAT 1 or AUTO LAND on the FMA - @TCdr
 1. [A380X/MFD] The LS IDENT and FREQ/CHAN fields of the POSITION NAVAIDS page can be cleared - @TCdr
+1. [A32NX/A380X] The aircraft presets set the STROBE switch in one move through its input event: no OFF flash and no two-second pause per strobe step - @TCdr
 
 ## 2024.1.0
 

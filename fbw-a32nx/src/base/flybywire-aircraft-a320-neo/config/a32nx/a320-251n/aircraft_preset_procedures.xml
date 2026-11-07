@@ -123,13 +123,10 @@ The StepType also defines if the step is executed in normal mode, expedited mode
             <Condition>(L:A32NX_OVHD_ADIRS_IR_3_MODE_SELECTOR_KNOB) 1 ==</Condition>
             <Action>1 (>L:A32NX_OVHD_ADIRS_IR_3_MODE_SELECTOR_KNOB)</Action>
         </Step>
-        <Step Name="Strobe Auto" Type="STEP" Delay="50">
-            <Condition>(L:LIGHTING_STROBE_0) 1 ==</Condition>
-            <Action>0 (>L:STROBE_0_AUTO) 0 (>K:STROBES_OFF)</Action>
-        </Step>
+        <!-- The strobe switch is an MSFS input event: setting it runs the switch's own code, so the switch position, the AUTO flag and the light move together -->
         <Step Name="Strobe Auto" Type="STEP" Delay="1000">
-            <Condition>(L:LIGHTING_STROBE_0) 1 ==</Condition>
-            <Action>1 (>L:STROBE_0_AUTO) 0 (>K:STROBES_ON)</Action>
+            <Condition>(L:LIGHTING_STROBE_0) 1 == (L:STROBE_0_AUTO) &amp;&amp; (A:LIGHT STROBE, Bool) &amp;&amp;</Condition>
+            <Action>1 (&gt;B:LIGHTING_STROBE_0_Set)</Action>
         </Step>
         <Step Name="Nav &amp; Logo Lt On" Type="STEP" Delay="1000">
             <Condition>(B:A32NX_OVH_LIGHTS_NAV_LOGO_SW) 0 &gt;</Condition>
@@ -233,9 +230,10 @@ The StepType also defines if the step is executed in normal mode, expedited mode
             <Condition>(A:CABIN SEATBELTS ALERT SWITCH:1, BOOL) !</Condition>
             <Action>(A:CABIN SEATBELTS ALERT SWITCH:1, BOOL) if{ 1 (&gt;K:CABIN_SEATBELTS_ALERT_SWITCH_TOGGLE) }</Action>
         </Step>
+        <!-- The strobe switch is an MSFS input event: setting it runs the switch's own code, so the switch position, the AUTO flag and the light move together -->
         <Step Name="Strobe Off" Type="STEP" Delay="1000">
-            <Condition>(L:LIGHTING_STROBE_0) 2 ==</Condition>
-            <Action>0 (&gt;L:STROBE_0_AUTO) 0 (&gt;K:STROBES_OFF)</Action>
+            <Condition>(L:LIGHTING_STROBE_0) 2 == (L:STROBE_0_AUTO) ! &amp;&amp; (A:LIGHT STROBE, Bool) ! &amp;&amp;</Condition>
+            <Action>2 (&gt;B:LIGHTING_STROBE_0_Set)</Action>
         </Step>
         <Step Name="Nav &amp; Logo Lt Off" Type="STEP" Delay="500">
             <Condition>(B:A32NX_OVH_LIGHTS_NAV_LOGO_SW) 0 ==</Condition>
@@ -632,14 +630,10 @@ The StepType also defines if the step is executed in normal mode, expedited mode
             <Condition>(L:A32NX_SWITCH_TCAS_POSITION) 2 ==</Condition>
             <Action>2 (&gt;L:A32NX_SWITCH_TCAS_POSITION)</Action>
         </Step>
-        <!-- unfortunately, strobe 3-way switch control is weird, so we have to use a workaround and turn it off first -->
-        <Step Name="Strobe On" Type="STEP" Delay="50">
-            <Condition>(L:LIGHTING_STROBE_0) 0 ==</Condition>
-            <Action>0 (&gt;L:STROBE_0_AUTO) 0 (&gt;K:STROBES_OFF)</Action>
-        </Step>
+        <!-- The strobe switch is an MSFS input event: setting it runs the switch's own code, so the switch position, the AUTO flag and the light move together -->
         <Step Name="Strobe On" Type="STEP" Delay="1000">
-            <Condition>(L:LIGHTING_STROBE_0) 0 ==</Condition>
-            <Action>0 (&gt;L:STROBE_0_AUTO) 0 (&gt;K:STROBES_ON)</Action>
+            <Condition>(L:LIGHTING_STROBE_0) 0 == (L:STROBE_0_AUTO) ! &amp;&amp; (A:LIGHT STROBE, Bool) &amp;&amp;</Condition>
+            <Action>0 (&gt;B:LIGHTING_STROBE_0_Set)</Action>
         </Step>
         <Step Name="Cabin Ready" Type="STEP" Delay="1000">
             <Condition></Condition>
@@ -709,14 +703,10 @@ The StepType also defines if the step is executed in normal mode, expedited mode
                 }
             </Action>
         </Step>
-        <!-- unfortunately, strobe 3-way switch control is weird, so we have to use a workaround and turn it off first -->
-        <Step Name="Strobe Auto" Type="STEP" Delay="50">
-            <Condition>(L:LIGHTING_STROBE_0) 0 == (L:LIGHTING_STROBE_0) 1 == ||</Condition>
-            <Action>0 (&gt;L:STROBE_0_AUTO) 0 (&gt;K:STROBES_OFF)</Action>
-        </Step>
+        <!-- The strobe switch is an MSFS input event: setting it runs the switch's own code, so the switch position, the AUTO flag and the light move together -->
         <Step Name="Strobe Auto" Type="STEP" Delay="1000">
-            <Condition>(L:A32NX_ENGINE_STATE:1) 0 == (L:A32NX_ENGINE_STATE:2) 0 == &amp;&amp; (L:LIGHTING_STROBE_0) 1 == ||</Condition>
-            <Action>1 (&gt;L:STROBE_0_AUTO) 0 (&gt;K:STROBES_ON)</Action>
+            <Condition>(L:A32NX_ENGINE_STATE:1) 0 == (L:A32NX_ENGINE_STATE:2) 0 == &amp;&amp; (L:LIGHTING_STROBE_0) 1 == (L:STROBE_0_AUTO) &amp;&amp; (A:LIGHT STROBE, Bool) &amp;&amp; ||</Condition>
+            <Action>1 (&gt;B:LIGHTING_STROBE_0_Set)</Action>
         </Step>
         <Step Name="TCAS Switch TA/RA" Type="STEP" Delay="1000">
             <Condition>(L:A32NX_SWITCH_TCAS_POSITION) 0 ==</Condition>
