@@ -16,7 +16,7 @@ import {
   VNode,
 } from '@microsoft/msfs-sdk';
 import { ArincEventBus, Arinc429RegisterSubject, MathUtils } from '@flybywiresim/fbw-sdk';
-import { isLsDeviationValid, lsDeviation } from '@flybywiresim/pfd';
+import { glsInfoTexts, isLsDeviationValid, lsDeviation, lsSource, LsSource, ownSideGlsTopics } from '@flybywiresim/pfd';
 
 import { FcuBus } from './shared/FcuBusProvider';
 import { Arinc429Values } from './shared/ArincValueProvider';
@@ -137,6 +137,15 @@ class LandingSystemInfo extends DisplayComponent<LandingSystemInfoProps> {
 
   private readonly dmeDistance = ConsumerSubject.create(null, 0);
 
+  /** The channel the MMR of this side is set to, 0 in ILS mode */
+  private readonly glsChannel = ConsumerSubject.create(null, 0);
+
+  private readonly glsLocValid = ConsumerSubject.create(null, false);
+
+  private readonly glsIdentWord = ConsumerSubject.create(null, 0);
+
+  private readonly glsThresholdDistance = ConsumerSubject.create(null, 0);
+
   private readonly fm1NavDiscrete = Arinc429RegisterSubject.createEmpty();
 
   // derived subjects
@@ -152,6 +161,28 @@ class LandingSystemInfo extends DisplayComponent<LandingSystemInfoProps> {
     this.flsLateralActive,
     this.ilsLocValid,
     this.flsLocValid,
+  );
+
+  /** A tuned GLS channel replaces the ILS ident, frequency and DME distance, received or not */
+  private readonly glsSelected = this.glsChannel.map((channel) => channel > 0);
+
+  private readonly glsTexts = MappedSubject.create(
+    ([received, identWord, channel, thresholdDistance]) =>
+      glsInfoTexts({ received, identWord, channel, thresholdDistance }),
+    this.glsLocValid,
+    this.glsIdentWord,
+    this.glsChannel,
+    this.glsThresholdDistance,
+  );
+
+  private readonly glsDistanceRounded = this.glsTexts.map((texts) => MathUtils.round(texts.distance ?? 0, 0.1));
+
+  private readonly glsDistanceLeading = this.glsDistanceRounded.map((v) =>
+    v < 20 ? Math.trunc(v).toString() : Math.round(v).toString(),
+  );
+
+  private readonly glsDistanceTrailing = this.glsDistanceRounded.map((v) =>
+    v < 20 ? `.${Math.round((v - Math.trunc(v)) * 10).toString()}` : '',
   );
 
   private readonly lsIdentText = Subject.create('');
@@ -170,15 +201,36 @@ class LandingSystemInfo extends DisplayComponent<LandingSystemInfoProps> {
     .pause();
 
   private readonly isLsIdentHidden = MappedSubject.create(
-    ([ident, isAlive]) => ident.length === 0 || !isAlive,
+    ([ident, isAlive, glsSelected]) => ident.length === 0 || !isAlive || glsSelected,
     this.lsIdent,
     this.lsAlive,
+    this.glsSelected,
   );
 
   private readonly isLsFreqHidden = MappedSubject.create(
-    ([frequency, flsLateralActive]) => frequency < 108 || frequency > 112 || flsLateralActive,
+    ([frequency, flsLateralActive, glsSelected]) =>
+      frequency < 108 || frequency > 112 || flsLateralActive || glsSelected,
     this.lsFrequency,
     this.flsLateralActive,
+    this.glsSelected,
+  );
+
+  private readonly isGlsIdentHidden = MappedSubject.create(
+    ([glsSelected, texts]) => !glsSelected || texts.ident.length === 0,
+    this.glsSelected,
+    this.glsTexts,
+  );
+
+  private readonly isGlsChannelHidden = MappedSubject.create(
+    ([glsSelected, texts]) => !glsSelected || texts.channel.length === 0,
+    this.glsSelected,
+    this.glsTexts,
+  );
+
+  private readonly isGlsDistanceHidden = MappedSubject.create(
+    ([glsSelected, texts]) => !glsSelected || texts.distance === null,
+    this.glsSelected,
+    this.glsTexts,
   );
 
   // FIXME major hack: when the FM is not tuning the VORs and MMRs, the DME receiver is not tuned (goes into standby)
@@ -188,6 +240,12 @@ class LandingSystemInfo extends DisplayComponent<LandingSystemInfoProps> {
     this.dmeAlive,
     this.fm1NavDiscrete,
     this.flsLateralActive,
+  );
+
+  private readonly isIlsDistanceHidden = MappedSubject.create(
+    ([dmeAvailable, glsSelected]) => !dmeAvailable || glsSelected,
+    this.isDmeAvailable,
+    this.glsSelected,
   );
 
   private readonly dmeDistanceRounded = this.dmeDistance.map((v) => MathUtils.round(v, 0.1));
@@ -208,6 +266,10 @@ class LandingSystemInfo extends DisplayComponent<LandingSystemInfoProps> {
     this.navIdent,
     this.dmeAlive,
     this.dmeDistance,
+    this.glsChannel,
+    this.glsLocValid,
+    this.glsIdentWord,
+    this.glsThresholdDistance,
   ];
 
   onAfterRender(node: VNode): void {
@@ -228,6 +290,12 @@ class LandingSystemInfo extends DisplayComponent<LandingSystemInfoProps> {
     this.dmeAlive.setConsumer(sub.on('hasDme'));
 
     this.dmeDistance.setConsumer(sub.on('dme'));
+
+    const ownSideTopics = ownSideGlsTopics(getDisplayIndex());
+    this.glsChannel.setConsumer(sub.on(ownSideTopics.channel));
+    this.glsLocValid.setConsumer(sub.on(ownSideTopics.locValid));
+    this.glsIdentWord.setConsumer(sub.on('gbasIdent'));
+    this.glsThresholdDistance.setConsumer(sub.on('glsThresholdDistance').withPrecision(1));
 
     this.pausable.push(
       sub
@@ -331,7 +399,33 @@ class LandingSystemInfo extends DisplayComponent<LandingSystemInfoProps> {
           {this.freqTextTrailing}
         </text>
 
-        <g id="ILSDistGroup" class={{ HiddenElement: this.isDmeAvailable.map((v) => !v) }}>
+        <text
+          id="GLSIdent"
+          class={{ Magenta: true, FontLarge: true, AlignLeft: true, HiddenElement: this.isGlsIdentHidden }}
+          x="1.184"
+          y="145.11522"
+        >
+          {this.glsTexts.map((texts) => texts.ident)}
+        </text>
+        <text
+          id="GLSChannel"
+          class={{ Magenta: true, FontLarge: true, AlignLeft: true, HiddenElement: this.isGlsChannelHidden }}
+          x="1.3610243"
+          y="151.11575"
+        >
+          {this.glsTexts.map((texts) => texts.channel)}
+        </text>
+        <g id="GLSDistGroup" class={{ HiddenElement: this.isGlsDistanceHidden }}>
+          <text class="Magenta AlignLeft" x="1.3685881" y="157.26602">
+            <tspan class="FontLarge StartAlign">{this.glsDistanceLeading}</tspan>
+            <tspan class="FontSmallest StartAlign">{this.glsDistanceTrailing}</tspan>
+          </text>
+          <text class="Cyan FontSmallest AlignLeft" x="17.159119" y="157.22606">
+            NM
+          </text>
+        </g>
+
+        <g id="ILSDistGroup" class={{ HiddenElement: this.isIlsDistanceHidden }}>
           <text class="Magenta AlignLeft" x="1.3685881" y="157.26602">
             <tspan id="ILSDistLeading" class="FontLarge StartAlign">
               {this.dmeTextLeading}
@@ -384,16 +478,31 @@ class LocalizerIndicator extends DisplayComponent<{ bus: ArincEventBus; instrume
 
   private readonly flsLateralActive = ConsumerSubject.create(this.sub.on('flsLateralActive'), false);
 
-  private readonly hasLoc = MappedSubject.create(
-    ([flsLateralActive, ilsLocValid, flsLocValid]) => isLsDeviationValid(flsLateralActive, ilsLocValid, flsLocValid),
+  private readonly glsSelected = ConsumerSubject.create(
+    this.sub.on(ownSideGlsTopics(getDisplayIndex()).channel),
+    0,
+  ).map((channel) => channel > 0);
+
+  private readonly source = MappedSubject.create(
+    ([flsLateralActive, glsSelected]) => lsSource(flsLateralActive, glsSelected),
     this.flsLateralActive,
+    this.glsSelected,
+  );
+
+  private readonly hasLoc = MappedSubject.create(
+    ([source, ilsLocValid, flsLocValid, glsLocValid]) =>
+      isLsDeviationValid(source, ilsLocValid, flsLocValid, glsLocValid),
+    this.source,
     ConsumerSubject.create(this.sub.on('hasLoc'), false),
     ConsumerSubject.create(this.sub.on('flsLocValid'), false),
+    ConsumerSubject.create(this.sub.on(ownSideGlsTopics(getDisplayIndex()).locValid), false),
   );
 
   private readonly ilsLocDeviation = ConsumerValue.create(this.sub.on('navRadialError'), 0);
 
   private readonly flsLocDeviation = ConsumerValue.create(this.sub.on('flsLocDeviation'), 0);
+
+  private readonly glsLocDeviation = ConsumerValue.create(this.sub.on('glsLocDeviation'), 0);
 
   private readonly dots = Subject.create(0);
 
@@ -405,7 +514,12 @@ class LocalizerIndicator extends DisplayComponent<{ bus: ArincEventBus; instrume
 
   private handleNavRadialError(): void {
     const radialError = MathUtils.correctMsfsLocaliserError(
-      lsDeviation(this.flsLateralActive.get(), this.ilsLocDeviation.get(), this.flsLocDeviation.get()),
+      lsDeviation(
+        this.source.get(),
+        this.ilsLocDeviation.get(),
+        this.flsLocDeviation.get(),
+        this.glsLocDeviation.get(),
+      ),
     );
     const deviation = this.lagFilter.step(radialError, this.props.instrument.deltaTime / 1000);
     this.dots.set(((this.backbeam.get() ? -1 : 1) * deviation) / 0.8);
@@ -507,14 +621,28 @@ class GlideSlopeIndicator extends DisplayComponent<{ bus: ArincEventBus; instrum
 
   private readonly flsVerticalActive = ConsumerSubject.create(this.sub.on('flsVerticalActive'), false);
 
-  private readonly hasGlideSlope = MappedSubject.create(
-    ([flsVerticalActive, ilsGsValid, flsGsValid]) => isLsDeviationValid(flsVerticalActive, ilsGsValid, flsGsValid),
+  private readonly glsSelected = ConsumerSubject.create(
+    this.sub.on(ownSideGlsTopics(getDisplayIndex()).channel),
+    0,
+  ).map((channel) => channel > 0);
+
+  private readonly source = MappedSubject.create(
+    ([flsVerticalActive, glsSelected]) => lsSource(flsVerticalActive, glsSelected),
     this.flsVerticalActive,
+    this.glsSelected,
+  );
+
+  private readonly hasGlideSlope = MappedSubject.create(
+    ([source, ilsGsValid, flsGsValid, glsGsValid]) => isLsDeviationValid(source, ilsGsValid, flsGsValid, glsGsValid),
+    this.source,
     ConsumerSubject.create(this.sub.on('hasGlideslope'), false),
     ConsumerSubject.create(this.sub.on('flsGsValid'), false),
+    ConsumerSubject.create(this.sub.on(ownSideGlsTopics(getDisplayIndex()).gsValid), false),
   );
 
   private readonly flsGsDeviation = ConsumerValue.create(this.sub.on('flsGsDeviation'), 0);
+
+  private readonly glsGsDeviation = ConsumerValue.create(this.sub.on('glsGsDeviation'), 0);
 
   private readonly noGlideSlope = MappedSubject.create(
     ([isHidden, hasGlideSlope]) => isHidden || !hasGlideSlope,
@@ -559,9 +687,15 @@ class GlideSlopeIndicator extends DisplayComponent<{ bus: ArincEventBus; instrum
       }
     });
 
+    // The GLS deviation changes at the rate of the ILS one, so the scale follows either event
     this.sub.on('glideSlopeError').handle((gs) => {
-      if (!this.noGlideSlope.get()) {
-        this.handleGlideSlopeError(lsDeviation(this.flsVerticalActive.get(), gs, this.flsGsDeviation.get()));
+      if (!this.noGlideSlope.get() && this.source.get() !== LsSource.Gls) {
+        this.handleGlideSlopeError(lsDeviation(this.source.get(), gs, this.flsGsDeviation.get(), 0));
+      }
+    });
+    this.sub.on('glsGsDeviation').handle((glsGs) => {
+      if (!this.noGlideSlope.get() && this.source.get() === LsSource.Gls) {
+        this.handleGlideSlopeError(lsDeviation(this.source.get(), 0, this.flsGsDeviation.get(), glsGs));
       }
     });
   }

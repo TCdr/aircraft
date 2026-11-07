@@ -1100,6 +1100,75 @@
     - The F-LOC replaces the localizer (VOR, NDB, RNAV/GPS approaches); false on LOC and back course approaches, which
       fly the real localizer with the F-G/S
 
+GLS (GBAS landing system). The FMGC uploads the procedure of the GLS the MMRs are set to; fbw.wasm computes the
+deviations like an ILS receiver. All values are raw numbers without a unit.
+
+- A32NX_GBAS_VALID
+    - Bool
+    - A GLS procedure is uploaded (an MMR is set to a GLS whose channel has a table row and a matching sim runway).
+      Written by the FMGC (fmgc navigation/gls/GbasUplinkPublisher.ts)
+
+- A32NX_GBAS_CHANNEL
+    - Number
+    - The 5 digit GBAS channel of the uploaded procedure: an MMR only receives it when set to the same channel
+
+- A32NX_GBAS_LTP_LAT, A32NX_GBAS_LTP_LON
+    - Number in degrees
+    - Position of the landing threshold point of the uploaded procedure (sim runway)
+
+- A32NX_GBAS_LTP_ALT
+    - Number in feet
+    - True altitude MSL of the landing threshold point
+
+- A32NX_GBAS_LENGTH
+    - Number in metres
+    - Length of the runway
+
+- A32NX_GBAS_COURSE
+    - Number in degrees
+    - True final approach course of the uploaded procedure
+
+- A32NX_GBAS_GPA, A32NX_GBAS_TCH
+    - Number in degrees (positive), number in feet
+    - Glide path angle and threshold crossing height of the uploaded procedure
+
+- A32NX_GBAS_IDENT
+    - Number
+    - The reference path identifier (RPI) of the uploaded procedure, packed with SimVarString.pack(rpi, 4)
+
+- A32NX_MMR_{number}_GLS_CHANNEL
+    - Number: 1 or 2
+    - The GLS channel MMR {number} is set to, 0 when the MMR is in ILS mode. Written by the FMGC. The PFD, the FMA and
+      the flight guidance follow it: an MMR with a channel is in GLS mode, whether or not it receives the station
+
+- A32NX_GBAS_STATION_FAILED
+    - Bool
+    - The GBAS ground station is failed: no MMR receives it. Read by fbw.wasm; nothing writes it yet
+
+- A32NX_GLS_{number}_FAILED
+    - Bool
+    - Number: 1 or 2
+    - MMR {number} is failed as a GLS receiver. Read by fbw.wasm; nothing writes it yet
+
+- A32NX_GLS_{number}_LOC_IS_VALID, A32NX_GLS_{number}_GS_IS_VALID
+    - Bool
+    - Number: 1 or 2
+    - The lateral (vertical) deviation of the GLS is valid for MMR {number}: it receives the station, inside the service
+      volume and before the azimuth reference point (glide path intercept point). Written by fbw.wasm
+
+- A32NX_GLS_LOC_DEVIATION, A32NX_GLS_GS_DEVIATION
+    - Number in degrees
+    - The lateral (vertical) deviation of the GLS, with the sign and scale of A32NX_RADIO_RECEIVER_LOC_DEVIATION
+      (A32NX_RADIO_RECEIVER_GS_DEVIATION). Written by fbw.wasm
+
+- A32NX_GLS_THRESHOLD_DISTANCE
+    - Number in nautical miles
+    - Horizontal distance to the landing threshold point. Written by fbw.wasm
+
+- A32NX_GLS_ACTIVE
+    - Bool
+    - At least one MMR receives the GLS station. An output for tests and tools; no system reads it
+
 - A32NX_FMGC_FLIGHT_PHASE
     - Enum
     - Holds the FMGCs current flight phase

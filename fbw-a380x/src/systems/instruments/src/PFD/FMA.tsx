@@ -23,7 +23,7 @@ import {
 import { DmcLogicEvents } from '../MsfsAvionicsCommon/providers/DmcPublisher';
 import { PrimFgBusBaseEvents } from '@shared/publishers/PrimFgPublisher';
 import { FlashOneHertz } from '../MsfsAvionicsCommon/FlashingElementUtils';
-import { flsCapability, glsCapability } from '@flybywiresim/pfd';
+import { flsCapability, glsCapability, ownSideGlsTopics } from '@flybywiresim/pfd';
 import {
   A1A2Messages,
   approachModeStates,
@@ -1416,10 +1416,19 @@ class D1D2Cell extends ShowForSecondsComponent<CellProps> {
   );
 
   private readonly glsApproachCapability = MappedSubject.create(
-    ([modeStates, fcdcFgDiscreteWord1, glsChannel, gls1LocValid, gls2LocValid, gls1GsValid, gls2GsValid]) =>
+    ([
+      modeStates,
+      primFgDiscreteWord2,
+      fcdcFgDiscreteWord1,
+      glsChannel,
+      gls1LocValid,
+      gls2LocValid,
+      gls1GsValid,
+      gls2GsValid,
+    ]) =>
       glsCapability({
         glsSelected: glsChannel > 0,
-        approachModesArmedOrEngaged: modeStates.armedOrEngaged,
+        catWordsCondition: primFgDiscreteWord2.bitValueOr(28, false),
         landModesEngaged: modeStates.landModesEngaged,
         flightGuidanceCat2OrBetter:
           fcdcFgDiscreteWord1.bitValueOr(24, false) ||
@@ -1431,8 +1440,9 @@ class D1D2Cell extends ShowForSecondsComponent<CellProps> {
         gls2GsValid,
       }),
     this.approachModeStates,
+    this.primFgDiscreteWord2,
     this.fcdcFgDiscreteWord1,
-    ConsumerSubject.create(this.sub.on(getDisplayIndex() === 1 ? 'mmr1GlsChannel' : 'mmr2GlsChannel'), 0),
+    ConsumerSubject.create(this.sub.on(ownSideGlsTopics(getDisplayIndex()).channel), 0),
     ConsumerSubject.create(this.sub.on('gls1LocValid'), false),
     ConsumerSubject.create(this.sub.on('gls2LocValid'), false),
     ConsumerSubject.create(this.sub.on('gls1GsValid'), false),

@@ -18,6 +18,8 @@ import {
 } from '@flybywiresim/fbw-sdk';
 import { ScratchpadDataLink } from './A320_Neo_CDU_Scratchpad';
 import { AdfRadioTuningStatus, MmrRadioTuningStatus, VorRadioTuningStatus } from '@fmgc/navigation/NavaidTuner';
+import { GlsManualEntryField } from '@fmgc/navigation/LandingSystemTuning';
+import { ManualGlsTuningResult } from '@fmgc/navigation/gls/ManualGlsTuning';
 import { NXSpeedsApp } from './NXSpeeds';
 import { Navigation, SelectedNavaid } from '@fmgc/navigation/Navigation';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
@@ -162,6 +164,7 @@ interface LegacyFmsPageFmsInterface extends FmsDataInterface, FmsDisplayInterfac
   setVorCourse(index: 1 | 2, course: number): void;
   getMmrTuningData(index: 1 | 2): MmrRadioTuningStatus;
   setManualIls(facilityOrFrequency: number | IlsNavaid | null): Promise<void>;
+  tuneManualGls(entry: string, field: GlsManualEntryField): Promise<ManualGlsTuningResult>;
   setIlsCourse(course: number | null, backcourse?: boolean): void;
   getAdfTuningData(index: 1 | 2): AdfRadioTuningStatus;
   setManualAdf(index: 1 | 2, facilityOrFrequency: number | NdbNavaid | null): void;

@@ -126,6 +126,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/AP] The LOC and G/S modes, LAND, FLARE and ROLL OUT fly a GLS approach, for the CAT 1 or the autoland capability - @TCdr
 1. [A380X/PFD] GLS approaches: GLS title, RPI, channel and distance to the threshold, LOC and G/S deviations from the GLS, and CAT 1 or AUTO LAND on the FMA - @TCdr
 1. [A380X/MFD] The LS IDENT and FREQ/CHAN fields of the POSITION NAVAIDS page can be cleared - @TCdr
+1. [A32NX/FMGC] GLS approaches at the airports with a GBAS ground station (EDDF, KEWR, KIAH, KSFO, LEMG, YSSY, YMML) are listed on the ARRIVAL page and tuned by the FMGC, and the ND course pointer follows the GLS course - @TCdr
+1. [A32NX/MCDU] RAD NAV takes a GLS channel (5 digits) or a reference path identifier in the LS field and shows the identifier, the channel, the course and the slope; the course of a GLS cannot be changed by hand - @TCdr
+1. [A32NX/MCDU] The ARRIVAL page shows the identifier and channel of a GLS approach, SELECTED NAVAIDS lists the GLS, and PERF APPR takes a radio minimum on a GLS approach - @TCdr
+1. [A32NX/PFD] GLS approaches: reference path identifier, channel and distance to the threshold in the LS information, and LOC and G/S deviations from the GLS - @TCdr
+1. [A32NX/PFD] The FMA shows AUTOLAND or CAT1 on a GLS approach, never CAT2 or CAT3 - @TCdr
 
 ## 2024.1.0
 
