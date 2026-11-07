@@ -17,6 +17,7 @@ import { FmsFlightPlanPage } from '../../common/FmsFlightPlanPage';
 import { getApproachName } from '../../../shared/utils';
 import { ApproachType } from '@flybywiresim/fbw-sdk';
 import { LandingSystemUtils } from '@fmgc/flightplanning/data/landingsystem';
+import { findGbasApproachOfApproach } from '@fmgc/navigation/gls/GlsApproachData';
 import { FlightPlanPerformanceData } from '@fmgc/flightplanning/plans/performance/FlightPlanPerformanceData';
 import { AlternateFlightPlan } from '@fmgc/flightplanning/plans/AlternateFlightPlan';
 import { ReadonlyFlightPlan } from '@fmgc/flightplanning/plans/ReadonlyFlightPlan';
@@ -187,10 +188,19 @@ export class MfdFmsFplnArr extends FmsFlightPlanPage<MfdFmsFplnArrProps> {
 
       if (flightPlan.approach) {
         this.approachName.set(getApproachName(flightPlan.approach, false));
+        const glsApproach =
+          flightPlan.approach.type === ApproachType.Gls && flightPlan.destinationAirport
+            ? findGbasApproachOfApproach(flightPlan.destinationAirport.ident, flightPlan.approach)
+            : undefined;
         const ls = flightPlan.approach ? LandingSystemUtils.getLsFromApproach(flightPlan.approach) : undefined;
         // FIXME handle non-localizer types
-        this.approachLsFrequencyChannel.set(ls?.frequency.toFixed(2) ?? '---.--');
-        this.approachLsIdent.set(ls?.ident ?? '----');
+        if (glsApproach) {
+          this.approachLsFrequencyChannel.set(glsApproach.channel.toFixed(0));
+          this.approachLsIdent.set(glsApproach.rpi);
+        } else {
+          this.approachLsFrequencyChannel.set(ls?.frequency.toFixed(2) ?? '---.--');
+          this.approachLsIdent.set(ls?.ident ?? '----');
+        }
         const isRnp = !!flightPlan.approach.authorisationRequired;
 
         if (flightPlan.availableApproachVias.length > 0) {

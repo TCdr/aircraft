@@ -17,7 +17,8 @@ import { LagFilter } from './PFDUtils';
 import { FcuEfisCpBusEvents } from '@shared/publishers/EfisCpBusPublisher';
 import { FlashOneHertz } from '../MsfsAvionicsCommon/FlashingElementUtils';
 import { PrimFgBusBaseEvents } from '@shared/publishers/PrimFgPublisher';
-import { isLsDeviationValid, lsDeviation, lsTitleText } from '@flybywiresim/pfd';
+import { isLsDeviationValid, lsDeviation, lsSource, lsTitleText, LsSource } from '@flybywiresim/pfd';
+import { glsInfoTexts } from './GlsInfoTexts';
 
 export class LandingSystem extends DisplayComponent<{ bus: ArincEventBus; instrument: BaseInstrument }> {
   private readonly sub = this.props.bus.getArincSubscriber<Arinc429Values & FcuEfisCpBusEvents>();
@@ -133,6 +134,8 @@ class LandingSystemInfo extends DisplayComponent<{ bus: EventBus; isVisible: Sub
 
   private identText = Subject.create('');
 
+  private navIdent = '';
+
   private freqTextLeading = Subject.create('');
 
   private freqTextTrailing = Subject.create('');
@@ -140,6 +143,16 @@ class LandingSystemInfo extends DisplayComponent<{ bus: EventBus; isVisible: Sub
   private navFreq = 0;
 
   private dme = 0;
+
+  private glsChannelSelected = false;
+
+  private glsReceived = false;
+
+  private glsIdentWord = 0;
+
+  private glsChannel = 0;
+
+  private glsThresholdDistance = 0;
 
   private dmeVisibilitySub = Subject.create('hidden');
 
@@ -162,7 +175,7 @@ class LandingSystemInfo extends DisplayComponent<{ bus: EventBus; isVisible: Sub
       .on('navIdent')
       .whenChanged()
       .handle((navIdent) => {
-        this.identText.set(navIdent);
+        this.navIdent = navIdent;
         this.updateContents();
       });
 
@@ -181,22 +194,71 @@ class LandingSystemInfo extends DisplayComponent<{ bus: EventBus; isVisible: Sub
         this.dme = dme;
         this.updateContents();
       });
+
+    const displayIndex = getDisplayIndex();
+    sub
+      .on(displayIndex === 1 ? 'gls1LocValid' : 'gls2LocValid')
+      .whenChanged()
+      .handle((locValid) => {
+        this.glsReceived = locValid;
+        this.updateContents();
+      });
+    sub
+      .on('gbasIdent')
+      .whenChanged()
+      .handle((identWord) => {
+        this.glsIdentWord = identWord;
+        this.updateContents();
+      });
+    sub
+      .on(displayIndex === 1 ? 'mmr1GlsChannel' : 'mmr2GlsChannel')
+      .whenChanged()
+      .handle((channel) => {
+        this.glsChannel = channel;
+        this.glsChannelSelected = channel > 0;
+        this.updateContents();
+      });
+    sub
+      .on('glsThresholdDistance')
+      .withPrecision(1)
+      .handle((distance) => {
+        this.glsThresholdDistance = distance;
+        this.updateContents();
+      });
   }
 
   private updateContents() {
-    const freqTextSplit = (Math.round(this.navFreq * 1000) / 1000).toString().split('.');
-    this.freqTextLeading.set(freqTextSplit[0] === '0' ? '' : freqTextSplit[0]);
-    if (freqTextSplit[1]) {
-      this.freqTextTrailing.set(`.${freqTextSplit[1].padEnd(2, '0')}`);
-    } else {
+    let hasDme = this.hasDme;
+    let dmeDistance = this.dme;
+
+    if (this.glsChannelSelected) {
+      const gls = glsInfoTexts({
+        received: this.glsReceived,
+        identWord: this.glsIdentWord,
+        channel: this.glsChannel,
+        thresholdDistance: this.glsThresholdDistance,
+      });
+      this.identText.set(gls.ident);
+      this.freqTextLeading.set(gls.channel);
       this.freqTextTrailing.set('');
+      hasDme = gls.distance !== null;
+      dmeDistance = gls.distance ?? 0;
+    } else {
+      this.identText.set(this.navIdent);
+      const freqTextSplit = (Math.round(this.navFreq * 1000) / 1000).toString().split('.');
+      this.freqTextLeading.set(freqTextSplit[0] === '0' ? '' : freqTextSplit[0]);
+      if (freqTextSplit[1]) {
+        this.freqTextTrailing.set(`.${freqTextSplit[1].padEnd(2, '0')}`);
+      } else {
+        this.freqTextTrailing.set('');
+      }
     }
 
     let distLeading = '';
     let distTrailing = '';
-    if (this.hasDme) {
+    if (hasDme) {
       this.dmeVisibilitySub.set('display: inline');
-      const dist = Math.round(this.dme * 10) / 10;
+      const dist = Math.round(dmeDistance * 10) / 10;
 
       if (dist < 20) {
         const distSplit = dist.toString().split('.');
@@ -274,30 +336,44 @@ class LocalizerIndicator extends DisplayComponent<{ bus: EventBus; instrument: B
 
     const sub = this.props.bus.getSubscriber<PFDSimvars>();
 
-    const flsLateralActive = ConsumerSubject.create(sub.on('flsLateralActive'), false);
+    const source = MappedSubject.create(
+      ([flsLateralActive, glsSelected]) => lsSource(flsLateralActive, glsSelected),
+      ConsumerSubject.create(sub.on('flsLateralActive'), false),
+      ConsumerSubject.create(sub.on(getDisplayIndex() === 1 ? 'mmr1GlsChannel' : 'mmr2GlsChannel'), 0).map(
+        (channel) => channel > 0,
+      ),
+    );
     const flsLocDeviation = ConsumerSubject.create(sub.on('flsLocDeviation'), 0);
 
-    const navRadialSub = sub
-      .on('navRadialError')
-      .handle(
-        (ilsDeviation) =>
-          this.handleNavRadialError(lsDeviation(flsLateralActive.get(), ilsDeviation, flsLocDeviation.get())),
-        true,
-      );
+    // One filter step per frame: each deviation source drives the scale only while it is the selected one
+    const navRadialSub = sub.on('navRadialError').handle((ilsDeviation) => {
+      if (source.get() !== LsSource.Gls) {
+        this.handleNavRadialError(lsDeviation(source.get(), ilsDeviation, flsLocDeviation.get(), 0));
+      }
+    }, true);
+    const glsRadialSub = sub.on('glsLocDeviation').handle((glsDeviation) => {
+      if (source.get() === LsSource.Gls) {
+        this.handleNavRadialError(lsDeviation(source.get(), 0, flsLocDeviation.get(), glsDeviation));
+      }
+    }, true);
 
     MappedSubject.create(
-      ([flsActive, ilsLocValid, flsLocValid]) => isLsDeviationValid(flsActive, ilsLocValid, flsLocValid),
-      flsLateralActive,
+      ([lsSourceValue, ilsLocValid, flsLocValid, glsLocValid]) =>
+        isLsDeviationValid(lsSourceValue, ilsLocValid, flsLocValid, glsLocValid),
+      source,
       ConsumerSubject.create(sub.on('hasLoc'), false),
       ConsumerSubject.create(sub.on('flsLocValid'), false),
+      ConsumerSubject.create(sub.on(getDisplayIndex() === 1 ? 'gls1LocValid' : 'gls2LocValid'), false),
     ).sub((hasLoc) => {
       if (hasLoc) {
         this.diamondGroup.instance.classList.remove('HiddenElement');
         navRadialSub.resume(true);
+        glsRadialSub.resume(true);
       } else {
         this.diamondGroup.instance.classList.add('HiddenElement');
         this.lagFilter.reset();
         navRadialSub.pause();
+        glsRadialSub.pause();
       }
     }, true);
   }
@@ -385,14 +461,22 @@ class GlideSlopeIndicator extends DisplayComponent<{ bus: EventBus; instrument: 
 
     const sub = this.props.bus.getSubscriber<PFDSimvars>();
 
-    const flsVerticalActive = ConsumerSubject.create(sub.on('flsVerticalActive'), false);
+    const source = MappedSubject.create(
+      ([flsVerticalActive, glsSelected]) => lsSource(flsVerticalActive, glsSelected),
+      ConsumerSubject.create(sub.on('flsVerticalActive'), false),
+      ConsumerSubject.create(sub.on(getDisplayIndex() === 1 ? 'mmr1GlsChannel' : 'mmr2GlsChannel'), 0).map(
+        (channel) => channel > 0,
+      ),
+    );
     const flsGsDeviation = ConsumerSubject.create(sub.on('flsGsDeviation'), 0);
 
     MappedSubject.create(
-      ([flsActive, ilsGsValid, flsGsValid]) => isLsDeviationValid(flsActive, ilsGsValid, flsGsValid),
-      flsVerticalActive,
+      ([lsSourceValue, ilsGsValid, flsGsValid, glsGsValid]) =>
+        isLsDeviationValid(lsSourceValue, ilsGsValid, flsGsValid, glsGsValid),
+      source,
       ConsumerSubject.create(sub.on('hasGlideslope'), false),
       ConsumerSubject.create(sub.on('flsGsValid'), false),
+      ConsumerSubject.create(sub.on(getDisplayIndex() === 1 ? 'gls1GsValid' : 'gls2GsValid'), false),
     ).sub((hasGlideSlope) => {
       this.hasGlideSlope = hasGlideSlope;
       if (hasGlideSlope) {
@@ -403,9 +487,15 @@ class GlideSlopeIndicator extends DisplayComponent<{ bus: EventBus; instrument: 
       }
     }, true);
 
+    // The GLS deviation changes at the rate of the ILS one, so the scale follows either event
     sub.on('glideSlopeError').handle((gs) => {
-      if (this.hasGlideSlope) {
-        this.handleGlideSlopeError(lsDeviation(flsVerticalActive.get(), gs, flsGsDeviation.get()));
+      if (this.hasGlideSlope && source.get() !== LsSource.Gls) {
+        this.handleGlideSlopeError(lsDeviation(source.get(), gs, flsGsDeviation.get(), 0));
+      }
+    });
+    sub.on('glsGsDeviation').handle((glsGs) => {
+      if (this.hasGlideSlope && source.get() === LsSource.Gls) {
+        this.handleGlideSlopeError(lsDeviation(source.get(), 0, flsGsDeviation.get(), glsGs));
       }
     });
   }
@@ -640,17 +730,27 @@ class LsTitle extends DisplayComponent<{ bus: EventBus }> {
 
   private readonly flsVerticalActive = ConsumerSubject.create(this.sub.on('flsVerticalActive'), false);
 
+  private readonly glsSelected = ConsumerSubject.create(
+    this.sub.on(getDisplayIndex() === 1 ? 'mmr1GlsChannel' : 'mmr2GlsChannel'),
+    0,
+  ).map((channel) => channel > 0);
+
   private readonly hasLoc = MappedSubject.create(
-    ([flsLateralActive, ilsLocValid, flsLocValid]) => isLsDeviationValid(flsLateralActive, ilsLocValid, flsLocValid),
+    ([flsLateralActive, glsSelected, ilsLocValid, flsLocValid, glsLocValid]) =>
+      isLsDeviationValid(lsSource(flsLateralActive, glsSelected), ilsLocValid, flsLocValid, glsLocValid),
     this.flsLateralActive,
+    this.glsSelected,
     ConsumerSubject.create(this.sub.on('hasLoc'), false),
     ConsumerSubject.create(this.sub.on('flsLocValid'), false),
+    ConsumerSubject.create(this.sub.on(getDisplayIndex() === 1 ? 'gls1LocValid' : 'gls2LocValid'), false),
   );
 
   private readonly titleText = MappedSubject.create(
-    ([flsLateralActive, flsVerticalActive]) => lsTitleText(flsLateralActive, flsVerticalActive),
+    ([flsLateralActive, flsVerticalActive, glsSelected]) =>
+      lsTitleText(flsLateralActive, flsVerticalActive, glsSelected),
     this.flsLateralActive,
     this.flsVerticalActive,
+    this.glsSelected,
   );
 
   private readonly ilsTitleShown = MappedSubject.create(

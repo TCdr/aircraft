@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-// Copyright (c) 2023 FlyByWire Simulations
+// Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 /* eslint-disable no-underscore-dangle */
@@ -19,6 +19,12 @@ import { NavigationProvider } from '@fmgc/navigation/NavigationProvider';
 import { distanceTo } from 'msfs-geo';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { ConsumerSubject, EventBus } from '@microsoft/msfs-sdk';
+import {
+  createGlsApproachData,
+  findGbasApproachOfApproach,
+  GlsApproachData,
+} from '@fmgc/navigation/gls/GlsApproachData';
+import { findRunwayOfGbasApproach } from '../../../../../../fbw-common/src/systems/shared/src/gbas/GbasApproachTable';
 
 export class LandingSystemSelectionManager {
   private static readonly DESTINATION_TUNING_DISTANCE = 300;
@@ -36,6 +42,11 @@ export class LandingSystemSelectionManager {
   private _selectedApproachBackcourse = false;
 
   private _selectedGsSlope: number | null = null;
+
+  private _selectedGls: GlsApproachData | null = null;
+
+  /** The GLS approach that _selectedGls was made for, so that it is not made again on every update */
+  private selectedGlsApproachId: string | null = null;
 
   private readonly flightPhase = ConsumerSubject.create(
     this.bus.getSubscriber<FlightPhaseManagerEvents>().on('fmgc_flight_phase'),
@@ -75,15 +86,15 @@ export class LandingSystemSelectionManager {
             distanceTo(this.ppos, destination.location) <= LandingSystemSelectionManager.DESTINATION_TUNING_DISTANCE
           ) {
             await this.selectApproachIls();
-          } else if (this._selectedIls !== null) {
-            this.resetSelectedIls();
+          } else if (this.hasSelection) {
+            this.resetSelectedLandingSystem();
           }
-        } else if (this._selectedIls !== null) {
-          this.resetSelectedIls();
+        } else if (this.hasSelection) {
+          this.resetSelectedLandingSystem();
         }
       } catch (e) {
         console.error('Failed to select ILS', e);
-        this.resetSelectedIls();
+        this.resetSelectedLandingSystem();
       } finally {
         this.inProcess = false;
       }
@@ -117,19 +128,24 @@ export class LandingSystemSelectionManager {
       return true;
     }
 
-    this.resetSelectedIls();
+    this.resetSelectedLandingSystem();
     return false;
   }
 
   private async selectApproachIls(): Promise<boolean> {
     const approach = this.flightPlanService.active.approach;
 
+    if (approach?.type === ApproachType.Gls) {
+      return this.setGlsFromApproach(approach);
+    }
+
     if (this.isTunableApproach(approach?.type)) {
+      this.resetSelectedGls();
       return this.setIlsFromApproach(approach);
     }
 
     // if we got here there wasn't a suitable ILS
-    this.resetSelectedIls();
+    this.resetSelectedLandingSystem();
     return false;
   }
 
@@ -168,6 +184,47 @@ export class LandingSystemSelectionManager {
     return true;
   }
 
+  /**
+   * Attempt to set the GLS from the approach: the approach says which table row (channel, slope) it is, the sim
+   * runway gives the geometry
+   * @param approach The GLS approach
+   * @returns true on success
+   */
+  private async setGlsFromApproach(approach: Approach): Promise<boolean> {
+    if (approach.databaseId === this.selectedGlsApproachId) {
+      return true;
+    }
+
+    const airportIdent = this.flightPlanService.active.destinationAirport?.ident;
+    const row = airportIdent ? findGbasApproachOfApproach(airportIdent, approach) : undefined;
+    if (!airportIdent || !row) {
+      this.resetSelectedLandingSystem();
+      return false;
+    }
+
+    const runways = await NavigationDatabaseService.activeDatabase.backendDatabase.getRunways(airportIdent);
+    const runway = findRunwayOfGbasApproach(runways, row) ?? null;
+
+    this.resetSelectedIls();
+    this._selectedGls = createGlsApproachData(row, runway);
+    this.selectedGlsApproachId = approach.databaseId;
+    return true;
+  }
+
+  private get hasSelection(): boolean {
+    return this._selectedIls !== null || this._selectedGls !== null;
+  }
+
+  private resetSelectedLandingSystem(): void {
+    this.resetSelectedIls();
+    this.resetSelectedGls();
+  }
+
+  private resetSelectedGls(): void {
+    this._selectedGls = null;
+    this.selectedGlsApproachId = null;
+  }
+
   private resetSelectedIls(): void {
     this._selectedIls = null;
     this._selectedLocCourse = null;
@@ -177,7 +234,8 @@ export class LandingSystemSelectionManager {
 
   private isTunableApproach(approachType?: ApproachType): boolean {
     // FIXME case ApproachType.LocBackcourse: when FG can support it
-    // FIXME support GLS/MLS/SLS when the rest of the systems can support it
+    // GLS is not tunable here: it has no frequency, selectApproachIls handles it
+    // FIXME support MLS/SLS when the rest of the systems can support it
     switch (approachType) {
       case ApproachType.Igs:
       case ApproachType.Ils:
@@ -207,8 +265,13 @@ export class LandingSystemSelectionManager {
     return this._selectedGsSlope;
   }
 
+  /** The GLS of the active approach, null when the approach is not a GLS approach of the table */
+  get selectedGls(): GlsApproachData | null {
+    return this._selectedGls;
+  }
+
   /** Reset all state e.g. when the nav database is switched */
   resetState(): void {
-    this.resetSelectedIls();
+    this.resetSelectedLandingSystem();
   }
 }

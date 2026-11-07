@@ -1031,6 +1031,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [FMS] NO FLS FOR THIS APPR message when the selected non precision approach has no FLS beam (LDA, SDF, TACAN, final course more than 50° off the runway) - @TCdr
 1. [PFD] DISCONNECT AP FOR LDG also shows on FLS approaches (F-G/S) - @TCdr
 1. [A380X/PFD] DISCONNECT AP FOR LDG shows at the minimum - 50 ft (350 ft above the landing elevation without a minimum) in the approach phase, instead of at 150 ft radio height - @TCdr
+1. [A380X/FMS] GLS approaches at the airports with a GBAS ground station (EDDF, KEWR, KIAH, KSFO, LEMG, YSSY, YMML): select them on the ARRIVAL page, or enter the channel or the RPI on the POSITION NAVAIDS page, which shows the channel, the slope and GLS as the class - @TCdr
+1. [A380X/AP] The LOC and G/S modes, LAND, FLARE and ROLL OUT fly a GLS approach, for the CAT 1 or the autoland capability - @TCdr
+1. [A380X/PFD] GLS approaches: GLS title, RPI, channel and distance to the threshold, LOC and G/S deviations from the GLS, and CAT 1 or AUTO LAND on the FMA - @TCdr
+1. [A380X/MFD] The LS IDENT and FREQ/CHAN fields of the POSITION NAVAIDS page can be cleared - @TCdr
 
 ## 2024.1.0
 

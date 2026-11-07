@@ -21,7 +21,8 @@ import { FmgcFlightPhase } from '@shared/flightphase';
 import { PILeg } from '@fmgc/guidance/lnav/legs/PI';
 import { distanceToTopOfDescent } from '@fmgc/components/fms-messages/TopOfDescentDistance';
 import { ArmedLateralMode, isArmed, LateralMode, VerticalMode } from '@shared/autopilot';
-import { LegType } from '@flybywiresim/fbw-sdk';
+import { Approach, ApproachType, LegType } from '@flybywiresim/fbw-sdk';
+import { findGbasApproachOfApproach } from '@fmgc/navigation/gls/GlsApproachData';
 import { noFlsApproachKey } from '@fmgc/navigation/fls/FlsBeam';
 import { Coordinates } from 'msfs-geo';
 
@@ -40,6 +41,11 @@ const CHECK_APPR_SEL_PFD_VAR = 'L:A32NX_PFD_MSG_CHECK_APPR_SELECTION';
 function recommendedNavaidFrequency(leg: { recommendedNavaid?: unknown } | undefined): number | null {
   const navaid = leg?.recommendedNavaid as { frequency?: unknown } | undefined;
   return navaid && typeof navaid.frequency === 'number' ? navaid.frequency : null;
+}
+
+/** The channel of a GLS approach of the flight plan, null when the approach is not in the GLS table */
+function glsChannelOf(approach: Approach, destinationIdent: string | undefined): number | null {
+  return (destinationIdent ? findGbasApproachOfApproach(destinationIdent, approach)?.channel : undefined) ?? null;
 }
 
 /**
@@ -135,15 +141,22 @@ export class FmsAdvisoryMessages {
     // the approach of the flight plan, near the T/D, in descent, or in approach above 800 ft (CheckApproachSelection)
     const mmr = navigation.getNavaidTuner().getMmrRadioTuningStatus(1);
     const tunedIls: ManuallyTunedIls | null =
-      mmr.manual && (mmr.ident !== null || mmr.frequency !== null)
-        ? { ident: mmr.facility?.ident ?? mmr.ident, frequency: mmr.frequency }
+      mmr.manual && (mmr.ident !== null || mmr.frequency !== null || mmr.gls !== undefined)
+        ? { ident: mmr.facility?.ident ?? mmr.ident, frequency: mmr.frequency, glsChannel: mmr.gls?.channel ?? null }
         : null;
     const approach = flightPlanService.active.approach;
     const finalLeg = approach ? approach.legs[approach.legs.length - 1] : undefined;
+    const destinationIdent = flightPlanService.active.destinationAirport?.ident;
     const altitude = navigation.getBaroCorrectedAltitude();
     const destinationElevation = flightPlanService.active.destinationAirport?.location.alt;
     const checkApprSel = isCheckApproachSelection(
-      approach ? { type: approach.type, ident: finalLeg?.recommendedNavaid?.ident ?? null } : null,
+      approach
+        ? {
+            type: approach.type,
+            ident: finalLeg?.recommendedNavaid?.ident ?? null,
+            glsChannel: approach.type === ApproachType.Gls ? glsChannelOf(approach, destinationIdent) : null,
+          }
+        : null,
       tunedIls,
       recommendedNavaidFrequency(finalLeg),
       phase,

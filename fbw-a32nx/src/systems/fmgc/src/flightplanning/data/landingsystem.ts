@@ -1,4 +1,4 @@
-// Copyright (c) 2024 FlyByWire Simulations
+// Copyright (c) 2024-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import { Approach, ApproachType, isVhfNavaid, VhfNavaid, VhfNavaidType } from '@flybywiresim/fbw-sdk';
@@ -12,7 +12,7 @@ export class LandingSystemUtils {
 
     const mapLeg = approach.legs[approach.legs.length - 1];
 
-    // FIXME support GLS later...
+    // A GLS approach has no navaid: its channel comes from the GLS table, see LandingSystemSelectionManager
     switch (approach.type) {
       case ApproachType.Igs:
       case ApproachType.Ils:

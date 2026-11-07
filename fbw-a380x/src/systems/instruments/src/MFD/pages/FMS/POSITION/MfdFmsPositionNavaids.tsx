@@ -2,7 +2,7 @@ import { AbstractMfdPageProps } from '../../../MFD';
 import { Button } from '../../../../MsfsAvionicsCommon/UiWidgets/Button';
 import {
   FrequencyADFFormat,
-  FrequencyILSFormat,
+  FrequencyOrChannelLsFormat,
   FrequencyVORDMEFormat,
   InboundCourseFormat,
   LsCourseFormat,
@@ -18,12 +18,28 @@ import { MfdSimvars } from '../../../shared/MFDSimvarPublisher';
 import { NXSystemMessages } from '../../../shared/NXSystemMessages';
 
 import { coordinateToString, NavaidSubsectionCode } from '@flybywiresim/fbw-sdk';
+import { Coordinates } from 'msfs-geo';
 import { NavRadioTuningStatus } from '@fmgc/navigation/NavaidTuner';
 import { ClockEvents, FSComponent, SimVarValueType, Subject, VNode } from '@microsoft/msfs-sdk';
 
 import './MfdFmsPositionNavaids.scss';
 import { SelectedNavaidType } from '@fmgc/navigation/Navigation';
 import { NavigationDatabaseService } from '@fmgc/flightplanning/NavigationDatabaseService';
+import { canEnterLsCourse, GlsManualEntryField } from '@fmgc/navigation/LandingSystemTuning';
+import { createGlsApproachData, createUnknownGlsChannelData } from '@fmgc/navigation/gls/GlsApproachData';
+import { resolveManualGlsEntry, RPI_PATTERN } from '@fmgc/navigation/gls/ManualGlsEntry';
+import {
+  GBAS_CHANNEL_MIN,
+  gbasAirports,
+  findRunwayOfGbasApproach,
+} from '../../../../../../../../../fbw-common/src/systems/shared/src/gbas/GbasApproachTable';
+import {
+  lsClassText,
+  lsFrequencyEnteredByPilot,
+  lsFrequencyOrChannel,
+  lsIdentEnteredByPilot,
+  lsSlopeText,
+} from './LandingSystemTexts';
 
 interface MfdFmsPositionNavaidsProps extends AbstractMfdPageProps {}
 
@@ -47,6 +63,9 @@ const NAVAID_TYPE_STRINGS: Record<SelectedNavaidType, string> = {
 
 export class MfdFmsPositionNavaids extends FmsPage<MfdFmsPositionNavaidsProps> {
   public static readonly selectedForFmsNavExtra = 'nav';
+
+  /** The table airports with their positions, loaded when the first channel is entered */
+  private tableAirports: { ident: string; location: Coordinates }[] | null = null;
 
   /** GPS option: 0 SELECTED, 1 DESELECTED */
   private readonly gpsSelectionIndex = Subject.create<number | null>(0);
@@ -176,12 +195,12 @@ export class MfdFmsPositionNavaids extends FmsPage<MfdFmsPositionNavaidsProps> {
 
     const mmr = this.props.fmcService.master.navaidTuner.getMmrRadioTuningStatus(1);
     this.lsIdent.set(mmr.ident ?? null);
-    this.lsFreq.set(mmr.frequency ?? null);
+    this.lsFreq.set(lsFrequencyOrChannel(mmr));
     this.lsCourse.set(mmr.course ?? null);
-    this.lsSlope.set(mmr.slope ? mmr.slope.toFixed(1) : '---');
-    this.lsClass.set(mmr.ident ? 'ILS/DME' : '');
-    this.lsIdentEnteredByPilot.set(MfdFmsPositionNavaids.isNavRadioIdentManual(mmr));
-    this.lsFrequencyEnteredByPilot.set(MfdFmsPositionNavaids.isNavRadioFreqManual(mmr));
+    this.lsSlope.set(lsSlopeText(mmr));
+    this.lsClass.set(lsClassText(mmr));
+    this.lsIdentEnteredByPilot.set(lsIdentEnteredByPilot(mmr));
+    this.lsFrequencyEnteredByPilot.set(lsFrequencyEnteredByPilot(mmr));
     this.lsCourseEnteredByPilot.set(mmr.courseManual);
 
     this.deselectedNavaids.forEach((v, i) => {
@@ -341,37 +360,102 @@ export class MfdFmsPositionNavaids extends FmsPage<MfdFmsPositionNavaidsProps> {
   private async handleIlsIdent(ident: string | null) {
     if (this.props.fmcService.master.navaidTuner.isMmrTuningLocked()) {
       this.props.fmcService.master.addMessageToQueue(NXSystemMessages.notAllowed, undefined, undefined);
+      this.onNewData();
+      return;
     }
 
     if (ident === null || ident === '') {
       const mmr = this.props.fmcService.master.navaidTuner.getMmrRadioTuningStatus(1);
-      if (MfdFmsPositionNavaids.isNavRadioIdentManual(mmr)) {
+      if (lsIdentEnteredByPilot(mmr)) {
         this.props.fmcService.master.navaidTuner.setManualIls(null);
       } else {
         this.props.fmcService.master.addMessageToQueue(NXSystemMessages.notAllowed, undefined, undefined);
       }
     } else {
+      // An entry of RPI shape that is no GLS of the destination or origin is still looked up as an ILS ident
+      let glsHandled = false;
+      if (RPI_PATTERN.test(ident)) {
+        glsHandled = await this.handleGlsEntry(ident, 'ident');
+      }
+      if (glsHandled) {
+        this.onNewData();
+        return;
+      }
       const ils = await NavigationDatabaseService.activeDatabase.backendDatabase.getILSs([ident]);
       const deduplicatedIls = await this.props.mfd.deduplicateFacilities(ils);
       if (deduplicatedIls) {
         await this.props.fmcService.master.navaidTuner.setManualIls(deduplicatedIls);
+      } else if (RPI_PATTERN.test(ident)) {
+        this.props.fmcService.master.addMessageToQueue(NXSystemMessages.notInDatabase, undefined, undefined);
       }
     }
     this.onNewData();
   }
 
   private async handleIlsFreq(freq: number | null) {
+    if (this.props.fmcService.master.navaidTuner.isMmrTuningLocked()) {
+      this.props.fmcService.master.addMessageToQueue(NXSystemMessages.notAllowed, undefined, undefined);
+      this.onNewData();
+      return;
+    }
+
     if (freq === null) {
       const ils = this.props.fmcService.master.navaidTuner.getMmrRadioTuningStatus(1);
-      if (MfdFmsPositionNavaids.isNavRadioFreqManual(ils)) {
+      if (lsFrequencyEnteredByPilot(ils)) {
         this.props.fmcService.master.navaidTuner.setManualIls(null);
       } else {
         this.props.fmcService.master.addMessageToQueue(NXSystemMessages.notAllowed, undefined, undefined);
       }
+    } else if (freq >= GBAS_CHANNEL_MIN) {
+      await this.handleGlsEntry(freq, 'channel');
     } else {
       this.props.fmcService.master.navaidTuner.setManualIls(freq);
     }
     this.onNewData();
+  }
+
+  /** The table airports with their positions, for a channel that is not at the destination. Loaded once. */
+  private async loadTableAirports(): Promise<{ ident: string; location: Coordinates }[]> {
+    if (!this.tableAirports) {
+      const airports = await NavigationDatabaseService.activeDatabase.backendDatabase.getAirports(gbasAirports());
+      this.tableAirports = airports.map((airport) => ({ ident: airport.ident, location: airport.location }));
+    }
+    return this.tableAirports;
+  }
+
+  /**
+   * Tunes the GLS that the crew entered as a channel or a reference path identifier
+   * @returns false when the entry is a reference path identifier that no GLS of the destination or origin has, and nothing was done
+   */
+  private async handleGlsEntry(entry: string | number, field: GlsManualEntryField): Promise<boolean> {
+    const master = this.props.fmcService.master;
+    const plan = master.flightPlanInterface.active;
+    const tableAirports = await this.loadTableAirports();
+    const resolution = resolveManualGlsEntry(entry, {
+      destinationIdent: plan.destinationAirport?.ident ?? null,
+      originIdent: plan.originAirport?.ident ?? null,
+      presentPosition: master.navigation.getPpos(),
+      tableAirports,
+    });
+
+    switch (resolution.kind) {
+      case 'resolved': {
+        const runways = await NavigationDatabaseService.activeDatabase.backendDatabase.getRunways(
+          resolution.airportIdent,
+        );
+        const runway = findRunwayOfGbasApproach(runways, resolution.approach);
+        master.navaidTuner.setManualGls(createGlsApproachData(resolution.approach, runway ?? null), field);
+        break;
+      }
+      case 'unknown-channel':
+        master.navaidTuner.setManualGls(createUnknownGlsChannelData(resolution.channel), field);
+        break;
+      case 'unknown-rpi':
+        return false;
+      default:
+        master.addMessageToQueue(NXSystemMessages.notInDatabase, undefined, undefined);
+    }
+    return true;
   }
 
   async deselectionHandler(nV: string | null, oV: string | null | undefined) {
@@ -783,7 +867,7 @@ export class MfdFmsPositionNavaids extends FmsPage<MfdFmsPositionNavaidsProps> {
               314,
               <InputField<string>
                 dataEntryFormat={new NavaidIdentFormat()}
-                dataHandlerDuringValidation={async (v) => (v ? this.handleIlsIdent(v) : false)}
+                dataHandlerDuringValidation={async (v) => this.handleIlsIdent(v)}
                 mandatory={Subject.create(false)}
                 enteredByPilot={this.lsIdentEnteredByPilot}
                 value={this.lsIdent}
@@ -799,8 +883,8 @@ export class MfdFmsPositionNavaids extends FmsPage<MfdFmsPositionNavaidsProps> {
               611,
               314,
               <InputField<number>
-                dataEntryFormat={new FrequencyILSFormat()}
-                dataHandlerDuringValidation={async (v) => (v ? this.handleIlsFreq(v) : false)}
+                dataEntryFormat={new FrequencyOrChannelLsFormat()}
+                dataHandlerDuringValidation={async (v) => this.handleIlsFreq(v)}
                 mandatory={Subject.create(false)}
                 enteredByPilot={this.lsFrequencyEnteredByPilot}
                 value={this.lsFreq}
@@ -818,6 +902,10 @@ export class MfdFmsPositionNavaids extends FmsPage<MfdFmsPositionNavaidsProps> {
               <InputField<number>
                 dataEntryFormat={new LsCourseFormat()}
                 dataHandlerDuringValidation={async (v) => {
+                  if (!canEnterLsCourse(this.props.fmcService.master.navaidTuner.getMmrRadioTuningStatus(1))) {
+                    this.props.fmcService.master.addMessageToQueue(NXSystemMessages.notAllowed, undefined, undefined);
+                    return false;
+                  }
                   this.props.fmcService.master.navaidTuner.setIlsCourse(
                     v !== null ? Math.abs(v) : null,
                     v && v < 0 ? true : false,

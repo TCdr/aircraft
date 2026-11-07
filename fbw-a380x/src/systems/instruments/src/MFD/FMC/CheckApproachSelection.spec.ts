@@ -27,6 +27,32 @@ function inDescent(approach: ApproachLandingSystem | null, tuned: ManuallyTunedI
   return isCheckApproachSelection(approach, tuned, frequency, FmgcFlightPhase.Descent, null, null);
 }
 
+const GLS_25C: ApproachLandingSystem = { type: ApproachType.Gls, ident: null, glsChannel: 31434 };
+
+describe('CHECK APPR SEL with a GLS', () => {
+  it('compares the channel, as a GLS has neither ident nor frequency', () => {
+    const tunedChannel = (glsChannel: number): ManuallyTunedIls => ({ ident: 'G25P', frequency: null, glsChannel });
+
+    expect(tunedIlsCorrespondsWithApproach(GLS_25C, tunedChannel(31434), null)).toBe(true);
+    expect(tunedIlsCorrespondsWithApproach(GLS_25C, tunedChannel(28968), null)).toBe(false);
+  });
+
+  it('applies to a manually tuned GLS with another channel, or an ILS tuned for a GLS approach', () => {
+    const tunedOtherChannel: ManuallyTunedIls = { ident: 'G25M', frequency: null, glsChannel: 28968 };
+    const tunedSameChannel: ManuallyTunedIls = { ident: 'G25P', frequency: null, glsChannel: 31434 };
+
+    expect(inDescent(GLS_25C, tunedOtherChannel, 0)).toBe(true);
+    expect(inDescent(GLS_25C, tunedSameChannel, 0)).toBe(false);
+    expect(inDescent(GLS_25C, TUNED_IKL)).toBe(true);
+  });
+
+  it('applies to a GLS tuned for an ILS approach', () => {
+    const tunedGls: ManuallyTunedIls = { ident: 'G25P', frequency: null, glsChannel: 31434 };
+
+    expect(inDescent(ILS_23, tunedGls)).toBe(true);
+  });
+});
+
 describe('CHECK APPR SEL', () => {
   it('applies to a manually tuned ILS that is not the one of the ILS approach', () => {
     expect(inDescent(ILS_23, TUNED_IOT)).toBe(true);

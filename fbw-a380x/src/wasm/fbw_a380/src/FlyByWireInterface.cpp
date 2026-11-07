@@ -109,6 +109,9 @@ bool FlyByWireInterface::update(double sampleTime) {
     result &= updateSfcc(i);
   }
 
+  // The GLS first: while an MMR is in GLS mode the FLS indications are off
+  result &= updateGls();
+
   result &= updateFls();
 
   for (int i = 0; i < 2; i++) {
@@ -382,6 +385,27 @@ void FlyByWireInterface::setupLocalVariables() {
   idFlsGlideSlopeDeviation = std::make_unique<LocalVariable>("A32NX_FLS_GS_DEVIATION");
   idFlsLateralActive = std::make_unique<LocalVariable>("A32NX_FLS_LATERAL_ACTIVE");
   idFlsVerticalActive = std::make_unique<LocalVariable>("A32NX_FLS_VERTICAL_ACTIVE");
+  idGbasValid = std::make_unique<LocalVariable>("A32NX_GBAS_VALID");
+  idGbasChannel = std::make_unique<LocalVariable>("A32NX_GBAS_CHANNEL");
+  idGbasLtpLatitude = std::make_unique<LocalVariable>("A32NX_GBAS_LTP_LAT");
+  idGbasLtpLongitude = std::make_unique<LocalVariable>("A32NX_GBAS_LTP_LON");
+  idGbasLtpAltitude = std::make_unique<LocalVariable>("A32NX_GBAS_LTP_ALT");
+  idGbasLength = std::make_unique<LocalVariable>("A32NX_GBAS_LENGTH");
+  idGbasCourse = std::make_unique<LocalVariable>("A32NX_GBAS_COURSE");
+  idGbasGpa = std::make_unique<LocalVariable>("A32NX_GBAS_GPA");
+  idGbasTch = std::make_unique<LocalVariable>("A32NX_GBAS_TCH");
+  idGbasStationFailed = std::make_unique<LocalVariable>("A32NX_GBAS_STATION_FAILED");
+  for (int i = 0; i < 2; i++) {
+    const std::string mmrString = std::to_string(i + 1);
+    idMmrGlsChannel[i] = std::make_unique<LocalVariable>("A32NX_MMR_" + mmrString + "_GLS_CHANNEL");
+    idGlsFailed[i] = std::make_unique<LocalVariable>("A32NX_GLS_" + mmrString + "_FAILED");
+    idGlsLocalizerValid[i] = std::make_unique<LocalVariable>("A32NX_GLS_" + mmrString + "_LOC_IS_VALID");
+    idGlsGlideSlopeValid[i] = std::make_unique<LocalVariable>("A32NX_GLS_" + mmrString + "_GS_IS_VALID");
+  }
+  idGlsLocalizerDeviation = std::make_unique<LocalVariable>("A32NX_GLS_LOC_DEVIATION");
+  idGlsGlideSlopeDeviation = std::make_unique<LocalVariable>("A32NX_GLS_GS_DEVIATION");
+  idGlsThresholdDistance = std::make_unique<LocalVariable>("A32NX_GLS_THRESHOLD_DISTANCE");
+  idGlsActive = std::make_unique<LocalVariable>("A32NX_GLS_ACTIVE");
   idFmsSpeedMarginHigh = std::make_unique<LocalVariable>("A32NX_PFD_UPPER_SPEED_MARGIN");
   idFmsSpeedMarginLow = std::make_unique<LocalVariable>("A32NX_PFD_LOWER_SPEED_MARGIN");
   idFmsSpeedMarginVisible = std::make_unique<LocalVariable>("A32NX_PFD_SHOW_SPEED_MARGINS");
@@ -1382,13 +1406,76 @@ bool FlyByWireInterface::updateFls() {
 
   flsDeviations = FlsReceiver::compute(flsBeam, simData.latitude_deg, simData.longitude_deg, simData.H_ind_ft);
 
-  const bool lateralActive = flsBeam.valid && flsBeam.lateral;
+  const bool lateralActive = flsBeam.valid && flsBeam.lateral && !glsMode;
   idFlsLocalizerValid->set(lateralActive && flsDeviations.valid);
   idFlsLocalizerDeviation->set(flsDeviations.lateralDeviationDeg);
   idFlsGlideSlopeValid->set(flsDeviations.valid);
   idFlsGlideSlopeDeviation->set(flsDeviations.verticalDeviationDeg);
   idFlsLateralActive->set(lateralActive);
-  idFlsVerticalActive->set(flsBeam.valid);
+  idFlsVerticalActive->set(flsBeam.valid && !glsMode);
+
+  return true;
+}
+
+bool FlyByWireInterface::updateGls() {
+  // The channels are read without an uplink too: an MMR on a GLS channel is in GLS mode, whatever it receives
+  for (int i = 0; i < 2; i++) {
+    glsMmrChannel[i] = static_cast<int>(idMmrGlsChannel[i]->get());
+  }
+  glsMode = glsMmrChannel[0] > 0 || glsMmrChannel[1] > 0;
+
+  glsUplink.valid = idGbasValid->get() != 0;
+  if (!glsUplink.valid) {
+    glsActive = false;
+    glsDeviations = GlsDeviations{};
+    if (glsOutputsPublished) {
+      glsOutputsPublished = false;
+      for (int i = 0; i < 2; i++) {
+        idGlsLocalizerValid[i]->set(0);
+        idGlsGlideSlopeValid[i]->set(0);
+      }
+      idGlsLocalizerDeviation->set(0);
+      idGlsGlideSlopeDeviation->set(0);
+      idGlsThresholdDistance->set(0);
+      idGlsActive->set(0);
+    }
+    return true;
+  }
+
+  SimData simData = simConnectInterface.getSimData();
+  constexpr double FEET_PER_METRE = 3.280839895;
+
+  glsUplink.channel = static_cast<int>(idGbasChannel->get());
+  glsUplink.thresholdLatitudeDeg = idGbasLtpLatitude->get();
+  glsUplink.thresholdLongitudeDeg = idGbasLtpLongitude->get();
+  glsUplink.thresholdAltitudeFt = idGbasLtpAltitude->get();
+  glsUplink.runwayLengthM = idGbasLength->get();
+  glsUplink.courseTrueDeg = idGbasCourse->get();
+  glsUplink.gpaDeg = idGbasGpa->get();
+  glsUplink.thresholdCrossingHeightFt = idGbasTch->get();
+  glsGroundStationFailed = idGbasStationFailed->get() != 0;
+
+  bool mmrReceiving[2];
+  for (int i = 0; i < 2; i++) {
+    glsMmrFailed[i] = idGlsFailed[i]->get() != 0;
+    mmrReceiving[i] = GlsReceiver::isReceiving(glsUplink, glsMmrChannel[i], glsMmrFailed[i], glsGroundStationFailed);
+  }
+  glsActive = mmrReceiving[0] || mmrReceiving[1];
+
+  // The geometric altitude: a GNSS path has no pressure or temperature error
+  glsDeviations = glsActive ? GlsReceiver::compute(glsUplink, simData.latitude_deg, simData.longitude_deg,
+                                                   simData.altitude_m * FEET_PER_METRE)
+                            : GlsDeviations{};
+
+  for (int i = 0; i < 2; i++) {
+    idGlsLocalizerValid[i]->set(mmrReceiving[i] && glsDeviations.lateralValid);
+    idGlsGlideSlopeValid[i]->set(mmrReceiving[i] && glsDeviations.verticalValid);
+  }
+  idGlsLocalizerDeviation->set(glsDeviations.lateralDeviationDeg);
+  idGlsGlideSlopeDeviation->set(glsDeviations.verticalDeviationDeg);
+  idGlsThresholdDistance->set(glsDeviations.distanceToThresholdNm);
+  idGlsActive->set(glsActive);
+  glsOutputsPublished = true;
 
   return true;
 }
@@ -1425,6 +1512,9 @@ bool FlyByWireInterface::updateIls(int ilsIndex) {
   ilsBusOutputs[ilsIndex].glideslope_deviation_deg.Data = nav_gs_error_deg;
 
   FlsReceiver::applyToIlsBus(ilsBusOutputs[ilsIndex], flsBeam, flsDeviations);
+  // Last, so that a GLS set on the MMR wins over an FLS beam
+  GlsReceiver::applyToIlsBus(ilsBusOutputs[ilsIndex], glsUplink, glsMmrChannel[ilsIndex], glsMmrFailed[ilsIndex],
+                             glsGroundStationFailed, glsDeviations);
 
   if (clientDataEnabled) {
     simConnectInterface.setClientDataIls(ilsBusOutputs[ilsIndex], ilsIndex);
@@ -1742,10 +1832,13 @@ bool FlyByWireInterface::updatePrim(double sampleTime, int primIndex) {
   modelInputs.in.adcn_inputs.fms.fm_valid = true;
   modelInputs.in.adcn_inputs.fms.active_fms_flight_phase = static_cast<fms_flight_phase>(idFmgcFlightPhase->get());
   modelInputs.in.adcn_inputs.fms.selected_approach_type = idFmRnavAppSelected->get() ? fmgc_approach_type::RNAV : fmgc_approach_type::ILS;
-  modelInputs.in.adcn_inputs.fms.fls_approach_active = flsBeam.valid;
+  const GlsFmsGuidanceInputs fmsGuidance = GlsReceiver::fmsGuidanceInputs(
+      glsMode, glsUplink, glsDeviations, flsBeam.valid, (simData.nav_dme_valid != 0) ? simData.nav_dme_nmi : 0,
+      (simData.nav_gs_valid != 0) ? -simData.nav_gs_deg : 0);
+  modelInputs.in.adcn_inputs.fms.fls_approach_active = fmsGuidance.flsApproachActive;
   modelInputs.in.adcn_inputs.fms.backbeam_selected = idFm1BackbeamSelected->get();
-  modelInputs.in.adcn_inputs.fms.fms_loc_distance = (simData.nav_dme_valid != 0) ? simData.nav_dme_nmi : 0;
-  modelInputs.in.adcn_inputs.fms.fms_unrealistic_gs_angle_deg = (simData.nav_gs_valid != 0) ? -simData.nav_gs_deg : 0;
+  modelInputs.in.adcn_inputs.fms.fms_loc_distance = fmsGuidance.locDistanceNm;
+  modelInputs.in.adcn_inputs.fms.fms_unrealistic_gs_angle_deg = fmsGuidance.unrealisticGsAngleDeg;
   modelInputs.in.adcn_inputs.fms.lateral_flight_plan_valid = idFmLateralPlanAvail->get();
   modelInputs.in.adcn_inputs.fms.nav_capture_condition = idFmNavCaptureCondition->get();
   modelInputs.in.adcn_inputs.fms.phi_c_deg = idFmPhiCommand->get();
@@ -2056,9 +2149,13 @@ bool FlyByWireInterface::updatePrimFgShim(double sampleTime) {
   }
 
   if (autolandWarningLatch && !autolandWarningTriggered) {
-    if (!(ap1Engaged || ap2Engaged) ||
-        (simData.H_radio_ft > 15 && (abs(simData.nav_loc_error_deg) > 0.2 || simData.nav_loc_valid == false)) ||
-        (simData.H_radio_ft > 100 && (abs(simData.nav_gs_error_deg) > 0.4 || simData.nav_gs_valid == false))) {
+    AutolandMonitorInputs radioInputs;
+    radioInputs.locValid = simData.nav_loc_valid != 0;
+    radioInputs.locErrorDeg = simData.nav_loc_error_deg;
+    radioInputs.gsValid = simData.nav_gs_valid != 0;
+    radioInputs.gsErrorDeg = simData.nav_gs_error_deg;
+    const AutolandMonitorInputs monitorInputs = GlsReceiver::autolandMonitorInputs(glsMode, glsActive, glsDeviations, radioInputs);
+    if (!(ap1Engaged || ap2Engaged) || GlsReceiver::exceedsAutolandLimits(simData.H_radio_ft, monitorInputs)) {
       autolandWarningTriggered = true;
       idAutopilotShimAutolandWarning->set(1);
     }
