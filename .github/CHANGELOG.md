@@ -1037,7 +1037,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/MFD] The LS IDENT and FREQ/CHAN fields of the POSITION NAVAIDS page can be cleared - @TCdr
 1. [A32NX/A380X] The aircraft presets set the STROBE switch in one move through its input event: no OFF flash and no two-second pause per strobe step - @TCdr
 1. [A380X/EFB] The flyPad "Default Barometer Unit" setting (hPa / inHg / auto) now sets the EFIS CP baro unit on the A380X - @TCdr
-1. [A380X/EFB] The "Ready for Takeoff" preset arms the autobrake RTO mode and the after-landing preset disarms it; the RTO pb was never pressed - @TCdr
+1. [A380X/EFB] The "Ready for Taxi" and "Ready for Takeoff" presets arm the autobrake RTO mode and the "Cold & Dark" and after-landing presets disarm it; the RTO pb was never pressed - @TCdr
 
 ## 2024.1.0
 
