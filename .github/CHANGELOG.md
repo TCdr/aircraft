@@ -276,6 +276,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/A380X/HYD] The RAT can be stowed after landing: flyPad Ground > Services shows a "RAT stow (maintenance)" row while the RAT is out, usable when stopped on the ground and refused while an extension is still commanded (the RAT can be stowed only on the ground) - @TCdr
 1. [A32NX/ND] The chronometer at the bottom left of the ND now shows white digits on a black box (white on the aircraft), instead of green digits on a light grey box that were hard to read - @TCdr
 1. [A380X/GPWS] Setting the TAWS FLAP MODE to OFF on the MFD SURV CONTROLS page now inhibits the TOO LOW FLAPS alert (the GPWS read a variable nothing writes) - @TCdr
+1. [A380X/GPWS] TOO LOW GEAR is no longer given with the gear down (the gear position was read in the wrong unit), and a height callout is not repeated within 11 s when the radio height jumps around its threshold - @TCdr
 1. [A380X/SD] FUEL page: during a normal fuel jettison the jettison lines and JETTISON legends are white instead of amber (amber stays for a valve open without jettison, or closed during jettison) - @TCdr
 1. [A380X/OANS] The FMS landing runway is shown green (selected runway) at the destination airport when its map is loaded (the check compared the airport with the FMS origin twice) - @TCdr
 1. [A380X/SD] The automatic CRZ page after takeoff also waits while engine 4 alone is at takeoff power (the check read engine 3 twice) - @TCdr
