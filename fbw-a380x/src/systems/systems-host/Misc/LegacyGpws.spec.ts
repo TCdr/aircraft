@@ -305,6 +305,54 @@ describe('Intermediate callout', () => {
 });
 
 /*
+ * Replay of the radio heights recorded on the EDDF final: the height jumped by up to 90 ft between two 5 Hz samples
+ * around 400 ft, and each call of FOUR HUNDRED was repeated 3-4 times within seconds.
+ */
+describe('Height callouts are not repeated by a dithering radio height', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  const flyHeights = (heights: number[], stepSeconds: number, initialState: string) => {
+    let radioAlt = 0;
+    vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) =>
+      name === 'L:A32NX_RA_1_RADIO_ALTITUDE'
+        ? Arinc429Word.getRawWord(radioAlt, Arinc429SignStatusMatrix.NormalOperation)
+        : 0,
+    );
+    vi.spyOn(SimVar, 'SetSimVarValue').mockImplementation(() => Promise.resolve());
+    const bus = new EventBus();
+    const sounds: string[] = [];
+    bus
+      .getSubscriber<{ enqueueSound: string }>()
+      .on('enqueueSound')
+      .handle((sound) => sounds.push(sound));
+    const gpws = new LegacyGpws(bus, {} as LegacySoundManager);
+    gpws.autoCallOutPins = A380XRadioAutoCallOutFlags.FiveHundred | A380XRadioAutoCallOutFlags.FourHundred;
+    gpws.AltCallState.setState(initialState);
+    for (const height of heights) {
+      radioAlt = height;
+      gpws.gpws(stepSeconds * 1000);
+    }
+    return sounds;
+  };
+
+  it('the EDDF sequence at 0.2 s steps gives exactly one FOUR HUNDRED', () => {
+    const recorded = [
+      462, 432, 428, 464, 426, 402, 416, 375, 463, 436, 415, 374, 408, 413, 438, 379, 401, 413, 404, 397,
+    ];
+    const sounds = flyHeights(recorded, 0.2, 'over500');
+    expect(sounds.filter((sound) => sound === 'alt_400')).toHaveLength(1);
+  });
+
+  it('the same callout is made again once 11 s have passed', () => {
+    const dithering = [415, 405, 415, 405, 415, 405];
+    const sounds = flyHeights([...dithering, ...new Array(60).fill(415), ...dithering], 0.2, 'over400');
+    expect(sounds.filter((sound) => sound === 'alt_400')).toHaveLength(2);
+  });
+});
+
+/*
  * The TERRAIN (mode 2) and GLIDE SLOPE (mode 5) aurals, and the priority of the stall and windshear alerts over the
  * GPWS visual and aural alerts.
  */
@@ -345,7 +393,7 @@ describe('GPWS mode 2 and mode 5 aurals', () => {
     // FWS discrete word 126, bit 17 = STALL warning (FwsCore.ts)
     const fwsWord126 = (stall: boolean) =>
       Arinc429Word.getRawWord(stall ? 1 << 16 : 0, Arinc429SignStatusMatrix.NormalOperation);
-    vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) => {
+    vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string, unit: string) => {
       switch (name) {
         case 'L:A32NX_RA_1_RADIO_ALTITUDE':
           return Arinc429Word.getRawWord(500, Arinc429SignStatusMatrix.NormalOperation);
@@ -362,7 +410,8 @@ describe('GPWS mode 2 and mode 5 aurals', () => {
         case 'L:A32NX_FWC_2_DISCRETE_WORD_126':
           return fwsWord126(stallFws2);
         case 'GEAR TOTAL PCT EXTENDED':
-          return 100;
+          // the sim reports 1.0 in 'percent' and 0.01 in 'percent over 100' for a fully extended gear
+          return unit === 'percent over 100' ? 0.01 : 1;
         default:
           return 0;
       }
@@ -568,7 +617,8 @@ describe('GPWS gear down threshold', () => {
         case 'AIRSPEED INDICATED':
           return 150;
         case 'GEAR TOTAL PCT EXTENDED':
-          return unit === 'percent over 100' ? fraction : fraction * 100;
+          // the sim's 'percent' is a 0-1 value here, and 'percent over 100' is that value divided by 100
+          return unit === 'percent over 100' ? fraction / 100 : fraction;
         default:
           return 0;
       }

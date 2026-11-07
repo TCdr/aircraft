@@ -12,6 +12,7 @@ import {
 import { EventBus, SimVarValueType } from '@microsoft/msfs-sdk';
 import { FwsSoundManagerControlEvents } from '../CpiomC/FlightWarningSystem/FwsSoundManager';
 import { GpwsMode2 } from './GpwsMode2';
+import { HeightCalloutRepeatGate } from './HeightCalloutRepeatGate';
 import { publishedTawsSystem } from './TawsSystemInUse';
 import { isFwsStallWarningActive, isReactiveWindshearWarningActive } from './SurvAlertPriority';
 
@@ -101,6 +102,8 @@ export class LegacyGpws {
 
   /** A height callout (or MINIMUM, HUNDRED ABOVE, RETARD) was enqueued during the current update */
   private heightCalloutEnqueued = false;
+
+  private readonly heightCalloutRepeatGate = new HeightCalloutRepeatGate();
 
   /** The radio height of the previous update, to see a climb, NaN when invalid */
   private intermediateCalloutPreviousHeight = NaN;
@@ -326,6 +329,7 @@ export class LegacyGpws {
     const onGround = SimVar.GetSimVarValue('SIM ON GROUND', 'Bool');
 
     this.heightCalloutEnqueued = false;
+    this.heightCalloutRepeatGate.advance(deltaTime / 1000);
     this.UpdateAltState(radioAltValid ? radioAlt.value : NaN);
     this.mode2.updateAirGroundState(!!onGround, deltaTime / 1000);
 
@@ -365,7 +369,8 @@ export class LegacyGpws {
       const FlapsInLandingConfig = flapsThreeSelected ? FlapPosition === 3 : FlapPosition === 4; // fixme should be actual flap angle
       const vSpeed = Simplane.getVerticalSpeed();
       const Airspeed = SimVar.GetSimVarValue('AIRSPEED INDICATED', 'Knots');
-      const gearExtended = SimVar.GetSimVarValue('GEAR TOTAL PCT EXTENDED', 'percent over 100') > 0.9;
+      // 'percent' gives 0-1 here; 'percent over 100' gives 0.01 for a fully extended gear
+      const gearExtended = SimVar.GetSimVarValue('GEAR TOTAL PCT EXTENDED', 'percent') > 0.95;
 
       this.updateMaxRA(radioAlt.value, onGround, phase);
 
@@ -414,6 +419,13 @@ export class LegacyGpws {
   private enqueueHeightCallout(sound: string): void {
     this.heightCalloutEnqueued = true;
     this.pub.pub('enqueueSound', sound);
+  }
+
+  /** A suppressed repeat is not an enqueued callout: the intermediate callout must not restart its time for it */
+  private enqueueAltitudeCallout(sound: string): void {
+    if (this.heightCalloutRepeatGate.tryEnqueue(sound)) {
+      this.enqueueHeightCallout(sound);
+    }
   }
 
   /**
@@ -686,7 +698,7 @@ export class LegacyGpws {
           this.AltCallState.action('up');
         } else if (radioAlt <= 6) {
           if (this.RetardState.value !== 'retardPlaying' && this.autoCallOutPins & A380XRadioAutoCallOutFlags.Five) {
-            this.enqueueHeightCallout('alt_5');
+            this.enqueueAltitudeCallout('alt_5');
           }
           this.AltCallState.action('down');
         }
@@ -696,7 +708,7 @@ export class LegacyGpws {
           this.AltCallState.action('up');
         } else if (radioAlt <= 12) {
           if (this.RetardState.value !== 'retardPlaying' && this.autoCallOutPins & A380XRadioAutoCallOutFlags.Ten) {
-            this.enqueueHeightCallout('alt_10');
+            this.enqueueAltitudeCallout('alt_10');
           }
           this.AltCallState.action('down');
         }
@@ -706,7 +718,7 @@ export class LegacyGpws {
           this.AltCallState.action('up');
         } else if (radioAlt <= 22) {
           if (this.autoCallOutPins & A380XRadioAutoCallOutFlags.Twenty) {
-            this.enqueueHeightCallout('alt_20');
+            this.enqueueAltitudeCallout('alt_20');
           }
           this.AltCallState.action('down');
         }
@@ -716,7 +728,7 @@ export class LegacyGpws {
           this.AltCallState.action('up');
         } else if (radioAlt <= 32) {
           if (this.autoCallOutPins & A380XRadioAutoCallOutFlags.Thirty) {
-            this.enqueueHeightCallout('alt_30');
+            this.enqueueAltitudeCallout('alt_30');
           }
           this.AltCallState.action('down');
         }
@@ -726,7 +738,7 @@ export class LegacyGpws {
           this.AltCallState.action('up');
         } else if (radioAlt <= 42) {
           if (this.autoCallOutPins & A380XRadioAutoCallOutFlags.Forty) {
-            this.enqueueHeightCallout('alt_40');
+            this.enqueueAltitudeCallout('alt_40');
           }
           this.AltCallState.action('down');
         }
@@ -736,7 +748,7 @@ export class LegacyGpws {
           this.AltCallState.action('up');
         } else if (radioAlt <= 53) {
           if (this.autoCallOutPins & A380XRadioAutoCallOutFlags.Fifty) {
-            this.enqueueHeightCallout('alt_50');
+            this.enqueueAltitudeCallout('alt_50');
           }
           this.AltCallState.action('down');
         }
@@ -746,7 +758,7 @@ export class LegacyGpws {
           this.AltCallState.action('up');
         } else if (radioAlt <= 63) {
           if (this.autoCallOutPins & A380XRadioAutoCallOutFlags.Sixty) {
-            this.enqueueHeightCallout('alt_60');
+            this.enqueueAltitudeCallout('alt_60');
           }
           this.AltCallState.action('down');
         }
@@ -756,7 +768,7 @@ export class LegacyGpws {
           this.AltCallState.action('up');
         } else if (radioAlt <= 73) {
           if (this.autoCallOutPins & A380XRadioAutoCallOutFlags.Seventy) {
-            this.enqueueHeightCallout('alt_70');
+            this.enqueueAltitudeCallout('alt_70');
           }
           this.AltCallState.action('down');
         }
@@ -766,7 +778,7 @@ export class LegacyGpws {
           this.AltCallState.action('up');
         } else if (radioAlt <= 83) {
           if (this.autoCallOutPins & A380XRadioAutoCallOutFlags.Eighty) {
-            this.enqueueHeightCallout('alt_80');
+            this.enqueueAltitudeCallout('alt_80');
           }
           this.AltCallState.action('down');
         }
@@ -776,7 +788,7 @@ export class LegacyGpws {
           this.AltCallState.action('up');
         } else if (radioAlt <= 93) {
           if (this.autoCallOutPins & A380XRadioAutoCallOutFlags.Ninety) {
-            this.enqueueHeightCallout('alt_90');
+            this.enqueueAltitudeCallout('alt_90');
           }
           this.AltCallState.action('down');
         }
@@ -786,7 +798,7 @@ export class LegacyGpws {
           this.AltCallState.action('up');
         } else if (radioAlt <= 110) {
           if (this.autoCallOutPins & A380XRadioAutoCallOutFlags.OneHundred) {
-            this.enqueueHeightCallout('alt_100');
+            this.enqueueAltitudeCallout('alt_100');
           }
           this.AltCallState.action('down');
         }
@@ -796,7 +808,7 @@ export class LegacyGpws {
           this.AltCallState.action('up');
         } else if (radioAlt <= 210) {
           if (this.autoCallOutPins & A380XRadioAutoCallOutFlags.TwoHundred) {
-            this.enqueueHeightCallout('alt_200');
+            this.enqueueAltitudeCallout('alt_200');
           }
           this.AltCallState.action('down');
         }
@@ -806,7 +818,7 @@ export class LegacyGpws {
           this.AltCallState.action('up');
         } else if (radioAlt <= 310) {
           if (this.autoCallOutPins & A380XRadioAutoCallOutFlags.ThreeHundred) {
-            this.enqueueHeightCallout('alt_300');
+            this.enqueueAltitudeCallout('alt_300');
           }
           this.AltCallState.action('down');
         }
@@ -816,7 +828,7 @@ export class LegacyGpws {
           this.AltCallState.action('up');
         } else if (radioAlt <= 410) {
           if (this.autoCallOutPins & A380XRadioAutoCallOutFlags.FourHundred) {
-            this.enqueueHeightCallout('alt_400');
+            this.enqueueAltitudeCallout('alt_400');
           }
           this.AltCallState.action('down');
         }
@@ -830,7 +842,7 @@ export class LegacyGpws {
           // one dot is approx. 0.4 degrees, as in GPWSMode5
           const glideDots = SimVar.GetSimVarValue('L:A32NX_RADIO_RECEIVER_GS_DEVIATION', 'number') * 2.5;
           if (isFiveHundredCalloutDue(this.autoCallOutPins, glideValid, glideDots)) {
-            this.enqueueHeightCallout('alt_500');
+            this.enqueueAltitudeCallout('alt_500');
           }
           this.AltCallState.action('down');
         }
@@ -840,7 +852,7 @@ export class LegacyGpws {
           this.AltCallState.action('up');
         } else if (radioAlt <= 1020) {
           if (this.autoCallOutPins & A380XRadioAutoCallOutFlags.OneThousand) {
-            this.enqueueHeightCallout('alt_1000');
+            this.enqueueAltitudeCallout('alt_1000');
           }
           this.AltCallState.action('down');
         }
@@ -850,7 +862,7 @@ export class LegacyGpws {
           this.AltCallState.action('up');
         } else if (radioAlt <= 2020) {
           if (this.autoCallOutPins & A380XRadioAutoCallOutFlags.TwoThousand) {
-            this.enqueueHeightCallout('alt_2000');
+            this.enqueueAltitudeCallout('alt_2000');
           }
           this.AltCallState.action('down');
         }
@@ -858,9 +870,9 @@ export class LegacyGpws {
       case 'over2500':
         if (radioAlt <= 2530) {
           if (this.autoCallOutPins & A380XRadioAutoCallOutFlags.TwoThousandFiveHundred) {
-            this.enqueueHeightCallout('alt_2500');
+            this.enqueueAltitudeCallout('alt_2500');
           } else if (this.autoCallOutPins & A380XRadioAutoCallOutFlags.TwentyFiveHundred) {
-            this.enqueueHeightCallout('alt_2500b');
+            this.enqueueAltitudeCallout('alt_2500b');
           }
           this.AltCallState.action('down');
         }
