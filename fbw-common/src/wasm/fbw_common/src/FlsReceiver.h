@@ -2,6 +2,8 @@
 
 #include <cmath>
 
+#include "ReceiverGeometry.h"
+
 /// The FLS beam the FMS defines for a non-precision approach.
 struct FlsBeamDefinition {
   bool valid = false;
@@ -59,20 +61,10 @@ class FlsReceiver {
       return result;
     }
 
-    const double aircraftLatitude = degToRad(aircraftLatitudeDeg);
-    const double anchorLatitude = degToRad(beam.anchorLatitudeDeg);
-    const double deltaLongitude = degToRad(beam.anchorLongitudeDeg - aircraftLongitudeDeg);
-    const double deltaLatitude = anchorLatitude - aircraftLatitude;
-
-    const double haversine = std::sin(deltaLatitude / 2) * std::sin(deltaLatitude / 2) +
-                             std::cos(aircraftLatitude) * std::cos(anchorLatitude) * std::sin(deltaLongitude / 2) *
-                                 std::sin(deltaLongitude / 2);
-    const double distanceNm = EARTH_RADIUS_NM * 2 * std::atan2(std::sqrt(haversine), std::sqrt(1 - haversine));
-
-    const double y = std::sin(deltaLongitude) * std::cos(anchorLatitude);
-    const double x = std::cos(aircraftLatitude) * std::sin(anchorLatitude) -
-                     std::sin(aircraftLatitude) * std::cos(anchorLatitude) * std::cos(deltaLongitude);
-    const double bearingToAnchorDeg = normalise360(radToDeg(std::atan2(y, x)));
+    const double distanceNm = ReceiverGeometry::distanceNm(aircraftLatitudeDeg, aircraftLongitudeDeg, beam.anchorLatitudeDeg,
+                                                           beam.anchorLongitudeDeg);
+    const double bearingToAnchorDeg = normalise360(ReceiverGeometry::initialBearingDeg(
+        aircraftLatitudeDeg, aircraftLongitudeDeg, beam.anchorLatitudeDeg, beam.anchorLongitudeDeg));
 
     const double lateralDeviationDeg = normalise180(bearingToAnchorDeg - beam.courseTrueDeg);
     // Past the anchor point there is no beam to follow
@@ -80,8 +72,8 @@ class FlsReceiver {
       return result;
     }
 
-    const double horizontalDistanceFt = distanceNm * FEET_PER_NM;
-    const double elevationAngleDeg = radToDeg(std::atan2(aircraftAltitudeFt - beam.anchorAltitudeFt, horizontalDistanceFt));
+    const double horizontalDistanceFt = distanceNm * ReceiverGeometry::FEET_PER_NM;
+    const double elevationAngleDeg = ReceiverGeometry::radToDeg(std::atan2(aircraftAltitudeFt - beam.anchorAltitudeFt, horizontalDistanceFt));
 
     result.valid = true;
     result.lateralDeviationDeg = lateralDeviationDeg;
@@ -91,14 +83,9 @@ class FlsReceiver {
   }
 
  private:
-  static constexpr unsigned int SSM_NO_COMPUTED_DATA = 0b01;
-  static constexpr unsigned int SSM_NORMAL_OPERATION = 0b11;
-  static constexpr double EARTH_RADIUS_NM = 3440.065;
-  static constexpr double FEET_PER_NM = 6076.12;
-  static constexpr double PI = 3.14159265358979323846;
+  static constexpr unsigned int SSM_NO_COMPUTED_DATA = ReceiverGeometry::SSM_NO_COMPUTED_DATA;
+  static constexpr unsigned int SSM_NORMAL_OPERATION = ReceiverGeometry::SSM_NORMAL_OPERATION;
 
-  static double degToRad(double degrees) { return degrees * PI / 180; }
-  static double radToDeg(double radians) { return radians * 180 / PI; }
   static double normalise360(double degrees) { return std::fmod(std::fmod(degrees, 360) + 360, 360); }
   static double normalise180(double degrees) {
     const double normalised = normalise360(degrees);

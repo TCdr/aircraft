@@ -21,8 +21,25 @@ import { AirportCommunication } from '../shared/types/Communication';
 import { Gate } from '../shared/types/Gate';
 import { NearbyFacilityMonitor, NearbyFacilityType } from './NearbyFacilityMonitor';
 
+/**
+ * Supplies approaches that the navigation data does not hold. It is set by the FMS, so that the navigation data layer
+ * does not depend on any particular source of extra approaches.
+ * @param airportIdentifier the airport the approaches are requested for
+ * @param approaches the approaches of the navigation data, to copy from or to avoid duplicating
+ * @param getRunways loads the runways of the airport; only called when the provider needs them, so that airports
+ * without extra approaches do no work
+ * @returns the approaches to add
+ */
+export type SyntheticApproachProvider = (
+  airportIdentifier: string,
+  approaches: readonly Approach[],
+  getRunways: () => Promise<Runway[]>,
+) => Promise<Approach[]>;
+
 export class Database {
   backend: DataInterface;
+
+  private syntheticApproachProvider: SyntheticApproachProvider | null = null;
 
   constructor(backend: DataInterface) {
     this.backend = backend;
@@ -66,8 +83,21 @@ export class Database {
     return arrivals;
   }
 
+  public setSyntheticApproachProvider(provider: SyntheticApproachProvider | null): void {
+    this.syntheticApproachProvider = provider;
+  }
+
   public async getApproaches(airportIdentifier: string, arrival?: Arrival): Promise<Approach[]> {
     let approaches = await this.backend.getApproaches(airportIdentifier);
+    if (this.syntheticApproachProvider) {
+      // Before the arrival filter, so that the extra approaches follow the same runway rule as the real ones
+      const synthetic = await this.syntheticApproachProvider(airportIdentifier, approaches, () =>
+        this.backend.getRunways(airportIdentifier),
+      );
+      if (synthetic.length > 0) {
+        approaches = approaches.concat(synthetic);
+      }
+    }
     if (arrival) {
       approaches = approaches.filter((approach) =>
         arrival.runwayTransitions.find(

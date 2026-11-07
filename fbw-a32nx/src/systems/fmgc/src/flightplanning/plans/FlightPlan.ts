@@ -533,6 +533,7 @@ export class FlightPlan<P extends FlightPlanPerformanceData = FlightPlanPerforma
 
       switch (approachType) {
         case ApproachType.Ils:
+        case ApproachType.Gls:
           return FlightArea.PrecisionApproach;
         case ApproachType.Gps:
         case ApproachType.Rnav:

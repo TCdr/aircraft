@@ -1691,6 +1691,11 @@ export class FmcAircraftInterface {
 
   // FIXME remove A32NX_FM_LS_COURSE
   async updateIlsCourse(mmr: MmrRadioTuningStatus) {
+    // A selected GLS is the active landing system, so its course must not give way to an FLS beam course
+    if (mmr.gls) {
+      return SimVar.SetSimVarValue('L:A32NX_FM_LS_COURSE', 'number', mmr.gls.course ?? -1);
+    }
+
     let course = -1;
     if (mmr.course !== null) {
       course = mmr.course;

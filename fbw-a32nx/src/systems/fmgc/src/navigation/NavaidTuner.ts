@@ -18,6 +18,15 @@ import {
 } from '@flybywiresim/fbw-sdk';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { ConsumerSubject, EventBus, GameStateProvider, SimVarValueType, Subject, Wait } from '@microsoft/msfs-sdk';
+import { GlsApproachData } from '@fmgc/navigation/gls/GlsApproachData';
+import {
+  applyManualGls,
+  GlsManualEntryField,
+  applySelectedLandingSystem,
+  leaveGlsMode,
+  SelectedLandingSystem,
+} from '@fmgc/navigation/LandingSystemTuning';
+import { isRunwayLsMismatch } from '@fmgc/components/fms-messages/RwyLsMismatchLogic';
 
 export interface NavRadioTuningStatus {
   frequency: number | null;
@@ -50,6 +59,10 @@ export interface MmrRadioTuningStatus extends NavRadioTuningStatus {
   backcourse: boolean;
   /** slope from the nav database if available, in degrees (-ve = descent) */
   slope: number | null;
+  /** set when the MMR is in GLS mode: the frequency is then empty and the ILS receiver is detuned */
+  gls?: GlsApproachData;
+  /** which field the crew used to enter the GLS manually; undefined when the FMS selected it */
+  glsEntry?: GlsManualEntryField;
 }
 
 export interface AdfRadioTuningStatus extends NavRadioTuningStatus {
@@ -242,6 +255,15 @@ export class NavaidTuner {
 
   private lastVorCourses = [null, null];
 
+  /** Reused on every update so that tuning allocates nothing */
+  private readonly selectedLandingSystem: SelectedLandingSystem = {
+    facility: undefined,
+    course: null,
+    backcourse: false,
+    slope: null,
+    gls: null,
+  };
+
   private lastMmrFrequencies = [null, null];
 
   private lastMmrCourses = [null, null];
@@ -343,8 +365,12 @@ export class NavaidTuner {
     if (this.tuningActive) {
       this.updateNavaidSelection();
       this.rwyLsMismatchMessage = this.hasRunwayLsMismatch(1) || this.hasRunwayLsMismatch(2);
-    } else if (this.tuningLockoutTimer > 0) {
-      this.tuningLockoutTimer -= deltaTime;
+    } else {
+      // The RMPs tune the radios: a GLS must not stay on the bus over the ILS tuned there
+      this.mmrTuningStatus.forEach((mmr) => leaveGlsMode(mmr));
+      if (this.tuningLockoutTimer > 0) {
+        this.tuningLockoutTimer -= deltaTime;
+      }
     }
 
     this.updateArincBus();
@@ -433,30 +459,19 @@ export class NavaidTuner {
       this.tuneVorCourse((i + 1) as 1 | 2, vor.course);
     }
 
+    const selectedLandingSystem = this.selectedLandingSystem;
+    selectedLandingSystem.facility = this.landingSystemSelectionManager.selectedIls ?? undefined;
+    selectedLandingSystem.course = this.landingSystemSelectionManager.selectedLocCourse;
+    selectedLandingSystem.backcourse = this.landingSystemSelectionManager.selectedApprBackcourse;
+    selectedLandingSystem.slope = this.landingSystemSelectionManager.selectedGsSlope;
+    selectedLandingSystem.gls = this.landingSystemSelectionManager.selectedGls;
+    const mmrTuningLocked = this.isMmrTuningLocked();
     for (const [i, mmr] of this.mmrTuningStatus.entries()) {
-      const autoFacility = this.landingSystemSelectionManager.selectedIls ?? undefined;
-      const autoCourse = this.landingSystemSelectionManager.selectedLocCourse;
-      const autoBackcourse = this.landingSystemSelectionManager.selectedApprBackcourse;
-      if (
-        !mmr.manual &&
-        (mmr.facility?.databaseId !== autoFacility?.databaseId ||
-          mmr.course !== autoCourse ||
-          mmr.backcourse !== autoBackcourse) &&
-        (autoCourse !== null || autoFacility === undefined)
-      ) {
-        mmr.databaseCourse = autoCourse;
-        mmr.databaseBackcourse = this.landingSystemSelectionManager.selectedApprBackcourse;
-        mmr.course = mmr.databaseCourse;
-        mmr.courseManual = false;
-        mmr.frequency = autoFacility?.frequency ?? null;
-        mmr.facility = autoFacility;
-        mmr.ident = autoFacility?.ident ?? null;
-        mmr.backcourse = this.landingSystemSelectionManager.selectedApprBackcourse;
-        mmr.slope = this.landingSystemSelectionManager.selectedGsSlope;
-      }
+      applySelectedLandingSystem(mmr, selectedLandingSystem, mmrTuningLocked);
 
       this.tuneMmrIlsFrequency((i + 1) as 1 | 2, mmr.frequency);
-      this.tuneMmrCourse((i + 1) as 1 | 2, mmr.course, mmr.backcourse);
+      // The ILS receiver has nothing to be set to in GLS mode
+      this.tuneMmrCourse((i + 1) as 1 | 2, mmr.gls ? null : mmr.course, mmr.backcourse);
     }
 
     for (const [i, adf] of this.adfTuningStatus.entries()) {
@@ -578,22 +593,14 @@ export class NavaidTuner {
 
   private hasRunwayLsMismatch(index: 1 | 2): boolean {
     const mmr = this.getMmrRadioTuningStatus(index);
-    const databaseFrequency = this.landingSystemSelectionManager.selectedIls?.frequency ?? null;
-    const databaseCourse = this.landingSystemSelectionManager.selectedLocCourse;
-
-    if (
-      mmr.frequency !== null &&
-      databaseFrequency !== null &&
-      !NavRadioUtils.vhfFrequenciesAreEqual(databaseFrequency, mmr.frequency)
-    ) {
-      return true;
-    }
-
-    if (mmr.course !== null && databaseCourse !== null && Math.abs(mmr.course - databaseCourse) > 3) {
-      return true;
-    }
-
-    return false;
+    return isRunwayLsMismatch(
+      { frequency: mmr.frequency, course: mmr.course, glsChannel: mmr.gls?.channel ?? null },
+      {
+        frequency: this.landingSystemSelectionManager.selectedIls?.frequency ?? null,
+        course: this.landingSystemSelectionManager.selectedLocCourse,
+        glsChannel: this.landingSystemSelectionManager.selectedGls?.channel ?? null,
+      },
+    );
   }
 
   private isDmeOnly(facility?: VhfNavaid | null): boolean {
@@ -685,6 +692,11 @@ export class NavaidTuner {
    */
   async setManualIls(ils: IlsNavaid | number | null): Promise<void> {
     for (const mmrStatus of this.mmrTuningStatus) {
+      if (mmrStatus.gls && this.isMmrTuningLocked()) {
+        continue;
+      }
+      mmrStatus.gls = undefined;
+      mmrStatus.glsEntry = undefined;
       if (ils === null) {
         mmrStatus.databaseCourse = null;
         mmrStatus.databaseBackcourse = false;
@@ -723,12 +735,27 @@ export class NavaidTuner {
   }
 
   /**
+   * Sets the manually (pilot) selected GLS. The ILS receivers are detuned while it is selected.
+   * @param gls the GLS
+   * @param entry the field the crew typed it into
+   */
+  setManualGls(gls: GlsApproachData, entry: GlsManualEntryField): void {
+    for (const mmrStatus of this.mmrTuningStatus) {
+      applyManualGls(mmrStatus, gls, this.isMmrTuningLocked(), entry);
+    }
+  }
+
+  /**
    * Set an ILS course
    * @param course null to clear
    * @param backcourse true if the course is a backcourse
    */
   setIlsCourse(course: number | null, backcourse: boolean = false) {
     for (const mmrStatus of this.mmrTuningStatus) {
+      if (mmrStatus.gls && course !== null) {
+        // The receiver takes the course of a GLS from the uplink
+        continue;
+      }
       mmrStatus.course = course === null ? mmrStatus.databaseCourse : course % 360;
       mmrStatus.backcourse = course === null ? mmrStatus.databaseBackcourse : backcourse;
       mmrStatus.courseManual = course !== null;

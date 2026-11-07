@@ -7,6 +7,7 @@
 #include "Arinc429.h"
 #include "CalculatedRadioReceiver.h"
 #include "FlsReceiver.h"
+#include "GlsReceiver.h"
 #include "InterpolatingLookupTable.h"
 #include "LocalVariable.h"
 #include "RateLimiter.h"
@@ -122,6 +123,17 @@ class FlyByWireInterface {
   base_ils_bus ilsBusOutputs[2] = {};
   FlsBeamDefinition flsBeam;
   FlsDeviations flsDeviations;
+  GlsApproachDefinition glsUplink;
+  GlsDeviations glsDeviations;
+  int glsMmrChannel[2] = {};
+  bool glsMmrFailed[2] = {};
+  bool glsGroundStationFailed = false;
+  /// An MMR is set to a GLS channel, whether or not it receives
+  bool glsMode = false;
+  /// An MMR receives the GLS station
+  bool glsActive = false;
+  /// Whether the GLS L:vars hold other than their idle values, so that an idle receiver writes them once
+  bool glsOutputsPublished = false;
 
   base_adr_bus adrBusOutputs[3] = {};
   base_ir_bus irBusOutputs[3] = {};
@@ -254,6 +266,24 @@ class FlyByWireInterface {
   std::unique_ptr<LocalVariable> idFlsGlideSlopeDeviation;
   std::unique_ptr<LocalVariable> idFlsLateralActive;
   std::unique_ptr<LocalVariable> idFlsVerticalActive;
+  std::unique_ptr<LocalVariable> idGbasValid;
+  std::unique_ptr<LocalVariable> idGbasChannel;
+  std::unique_ptr<LocalVariable> idGbasLtpLatitude;
+  std::unique_ptr<LocalVariable> idGbasLtpLongitude;
+  std::unique_ptr<LocalVariable> idGbasLtpAltitude;
+  std::unique_ptr<LocalVariable> idGbasLength;
+  std::unique_ptr<LocalVariable> idGbasCourse;
+  std::unique_ptr<LocalVariable> idGbasGpa;
+  std::unique_ptr<LocalVariable> idGbasTch;
+  std::unique_ptr<LocalVariable> idGbasStationFailed;
+  std::unique_ptr<LocalVariable> idMmrGlsChannel[2];
+  std::unique_ptr<LocalVariable> idGlsFailed[2];
+  std::unique_ptr<LocalVariable> idGlsLocalizerValid[2];
+  std::unique_ptr<LocalVariable> idGlsGlideSlopeValid[2];
+  std::unique_ptr<LocalVariable> idGlsLocalizerDeviation;
+  std::unique_ptr<LocalVariable> idGlsGlideSlopeDeviation;
+  std::unique_ptr<LocalVariable> idGlsThresholdDistance;
+  std::unique_ptr<LocalVariable> idGlsActive;
   std::unique_ptr<LocalVariable> idFmsSpeedMarginHigh;
   std::unique_ptr<LocalVariable> idFmsSpeedMarginLow;
   std::unique_ptr<LocalVariable> idFmsSpeedMarginVisible;
@@ -734,6 +764,8 @@ class FlyByWireInterface {
   bool updateSfcc(int sfccIndex);
 
   bool updateFls();
+
+  bool updateGls();
 
   bool updateIls(int ilsIndex);
 

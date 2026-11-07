@@ -2,7 +2,7 @@
 /* eslint-disable no-dupe-else-if */
 
 import { Arinc429WordData } from '@flybywiresim/fbw-sdk';
-import { FlsCapability } from '@flybywiresim/pfd';
+import { FlsCapability, GlsCapability } from '@flybywiresim/pfd';
 
 export enum A1A2Messages {
   NONE = 0,
@@ -353,10 +353,35 @@ export enum D1D2Messages {
   F_APP,
   F_APP_RAW,
   RAW_ONLY,
+  AUTO_LAND,
+}
+
+/**
+ * The approach modes as FMA column 4 reads them. LAND, FLARE and ROLL OUT replace the LOC and G/S modes, so the
+ * capability has to follow them too or it drops to the CAT words as soon as LAND engages.
+ */
+export function approachModeStates(
+  fgDiscreteWord1: Arinc429WordData,
+  fgDiscreteWord2: Arinc429WordData,
+  fgDiscreteWord3: Arinc429WordData,
+  fgDiscreteWord4: Arinc429WordData,
+): { armedOrEngaged: boolean; landModesEngaged: boolean } {
+  const locArmed = fgDiscreteWord2.bitValueOr(23, false);
+  const gsArmed = fgDiscreteWord2.bitValueOr(13, false);
+  const locCaptOrTrackActive = fgDiscreteWord4.bitValueOr(13, false) || fgDiscreteWord4.bitValueOr(14, false);
+  const gsCaptOrTrackActive = fgDiscreteWord3.bitValueOr(21, false) || fgDiscreteWord3.bitValueOr(22, false);
+  return {
+    armedOrEngaged: locArmed || gsArmed || locCaptOrTrackActive || gsCaptOrTrackActive,
+    landModesEngaged:
+      fgDiscreteWord1.bitValueOr(23, false) ||
+      fgDiscreteWord3.bitValueOr(24, false) ||
+      fgDiscreteWord4.bitValueOr(26, false),
+  };
 }
 
 /**
  * @param flsCapability the FLS approach capability; it replaces the landing capabilities (no CAT1/2/3 on an FLS approach)
+ * @param glsCapability the GLS approach capability; it replaces the landing capabilities too: CAT1 or AUTO LAND, never CAT2/3
  */
 export function computeD1D2Message(
   fgDiscreteWord1: Arinc429WordData,
@@ -364,6 +389,7 @@ export function computeD1D2Message(
   fcdcFgDiscreteWord1: Arinc429WordData,
   appr1Condition: boolean,
   flsCapability: FlsCapability,
+  glsCapability: GlsCapability = GlsCapability.None,
 ): D1D2Messages {
   const landModeArmed = fgDiscreteWord2.bitValueOr(28, false);
   const landModeActive = fgDiscreteWord1.bitValueOr(23, false);
@@ -377,6 +403,12 @@ export function computeD1D2Message(
     return D1D2Messages.F_APP_RAW;
   } else if (flsCapability === FlsCapability.RawOnly) {
     return D1D2Messages.RAW_ONLY;
+  } else if (glsCapability === GlsCapability.AutoLand) {
+    return D1D2Messages.AUTO_LAND;
+  } else if (glsCapability === GlsCapability.Cat1) {
+    return D1D2Messages.APPR_1;
+  } else if (glsCapability === GlsCapability.NotArmed) {
+    return D1D2Messages.NONE;
   } else if (land2Capacity) {
     return D1D2Messages.LAND_2;
   } else if (land3FailPassiveCapacity) {

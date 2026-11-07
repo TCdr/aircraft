@@ -75,6 +75,8 @@ import { FlightPlanUtils } from '@fmgc/flightplanning/FlightPlanUtils';
 import { A380SpeedsUtils } from '@shared/OperatingSpeeds';
 import { flsBeamOfPlan } from '@fmgc/navigation/fls/FlsBeam';
 import { FlsBeamPublisher } from '@fmgc/navigation/fls/FlsBeamPublisher';
+import { GbasUplinkPublisher } from '@fmgc/navigation/gls/GbasUplinkPublisher';
+import { createGlsSyntheticApproachProvider } from '@fmgc/navigation/gls/GlsSyntheticApproaches';
 import { AtsuStatusCodes } from '@datalink/common';
 import { AtsuToFmsEvents, FmsToAtsuEvents, WindUplinkResponse } from '@providers/FmsAtsuBusPublisher';
 import { PendingWindUplinkParser } from '@fmgc/flightplanning/plans/PendingWindUplinkParser';
@@ -364,6 +366,8 @@ export class FlightManagementComputer implements FmcInterface {
     this.#mfdReference = mfdReference;
 
     const db = new NavigationDatabase(this.bus, NavigationDatabaseBackend.Msfs);
+    // The A380X lists GLS approaches at the airports of the GBAS table; the A32NX sets no provider and lists none
+    db.backendDatabase.setSyntheticApproachProvider(createGlsSyntheticApproachProvider());
     NavigationDatabaseService.activeDatabase = db;
 
     this.#navigation = new Navigation(this.bus, this.flightPlanInterface);
@@ -1260,6 +1264,8 @@ export class FlightManagementComputer implements FmcInterface {
 
   public readonly flsBeamPublisher = new FlsBeamPublisher();
 
+  private readonly gbasUplinkPublisher = new GbasUplinkPublisher();
+
   computeAlternateCruiseLevel(forPlan: FlightPlanIndex): number | undefined {
     const plan = this.#flightPlanService.get(forPlan);
     if (!plan) {
@@ -1854,6 +1860,11 @@ export class FlightManagementComputer implements FmcInterface {
 
     const flsBeam = flsBeamOfPlan(this.flightPlanInterface.hasActive ? plan : null);
     this.flsBeamPublisher.publish(flsBeam, this.flightPhaseManager.phase);
+    const navaidTuner = this.navigation.getNavaidTuner();
+    this.gbasUplinkPublisher.publish(
+      navaidTuner.getMmrRadioTuningStatus(1).gls,
+      navaidTuner.getMmrRadioTuningStatus(2).gls,
+    );
 
     if (!predictions || !this.flightPlanInterface.hasActive) {
       this.acInterface.transmitVerticalPath([], [], [], [], null);

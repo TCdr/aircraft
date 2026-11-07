@@ -122,6 +122,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [FMS] FLS beam computed for both aircraft (anchor, course, slope) and sent to the flight guidance - @TCdr
 1. [AP] FLS approaches: the LOC and G/S modes fly the FLS beam (F-LOC, F-G/S) from the FMS position and barometric altitude, without LAND - @TCdr
 1. [PFD] FLS approaches: F-LOC / F-G/S modes, FLS deviations and the F-APP / F-APP + RAW / RAW ONLY capability on the FMA - @TCdr
+1. [A380X/FMS] GLS approaches at the airports with a GBAS ground station (EDDF, KEWR, KIAH, KSFO, LEMG, YSSY, YMML): select them on the ARRIVAL page, or enter the channel or the RPI on the POSITION NAVAIDS page, which shows the channel, the slope and GLS as the class - @TCdr
+1. [A380X/AP] The LOC and G/S modes, LAND, FLARE and ROLL OUT fly a GLS approach, for the CAT 1 or the autoland capability - @TCdr
+1. [A380X/PFD] GLS approaches: GLS title, RPI, channel and distance to the threshold, LOC and G/S deviations from the GLS, and CAT 1 or AUTO LAND on the FMA - @TCdr
+1. [A380X/MFD] The LS IDENT and FREQ/CHAN fields of the POSITION NAVAIDS page can be cleared - @TCdr
 
 ## 2024.1.0
 

@@ -23,9 +23,10 @@ import {
 import { DmcLogicEvents } from '../MsfsAvionicsCommon/providers/DmcPublisher';
 import { PrimFgBusBaseEvents } from '@shared/publishers/PrimFgPublisher';
 import { FlashOneHertz } from '../MsfsAvionicsCommon/FlashingElementUtils';
-import { flsCapability } from '@flybywiresim/pfd';
+import { flsCapability, glsCapability } from '@flybywiresim/pfd';
 import {
   A1A2Messages,
+  approachModeStates,
   A3Messages,
   B1Messages,
   BC3Messages,
@@ -1373,18 +1374,15 @@ class D1D2Cell extends ShowForSecondsComponent<CellProps> {
 
   private readonly primFgDiscreteWord4 = Arinc429LocalVarConsumerSubject.create(this.sub.on('prim_fg_discrete_word_4'));
 
-  private readonly approachModesArmedOrEngaged = MappedSubject.create(
-    ([word2, word3, word4]) => {
-      const locArmed = word2.bitValueOr(23, false);
-      const gsArmed = word2.bitValueOr(13, false);
-      const locCaptOrTrackActive = word4.bitValueOr(13, false) || word4.bitValueOr(14, false);
-      const gsCaptOrTrackActive = word3.bitValueOr(21, false) || word3.bitValueOr(22, false);
-      return locArmed || gsArmed || locCaptOrTrackActive || gsCaptOrTrackActive;
-    },
+  private readonly approachModeStates = MappedSubject.create(
+    ([word1, word2, word3, word4]) => approachModeStates(word1, word2, word3, word4),
+    this.primFgDiscreteWord1,
     this.primFgDiscreteWord2,
     this.primFgDiscreteWord3,
     this.primFgDiscreteWord4,
   );
+
+  private readonly approachModesArmedOrEngaged = this.approachModeStates.map((states) => states.armedOrEngaged);
 
   private readonly flsApproachCapability = MappedSubject.create(
     ([
@@ -1417,14 +1415,46 @@ class D1D2Cell extends ShowForSecondsComponent<CellProps> {
     ConsumerSubject.create(this.sub.on('fmGpsPositionDisagree'), false),
   );
 
+  private readonly glsApproachCapability = MappedSubject.create(
+    ([modeStates, fcdcFgDiscreteWord1, glsChannel, gls1LocValid, gls2LocValid, gls1GsValid, gls2GsValid]) =>
+      glsCapability({
+        glsSelected: glsChannel > 0,
+        approachModesArmedOrEngaged: modeStates.armedOrEngaged,
+        landModesEngaged: modeStates.landModesEngaged,
+        flightGuidanceCat2OrBetter:
+          fcdcFgDiscreteWord1.bitValueOr(24, false) ||
+          fcdcFgDiscreteWord1.bitValueOr(25, false) ||
+          fcdcFgDiscreteWord1.bitValueOr(26, false),
+        gls1LocValid,
+        gls2LocValid,
+        gls1GsValid,
+        gls2GsValid,
+      }),
+    this.approachModeStates,
+    this.fcdcFgDiscreteWord1,
+    ConsumerSubject.create(this.sub.on(getDisplayIndex() === 1 ? 'mmr1GlsChannel' : 'mmr2GlsChannel'), 0),
+    ConsumerSubject.create(this.sub.on('gls1LocValid'), false),
+    ConsumerSubject.create(this.sub.on('gls2LocValid'), false),
+    ConsumerSubject.create(this.sub.on('gls1GsValid'), false),
+    ConsumerSubject.create(this.sub.on('gls2GsValid'), false),
+  );
+
   private readonly D1D2Message = MappedSubject.create(
-    ([primFgDiscreteWord1, primFgDiscreteWord2, fcdcFgDiscreteWord1, appr1Condition, approachCapability]) => {
+    ([
+      primFgDiscreteWord1,
+      primFgDiscreteWord2,
+      fcdcFgDiscreteWord1,
+      appr1Condition,
+      approachCapability,
+      glsApproachCapability,
+    ]) => {
       return computeD1D2Message(
         primFgDiscreteWord1,
         primFgDiscreteWord2,
         fcdcFgDiscreteWord1,
         appr1Condition,
         approachCapability,
+        glsApproachCapability,
       );
     },
     this.primFgDiscreteWord1,
@@ -1432,6 +1462,7 @@ class D1D2Cell extends ShowForSecondsComponent<CellProps> {
     this.fcdcFgDiscreteWord1,
     this.appr1Condition,
     this.flsApproachCapability,
+    this.glsApproachCapability,
   );
 
   private readonly text1Sub = this.D1D2Message.map((message) => {
@@ -1447,6 +1478,8 @@ class D1D2Cell extends ShowForSecondsComponent<CellProps> {
       return 'F-APP';
     } else if (message == D1D2Messages.RAW_ONLY) {
       return 'RAW';
+    } else if (message == D1D2Messages.AUTO_LAND) {
+      return 'AUTO';
     } else if (message == D1D2Messages.LAND_1) {
       return 'LAND1';
     } else {
@@ -1474,6 +1507,8 @@ class D1D2Cell extends ShowForSecondsComponent<CellProps> {
       return '+RAW';
     } else if (message == D1D2Messages.RAW_ONLY) {
       return 'ONLY';
+    } else if (message == D1D2Messages.AUTO_LAND) {
+      return 'LAND';
     } else {
       return '';
     }
@@ -1493,7 +1528,7 @@ class D1D2Cell extends ShowForSecondsComponent<CellProps> {
       message == D1D2Messages.F_APP_RAW
     ) {
       return D1D2Cell.SixCharactersPerLineTwoLinesModeChangePath;
-    } else if (message == D1D2Messages.RAW_ONLY) {
+    } else if (message == D1D2Messages.RAW_ONLY || message == D1D2Messages.AUTO_LAND) {
       return D1D2Cell.FourCharactersPerLineTwoLinesModeChangePath;
     } else {
       return '';
