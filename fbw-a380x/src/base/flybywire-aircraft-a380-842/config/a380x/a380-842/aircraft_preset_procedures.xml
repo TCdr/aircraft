@@ -146,15 +146,10 @@ The StepType also defines if the step is executed in normal mode, expedited mode
             <Condition>(L:A32NX_OVHD_ADIRS_IR_3_MODE_SELECTOR_KNOB) 1 ==</Condition>
             <Action>1 (&gt;L:A32NX_OVHD_ADIRS_IR_3_MODE_SELECTOR_KNOB)</Action>
         </Step>
-        <!-- The 3-position strobe switch ignores a changed position variable, so switch the light OFF first and
-             then send the ON event -->
-        <Step Name="Strobe Auto" Type="STEP" Delay="50">
-            <Condition>(L:LIGHTING_STROBE_0) 1 ==</Condition>
-            <Action>0 (&gt;L:STROBE_0_AUTO) 0 (&gt;K:STROBES_OFF)</Action>
-        </Step>
+        <!-- The strobe switch is an MSFS input event: setting it runs the switch's own code, so the switch position, the AUTO flag and the light move together -->
         <Step Name="Strobe Auto" Type="STEP" Delay="1000">
-            <Condition>(L:LIGHTING_STROBE_0) 1 ==</Condition>
-            <Action>1 (&gt;L:STROBE_0_AUTO) 0 (&gt;K:STROBES_ON)</Action>
+            <Condition>(L:LIGHTING_STROBE_0) 1 == (L:STROBE_0_AUTO) &amp;&amp; (A:LIGHT STROBE, Bool) &amp;&amp;</Condition>
+            <Action>1 (&gt;B:LIGHTING_STROBE_0_Set)</Action>
         </Step>
         <Step Name="Nav &amp; Logo Lt On" Type="STEP" Delay="1000">
             <Condition>(A:LIGHT LOGO, Bool) (A:LIGHT NAV, Bool) &amp;&amp;</Condition>
@@ -441,9 +436,10 @@ The StepType also defines if the step is executed in normal mode, expedited mode
             <Condition>(A:LIGHT LOGO, Bool) ! (A:LIGHT NAV, Bool) ! &amp;&amp;</Condition>
             <Action>0 (&gt;K:2:LOGO_LIGHTS_SET) 0 (&gt;K:2:NAV_LIGHTS_SET)</Action>
         </Step>
+        <!-- The strobe switch is an MSFS input event: setting it runs the switch's own code, so the switch position, the AUTO flag and the light move together -->
         <Step Name="Strobe Off" Type="STEP" Delay="1000">
-            <Condition>(L:LIGHTING_STROBE_0) 2 ==</Condition>
-            <Action>0 (&gt;L:STROBE_0_AUTO) 0 (&gt;K:STROBES_OFF)</Action>
+            <Condition>(L:LIGHTING_STROBE_0) 2 == (L:STROBE_0_AUTO) ! &amp;&amp; (A:LIGHT STROBE, Bool) ! &amp;&amp;</Condition>
+            <Action>2 (&gt;B:LIGHTING_STROBE_0_Set)</Action>
         </Step>
         <Step Name="ADIRS 3 Off" Type="STEP" Delay="500">
             <Condition>(L:A32NX_OVHD_ADIRS_IR_3_MODE_SELECTOR_KNOB) 0 ==</Condition>
@@ -821,15 +817,10 @@ The StepType also defines if the step is executed in normal mode, expedited mode
     <!--  =========================================================  -->
     <Procedure Name="TAKEOFF_CONFIG_ON">
         <!-- SOP: TAXI -->
-        <!-- The 3-position strobe switch ignores a changed position variable, so switch the light OFF first and
-             then send the ON event -->
-        <Step Name="Strobe On" Type="STEP" Delay="50">
-            <Condition>(L:LIGHTING_STROBE_0) 0 ==</Condition>
-            <Action>0 (&gt;L:STROBE_0_AUTO) 0 (&gt;K:STROBES_OFF)</Action>
-        </Step>
+        <!-- The strobe switch is an MSFS input event: setting it runs the switch's own code, so the switch position, the AUTO flag and the light move together -->
         <Step Name="Strobe On" Type="STEP" Delay="1000">
-            <Condition>(L:LIGHTING_STROBE_0) 0 ==</Condition>
-            <Action>0 (&gt;L:STROBE_0_AUTO) 0 (&gt;K:STROBES_ON)</Action>
+            <Condition>(L:LIGHTING_STROBE_0) 0 == (L:STROBE_0_AUTO) ! &amp;&amp; (A:LIGHT STROBE, Bool) &amp;&amp;</Condition>
+            <Action>0 (&gt;B:LIGHTING_STROBE_0_Set)</Action>
         </Step>
         <Step Name="Cabin Read On" Type="STEP" Delay="1000">
             <Action>1 (&gt;L:A32NX_CABIN_READY)</Action>
@@ -861,15 +852,10 @@ The StepType also defines if the step is executed in normal mode, expedited mode
             <Condition>(A:LIGHT LANDING:1, Number) 0 ==</Condition>
             <Action>1 (&gt;K:LANDING_LIGHTS_OFF)</Action>
         </Step>
-        <!-- The 3-position strobe switch ignores a changed position variable, so switch the light OFF first and
-             then send the ON event -->
-        <Step Name="Strobe Auto" Type="STEP" Delay="50">
-            <Condition>(L:LIGHTING_STROBE_0) 1 ==</Condition>
-            <Action>0 (&gt;L:STROBE_0_AUTO) 0 (&gt;K:STROBES_OFF)</Action>
-        </Step>
+        <!-- The strobe switch is an MSFS input event: setting it runs the switch's own code, so the switch position, the AUTO flag and the light move together -->
         <Step Name="Strobe Auto" Type="STEP" Delay="1000">
-            <Condition>(L:LIGHTING_STROBE_0) 1 ==</Condition>
-            <Action>1 (&gt;L:STROBE_0_AUTO) 0 (&gt;K:STROBES_ON)</Action>
+            <Condition>(L:LIGHTING_STROBE_0) 1 == (L:STROBE_0_AUTO) &amp;&amp; (A:LIGHT STROBE, Bool) &amp;&amp;</Condition>
+            <Action>1 (&gt;B:LIGHTING_STROBE_0_Set)</Action>
         </Step>
     </Procedure>
 
