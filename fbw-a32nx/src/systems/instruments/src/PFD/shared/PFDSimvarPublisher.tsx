@@ -51,6 +51,18 @@ export type PFDSimvars = AdirsSimVars &
     flsLocDeviation: number;
     flsGsValid: boolean;
     flsGsDeviation: number;
+    gls1LocValid: boolean;
+    gls2LocValid: boolean;
+    gls1GsValid: boolean;
+    gls2GsValid: boolean;
+    glsLocDeviation: number;
+    glsGsDeviation: number;
+    /** nautical miles to the runway threshold */
+    glsThresholdDistance: number;
+    /** the reference path identifier as SimVarString.pack(rpi, 4)[0] */
+    gbasIdent: number;
+    mmr1GlsChannel: number;
+    mmr2GlsChannel: number;
     fmGpsPrimary: boolean;
     fmNavAccuracyHigh: boolean;
     fmGpsPositionDisagree: boolean;
@@ -233,6 +245,16 @@ export enum PFDVars {
   flsLocDeviation = 'L:A32NX_FLS_LOC_DEVIATION',
   flsGsValid = 'L:A32NX_FLS_GS_IS_VALID',
   flsGsDeviation = 'L:A32NX_FLS_GS_DEVIATION',
+  gls1LocValid = 'L:A32NX_GLS_1_LOC_IS_VALID',
+  gls2LocValid = 'L:A32NX_GLS_2_LOC_IS_VALID',
+  gls1GsValid = 'L:A32NX_GLS_1_GS_IS_VALID',
+  gls2GsValid = 'L:A32NX_GLS_2_GS_IS_VALID',
+  glsLocDeviation = 'L:A32NX_GLS_LOC_DEVIATION',
+  glsGsDeviation = 'L:A32NX_GLS_GS_DEVIATION',
+  glsThresholdDistance = 'L:A32NX_GLS_THRESHOLD_DISTANCE',
+  gbasIdent = 'L:A32NX_GBAS_IDENT',
+  mmr1GlsChannel = 'L:A32NX_MMR_1_GLS_CHANNEL',
+  mmr2GlsChannel = 'L:A32NX_MMR_2_GLS_CHANNEL',
   fmGpsPrimary = 'L:A32NX_FMGC_L_GPS_PRIMARY',
   fmNavAccuracyHigh = 'L:A32NX_FMGC_L_NAV_ACCURACY_HIGH',
   fmGpsPositionDisagree = 'L:A32NX_FM_GPS_POS_DISAGREE',
@@ -420,6 +442,17 @@ export class PFDSimvarPublisher extends UpdatableSimVarPublisher<PFDSimvars> {
     ['flsLocDeviation', { name: PFDVars.flsLocDeviation, type: SimVarValueType.Degree }],
     ['flsGsValid', { name: PFDVars.flsGsValid, type: SimVarValueType.Bool }],
     ['flsGsDeviation', { name: PFDVars.flsGsDeviation, type: SimVarValueType.Degree }],
+    ['gls1LocValid', { name: PFDVars.gls1LocValid, type: SimVarValueType.Bool }],
+    ['gls2LocValid', { name: PFDVars.gls2LocValid, type: SimVarValueType.Bool }],
+    ['gls1GsValid', { name: PFDVars.gls1GsValid, type: SimVarValueType.Bool }],
+    ['gls2GsValid', { name: PFDVars.gls2GsValid, type: SimVarValueType.Bool }],
+    // Raw numbers: the flight control module writes degrees and nautical miles without a unit
+    ['glsLocDeviation', { name: PFDVars.glsLocDeviation, type: SimVarValueType.Number }],
+    ['glsGsDeviation', { name: PFDVars.glsGsDeviation, type: SimVarValueType.Number }],
+    ['glsThresholdDistance', { name: PFDVars.glsThresholdDistance, type: SimVarValueType.Number }],
+    ['gbasIdent', { name: PFDVars.gbasIdent, type: SimVarValueType.Number }],
+    ['mmr1GlsChannel', { name: PFDVars.mmr1GlsChannel, type: SimVarValueType.Number }],
+    ['mmr2GlsChannel', { name: PFDVars.mmr2GlsChannel, type: SimVarValueType.Number }],
     ['fmGpsPrimary', { name: PFDVars.fmGpsPrimary, type: SimVarValueType.Bool }],
     ['fmNavAccuracyHigh', { name: PFDVars.fmNavAccuracyHigh, type: SimVarValueType.Bool }],
     ['fmGpsPositionDisagree', { name: PFDVars.fmGpsPositionDisagree, type: SimVarValueType.Bool }],

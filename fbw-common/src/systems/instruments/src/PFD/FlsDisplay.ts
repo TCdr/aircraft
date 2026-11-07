@@ -126,10 +126,23 @@ export function flsCapability(inputs: FlsCapabilityInputs): FlsCapability {
   return inputs.gpsPrimary ? FlsCapability.FApp : FlsCapability.FAppRaw;
 }
 
+const OWN_SIDE_GLS_TOPICS = [
+  { channel: 'mmr1GlsChannel', locValid: 'gls1LocValid', gsValid: 'gls1GsValid' },
+  { channel: 'mmr2GlsChannel', locValid: 'gls2LocValid', gsValid: 'gls2GsValid' },
+] as const;
+
+/**
+ * The simvar topics of the GLS data a PFD shows: it reads the MMR of its own side, PFD 1 the MMR 1 and PFD 2 the MMR 2,
+ * so that a GLS set on one side does not show on the other side's display.
+ */
+export function ownSideGlsTopics(displayIndex: number) {
+  return OWN_SIDE_GLS_TOPICS[displayIndex === 2 ? 1 : 0];
+}
+
 /** The approach capability of a GLS approach, shown in FMA column 4. There is no CAT 2 or CAT 3 on a GLS. */
 export enum GlsCapability {
   None,
-  /** A GLS is selected and no approach mode is armed yet: nothing to show, and no CAT word of the flight guidance */
+  /** A GLS is selected and the ILS CAT words would not show yet: nothing to show, not even a CAT word of the guidance */
   NotArmed,
   Cat1,
   AutoLand,
@@ -138,8 +151,11 @@ export enum GlsCapability {
 export interface GlsCapabilityInputs {
   /** the own side MMR is set to a GLS channel, whether or not it receives the station */
   glsSelected: boolean;
-  /** LOC or G/S is armed, captured or tracked */
-  approachModesArmedOrEngaged: boolean;
+  /**
+   * The condition under which the ILS CAT words show on this aircraft: LAND armed (A380X: or its APPR1 condition) or
+   * active. LOC or G/S alone does not meet it, so the GLS shows no capability where an ILS would show none.
+   */
+  catWordsCondition: boolean;
   /** LAND, FLARE or ROLL OUT is engaged: they replace the LOC and G/S modes */
   landModesEngaged: boolean;
   /**
@@ -162,7 +178,7 @@ export function glsCapability(inputs: GlsCapabilityInputs): GlsCapability {
   if (!inputs.glsSelected) {
     return GlsCapability.None;
   }
-  if (!inputs.approachModesArmedOrEngaged && !inputs.landModesEngaged) {
+  if (!inputs.catWordsCondition && !inputs.landModesEngaged) {
     return GlsCapability.NotArmed;
   }
   const bothGlsReceiversValid =

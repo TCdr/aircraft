@@ -9,6 +9,7 @@ import { SelectedNavaid, SelectedNavaidMode, SelectedNavaidType } from '@fmgc/na
 import { CDUPositionMonitorPage } from './A320_Neo_CDU_PositionMonitorPage';
 import { Keypad } from '../legacy/A320_Neo_CDU_Keypad';
 import { LegacyFmsPageInterface } from '../legacy/LegacyFmsPageInterface';
+import { glsSelectedNavaidRow } from './LandingSystemRows';
 
 const NAVAID_TYPE_STRINGS = Object.freeze({
   [SelectedNavaidType.None]: '',
@@ -82,6 +83,19 @@ export class CDUSelectedNavaids {
           }
         };
       }
+    }
+
+    // The GLS is no database navaid: it takes the row of the ILS
+    const mmr = mcdu.getMmrTuningData(1);
+    const glsRow = mcdu.isFmTuningActive()
+      ? glsSelectedNavaidRow(
+          mmr.gls,
+          NAVAID_MODE_STRINGS[mmr.manual ? SelectedNavaidMode.Manual : SelectedNavaidMode.Auto],
+        )
+      : null;
+    if (glsRow) {
+      template[7][0] = glsRow.label;
+      template[8][0] = glsRow.line;
     }
 
     const deselected = mcdu.deselectedNavaids;

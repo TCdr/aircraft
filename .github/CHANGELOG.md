@@ -1038,6 +1038,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/A380X] The aircraft presets set the STROBE switch in one move through its input event: no OFF flash and no two-second pause per strobe step - @TCdr
 1. [A380X/EFB] The flyPad "Default Barometer Unit" setting (hPa / inHg / auto) now sets the EFIS CP baro unit on the A380X - @TCdr
 1. [A380X/EFB] The "Ready for Taxi" and "Ready for Takeoff" presets arm the autobrake RTO mode and the "Cold & Dark" and after-landing presets disarm it; the RTO pb was never pressed - @TCdr
+1. [A32NX/FMGC] GLS approaches at the airports with a GBAS ground station (EDDF, KEWR, KIAH, KSFO, LEMG, YSSY, YMML) are listed on the ARRIVAL page and tuned by the FMGC, and the ND course pointer follows the GLS course - @TCdr
+1. [A32NX/MCDU] RAD NAV takes a GLS channel (5 digits) or a reference path identifier in the LS field and shows the identifier, the channel, the course and the slope; the course of a GLS cannot be changed by hand - @TCdr
+1. [A32NX/MCDU] The ARRIVAL page shows the identifier and channel of a GLS approach, SELECTED NAVAIDS lists the GLS, and PERF APPR takes a radio minimum on a GLS approach - @TCdr
+1. [A32NX/PFD] GLS approaches: reference path identifier, channel and distance to the threshold in the LS information, and LOC and G/S deviations from the GLS - @TCdr
+1. [A32NX/PFD] The FMA shows AUTOLAND or CAT1 on a GLS approach, never CAT2 or CAT3 - @TCdr
 
 ## 2024.1.0
 

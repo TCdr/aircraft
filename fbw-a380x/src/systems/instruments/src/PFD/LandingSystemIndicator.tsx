@@ -17,8 +17,15 @@ import { LagFilter } from './PFDUtils';
 import { FcuEfisCpBusEvents } from '@shared/publishers/EfisCpBusPublisher';
 import { FlashOneHertz } from '../MsfsAvionicsCommon/FlashingElementUtils';
 import { PrimFgBusBaseEvents } from '@shared/publishers/PrimFgPublisher';
-import { isLsDeviationValid, lsDeviation, lsSource, lsTitleText, LsSource } from '@flybywiresim/pfd';
-import { glsInfoTexts } from './GlsInfoTexts';
+import {
+  glsInfoTexts,
+  isLsDeviationValid,
+  lsDeviation,
+  lsSource,
+  lsTitleText,
+  LsSource,
+  ownSideGlsTopics,
+} from '@flybywiresim/pfd';
 
 export class LandingSystem extends DisplayComponent<{ bus: ArincEventBus; instrument: BaseInstrument }> {
   private readonly sub = this.props.bus.getArincSubscriber<Arinc429Values & FcuEfisCpBusEvents>();
@@ -197,7 +204,7 @@ class LandingSystemInfo extends DisplayComponent<{ bus: EventBus; isVisible: Sub
 
     const displayIndex = getDisplayIndex();
     sub
-      .on(displayIndex === 1 ? 'gls1LocValid' : 'gls2LocValid')
+      .on(ownSideGlsTopics(displayIndex).locValid)
       .whenChanged()
       .handle((locValid) => {
         this.glsReceived = locValid;
@@ -211,7 +218,7 @@ class LandingSystemInfo extends DisplayComponent<{ bus: EventBus; isVisible: Sub
         this.updateContents();
       });
     sub
-      .on(displayIndex === 1 ? 'mmr1GlsChannel' : 'mmr2GlsChannel')
+      .on(ownSideGlsTopics(displayIndex).channel)
       .whenChanged()
       .handle((channel) => {
         this.glsChannel = channel;
@@ -339,9 +346,7 @@ class LocalizerIndicator extends DisplayComponent<{ bus: EventBus; instrument: B
     const source = MappedSubject.create(
       ([flsLateralActive, glsSelected]) => lsSource(flsLateralActive, glsSelected),
       ConsumerSubject.create(sub.on('flsLateralActive'), false),
-      ConsumerSubject.create(sub.on(getDisplayIndex() === 1 ? 'mmr1GlsChannel' : 'mmr2GlsChannel'), 0).map(
-        (channel) => channel > 0,
-      ),
+      ConsumerSubject.create(sub.on(ownSideGlsTopics(getDisplayIndex()).channel), 0).map((channel) => channel > 0),
     );
     const flsLocDeviation = ConsumerSubject.create(sub.on('flsLocDeviation'), 0);
 
@@ -363,7 +368,7 @@ class LocalizerIndicator extends DisplayComponent<{ bus: EventBus; instrument: B
       source,
       ConsumerSubject.create(sub.on('hasLoc'), false),
       ConsumerSubject.create(sub.on('flsLocValid'), false),
-      ConsumerSubject.create(sub.on(getDisplayIndex() === 1 ? 'gls1LocValid' : 'gls2LocValid'), false),
+      ConsumerSubject.create(sub.on(ownSideGlsTopics(getDisplayIndex()).locValid), false),
     ).sub((hasLoc) => {
       if (hasLoc) {
         this.diamondGroup.instance.classList.remove('HiddenElement');
@@ -464,9 +469,7 @@ class GlideSlopeIndicator extends DisplayComponent<{ bus: EventBus; instrument: 
     const source = MappedSubject.create(
       ([flsVerticalActive, glsSelected]) => lsSource(flsVerticalActive, glsSelected),
       ConsumerSubject.create(sub.on('flsVerticalActive'), false),
-      ConsumerSubject.create(sub.on(getDisplayIndex() === 1 ? 'mmr1GlsChannel' : 'mmr2GlsChannel'), 0).map(
-        (channel) => channel > 0,
-      ),
+      ConsumerSubject.create(sub.on(ownSideGlsTopics(getDisplayIndex()).channel), 0).map((channel) => channel > 0),
     );
     const flsGsDeviation = ConsumerSubject.create(sub.on('flsGsDeviation'), 0);
 
@@ -476,7 +479,7 @@ class GlideSlopeIndicator extends DisplayComponent<{ bus: EventBus; instrument: 
       source,
       ConsumerSubject.create(sub.on('hasGlideslope'), false),
       ConsumerSubject.create(sub.on('flsGsValid'), false),
-      ConsumerSubject.create(sub.on(getDisplayIndex() === 1 ? 'gls1GsValid' : 'gls2GsValid'), false),
+      ConsumerSubject.create(sub.on(ownSideGlsTopics(getDisplayIndex()).gsValid), false),
     ).sub((hasGlideSlope) => {
       this.hasGlideSlope = hasGlideSlope;
       if (hasGlideSlope) {
@@ -731,7 +734,7 @@ class LsTitle extends DisplayComponent<{ bus: EventBus }> {
   private readonly flsVerticalActive = ConsumerSubject.create(this.sub.on('flsVerticalActive'), false);
 
   private readonly glsSelected = ConsumerSubject.create(
-    this.sub.on(getDisplayIndex() === 1 ? 'mmr1GlsChannel' : 'mmr2GlsChannel'),
+    this.sub.on(ownSideGlsTopics(getDisplayIndex()).channel),
     0,
   ).map((channel) => channel > 0);
 
@@ -742,7 +745,7 @@ class LsTitle extends DisplayComponent<{ bus: EventBus }> {
     this.glsSelected,
     ConsumerSubject.create(this.sub.on('hasLoc'), false),
     ConsumerSubject.create(this.sub.on('flsLocValid'), false),
-    ConsumerSubject.create(this.sub.on(getDisplayIndex() === 1 ? 'gls1LocValid' : 'gls2LocValid'), false),
+    ConsumerSubject.create(this.sub.on(ownSideGlsTopics(getDisplayIndex()).locValid), false),
   );
 
   private readonly titleText = MappedSubject.create(

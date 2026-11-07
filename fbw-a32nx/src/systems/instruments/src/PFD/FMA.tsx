@@ -32,8 +32,9 @@ import {
   isNonPrecisionApproachFlown,
   isSetGreenDotSpeed,
 } from './FmaLine3Messages';
-import { flsCapabilityLines, lsModeText } from './FmaLsModes';
-import { FlsCapability, flsCapability } from '@flybywiresim/pfd';
+import { approachCapabilityLines, lsModeText } from './FmaLsModes';
+import { flsCapability, glsCapability, ownSideGlsTopics } from '@flybywiresim/pfd';
+import { getDisplayIndex } from './PFD';
 
 /* eslint-disable no-constant-condition,no-dupe-else-if -- for keeping the FMA code while it's not active yet */
 
@@ -1868,6 +1869,17 @@ class D1D2Cell extends ShowForSecondsComponent<CellProps> {
 
   private fmGpsPositionDisagree = false;
 
+  /** The channel the MMR of this side is set to, 0 in ILS mode */
+  private glsChannel = 0;
+
+  private gls1LocValid = false;
+
+  private gls2LocValid = false;
+
+  private gls1GsValid = false;
+
+  private gls2GsValid = false;
+
   private text1Sub = Subject.create('');
 
   private text2Sub = Subject.create('');
@@ -1899,32 +1911,30 @@ class D1D2Cell extends ShowForSecondsComponent<CellProps> {
       fmGpsPositionDisagree: this.fmGpsPositionDisagree,
     });
 
-    let text1: string;
-    let text2: string | undefined;
-    this.isShown = true;
-    // The FLS capability replaces the landing capabilities: no CAT1/2/3 on an FLS approach
-    if (capability !== FlsCapability.None) {
-      [text1, text2] = flsCapabilityLines(capability);
-    } else if (land2Capacity) {
-      text1 = 'CAT2';
-      text2 = '';
-    } else if (land3FailPassiveCapacity) {
-      text1 = 'CAT3';
-      text2 = 'SINGLE';
-    } else if (land3FailOperationalCapacity) {
-      text1 = 'CAT3';
-      text2 = 'DUAL';
-    } else if (landModeArmed || landModeActive) {
-      text1 = 'CAT1';
-      text2 = '';
-    } else if (false) {
-      text1 = 'AUTO';
-      text2 = 'LAND';
-    } else {
-      text1 = '';
-      text2 = '';
-      this.isShown = false;
-    }
+    // LAND, FLARE and ROLL OUT replace the LOC and G/S modes, and the GLS capability holds through them
+    const flareActive = this.fmgcDiscreteWord2.bitValueOr(25, false);
+    const rollOutActive = this.fmgcDiscreteWord2.bitValueOr(26, false);
+    const glsApproachCapability = glsCapability({
+      glsSelected: this.glsChannel > 0,
+      catWordsCondition: landModeArmed || landModeActive,
+      landModesEngaged: landModeActive || flareActive || rollOutActive,
+      flightGuidanceCat2OrBetter: land2Capacity || land3FailPassiveCapacity || land3FailOperationalCapacity,
+      gls1LocValid: this.gls1LocValid,
+      gls2LocValid: this.gls2LocValid,
+      gls1GsValid: this.gls1GsValid,
+      gls2GsValid: this.gls2GsValid,
+    });
+
+    // The FLS and GLS capabilities replace the landing capabilities: no CAT2/3 on an FLS or GLS approach
+    const [text1, text2] = approachCapabilityLines({
+      flsCapability: capability,
+      glsCapability: glsApproachCapability,
+      land2Capacity,
+      land3FailPassiveCapacity,
+      land3FailOperationalCapacity,
+      landModeArmedOrActive: landModeArmed || landModeActive,
+    });
+    this.isShown = text1 !== '';
 
     const hasChanged = text1 !== this.text1Sub.get() || text2 !== this.text2Sub.get();
 
@@ -2026,6 +2036,46 @@ class D1D2Cell extends ShowForSecondsComponent<CellProps> {
       .whenChanged()
       .handle((v) => {
         this.fmGpsPositionDisagree = v;
+        this.setText();
+      });
+
+    sub
+      .on(ownSideGlsTopics(getDisplayIndex()).channel)
+      .whenChanged()
+      .handle((v) => {
+        this.glsChannel = v;
+        this.setText();
+      });
+
+    sub
+      .on('gls1LocValid')
+      .whenChanged()
+      .handle((v) => {
+        this.gls1LocValid = v;
+        this.setText();
+      });
+
+    sub
+      .on('gls2LocValid')
+      .whenChanged()
+      .handle((v) => {
+        this.gls2LocValid = v;
+        this.setText();
+      });
+
+    sub
+      .on('gls1GsValid')
+      .whenChanged()
+      .handle((v) => {
+        this.gls1GsValid = v;
+        this.setText();
+      });
+
+    sub
+      .on('gls2GsValid')
+      .whenChanged()
+      .handle((v) => {
+        this.gls2GsValid = v;
         this.setText();
       });
 

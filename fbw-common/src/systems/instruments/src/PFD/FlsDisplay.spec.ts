@@ -14,6 +14,7 @@ import {
   LsSource,
   lsSource,
   lsTitleText,
+  ownSideGlsTopics,
 } from './FlsDisplay';
 
 /* The FLS indications of the PFD: deviation source, approach capability, LS title */
@@ -76,10 +77,25 @@ describe('LS scale deviation source with GLS', () => {
   });
 });
 
+describe('the GLS data a PFD shows', () => {
+  it('is the data of the MMR of its own side', () => {
+    expect(ownSideGlsTopics(1)).toEqual({
+      channel: 'mmr1GlsChannel',
+      locValid: 'gls1LocValid',
+      gsValid: 'gls1GsValid',
+    });
+    expect(ownSideGlsTopics(2)).toEqual({
+      channel: 'mmr2GlsChannel',
+      locValid: 'gls2LocValid',
+      gsValid: 'gls2GsValid',
+    });
+  });
+});
+
 function glsInputs(over: Partial<GlsCapabilityInputs> = {}): GlsCapabilityInputs {
   return {
     glsSelected: true,
-    approachModesArmedOrEngaged: true,
+    catWordsCondition: true,
     landModesEngaged: false,
     flightGuidanceCat2OrBetter: true,
     gls1LocValid: true,
@@ -101,19 +117,20 @@ describe('GLS approach capability', () => {
     expect(glsCapability(glsInputs({ gls2GsValid: false }))).toBe(GlsCapability.Cat1);
   });
 
-  it('shows nothing without a GLS selected or with no approach mode armed', () => {
+  it('shows nothing without a GLS selected or while the ILS CAT words would show nothing', () => {
     expect(glsCapability(glsInputs({ glsSelected: false }))).toBe(GlsCapability.None);
-    expect(glsCapability(glsInputs({ approachModesArmedOrEngaged: false }))).toBe(GlsCapability.NotArmed);
+    // LOC alone armed: LAND is not armed, so an ILS shows no CAT word and neither does the GLS
+    expect(glsCapability(glsInputs({ catWordsCondition: false }))).toBe(GlsCapability.NotArmed);
   });
 
   it('stays capped through LAND, FLARE and ROLL OUT, when LOC and G/S modes are no longer engaged', () => {
-    const landing = { approachModesArmedOrEngaged: false, landModesEngaged: true };
+    const landing = { catWordsCondition: false, landModesEngaged: true };
     expect(glsCapability(glsInputs(landing))).toBe(GlsCapability.AutoLand);
     expect(glsCapability(glsInputs({ ...landing, flightGuidanceCat2OrBetter: false }))).toBe(GlsCapability.Cat1);
   });
 
   it('ignores the G/S validity in LAND, FLARE and ROLL OUT, because the G/S ends at the glide path intercept point', () => {
-    const landing = { approachModesArmedOrEngaged: false, landModesEngaged: true };
+    const landing = { catWordsCondition: false, landModesEngaged: true };
     expect(glsCapability(glsInputs({ ...landing, gls1GsValid: false, gls2GsValid: false }))).toBe(
       GlsCapability.AutoLand,
     );
