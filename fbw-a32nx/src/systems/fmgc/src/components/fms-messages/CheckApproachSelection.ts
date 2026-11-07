@@ -43,7 +43,7 @@ export class CheckApproachSelection implements FMMessageSelector {
     const tuner = this.navigation.getNavaidTuner();
     const ilsManuallyTuned = ([1, 2] as const).some((index) => {
       const mmr = tuner.getMmrRadioTuningStatus(index);
-      return mmr.manual && mmr.frequency !== null;
+      return mmr.manual && (mmr.frequency !== null || mmr.gls !== undefined);
     });
     const approach = this.flightPlanService.hasActive ? this.flightPlanService.active.approach : undefined;
     const newState = isCheckApproachSelection(

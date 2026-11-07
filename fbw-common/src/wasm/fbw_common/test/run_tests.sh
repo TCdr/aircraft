@@ -6,3 +6,6 @@ cd "$(dirname "$0")"
 mkdir -p ../obj
 clang++ -std=c++20 -Wall -Wextra -Werror fadec_failure_inputs_test.cpp -o ../obj/fadec_failure_inputs_test
 ../obj/fadec_failure_inputs_test
+# GLS deviations (GlsReceiver.h)
+clang++ -std=c++20 -Wall -Wextra -Werror -I ../src gls_receiver_test.cpp -o ../obj/gls_receiver_test
+../obj/gls_receiver_test

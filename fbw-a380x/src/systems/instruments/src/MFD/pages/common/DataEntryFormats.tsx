@@ -2205,6 +2205,54 @@ export class FrequencyILSFormat implements DataEntryFormat<number> {
   }
 }
 
+/**
+ * The FREQ/CHAN field of the landing system: an ILS frequency, or a GLS channel. The two ranges do not overlap, so
+ * the value tells which one was entered.
+ */
+export class FrequencyOrChannelLsFormat implements DataEntryFormat<number> {
+  public placeholder = '---.--';
+
+  public maxDigits = 6;
+
+  private readonly requiredFormat = 'XXX.XX or NNNNN';
+
+  private readonly minFrequency = 108.0;
+
+  private readonly maxFrequency = 111.95;
+
+  private readonly minChannel = 20001;
+
+  private readonly maxChannel = 39999;
+
+  public format(value: number | null) {
+    if (value === null || value === undefined) {
+      return [this.placeholder, null, null] as FieldFormatTuple;
+    }
+    return [value >= this.minChannel ? value.toFixed(0) : value.toFixed(2), null, null] as FieldFormatTuple;
+  }
+
+  public async parse(input: string) {
+    if (input === '') {
+      return null;
+    }
+
+    const nbr = Number(input);
+    if (Number.isNaN(nbr)) {
+      throw getFormattedFormatError(this.requiredFormat);
+    }
+    if (nbr >= this.minFrequency && nbr <= this.maxFrequency) {
+      return nbr;
+    }
+    if (/^\d{5}$/.test(input) && nbr >= this.minChannel && nbr <= this.maxChannel) {
+      return nbr;
+    }
+    throw getFormattedEntryOutOfRangeError(
+      `${this.minFrequency.toFixed(2)}-${this.maxFrequency.toFixed(2)}`,
+      `${this.minChannel}-${this.maxChannel}`,
+    );
+  }
+}
+
 export class FrequencyVORDMEFormat implements DataEntryFormat<number> {
   public readonly placeholder = '---.--';
 

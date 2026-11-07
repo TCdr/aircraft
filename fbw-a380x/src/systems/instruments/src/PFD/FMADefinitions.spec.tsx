@@ -6,8 +6,9 @@ import { FSComponent, Subject } from '@microsoft/msfs-sdk';
 import { Arinc429Register, Arinc429SignStatusMatrix, ArincEventBus } from '@flybywiresim/fbw-sdk';
 import { FMA } from './FMA';
 import { FmgcFlightPhase } from '@shared/flightphase';
-import { FlsCapability } from '@flybywiresim/pfd';
+import { FlsCapability, GlsCapability, glsCapability } from '@flybywiresim/pfd';
 import {
+  approachModeStates,
   armedGlideSlopeText,
   B1Messages,
   BC3Messages,
@@ -272,6 +273,93 @@ describe('A380X FMA modes on an FLS approach', () => {
     expect(d1d2(FlsCapability.FAppRaw)).toBe(D1D2Messages.F_APP_RAW);
     expect(d1d2(FlsCapability.RawOnly)).toBe(D1D2Messages.RAW_ONLY);
     expect(computeD1D2Message(word(), word(), word(), true, FlsCapability.None)).toBe(D1D2Messages.APPR_1);
+  });
+});
+
+describe('A380X GLS capability in FMA column 4', () => {
+  const LAND_ARMED = 28;
+  const LAND2_CAPACITY = 24;
+  const LAND3_PASSIVE_CAPACITY = 25;
+  const LAND3_OPERATIONAL_CAPACITY = 26;
+  const d1d2 = (capability: GlsCapability, fcdcBits: number[]) =>
+    computeD1D2Message(word(), word([LAND_ARMED]), word(fcdcBits), true, FlsCapability.None, capability);
+
+  it('shows AUTO LAND on two lines', () => {
+    expect(d1d2(GlsCapability.AutoLand, [])).toBe(D1D2Messages.AUTO_LAND);
+    expect(getD1D2Lines(D1D2Messages.AUTO_LAND)).toEqual(['AUTO', 'LAND']);
+  });
+
+  it('shows nothing on a selected GLS before the approach modes arm, whatever the guidance reports', () => {
+    const notArmed = (fcdcBits: number[]) =>
+      computeD1D2Message(word(), word(), word(fcdcBits), true, FlsCapability.None, GlsCapability.NotArmed);
+    expect(notArmed([LAND2_CAPACITY])).toBe(D1D2Messages.NONE);
+    expect(notArmed([LAND3_PASSIVE_CAPACITY])).toBe(D1D2Messages.NONE);
+    expect(notArmed([LAND3_OPERATIONAL_CAPACITY])).toBe(D1D2Messages.NONE);
+  });
+
+  it('shows CAT1 for the CAT 1 capability', () => {
+    expect(d1d2(GlsCapability.Cat1, [])).toBe(D1D2Messages.APPR_1);
+    expect(getD1D2Lines(D1D2Messages.APPR_1)).toEqual(['CAT1', '']);
+  });
+
+  it('never shows CAT2 or CAT3 on a GLS, whatever the flight guidance reports', () => {
+    for (const capability of [GlsCapability.Cat1, GlsCapability.AutoLand]) {
+      for (const bit of [LAND2_CAPACITY, LAND3_PASSIVE_CAPACITY, LAND3_OPERATIONAL_CAPACITY]) {
+        expect([D1D2Messages.LAND_2, D1D2Messages.LAND_3_SINGLE, D1D2Messages.LAND_3_DUAL]).not.toContain(
+          d1d2(capability, [bit]),
+        );
+      }
+    }
+  });
+
+  it('keeps the CAT words without a GLS capability', () => {
+    expect(d1d2(GlsCapability.None, [LAND2_CAPACITY])).toBe(D1D2Messages.LAND_2);
+  });
+});
+
+describe('A380X approach mode states for the GLS capability', () => {
+  const LAND_ACTIVE_WORD1 = 23;
+  const FLARE_WORD3 = 24;
+  const ROLL_OUT_WORD4 = 26;
+  const LOC_TRACK_WORD4 = 14;
+  const modes = (bits: { w1?: number[]; w2?: number[]; w3?: number[]; w4?: number[] }) =>
+    approachModeStates(word(bits.w1), word(bits.w2), word(bits.w3), word(bits.w4));
+  const capability = (states: ReturnType<typeof modes>, glsBits: Partial<Parameters<typeof glsCapability>[0]> = {}) =>
+    glsCapability({
+      glsSelected: true,
+      approachModesArmedOrEngaged: states.armedOrEngaged,
+      landModesEngaged: states.landModesEngaged,
+      flightGuidanceCat2OrBetter: true,
+      gls1LocValid: true,
+      gls2LocValid: true,
+      gls1GsValid: true,
+      gls2GsValid: true,
+      ...glsBits,
+    });
+
+  it('reports LOC tracking as armed or engaged and not as a landing mode', () => {
+    expect(modes({ w4: [LOC_TRACK_WORD4] })).toEqual({ armedOrEngaged: true, landModesEngaged: false });
+  });
+
+  it('reports LAND, FLARE and ROLL OUT as landing modes', () => {
+    expect(modes({ w1: [LAND_ACTIVE_WORD1] }).landModesEngaged).toBe(true);
+    expect(modes({ w3: [FLARE_WORD3] }).landModesEngaged).toBe(true);
+    expect(modes({ w4: [ROLL_OUT_WORD4] }).landModesEngaged).toBe(true);
+  });
+
+  it('keeps the GLS capability through LAND, FLARE and ROLL OUT even with the G/S invalid', () => {
+    for (const bits of [{ w1: [LAND_ACTIVE_WORD1] }, { w3: [FLARE_WORD3] }, { w4: [ROLL_OUT_WORD4] }]) {
+      const states = modes(bits);
+      expect(capability(states, { gls1GsValid: false, gls2GsValid: false })).toBe(GlsCapability.AutoLand);
+      expect(capability(states, { flightGuidanceCat2OrBetter: false })).toBe(GlsCapability.Cat1);
+      expect(computeD1D2Message(word(bits.w1), word(), word(), false, FlsCapability.None, capability(states))).toBe(
+        D1D2Messages.AUTO_LAND,
+      );
+    }
+  });
+
+  it('shows nothing when no approach mode is armed or engaged', () => {
+    expect(capability(modes({}))).toBe(GlsCapability.NotArmed);
   });
 });
 

@@ -1268,7 +1268,8 @@ export abstract class BaseFlightPlan<P extends FlightPlanPerformanceData = Fligh
   glideslopeIntercept(): number | undefined {
     // On ILS approaches altitude2 on the FACF is the GS intercept alt,
     // even when there is no descriptor (i.e. there's no alt constraint) - ARINC 424 5.29.
-    if (this.approach.type === ApproachType.Ils) {
+    // A GLS approach is a copy of the ILS approach of its runway and keeps that altitude.
+    if (this.approach.type === ApproachType.Ils || this.approach.type === ApproachType.Gls) {
       for (const leg of this.approachSegment.allLegs) {
         if (
           leg.isDiscontinuity === false &&

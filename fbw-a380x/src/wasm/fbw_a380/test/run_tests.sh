@@ -76,6 +76,12 @@ clang++ -std=c++20 -Wall -Wextra -Werror -I ../src -I ../src/model clb_limit_aft
 clang++ -std=c++20 -Wall -Wextra -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src \
   ap_overspeed_disconnect_test.cpp ../src/model/*.cpp -o ../obj/ap_overspeed_disconnect_test
 ../obj/ap_overspeed_disconnect_test
+# GLS words on the ILS bus and what the generated A380PrimComputerFg does with them (fbw-common GlsReceiver.h). With WITHOUT_THE_FIX=1
+# the ILS bus keeps the words of the detuned receiver and the test must fail. The model sources are built without -Werror, the test with it.
+clang++ -std=c++20 -Wall -Wextra -Werror -fsyntax-only -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src gls_guidance_test.cpp
+clang++ -std=c++20 $FLAGS -w -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src gls_guidance_test.cpp ../src/model/*.cpp \
+  -o ../obj/gls_guidance_test
+../obj/gls_guidance_test
 # A380 values of the normal law protections (high speed, pitch attitude, bank in high lift) and the direct law triggers
 # (abnormal attitude angle of attack, three IRs lost). With WITHOUT_THE_FIX=1 the lateral normal law is called without
 # its high lift input and the test must fail.

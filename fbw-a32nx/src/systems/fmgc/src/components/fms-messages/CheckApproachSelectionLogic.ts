@@ -14,8 +14,8 @@ import { FmgcFlightPhase } from '@shared/flightphase';
 const CHECK_APPR_SELECTION_DISTANCE_BEFORE_TOD_NM = 100;
 
 /**
- * Approaches for which the FMS itself tunes the landing system (LandingSystemSelectionManager isTunableApproach): the
- * "ILS" approaches of the message. Any other approach (RNAV, VOR, NDB...) is a non ILS approach.
+ * Approaches for which the FMS itself tunes the landing system (LandingSystemSelectionManager): the "ILS" approaches of
+ * the message, GLS included. Any other approach (RNAV, VOR, NDB...) is a non ILS approach.
  * @param approachType the approach type of the active flight plan
  * @returns whether the approach uses the landing system
  */
@@ -23,6 +23,7 @@ export function isLandingSystemApproach(approachType: ApproachType): boolean {
   switch (approachType) {
     case ApproachType.Igs:
     case ApproachType.Ils:
+    case ApproachType.Gls:
     case ApproachType.Lda:
     case ApproachType.Loc:
     case ApproachType.LocBackcourse:
@@ -31,6 +32,19 @@ export function isLandingSystemApproach(approachType: ApproachType): boolean {
     default:
       return false;
   }
+}
+
+/**
+ * A GLS is identified by its channel: it has no ident that the approach carries, and no frequency.
+ * @param approachChannel the channel of the GLS approach in the flight plan, null when the approach is not a GLS
+ * @param tunedChannel the channel the crew tuned, null when the tuned landing system is not a GLS
+ * @returns whether the tuned GLS is the one of the approach
+ */
+export function glsChannelCorrespondsWithApproach(
+  approachChannel: number | null,
+  tunedChannel: number | null,
+): boolean {
+  return approachChannel !== null && tunedChannel !== null && approachChannel === tunedChannel;
 }
 
 /**

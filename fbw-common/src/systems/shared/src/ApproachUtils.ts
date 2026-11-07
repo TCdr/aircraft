@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-// Copyright (c) 2023 FlyByWire Simulations
+// Copyright (c) 2023-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import { RunwayUtils, Approach, ApproachType } from '@flybywiresim/fbw-sdk';
@@ -20,7 +20,7 @@ export class ApproachUtils {
     // L(eft), C(entre), R(ight), T(true North) are the possible runway designators (ARINC424)
     // If there are multiple procedures for the same type of approach, an alphanumeric suffix is added to their names (last subpattern)
     // We are a little more lenient than ARINC424 in an effort to match non-perfect navdata, so we allow dashes, spaces, or nothing before the suffix
-    const match = name.trim().match(/^(ILS|LOC|RNAV|NDB|VOR|GPS)? ?(RW)?([0-9]{1,2}[LCRT]?)?([\s-]*([A-Z0-9]))?$/);
+    const match = name.trim().match(/^(ILS|GLS|LOC|RNAV|NDB|VOR|GPS)? ?(RW)?([0-9]{1,2}[LCRT]?)?([\s-]*([A-Z0-9]))?$/);
     if (!match) {
       return undefined;
     }
@@ -80,6 +80,8 @@ export class ApproachUtils {
 
   public static approachTypeString(type: ApproachType): string {
     switch (type) {
+      case ApproachType.Gls:
+        return 'GLS';
       case ApproachType.Gps:
         return 'GPS';
       case ApproachType.Ils:

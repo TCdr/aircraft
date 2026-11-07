@@ -3,7 +3,10 @@
 
 import { ApproachType } from '@flybywiresim/fbw-sdk';
 import { FmgcFlightPhase } from '@shared/flightphase';
-import { isLandingSystemApproach } from '@fmgc/components/fms-messages/CheckApproachSelectionLogic';
+import {
+  glsChannelCorrespondsWithApproach,
+  isLandingSystemApproach,
+} from '@fmgc/components/fms-messages/CheckApproachSelectionLogic';
 
 /*
  * CHECK APPR SEL (type II message, on the MFD and on the PFD FMA line 3): the flight crew manually tuned an ILS
@@ -23,6 +26,8 @@ export interface ApproachLandingSystem {
   type: ApproachType;
   /** ident of the recommended navaid of the final leg (the LOC/ILS of an ILS approach), null without */
   ident: string | null;
+  /** the channel of a GLS approach, null for any other approach */
+  glsChannel?: number | null;
 }
 
 /** The ILS that the flight crew tuned on the POSITION/NAVAIDS page (MMR tuning status) */
@@ -31,6 +36,8 @@ export interface ManuallyTunedIls {
   ident: string | null;
   /** the frequency in MHz, null when unknown */
   frequency: number | null;
+  /** the channel of a GLS, null for an ILS */
+  glsChannel?: number | null;
 }
 
 /**
@@ -49,6 +56,10 @@ export function tunedIlsCorrespondsWithApproach(
 ): boolean {
   if (!isLandingSystemApproach(approach.type)) {
     return false;
+  }
+  if (approach.type === ApproachType.Gls || (tuned.glsChannel ?? null) !== null) {
+    // A GLS has neither an ident nor a frequency to compare
+    return glsChannelCorrespondsWithApproach(approach.glsChannel ?? null, tuned.glsChannel ?? null);
   }
   if (tuned.ident !== null && approach.ident !== null) {
     return tuned.ident === approach.ident;
