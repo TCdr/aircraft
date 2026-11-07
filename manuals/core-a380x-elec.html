@@ -113,6 +113,7 @@ table.test td:nth-child(2) { width: 50%; }
 <div class="fmeta"><b>Aircraft:</b> A380X &nbsp;|&nbsp; <b>Where:</b> flyPad &gt; Presets (aircraft presets); EFIS control panels, SURV panel &nbsp;|&nbsp; <b>Status:</b> Not sim-tested.</div>
 <h3>What it is for</h3>
 <p>The A380X aircraft presets did not set the EFIS overlays or the transponder. Ready for taxi and Ready for takeoff now set the transponder to AUTO and TCAS to TA/RA, and the EFIS WX, TERR and TRAF buttons (WX on the captain side, TERR on the first officer side) by pushing the buttons, because the overlay variable is an FCU output that was overwritten every frame. The Ready for pushback preset now switches the external power off (it wrote the index instead of 0 to the external power switches), and a mistyped unit and three malformed conditions of the preset file are fixed. The common preset runner is on <code>core/lights</code>.</p>
+<p>Ready for taxi also arms the autobrake RTO mode once the braking system can arm it (A-SKID on, two PRIMs operative, an ADIRU aligned), Cold and dark and the after-landing presets disarm it, and every preset sets the STROBE switch like a click on the switch (position, AUTO and light in one move, no OFF flash); both sim-tested on 2026-11-07.</p>
 <h3>How to use</h3>
 <ol><li>Open flyPad &gt; Presets, choose Ready for taxi or Ready for takeoff and press <b>Load</b>.</li></ol>
 <h3>How to test</h3>
