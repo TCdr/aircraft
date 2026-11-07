@@ -23,6 +23,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 
 ## 2024.2.0
 
+1. [A380X] The aircraft presets now switch the strobe lights ON, AUTO or OFF in the sim, not only the switch position - @TCdr
 1. [A380X/MFD] FMS sends "no computed data" for the landing elevation and destination position when the flight plan has no destination - @TCdr
 1. [A380X/FWS] The stall warning sounds the cricket and STALL voice instead of BRAKE MAX BRAKING - @TCdr
 1. [A380X/FWS] The stall aural has priority over all other aural alerts and cuts any continuous alert, which sounds again after the stall - @TCdr
