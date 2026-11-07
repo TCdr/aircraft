@@ -2,7 +2,7 @@
 //
 // SPDX-License-Identifier: GPL-3.0
 
-import { ApproachUtils, NXUnits, RunwayUtils, ApproachType } from '@flybywiresim/fbw-sdk';
+import { ApproachUtils, NXUnits, RunwayUtils } from '@flybywiresim/fbw-sdk';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { CDUStepAltsPage } from './A320_Neo_CDU_StepAltsPage';
 import { CDUUplinkTakeoffDataPages } from './A320_Neo_CDU_UplinkTakeoffDataPages';
@@ -15,6 +15,7 @@ import { FlightPlanFlags } from '@fmgc/flightplanning/plans/FlightPlanFlags';
 import { BaseGeometryProfile } from '@fmgc/guidance/vnav/profile/BaseGeometryProfile';
 import { FlightPlan } from '@fmgc/flightplanning/plans/FlightPlan';
 import { descentCabinRateField, parseDescentCabinRateEntry } from '@fmgc/guidance/vnav/descent/CabinRepressurization';
+import { isPrecisionApproach } from './LandingSystemRows';
 
 export class CDUPerformancePage {
   static ShowPage(mcdu: LegacyFmsPageInterface, forPlan: FlightPlanIndex = FlightPlanIndex.Active, _phase = undefined) {
@@ -1214,7 +1215,7 @@ export class CDUPerformancePage {
     };
 
     const approach = plan.approach;
-    const isILS = approach && approach.type === ApproachType.Ils;
+    const isILS = approach && isPrecisionApproach(approach.type);
     let radioLabel = '';
     let radioCell = '';
     if (isILS) {

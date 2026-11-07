@@ -179,6 +179,11 @@ import {
 import { OverheadWaypointRecorder } from '../legacy_pages/ProgressReportFields';
 import { flsBeamOfPlan } from '@fmgc/navigation/fls/FlsBeam';
 import { FlsBeamPublisher } from '@fmgc/navigation/fls/FlsBeamPublisher';
+import { GbasUplinkPublisher } from '@fmgc/navigation/gls/GbasUplinkPublisher';
+import { createGlsSyntheticApproachProvider } from '@fmgc/navigation/gls/GlsSyntheticApproaches';
+import { ManualGlsTuningResult, tuneManualGls } from '@fmgc/navigation/gls/ManualGlsTuning';
+import { GlsManualEntryField } from '@fmgc/navigation/LandingSystemTuning';
+import { gbasAirports } from '../../../../../../../fbw-common/src/systems/shared/src/gbas/GbasApproachTable';
 import { EgpwcRunwayWords } from '@fmgc/navigation/EgpwcRunwayWords';
 export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInterface, Fmgc {
   private static DEBUG_INSTANCE: FMCMainDisplay;
@@ -224,6 +229,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
   private readonly flightPhaseUpdateThrottler = new UpdateThrottler(800);
   private readonly fmsUpdateThrottler = new UpdateThrottler(250);
   private readonly flsBeamPublisher = new FlsBeamPublisher();
+  private readonly gbasUplinkPublisher = new GbasUplinkPublisher();
   private readonly _progBrgDistUpdateThrottler = new UpdateThrottler(2000);
   private readonly fuelPredUpdateThrottler = new UpdateThrottler(5000);
   private readonly speedsUpdateThrottler = new UpdateThrottler(1000);
@@ -552,6 +558,8 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     FMCMainDisplay.DEBUG_INSTANCE = this;
     this.currFlightPlanService.createFlightPlans();
     this.currNavigationDatabaseService.activeDatabase = this.navigationDatabase;
+    // GLS approaches are listed at the airports of the GBAS table only, never as a copy of any other approach
+    this.navigationDatabase.backendDatabase.setSyntheticApproachProvider(createGlsSyntheticApproachProvider());
 
     this.addModule(new EngineOutMonitor(this.bus));
   }
@@ -962,6 +970,11 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
         this.flightPhaseManager.phase,
       );
       this.updateIlsCourse();
+      const navaidTuner = this.navigation.getNavaidTuner();
+      this.gbasUplinkPublisher.publish(
+        navaidTuner.getMmrRadioTuningStatus(1).gls,
+        navaidTuner.getMmrRadioTuningStatus(2).gls,
+      );
       this.updatePerfPageAltPredictions();
       this.updateRecMaxFlightLevel();
       this.checkTimeToExit();
@@ -2617,6 +2630,10 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
   private async updateIlsCourse() {
     let course = -1;
     const mmr = this.navigation.getNavaidTuner().getMmrRadioTuningStatus(1);
+    if (mmr.gls) {
+      // A selected GLS is the active landing system, so its course must not give way to an FLS beam course
+      return SimVar.SetSimVarValue('L:A32NX_FM_LS_COURSE', 'number', mmr.gls.course ?? -1);
+    }
     if (mmr.course !== null) {
       course = mmr.course;
     } else if (mmr.frequency !== null && SimVar.GetSimVarValue('L:A32NX_RADIO_RECEIVER_LOC_IS_VALID', 'number') === 1) {
@@ -4393,6 +4410,33 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
    */
   public async setManualIls(facilityOrFrequency: number | IlsNavaid | null): Promise<void> {
     return await this.navigation.getNavaidTuner().setManualIls(facilityOrFrequency);
+  }
+
+  private glsTableAirports: { ident: string; location: Coordinates }[] | null = null;
+
+  /**
+   * Tunes the GLS that the crew typed as a channel or a reference path identifier
+   * @param entry what the crew typed
+   * @param field the field it was typed into
+   */
+  public async tuneManualGls(entry: string, field: GlsManualEntryField): Promise<ManualGlsTuningResult> {
+    const plan = this.flightPlanService.active;
+    const database = this.navigationDatabase.backendDatabase;
+    return tuneManualGls(entry, field, {
+      destinationIdent: plan.destinationAirport?.ident ?? null,
+      originIdent: plan.originAirport?.ident ?? null,
+      presentPosition: this.navigation.getPpos(),
+      loadTableAirports: async () => {
+        if (!this.glsTableAirports) {
+          const airports = await database.getAirports(gbasAirports());
+          this.glsTableAirports = airports.map((airport) => ({ ident: airport.ident, location: airport.location }));
+        }
+        return this.glsTableAirports;
+      },
+      loadRunways: (airportIdent) => database.getRunways(airportIdent),
+      isTuningLocked: () => this.isMmrTuningLocked(),
+      setManualGls: (gls, manualField) => this.navigation.getNavaidTuner().setManualGls(gls, manualField),
+    });
   }
 
   /**

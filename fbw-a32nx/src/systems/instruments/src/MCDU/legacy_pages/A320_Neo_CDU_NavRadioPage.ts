@@ -3,12 +3,24 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { RadioUtils } from '@flybywiresim/fbw-sdk';
-import { NXSystemMessages } from '../messages/NXSystemMessages';
+import { NXFictionalMessages, NXSystemMessages } from '../messages/NXSystemMessages';
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { Keypad } from '../legacy/A320_Neo_CDU_Keypad';
 import { LegacyFmsPageInterface } from '../legacy/LegacyFmsPageInterface';
 import { MmrRadioTuningStatus } from '@fmgc/navigation/NavaidTuner';
-import { adfBfoAction, adfBfoCell } from './NavRadioFields';
+import { canEnterLsCourse } from '@fmgc/navigation/LandingSystemTuning';
+import { RPI_PATTERN } from '@fmgc/navigation/gls/ManualGlsEntry';
+import { ManualGlsTuningResult } from '@fmgc/navigation/gls/ManualGlsTuning';
+import {
+  adfBfoAction,
+  adfBfoCell,
+  classifyLsEntry,
+  lsCourseCell,
+  lsCourseTitle,
+  lsFieldCell,
+  showsLsSlope,
+} from './NavRadioFields';
+import { isPrecisionApproach } from './LandingSystemRows';
 
 export class CDUNavRadioPage {
   static ShowPage(mcdu: LegacyFmsPageInterface) {
@@ -213,16 +225,41 @@ export class CDUNavRadioPage {
         CDUNavRadioPage.ShowPage(mcdu);
       });
 
+    const onFailure = (error: unknown) => {
+      mcdu.logTroubleshootingError(error);
+      mcdu.setScratchpadMessage(NXFictionalMessages.internalError);
+      console.error(error);
+      scratchpadCallback();
+    };
+
     if (input === Keypad.clrValue) {
       const mmr = mcdu.getMmrTuningData(1);
       if (mmr.manual) {
-        mcdu.setManualIls(null).then(onDone);
+        mcdu.setManualIls(null).then(onDone).catch(onFailure);
       } else {
         mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
         scratchpadCallback();
         return;
       }
-    } else if (input.match(/^\d{3}(\.\d{1,2})?$/) !== null) {
+    } else if (classifyLsEntry(input) === 'channel') {
+      mcdu
+        .tuneManualGls(input, 'channel')
+        .then((result) => {
+          if (result === 'tuned') {
+            onDone();
+          } else if (result === 'locked') {
+            // The first entry waits for the airport facilities, and the lock can engage meanwhile
+            mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
+            scratchpadCallback();
+          } else {
+            // 5 digits outside the GLS channels 20001 to 39999
+            mcdu.setScratchpadMessage(NXSystemMessages.entryOutOfRange);
+            scratchpadCallback();
+          }
+        })
+        .catch(onFailure);
+      return;
+    } else if (classifyLsEntry(input) === 'frequency') {
       const freq = parseInt(input.replace('.', '').padEnd(5, '0'), 16) << 8;
 
       if (!RadioUtils.isValidRange(freq, RadioUtils.RadioChannelType.IlsNavaid50)) {
@@ -235,24 +272,43 @@ export class CDUNavRadioPage {
         return false;
       }
 
-      mcdu.setManualIls(RadioUtils.unpackBcd32(freq) / 1e6).then(onDone);
-    } else if (input.length >= 1 && input.length <= 4) {
-      // ident
-      mcdu.getOrSelectILSsByIdent(input, (navaid) => {
-        if (navaid) {
-          if (mcdu.deselectedNavaids.find((databaseId) => databaseId === navaid.databaseId)) {
-            mcdu.setScratchpadMessage(NXSystemMessages.xxxIsDeselected.getModifiedMessage(navaid.ident));
+      mcdu
+        .setManualIls(RadioUtils.unpackBcd32(freq) / 1e6)
+        .then(onDone)
+        .catch(onFailure);
+    } else if (classifyLsEntry(input) === 'ident') {
+      // A reference path identifier of the destination or origin is a GLS, anything else an ILS ident
+      const tryGls = RPI_PATTERN.test(input)
+        ? mcdu.tuneManualGls(input, 'ident')
+        : Promise.resolve<ManualGlsTuningResult>('unknown-rpi');
+      tryGls
+        .then((glsResult) => {
+          if (glsResult === 'tuned') {
+            onDone();
+            return;
+          }
+          if (glsResult === 'locked') {
+            mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
             scratchpadCallback();
             return;
           }
+          mcdu.getOrSelectILSsByIdent(input, (navaid) => {
+            if (navaid) {
+              if (mcdu.deselectedNavaids.find((databaseId) => databaseId === navaid.databaseId)) {
+                mcdu.setScratchpadMessage(NXSystemMessages.xxxIsDeselected.getModifiedMessage(navaid.ident));
+                scratchpadCallback();
+                return;
+              }
 
-          mcdu.setManualIls(navaid).then(onDone);
-        } else {
-          // FIXME new navaid page when it's built
-          mcdu.setScratchpadMessage(NXSystemMessages.notInDatabase);
-          scratchpadCallback();
-        }
-      });
+              mcdu.setManualIls(navaid).then(onDone).catch(onFailure);
+            } else {
+              // FIXME new navaid page when it's built
+              mcdu.setScratchpadMessage(NXSystemMessages.notInDatabase);
+              scratchpadCallback();
+            }
+          });
+        })
+        .catch(onFailure);
       return;
     } else {
       mcdu.setScratchpadMessage(NXSystemMessages.formatError);
@@ -262,24 +318,19 @@ export class CDUNavRadioPage {
   }
 
   static renderMmr(mcdu: LegacyFmsPageInterface) {
-    const mmr = mcdu.getMmrTuningData(1);
-    let identText: string;
-    let freqText: string;
-    if (mmr.frequency !== null) {
-      const ident = mmr.ident !== null ? mmr.ident : '[\xa0\xa0]';
-      identText = `{${mmr.manual ? 'big' : 'small'}}${ident.padStart(4, '\xa0')}{end}`;
-      freqText = `{${mmr.manual && mmr.ident === null ? 'big' : 'small'}}${mmr.frequency.toFixed(2)}{end}`;
-    } else {
-      identText = '[\xa0\xa0]';
-      freqText = '[\xa0\xa0\xa0\xa0]';
-    }
-
-    return `{cyan}${identText}{${mmr.manual ? 'big' : 'small'}}/{end}${freqText}{end}`;
+    return lsFieldCell(mcdu.getMmrTuningData(1));
   }
 
   static handleMmrCrsLsk(mcdu: LegacyFmsPageInterface, input: string, scratchpadCallback: () => void) {
     if (mcdu.isMmrTuningLocked()) {
       mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
+      return;
+    }
+
+    if (!canEnterLsCourse(mcdu.getMmrTuningData(1))) {
+      // The receiver takes the course of a GLS from the ground station
+      mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
+      scratchpadCallback();
       return;
     }
 
@@ -323,31 +374,18 @@ export class CDUNavRadioPage {
 
   static showSlope(mcdu: LegacyFmsPageInterface, mmr: MmrRadioTuningStatus) {
     const takeoff = mcdu.flightPhaseManager.phase <= FmgcFlightPhase.Takeoff;
-    const ilsAppr = mcdu.flightPlanService.active.approach && mcdu.flightPlanService.active.approach.type === 5; // ILS
-    return mmr.manual || (!takeoff && ilsAppr);
+    const approachType = mcdu.flightPlanService.active.approach?.type;
+    return showsLsSlope(mmr, takeoff, isPrecisionApproach(approachType));
   }
 
   static renderMmrCrs(mcdu: LegacyFmsPageInterface) {
     const mmr = mcdu.getMmrTuningData(1);
-    const showSlope = CDUNavRadioPage.showSlope(mcdu, mmr);
-    const slope =
-      mmr.slope !== null ? `\xa0\xa0{small}{green}${mmr.slope.toFixed(1)}{end}{end}` : '{white}\xa0\xa0\xa0-.-{end}';
-    if (mmr.course !== null) {
-      return `{${mmr.courseManual ? 'big' : 'small'}}{cyan}${mmr.backcourse ? 'B' : 'F'}${mmr.course.toFixed(0).padStart(3, '0')}{end}{end}${showSlope ? slope : ''}`;
-    }
-    if (mmr.frequency !== null) {
-      return `{amber}____{end}${slope}`;
-    }
-    return '{cyan}[\xa0\xa0]{end}';
+    return lsCourseCell(mmr, CDUNavRadioPage.showSlope(mcdu, mmr));
   }
 
-  static renderMmrCrsTitle(mcdu) {
+  static renderMmrCrsTitle(mcdu: LegacyFmsPageInterface) {
     const mmr = mcdu.getMmrTuningData(1);
-    const showSlope = CDUNavRadioPage.showSlope(mcdu, mmr);
-    if (showSlope && mmr.frequency !== null) {
-      return 'CRS\xa0\xa0\xa0SLOPE';
-    }
-    return 'CRS';
+    return lsCourseTitle(mmr, CDUNavRadioPage.showSlope(mcdu, mmr));
   }
 
   static handleAdfLsk(

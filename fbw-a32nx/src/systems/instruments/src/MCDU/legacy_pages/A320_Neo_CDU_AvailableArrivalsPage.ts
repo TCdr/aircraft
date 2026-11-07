@@ -32,6 +32,8 @@ import { CDUFlightPlanPage } from './A320_Neo_CDU_FlightPlanPage';
 import { NXFictionalMessages, NXSystemMessages } from '../messages/NXSystemMessages';
 import { LegacyFmsPageInterface } from '../legacy/LegacyFmsPageInterface';
 import { FlightPlanIndex } from '@fmgc/flightplanning/FlightPlanManager';
+import { findGbasApproachOfApproach } from '@fmgc/navigation/gls/GlsApproachData';
+import { glsApproachText, ilsApproachText } from './LandingSystemRows';
 
 const ApproachTypeOrder = Object.freeze({
   [ApproachType.Mls]: 0,
@@ -217,8 +219,16 @@ export class CDUAvailableArrivalsPage {
                       ils.databaseId === finalLeg.recommendedNavaid.databaseId,
                   )
                 : undefined;
-            const hasIls = !!matchingIls;
-            const ilsText = hasIls ? `${matchingIls.ident.padStart(6)}/${matchingIls.frequency.toFixed(2)}` : '';
+            const glsApproach =
+              approachOrRunway.type === ApproachType.Gls
+                ? findGbasApproachOfApproach(airport.ident, approachOrRunway)
+                : undefined;
+            let ilsText = '';
+            if (glsApproach) {
+              ilsText = glsApproachText(glsApproach.rpi, glsApproach.channel);
+            } else if (matchingIls) {
+              ilsText = ilsApproachText(matchingIls.ident, matchingIls.frequency);
+            }
 
             rows[2 * i] = [
               `{${color}}${!isSelected ? '{' : '{sp}'}${ApproachUtils.shortApproachName(approachOrRunway)}{end}`,

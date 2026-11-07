@@ -26,12 +26,11 @@ import './MfdFmsPositionNavaids.scss';
 import { SelectedNavaidType } from '@fmgc/navigation/Navigation';
 import { NavigationDatabaseService } from '@fmgc/flightplanning/NavigationDatabaseService';
 import { canEnterLsCourse, GlsManualEntryField } from '@fmgc/navigation/LandingSystemTuning';
-import { createGlsApproachData, createUnknownGlsChannelData } from '@fmgc/navigation/gls/GlsApproachData';
-import { resolveManualGlsEntry, RPI_PATTERN } from '@fmgc/navigation/gls/ManualGlsEntry';
+import { RPI_PATTERN } from '@fmgc/navigation/gls/ManualGlsEntry';
+import { tuneManualGls } from '@fmgc/navigation/gls/ManualGlsTuning';
 import {
   GBAS_CHANNEL_MIN,
   gbasAirports,
-  findRunwayOfGbasApproach,
 } from '../../../../../../../../../fbw-common/src/systems/shared/src/gbas/GbasApproachTable';
 import {
   lsClassText,
@@ -39,7 +38,7 @@ import {
   lsFrequencyOrChannel,
   lsIdentEnteredByPilot,
   lsSlopeText,
-} from './LandingSystemTexts';
+} from '@fmgc/navigation/LandingSystemTexts';
 
 interface MfdFmsPositionNavaidsProps extends AbstractMfdPageProps {}
 
@@ -430,32 +429,23 @@ export class MfdFmsPositionNavaids extends FmsPage<MfdFmsPositionNavaidsProps> {
   private async handleGlsEntry(entry: string | number, field: GlsManualEntryField): Promise<boolean> {
     const master = this.props.fmcService.master;
     const plan = master.flightPlanInterface.active;
-    const tableAirports = await this.loadTableAirports();
-    const resolution = resolveManualGlsEntry(entry, {
+    const result = await tuneManualGls(entry, field, {
       destinationIdent: plan.destinationAirport?.ident ?? null,
       originIdent: plan.originAirport?.ident ?? null,
       presentPosition: master.navigation.getPpos(),
-      tableAirports,
+      loadTableAirports: () => this.loadTableAirports(),
+      loadRunways: (airportIdent) => NavigationDatabaseService.activeDatabase.backendDatabase.getRunways(airportIdent),
+      isTuningLocked: () => master.navaidTuner.isMmrTuningLocked(),
+      setManualGls: (gls, manualField) => master.navaidTuner.setManualGls(gls, manualField),
     });
 
-    switch (resolution.kind) {
-      case 'resolved': {
-        const runways = await NavigationDatabaseService.activeDatabase.backendDatabase.getRunways(
-          resolution.airportIdent,
-        );
-        const runway = findRunwayOfGbasApproach(runways, resolution.approach);
-        master.navaidTuner.setManualGls(createGlsApproachData(resolution.approach, runway ?? null), field);
-        break;
-      }
-      case 'unknown-channel':
-        master.navaidTuner.setManualGls(createUnknownGlsChannelData(resolution.channel), field);
-        break;
-      case 'unknown-rpi':
-        return false;
-      default:
-        master.addMessageToQueue(NXSystemMessages.notInDatabase, undefined, undefined);
+    if (result === 'locked') {
+      master.addMessageToQueue(NXSystemMessages.notAllowed, undefined, undefined);
     }
-    return true;
+    if (result === 'invalid') {
+      master.addMessageToQueue(NXSystemMessages.notInDatabase, undefined, undefined);
+    }
+    return result !== 'unknown-rpi';
   }
 
   async deselectionHandler(nV: string | null, oV: string | null | undefined) {

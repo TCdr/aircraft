@@ -322,12 +322,19 @@ describe('A380X approach mode states for the GLS capability', () => {
   const FLARE_WORD3 = 24;
   const ROLL_OUT_WORD4 = 26;
   const LOC_TRACK_WORD4 = 14;
+  const LOC_ARMED_WORD2 = 23;
+  const GS_ARMED_WORD2 = 13;
+  const LAND_ARMED_WORD2 = 28;
   const modes = (bits: { w1?: number[]; w2?: number[]; w3?: number[]; w4?: number[] }) =>
     approachModeStates(word(bits.w1), word(bits.w2), word(bits.w3), word(bits.w4));
-  const capability = (states: ReturnType<typeof modes>, glsBits: Partial<Parameters<typeof glsCapability>[0]> = {}) =>
+  const capability = (
+    states: ReturnType<typeof modes>,
+    glsBits: Partial<Parameters<typeof glsCapability>[0]> = {},
+    landArmed = false,
+  ) =>
     glsCapability({
       glsSelected: true,
-      approachModesArmedOrEngaged: states.armedOrEngaged,
+      catWordsCondition: word(landArmed ? [LAND_ARMED_WORD2] : []).bitValueOr(28, false),
       landModesEngaged: states.landModesEngaged,
       flightGuidanceCat2OrBetter: true,
       gls1LocValid: true,
@@ -360,6 +367,17 @@ describe('A380X approach mode states for the GLS capability', () => {
 
   it('shows nothing when no approach mode is armed or engaged', () => {
     expect(capability(modes({}))).toBe(GlsCapability.NotArmed);
+  });
+
+  it('shows nothing with LOC or G/S armed alone, where an ILS shows no CAT word either', () => {
+    expect(capability(modes({ w2: [LOC_ARMED_WORD2, GS_ARMED_WORD2] }))).toBe(GlsCapability.NotArmed);
+    expect(capability(modes({ w4: [LOC_TRACK_WORD4] }))).toBe(GlsCapability.NotArmed);
+  });
+
+  it('shows the capability once LAND is armed, as the ILS CAT words do', () => {
+    const locAndGsArmed = modes({ w2: [LOC_ARMED_WORD2, GS_ARMED_WORD2] });
+    expect(capability(locAndGsArmed, {}, true)).toBe(GlsCapability.AutoLand);
+    expect(capability(locAndGsArmed, { flightGuidanceCat2OrBetter: false }, true)).toBe(GlsCapability.Cat1);
   });
 });
 
