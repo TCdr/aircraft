@@ -55,7 +55,9 @@ const BINARY_OPERATORS: Record<string, (a: number, b: number) => number> = {
   '<=': (a, b) => (a <= b ? 1 : 0),
   '>=': (a, b) => (a >= b ? 1 : 0),
   and: (a, b) => (a && b ? 1 : 0),
+  '&&': (a, b) => (a && b ? 1 : 0),
   or: (a, b) => (a || b ? 1 : 0),
+  '||': (a, b) => (a || b ? 1 : 0),
   '+': (a, b) => a + b,
   '-': (a, b) => a - b,
   '*': (a, b) => a * b,
@@ -68,6 +70,7 @@ const BINARY_OPERATORS: Record<string, (a: number, b: number) => number> = {
 const UNARY_OPERATORS: Record<string, (a: number) => number> = {
   '!': (a) => (a ? 0 : 1),
   near: (a) => Math.round(a),
+  flr: (a) => Math.floor(a),
   abs: (a) => Math.abs(a),
 };
 

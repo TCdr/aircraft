@@ -1030,6 +1030,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [FMS] NO FLS FOR THIS APPR message when the selected non precision approach has no FLS beam (LDA, SDF, TACAN, final course more than 50° off the runway) - @TCdr
 1. [PFD] DISCONNECT AP FOR LDG also shows on FLS approaches (F-G/S) - @TCdr
 1. [A380X/PFD] DISCONNECT AP FOR LDG shows at the minimum - 50 ft (350 ft above the landing elevation without a minimum) in the approach phase, instead of at 150 ft radio height - @TCdr
+1. [A380X/EFB] The "Ready for Takeoff" preset arms the autobrake RTO mode and the after-landing preset disarms it; the RTO pb was never pressed - @TCdr
 
 ## 2024.1.0
 
