@@ -100,8 +100,8 @@ class ExtrasHost extends BaseInstrument {
   private readonly lightSync: LightSync = new LightSync(this.bus);
 
   private readonly baroUnitSelector = new BaroUnitSelector((isHpa) => {
-    SimVar.SetSimVarValue('L:XMLVAR_Baro_Selector_HPA_1', SimVarValueType.Bool, isHpa);
-    SimVar.SetSimVarValue('L:XMLVAR_Baro_Selector_HPA_2', SimVarValueType.Bool, isHpa);
+    SimVar.SetSimVarValue('L:A32NX_FCU_EFIS_L_BARO_IS_INHG', SimVarValueType.Bool, !isHpa);
+    SimVar.SetSimVarValue('L:A32NX_FCU_EFIS_R_BARO_IS_INHG', SimVarValueType.Bool, !isHpa);
   });
 
   private readonly gsxSync = new GsxSyncA380X(this.bus);
