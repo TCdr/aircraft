@@ -664,9 +664,21 @@ The StepType also defines if the step is executed in normal mode, expedited mode
             <Condition>(A:LIGHT TAXI:3, Number) 1 ==</Condition>
             <Action>3 (&gt;K:TAXI_LIGHTS_ON)</Action>
         </Step>
-        <Step Name="Autobrake RTO" Type="STEP" Delay="200">
+        <!-- The RTO pb is a momentary push button: the braking system acts on the press edge and a second press disarms, so the preset presses it only while RTO is not armed and then releases it, like a mouse click. A pb still held (by the mouse) is released first, or the press would show no edge. The braking system arms RTO only with A-SKID available, two PRIMs healthy and an ADIRU aligned, so the expedited preset waits for them (right after an expedited engine start they follow within seconds) and the press is made only when the system can arm; otherwise nothing is pressed and nothing waits. The PRIM healthy flag follows the FAULT light during the power-up self-test and is briefly true in the gaps of its light sequence: a press in such a gap arms RTO and the next light phase disarms it again. The F/CTL law status word is only sent once the test is complete, so a PRIM counts when the SSM field of that packed word (the part above the 32 data bits) reads normal operation (3); the word is divided down in two steps of 65536 so that every literal stays within the 32-bit integer range of the calculator code -->
+        <Step Name="Await AUTO BRK Arming Conditions" Type="ECON" Delay="200">
+            <Condition>(L:A32NX_BRAKES_PEDAL_BRAKING_MODE) 1 == (L:A32NX_BRAKES_PEDAL_BRAKING_MODE) 2 == || (L:A32NX_PRIM_1_FCTL_LAW_STATUS_WORD) 65536 / 65536 / flr 3 == (L:A32NX_PRIM_2_FCTL_LAW_STATUS_WORD) 65536 / 65536 / flr 3 == + (L:A32NX_PRIM_3_FCTL_LAW_STATUS_WORD) 65536 / 65536 / flr 3 == + 2 &gt;= &amp;&amp; (L:A32NX_ADIRS_ADIRU_1_STATE) 2 == (L:A32NX_ADIRS_ADIRU_2_STATE) 2 == || (L:A32NX_ADIRS_ADIRU_3_STATE) 2 == || &amp;&amp;</Condition>
+        </Step>
+        <Step Name="Autobrake RTO Not Held" Type="STEP" Delay="200">
             <Condition>(L:A32NX_OVHD_AUTOBRK_RTO_ARM_IS_PRESSED) 0 ==</Condition>
+            <Action>0 (&gt;L:A32NX_OVHD_AUTOBRK_RTO_ARM_IS_PRESSED)</Action>
+        </Step>
+        <Step Name="Autobrake RTO" Type="STEP" Delay="200">
+            <Condition>(L:A32NX_AUTOBRAKES_RTO_ARMED) (L:A32NX_BRAKES_PEDAL_BRAKING_MODE) 1 == (L:A32NX_BRAKES_PEDAL_BRAKING_MODE) 2 == || (L:A32NX_PRIM_1_FCTL_LAW_STATUS_WORD) 65536 / 65536 / flr 3 == (L:A32NX_PRIM_2_FCTL_LAW_STATUS_WORD) 65536 / 65536 / flr 3 == + (L:A32NX_PRIM_3_FCTL_LAW_STATUS_WORD) 65536 / 65536 / flr 3 == + 2 &gt;= &amp;&amp; (L:A32NX_ADIRS_ADIRU_1_STATE) 2 == (L:A32NX_ADIRS_ADIRU_2_STATE) 2 == || (L:A32NX_ADIRS_ADIRU_3_STATE) 2 == || &amp;&amp; ! ||</Condition>
             <Action>1 (&gt;L:A32NX_OVHD_AUTOBRK_RTO_ARM_IS_PRESSED)</Action>
+        </Step>
+        <Step Name="Autobrake RTO Release" Type="STEP" Delay="200">
+            <Condition>(L:A32NX_OVHD_AUTOBRK_RTO_ARM_IS_PRESSED) 0 ==</Condition>
+            <Action>0 (&gt;L:A32NX_OVHD_AUTOBRK_RTO_ARM_IS_PRESSED)</Action>
         </Step>
         <!-- The overlay variables are outputs of the FCU, so the EFIS pbs are pushed (from NONE or the other overlay a push selects its own) -->
         <!-- Before takeoff: WX on the pilot flying side (captain), TERR on the pilot monitoring side (first officer), TRAF on both -->
@@ -733,7 +745,16 @@ The StepType also defines if the step is executed in normal mode, expedited mode
                 (L:A380X_EFIS_R_ACTIVE_OVERLAY) 1 == if{ 1 (&gt;K:A32NX.FCU_EFIS_R_WX_PUSH) }
             </Action>
         </Step>
+        <!-- The same press and release of the RTO pb as before takeoff, here while RTO is armed so the press disarms it -->
+        <Step Name="Autobrake RTO Off Not Held" Type="STEP" Delay="200">
+            <Condition>(L:A32NX_OVHD_AUTOBRK_RTO_ARM_IS_PRESSED) 0 ==</Condition>
+            <Action>0 (&gt;L:A32NX_OVHD_AUTOBRK_RTO_ARM_IS_PRESSED)</Action>
+        </Step>
         <Step Name="Autobrake RTO Off" Type="STEP" Delay="2000">
+            <Condition>(L:A32NX_AUTOBRAKES_RTO_ARMED) !</Condition>
+            <Action>1 (&gt;L:A32NX_OVHD_AUTOBRK_RTO_ARM_IS_PRESSED)</Action>
+        </Step>
+        <Step Name="Autobrake RTO Off Release" Type="STEP" Delay="200">
             <Condition>(L:A32NX_OVHD_AUTOBRK_RTO_ARM_IS_PRESSED) 0 ==</Condition>
             <Action>0 (&gt;L:A32NX_OVHD_AUTOBRK_RTO_ARM_IS_PRESSED)</Action>
         </Step>
