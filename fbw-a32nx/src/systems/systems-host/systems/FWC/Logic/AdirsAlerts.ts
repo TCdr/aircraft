@@ -12,7 +12,7 @@ import { FlightControlStatusCodes as F } from './FlightControlStatus';
  * The STATUS lines that belong to the flight control law (MAX SPEED 320 KT, ALTN LAW: PROT LOST, WHEN L/G DN: DIRECT
  * LAW, INOP SYS F/CTL PROT) are not repeated here: they belong to the associated procedure F/CTL ALTN LAW (PROT LOST),
  * and the F/CTL ALTN LAW alert gives them when the ELACs revert (Logic/FlightControlStatus altnLawStatus).
- * Not shown: the options STEEP APPR, GLS AUTOLAND, ROW/ROP, and the FOR LDG USE FLAP 3 replacement when CONF 3 is
+ * Not shown: the options STEEP APPR, ROW/ROP, and the FOR LDG USE FLAP 3 replacement when CONF 3 is
  * selected.
  */
 
@@ -61,6 +61,7 @@ export const NavStatusCodes = {
   xpdr1: '340300005',
   xpdr2: '340300006',
   cat2: '270300028',
+  glsAutoland: '270300034',
   cat3: '240300128',
   cat3Dual: '220300001',
   // Limitations, conditions and information
@@ -323,7 +324,7 @@ export function adrFaultStatus(adr: AdirsUnit): StatusLines {
  * ADR 1+2(1+3)(2+3) FAULT STATUS: APPR PROC FOR LDG USE FLAP 3, GPWS LDG FLAP 3 ON, if ADR 1+3: L/G
  * GRVTY EXTN, APPR SPD VREF+10 KT, LDG DIST PROC APPLY, FLS LIMITED TO F-APP + RAW, if ADR 1+3 (or 2+3): BOTH PFD ON
  * THE SAME FAC; INOP SYS ADR (pair), AP 1+2, A/THR, ATC/XPDR 1 (ADR 1 failed), ATC/XPDR 2 (ADR 2 failed), RUD TRV LIM
- * 1(2) (ADR 1+3, 2+3), GPWS (ADR 1 failed), CAT 2.
+ * 1(2) (ADR 1+3, 2+3), GPWS (ADR 1 failed), CAT 2, GLS AUTOLAND.
  */
 export function adrDualFaultStatus(pair: AdirsPair): StatusLines {
   const index = pairIndex(pair);
@@ -351,6 +352,7 @@ export function adrDualFaultStatus(pair: AdirsPair): StatusLines {
       ...(adr23 ? [S.rudTrvLim2] : []),
       ...(affected(1) ? [S.gpws] : []),
       S.cat2,
+      S.glsAutoland,
     ],
   };
 }
@@ -385,8 +387,8 @@ export function irFaultStatus(ir: AdirsUnit): StatusLines {
 /**
  * IR 1+2(1+3)(2+3) FAULT STATUS: APPR PROC FOR LDG USE FLAP 3, GPWS LDG FLAP 3 ON, APPR SPD
  * VREF+10 KT, LDG DIST PROC APPLY, IR (AFFECTED) MAY BE AVAIL IN ATT, FLS LIMITED TO F-APP + RAW; INOP SYS IR (pair),
- * AP 1+2, A/THR, YAW DAMPER 1 (IR 1+3), YAW DAMPER 2 (IR 2+3), GPWS TERR (IR 1 fault), TCAS, CAT 2, ATC/XPDR 1 (IR 1
- * failed), ATC/XPDR 2 (IR 2 failed).
+ * AP 1+2, A/THR, YAW DAMPER 1 (IR 1+3), YAW DAMPER 2 (IR 2+3), GPWS TERR (IR 1 fault), TCAS, CAT 2, GLS AUTOLAND,
+ * ATC/XPDR 1 (IR 1 failed), ATC/XPDR 2 (IR 2 failed).
  */
 export function irDualFaultStatus(pair: AdirsPair): StatusLines {
   const index = pairIndex(pair);
@@ -402,6 +404,7 @@ export function irDualFaultStatus(pair: AdirsPair): StatusLines {
       ...(affected(1) ? [S.gpwsTerr] : []),
       S.tcas,
       S.cat2,
+      S.glsAutoland,
       ...(affected(1) ? [S.xpdr1] : []),
       ...(affected(2) ? [S.xpdr2] : []),
     ],
@@ -428,12 +431,13 @@ export function raFaultStatus(ra: 1 | 2): StatusLines {
 
 /**
  * RA 1 AND 2 FAULT STATUS: APPR PROC FOR LDG USE FLAPS 3, GPWS LDG FLAP 3 ON, APPR SPD VREF+10 KT,
- * LDG DIST PROC APPLY, WHEN L/G DN: DIRECT LAW; INOP SYS RA 1+2, A/CALL OUT, GPWS, CAT 2, REAC W/S DET, TCAS.
+ * LDG DIST PROC APPLY, WHEN L/G DN: DIRECT LAW; INOP SYS RA 1+2, A/CALL OUT, GPWS, CAT 2, GLS AUTOLAND,
+ * REAC W/S DET, TCAS.
  */
 export function ra1And2FaultStatus(): StatusLines {
   return {
     left: [...APPROACH_WITH_FLAP_3, F.whenLgDownDirectLaw],
-    inopSys: [S.ra12, S.aCallOut, S.gpws, S.cat2, S.reacWsDet, S.tcas],
+    inopSys: [S.ra12, S.aCallOut, S.gpws, S.cat2, S.glsAutoland, S.reacWsDet, S.tcas],
   };
 }
 

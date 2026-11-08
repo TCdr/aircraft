@@ -113,7 +113,7 @@ describe('F/CTL slat and flap fault and locked cautions', () => {
         'FUEL CONSUMPT INCRSD',
         'FMS PRED UNRELIABLE',
       ],
-      right: ['INOP SYS', 'FLAPS'],
+      right: ['INOP SYS', 'FLAPS', 'GLS AUTOLAND'],
     });
   });
 
@@ -174,7 +174,7 @@ describe('F/CTL slat and flap fault and locked cautions', () => {
         'FUEL CONSUMPT INCRSD',
         'FMS PRED UNRELIABLE',
       ],
-      right: ['INOP SYS', 'SLATS'],
+      right: ['INOP SYS', 'SLATS', 'GLS AUTOLAND'],
     });
 
     // Slats locked retracted: no aerodynamic penalty

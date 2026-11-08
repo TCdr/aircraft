@@ -357,6 +357,20 @@ describe('A320 HYD STATUS', () => {
     expect(ptuInoperative.right).toContain('Y ENG 2 PUMP');
   });
 
+  it('HYD B+Y, G+B and G+Y SYS LO PR list GLS AUTOLAND after CAT 2', () => {
+    const pages = [
+      hydraulicStatus.blueYellowSysLoPr(state(), NO_PUMP_LO_PR),
+      hydraulicStatus.greenBlueSysLoPr(state(), NO_PUMP_LO_PR),
+      hydraulicStatus.greenYellowSysLoPr(state()),
+    ];
+    for (const page of pages) {
+      const right = statusPage(page).right.split('\r');
+      const cat2 = right.indexOf('\x1b<4mCAT 2');
+      expect(cat2).toBeGreaterThan(0);
+      expect(right[cat2 + 1]).toBe('\x1b<4mGLS AUTOLAND');
+    }
+  });
+
   it('HYD G+B SYS LO PR: the limitations, then the approach procedure; no APPR PROC title for a dual LO LVL', () => {
     const lost = statusPage(hydraulicStatus.greenBlueSysLoPr(state(), NO_PUMP_LO_PR));
     const left = lost.left.split('\r');

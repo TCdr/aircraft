@@ -17,20 +17,21 @@ const AP_OFF_STATUS = {
   ap2: '240300130',
   ap12: '270300027',
   cat2: '270300028',
+  glsAutoland: '270300034',
 } as const;
 
 /**
  * AUTO FLT AP OFF after an involuntary disengagement (by other means than the takeover pb) has an ECAM STATUS: INOP SYS
- * the affected AP, and CAT 2 if both APs are lost.
+ * the affected AP, and CAT 2 and GLS AUTOLAND if both APs are lost.
  * The affected AP is the one its FMGC reports lost: FMGC discrete word 4 bit 19 "AP Inop" (A32NXFGBusPublisher), or no
- * valid word from that FMGC. Not shown: the GLS AUTOLAND option line.
+ * valid word from that FMGC.
  * @param ap1Lost AP 1 is lost (FMGC 1)
  * @param ap2Lost AP 2 is lost (FMGC 2)
  * @returns the STATUS lines, none when no AP is lost (the AP was disconnected by the FCU pb or a sidestick force)
  */
 export function autoPilotOffInvoluntaryStatus(ap1Lost: boolean, ap2Lost: boolean): StatusLines {
   if (ap1Lost && ap2Lost) {
-    return { left: [], inopSys: [AP_OFF_STATUS.ap12, AP_OFF_STATUS.cat2] };
+    return { left: [], inopSys: [AP_OFF_STATUS.ap12, AP_OFF_STATUS.cat2, AP_OFF_STATUS.glsAutoland] };
   }
   if (ap1Lost) {
     return { left: [], inopSys: [AP_OFF_STATUS.ap1] };

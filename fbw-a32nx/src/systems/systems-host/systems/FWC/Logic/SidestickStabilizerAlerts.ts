@@ -110,6 +110,7 @@ function stabilizerJamStatus(): StatusLines {
       FctlCodes.elacPitch,
       FctlCodes.ap12,
       FctlCodes.cat2,
+      FctlCodes.glsAutoland,
     ],
   };
 }

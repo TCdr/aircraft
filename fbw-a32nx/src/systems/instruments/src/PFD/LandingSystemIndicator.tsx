@@ -217,12 +217,24 @@ class LandingSystemInfo extends DisplayComponent<LandingSystemInfoProps> {
 
   private readonly dmeInterrogatorPowered = ConsumerSubject.create(null, true);
 
+  private readonly ownGlsFailed = ConsumerSubject.create(null, false);
+
+  private readonly gbasStationFailed = ConsumerSubject.create(null, false);
+
+  private readonly glsReceiverFailed = MappedSubject.create(
+    ([glsSelected, ownGlsFailed, gbasStationFailed]) => glsSelected && (ownGlsFailed || gbasStationFailed),
+    this.glsSelected,
+    this.ownGlsFailed,
+    this.gbasStationFailed,
+  );
+
   private readonly isIlsFlagShown = MappedSubject.create(
-    ([lsSelected, ilsReceiverPowered, dmeInterrogatorPowered]) =>
-      isIlsFlagShown({ lsSelected, ilsReceiverPowered, dmeInterrogatorPowered }),
+    ([lsSelected, ilsReceiverPowered, dmeInterrogatorPowered, glsReceiverFailed]) =>
+      isIlsFlagShown({ lsSelected, ilsReceiverPowered, dmeInterrogatorPowered, glsReceiverFailed }),
     this.props.isVisible,
     this.ilsReceiverPowered,
     this.dmeInterrogatorPowered,
+    this.glsReceiverFailed,
   );
 
   private readonly isDmeFlagShown = MappedSubject.create(
@@ -313,6 +325,8 @@ class LandingSystemInfo extends DisplayComponent<LandingSystemInfoProps> {
     this.glsLocValid,
     this.glsIdentWord,
     this.glsThresholdDistance,
+    this.ownGlsFailed,
+    this.gbasStationFailed,
   ];
 
   onAfterRender(node: VNode): void {
@@ -337,6 +351,8 @@ class LandingSystemInfo extends DisplayComponent<LandingSystemInfoProps> {
     const ownSideTopics = ownSideGlsTopics(getDisplayIndex());
     this.glsChannel.setConsumer(sub.on(ownSideTopics.channel));
     this.glsLocValid.setConsumer(sub.on(ownSideTopics.locValid));
+    this.ownGlsFailed.setConsumer(sub.on(ownSideTopics.failed));
+    this.gbasStationFailed.setConsumer(sub.on('gbasStationFailed'));
     this.glsIdentWord.setConsumer(sub.on('gbasIdent'));
     this.glsThresholdDistance.setConsumer(sub.on('glsThresholdDistance').withPrecision(1));
 

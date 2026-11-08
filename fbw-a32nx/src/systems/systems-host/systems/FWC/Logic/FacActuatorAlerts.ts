@@ -169,8 +169,8 @@ export const facActuatorStatus = {
   }),
   /**
    * YAW DAMPER SYS STATUS: MAX SPEED 320 KT, APPR PROC (FOR LDG USE FLAP 3, GPWS LDG FLAP 3 ON, APPR SPD
-   * VREF+10 KT, LDG DIST PROC APPLY), ALTN LAW: PROT LOST; INOP SYS F/CTL PROT, YAW DAMPER, AP 1+2, CAT 2. Not shown: GLS AUTOLAND (option)
-   * and the "FOR LDG : USE FLAP 3" reminder variant (as the F/CTL ALTN LAW STATUS, FlightControlStatus).
+   * VREF+10 KT, LDG DIST PROC APPLY), ALTN LAW: PROT LOST; INOP SYS F/CTL PROT, YAW DAMPER, AP 1+2, CAT 2, GLS AUTOLAND.
+   * Not shown: the "FOR LDG : USE FLAP 3" reminder variant (as the F/CTL ALTN LAW STATUS, FlightControlStatus).
    */
   yawDamperSystem: (): StatusLines => ({
     left: [
@@ -182,12 +182,12 @@ export const facActuatorStatus = {
       F.ldgDistProcApply,
       F.altnLawProtLost,
     ],
-    inopSys: [F.fctlProt, S.yawDamper, F.ap12, F.cat2],
+    inopSys: [F.fctlProt, S.yawDamper, F.ap12, F.cat2, F.glsAutoland],
   }),
-  /** RUD TRIM SYS STATUS: INOP SYS RUD TRIM, AP 1+2, CAT 2. Not shown: GLS AUTOLAND (option). */
+  /** RUD TRIM SYS STATUS: INOP SYS RUD TRIM, AP 1+2, CAT 2, GLS AUTOLAND. */
   rudderTrimSystem: (): StatusLines => ({
     left: [],
-    inopSys: [S.rudderTrim, F.ap12, F.cat2],
+    inopSys: [S.rudderTrim, F.ap12, F.cat2, F.glsAutoland],
   }),
   /**
    * RUD TRV LIM SYS STATUS: RUD WITH CARE ABV 160 KT, and when the TLU stays locked at high speed after

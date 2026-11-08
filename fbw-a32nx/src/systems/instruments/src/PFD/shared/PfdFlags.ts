@@ -36,17 +36,20 @@ export interface LandingSystemFlagInputs {
   ilsReceiverPowered: boolean;
   /** the DME interrogator read by this PFD (DME 1 for PFD 1, DME 2 for PFD 2) is powered */
   dmeInterrogatorPowered: boolean;
+  /** a GLS is selected and the GLS function of that MMR, or the ground station, is failed: the receiver sends no GLS */
+  glsReceiverFailed?: boolean;
 }
 
 /**
  * ILS1 (ILS2) flag (red): replaces the ILS frequency indication on PFD 1 (PFD 2) when the ILS frequency, the LOC or
  * the G/S signal fails. The sim has no ILS receiver failure: the receiver fails when it loses its power (LS 1 is lost
- * with the AC ESS bus, ILS 2 with the AC bus 2).
+ * with the AC ESS bus, ILS 2 with the AC bus 2). The same receiver holds the GLS: a failed GLS function or ground station
+ * is a lost frequency on a GLS approach.
  * @param i the inputs
  * @returns whether the ILS flag replaces the ILS ident and frequency
  */
 export function isIlsFlagShown(i: LandingSystemFlagInputs): boolean {
-  return i.lsSelected && !i.ilsReceiverPowered;
+  return i.lsSelected && (!i.ilsReceiverPowered || !!i.glsReceiverFailed);
 }
 
 /**

@@ -18,7 +18,7 @@ import { Subject } from '@microsoft/msfs-sdk';
  * Not modelled (design choice): the FUEL CONSUMPT INCRSD / FMS PRED UNRELIABLE lines, shown when the failures affect the
  * nominal aerodynamic characteristics of the aircraft: that condition is not computed. ELEC EMER CONFIG gives them, its
  * procedure lists them with no condition (see elecEmerConfigFuelLines). The option lines (CRG HEAT/VENT, STEEP APPR,
- * ROW/ROP, GLS AUTOLAND), the A321 ACT PUMP and the "Other INOP SYS" lists, which the ECAM does not display, are left
+ * ROW/ROP), the A321 ACT PUMP and the "Other INOP SYS" lists, which the ECAM does not display, are left
  * out too.
  */
 
@@ -395,6 +395,7 @@ const S = {
   lWndwHeat: '240300125',
   rWndwHeat: '240300126',
   cat2: '240300127',
+  glsAutoland: '240300316',
   cat3: '240300128',
   ap1: '240300129',
   ap2: '240300130',
@@ -512,6 +513,7 @@ export function acBus2FaultStatus(): ElecAlertStatus {
       S.brkSys2,
       S.yawDamper2,
       S.cat2,
+      S.glsAutoland,
       S.atcXpdr2,
       S.ls2,
       S.gps2,
@@ -530,6 +532,7 @@ export function acEssBusFaultStatus(): ElecAlertStatus {
       S.captPitot,
       S.captAoa,
       S.cat2,
+      S.glsAutoland,
       S.sdac1,
       S.fwc1,
       S.dmc1,

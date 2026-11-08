@@ -368,6 +368,7 @@ export const StatusMessageEntries: [string, StatusMessage][] = [
   ['220300010', { part: StatusPart.InopSys, text: 'RUD TRV LIM' }],
   ['270300027', { part: StatusPart.InopSys, text: 'AP 1+2' }],
   ['270300028', { part: StatusPart.InopSys, text: 'CAT 2' }],
+  ['270300034', { part: StatusPart.InopSys, text: 'GLS AUTOLAND' }],
   // 22 AUTO FLIGHT (FWS FWC 1(2) FAULT)
   ['220300001', { part: StatusPart.InopSys, text: 'CAT 3 DUAL' }],
   // 22 AUTO FLIGHT (YAW DAMPER 1(2), RUD TRIM 1(2) FAULT, RUD TRV LIM 1(2), after CAT 3 DUAL as on the aircraft, see
@@ -437,6 +438,7 @@ export const StatusMessageEntries: [string, StatusMessage][] = [
   ['290300046', { part: StatusPart.InopSys, text: 'YAW DAMPER 1' }],
   ['290300047', { part: StatusPart.InopSys, text: 'YAW DAMPER 2' }],
   ['290300048', { part: StatusPart.InopSys, text: 'CAT 2' }],
+  ['290300050', { part: StatusPart.InopSys, text: 'GLS AUTOLAND' }],
   ['290300049', { part: StatusPart.InopSys, text: 'RAT' }],
   // 49 APU (APU AUTO (EMER) SHUT DOWN INOP SYS)
   ['490300001', { part: StatusPart.InopSys, text: 'APU' }],
@@ -619,6 +621,7 @@ export const StatusMessageEntries: [string, StatusMessage][] = [
   ['240300125', { part: StatusPart.InopSys, text: 'L WNDW HEAT' }],
   ['240300126', { part: StatusPart.InopSys, text: 'R WNDW HEAT' }],
   ['240300127', { part: StatusPart.InopSys, text: 'CAT 2' }],
+  ['240300316', { part: StatusPart.InopSys, text: 'GLS AUTOLAND' }],
   ['240300128', { part: StatusPart.InopSys, text: 'CAT 3' }],
   ['240300129', { part: StatusPart.InopSys, text: 'AP 1' }],
   ['240300130', { part: StatusPart.InopSys, text: 'AP 2' }],

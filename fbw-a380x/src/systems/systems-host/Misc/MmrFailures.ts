@@ -17,9 +17,23 @@ export function isNav3ReceiverOn(isFailureActive: (failure: number) => boolean):
 }
 
 /**
+ * Whether the GLS of an MMR is failed: its GLS function or the whole MMR. The FBW module reads the result as
+ * L:A32NX_GLS_{1,2}_FAILED and sends no computed GLS data from that MMR.
+ * @param isFailureActive whether a flyPad failure is active
+ * @param mmr the MMR, 1 or 2
+ * @returns whether the GLS of the MMR is failed
+ */
+export function isGlsFailed(isFailureActive: (failure: number) => boolean, mmr: 1 | 2): boolean {
+  return mmr === 1
+    ? isFailureActive(A380Failure.Mmr1GlsFunction) || isFailureActive(A380Failure.Mmr1)
+    : isFailureActive(A380Failure.Mmr2GlsFunction) || isFailureActive(A380Failure.Mmr2);
+}
+
+/**
  * Switches the sim NAV 3 radio off while the ILS receiver of MMR 1 is failed (MMR 1 or ILS 1 receiver failure).
  * NAV 4 (MMR 2) has no sim circuit: with MMR 2 failed, PFD 2 still shows the ident, frequency and DME of NAV 4, but
- * no localiser and glideslope (the Rust MMR 2 shim).
+ * no localiser and glideslope (the Rust MMR 2 shim). Publishes the failures of the GLS (L:A32NX_GLS_{1,2}_FAILED,
+ * L:A32NX_GBAS_STATION_FAILED).
  */
 export class MmrFailures implements Instrument {
   /** systems.cfg circuit.39 = CIRCUIT_NAV:3 */
@@ -30,6 +44,10 @@ export class MmrFailures implements Instrument {
 
   private lastToggleTime = 0;
 
+  private readonly publishedGlsFailed: (boolean | undefined)[] = [undefined, undefined];
+
+  private publishedGbasStationFailed: boolean | undefined;
+
   constructor(private readonly failuresConsumer: FailuresConsumer) {}
 
   /** @inheritdoc */
@@ -37,6 +55,8 @@ export class MmrFailures implements Instrument {
 
   /** @inheritdoc */
   onUpdate(): void {
+    this.publishGlsFailures();
+
     const circuit = MmrFailures.NAV_3_MSFS_CIRCUIT;
     const shouldBeOn = isNav3ReceiverOn((failure) => this.failuresConsumer.isActive(failure));
     const isOn = SimVar.GetSimVarValue(`A:CIRCUIT SWITCH ON:${circuit}`, 'bool') > 0;
@@ -44,6 +64,21 @@ export class MmrFailures implements Instrument {
     if (shouldBeOn !== isOn && now - this.lastToggleTime >= MmrFailures.TOGGLE_RETRY_MS) {
       this.lastToggleTime = now;
       SimVar.SetSimVarValue('K:ELECTRICAL_CIRCUIT_TOGGLE', 'number', circuit);
+    }
+  }
+
+  private publishGlsFailures(): void {
+    for (const mmr of [1, 2] as const) {
+      const failed = isGlsFailed((failure) => this.failuresConsumer.isActive(failure), mmr);
+      if (failed !== this.publishedGlsFailed[mmr - 1]) {
+        this.publishedGlsFailed[mmr - 1] = failed;
+        SimVar.SetSimVarValue(`L:A32NX_GLS_${mmr}_FAILED`, 'bool', failed);
+      }
+    }
+    const stationFailed = this.failuresConsumer.isActive(A380Failure.GbasGroundStation);
+    if (stationFailed !== this.publishedGbasStationFailed) {
+      this.publishedGbasStationFailed = stationFailed;
+      SimVar.SetSimVarValue('L:A32NX_GBAS_STATION_FAILED', 'bool', stationFailed);
     }
   }
 }

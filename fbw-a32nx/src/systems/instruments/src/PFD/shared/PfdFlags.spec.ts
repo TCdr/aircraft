@@ -44,6 +44,12 @@ describe('A32NX PFD ILS and DME flags', () => {
     expect(isDmeFlagShown({ ...normal, ilsReceiverPowered: false })).toBe(false);
   });
 
+  it('shows the ILS flag when the GLS receiver is failed on a GLS approach', () => {
+    expect(isIlsFlagShown({ ...normal, glsReceiverFailed: true })).toBe(true);
+    expect(isIlsFlagShown({ ...normal, lsSelected: false, glsReceiverFailed: true })).toBe(false);
+    expect(isDmeFlagShown({ ...normal, glsReceiverFailed: true })).toBe(false);
+  });
+
   it('shows the DME flag when the DME interrogator fails', () => {
     expect(isDmeFlagShown({ ...normal, dmeInterrogatorPowered: false })).toBe(true);
     expect(isIlsFlagShown({ ...normal, dmeInterrogatorPowered: false })).toBe(false);

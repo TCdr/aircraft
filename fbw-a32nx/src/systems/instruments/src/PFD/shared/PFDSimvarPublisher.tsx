@@ -63,6 +63,9 @@ export type PFDSimvars = AdirsSimVars &
     gbasIdent: number;
     mmr1GlsChannel: number;
     mmr2GlsChannel: number;
+    gls1Failed: boolean;
+    gls2Failed: boolean;
+    gbasStationFailed: boolean;
     fmGpsPrimary: boolean;
     fmNavAccuracyHigh: boolean;
     fmGpsPositionDisagree: boolean;
@@ -255,6 +258,9 @@ export enum PFDVars {
   gbasIdent = 'L:A32NX_GBAS_IDENT',
   mmr1GlsChannel = 'L:A32NX_MMR_1_GLS_CHANNEL',
   mmr2GlsChannel = 'L:A32NX_MMR_2_GLS_CHANNEL',
+  gls1Failed = 'L:A32NX_GLS_1_FAILED',
+  gls2Failed = 'L:A32NX_GLS_2_FAILED',
+  gbasStationFailed = 'L:A32NX_GBAS_STATION_FAILED',
   fmGpsPrimary = 'L:A32NX_FMGC_L_GPS_PRIMARY',
   fmNavAccuracyHigh = 'L:A32NX_FMGC_L_NAV_ACCURACY_HIGH',
   fmGpsPositionDisagree = 'L:A32NX_FM_GPS_POS_DISAGREE',
@@ -453,6 +459,9 @@ export class PFDSimvarPublisher extends UpdatableSimVarPublisher<PFDSimvars> {
     ['gbasIdent', { name: PFDVars.gbasIdent, type: SimVarValueType.Number }],
     ['mmr1GlsChannel', { name: PFDVars.mmr1GlsChannel, type: SimVarValueType.Number }],
     ['mmr2GlsChannel', { name: PFDVars.mmr2GlsChannel, type: SimVarValueType.Number }],
+    ['gls1Failed', { name: PFDVars.gls1Failed, type: SimVarValueType.Bool }],
+    ['gls2Failed', { name: PFDVars.gls2Failed, type: SimVarValueType.Bool }],
+    ['gbasStationFailed', { name: PFDVars.gbasStationFailed, type: SimVarValueType.Bool }],
     ['fmGpsPrimary', { name: PFDVars.fmGpsPrimary, type: SimVarValueType.Bool }],
     ['fmNavAccuracyHigh', { name: PFDVars.fmNavAccuracyHigh, type: SimVarValueType.Bool }],
     ['fmGpsPositionDisagree', { name: PFDVars.fmGpsPositionDisagree, type: SimVarValueType.Bool }],

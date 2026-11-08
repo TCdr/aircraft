@@ -159,14 +159,14 @@ describe('F/CTL elevator and aileron STATUS', () => {
       'SPD BRK......DO NOT USE',
       'FOR GA: MAX PITCH 15 DEG',
     ]);
-    expect(right).toEqual(['INOP SYS', 'F/CTL PROT', 'L ELEV', 'ELAC PITCH', 'AP 1+2', 'CAT 2']);
+    expect(right).toEqual(['INOP SYS', 'F/CTL PROT', 'L ELEV', 'ELAC PITCH', 'AP 1+2', 'CAT 2', 'GLS AUTOLAND']);
   });
 
   it('L+R ELEV FAULT', () => {
     const { left, right } = page(leftAndRightElevatorFaultStatus());
     expect(left).toContain('MAN PITCH TRIM......USE');
     expect(left.slice(-2)).toEqual(['PITCH MECH BACK UP', 'ROLL DIRECT LAW']);
-    expect(right).toEqual(['INOP SYS', 'L+R ELEV', 'ELAC PITCH', 'AP 1+2', 'CAT 2']);
+    expect(right).toEqual(['INOP SYS', 'L+R ELEV', 'ELAC PITCH', 'AP 1+2', 'CAT 2', 'GLS AUTOLAND']);
   });
 
   it('R AIL FAULT', () => {
