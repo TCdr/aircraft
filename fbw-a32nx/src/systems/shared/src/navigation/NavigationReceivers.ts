@@ -1,8 +1,8 @@
 // Copyright (c) 2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
-/** The radio navigation receivers of the A32NX, two of each */
-export type NavigationReceiverKind = 'VOR' | 'DME' | 'ADF' | 'ILS';
+/** The radio navigation receivers of the A32NX, two of each (GLS: the GBAS landing function of the multi-mode receiver) */
+export type NavigationReceiverKind = 'VOR' | 'DME' | 'ADF' | 'ILS' | 'GLS';
 
 /** Receiver 1 or 2 */
 export type NavigationReceiverIndex = 1 | 2;
@@ -14,6 +14,9 @@ export type NavigationReceiverIndex = 1 | 2;
 export function navigationReceiverFailedVar(kind: NavigationReceiverKind, index: NavigationReceiverIndex): string {
   return `L:A32NX_${kind}_${index}_FAILED`;
 }
+
+/** The L:var that tells the receivers that the GBAS ground station has failed: every GLS channel is invalid on both. */
+export const GBAS_STATION_FAILED_VAR = 'L:A32NX_GBAS_STATION_FAILED';
 
 /** The ADF selection key of the RMP: mode 10 of L:A32NX_RMP_{side}_SELECTED_MODE (A32NX_Interior_RMP.xml) */
 export const RMP_ADF_MODE = 10;

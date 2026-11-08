@@ -142,6 +142,35 @@ const IlsReceiverFamily: FailureDetailFamily = {
   }),
 };
 
+const GlsFunctionFamily: FailureDetailFamily = {
+  ids: [A320Failure.Gls1Function, A320Failure.Gls2Function],
+  detail: (number): FailureDetail => ({
+    whatItIs:
+      'The GBAS landing system (GLS) function of the multi-mode receiver receives the corrections of a ground station ' +
+      'and computes localiser and glide slope deviations for a GLS approach, in the same way as an ILS. Receiver 1 ' +
+      'feeds the CAPT primary flight display and receiver 2 the F/O one. The ECAM does not monitor the GLS function: ' +
+      'a failure raises no ECAM alert and no STATUS entry.',
+    impact: [
+      `The GLS function of receiver ${number} sends no computed data: no GLS localiser and glide slope for its side.`,
+      'The ILS of the same receiver is not affected.',
+      'With the other receiver working, the GLS approach can continue with its deviations.',
+    ],
+    alertIds: [],
+    effects: [
+      {
+        where: 'PFD',
+        text: `On a GLS approach the localiser and glide slope deviations of PFD ${number} are lost and the LS flags come on.`,
+      },
+      {
+        where: 'FMA',
+        text: 'The precision approach capability drops to CAT 1 while one receiver is lost.',
+      },
+    ],
+    logbook: { required: true, reason: 'a landing system receiver function is lost' },
+    clearing: MAINTENANCE_ONLY,
+  }),
+};
+
 const StaticProbeFamily: FailureDetailFamily = {
   ids: [
     A320Failure.CaptLeftStaticProbe,
@@ -185,7 +214,28 @@ const StaticProbeFamily: FailureDetailFamily = {
   },
 };
 
+const Ata34GbasGroundStation: FailureDetail = {
+  whatItIs:
+    'A GBAS ground station at the airport sends the corrections and the approach path data for the GLS approaches of ' +
+    'its runways. Both multi-mode receivers depend on it for every GLS channel. The ECAM does not monitor the GLS ' +
+    'function: a ground station failure raises no ECAM alert and no STATUS entry.',
+  impact: [
+    'No GLS channel is valid on either receiver: no GLS localiser and glide slope deviations on either side.',
+    'A GLS approach cannot be flown; the ILS approaches are not affected.',
+  ],
+  alertIds: [],
+  effects: [
+    {
+      where: 'PFD',
+      text: 'On a GLS approach the localiser and glide slope deviations of both PFDs are lost and the LS flags come on.',
+    },
+  ],
+  logbook: { required: false, reason: 'a fault of the ground station, not of the aircraft' },
+  clearing: 'Restore it from the failure list.',
+};
+
 export const Ata34RadioEntries: Record<number, FailureDetail> = {
+  [A320Failure.GbasGroundStation]: Ata34GbasGroundStation,
   [A320Failure.WxrPredictiveWindshear]: Ata34WxrPredictiveWindshear,
 };
 
@@ -194,5 +244,6 @@ export const Ata34RadioFamilies: FailureDetailFamily[] = [
   DmeReceiverFamily,
   AdfReceiverFamily,
   IlsReceiverFamily,
+  GlsFunctionFamily,
   StaticProbeFamily,
 ];

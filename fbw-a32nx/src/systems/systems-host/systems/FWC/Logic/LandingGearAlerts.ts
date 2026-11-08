@@ -121,6 +121,7 @@ const LandingGearStatusCodes = {
   reverser1And2: '290300040',
   ap1And2: '270300027',
   cat2: '270300028',
+  glsAutoland: '270300034',
   autoThrust: '240300131',
   gpws: '240300152',
   maxBrakePressure1000: '240400101',
@@ -165,8 +166,8 @@ export function lgciuFaultStatus(lgciu: 1 | 2): StatusLines {
 
 /**
  * L/G LGCIU 1+2 FAULT STATUS: FOR LDG USE FLAP 3, L/G GRVTY EXTN, L/G CONTROL NOT AVAIL, ENG 1 and ENG 2
- * APPR IDLE ONLY; INOP SYS REVERSER 1+2, AP 1+2, CAT 2, A/THR, LGCIU 1, LGCIU 2, GPWS. The GLS AUTOLAND and ROW/ROP lines
- * are left out: the FBW A32NX has neither.
+ * APPR IDLE ONLY; INOP SYS REVERSER 1+2, AP 1+2, CAT 2, GLS AUTOLAND, A/THR, LGCIU 1, LGCIU 2, GPWS. The ROW/ROP line
+ * is left out: the FBW A32NX has no ROW/ROP.
  */
 export function lgciu1And2FaultStatus(): StatusLines {
   return {
@@ -177,7 +178,7 @@ export function lgciu1And2FaultStatus(): StatusLines {
       G.eng1ApproachIdleOnly,
       G.eng2ApproachIdleOnly,
     ],
-    inopSys: [G.reverser1And2, G.ap1And2, G.cat2, G.autoThrust, G.lgciu1, G.lgciu2, G.gpws],
+    inopSys: [G.reverser1And2, G.ap1And2, G.cat2, G.glsAutoland, G.autoThrust, G.lgciu1, G.lgciu2, G.gpws],
   };
 }
 

@@ -133,7 +133,7 @@ describe('F/CTL sidestick and stabilizer cautions', () => {
         'ALTN LAW: PROT LOST',
         'WHEN L/G DN: DIRECT LAW',
       ],
-      right: ['INOP SYS', 'F/CTL PROT', 'STABILIZER', 'ELAC PITCH', 'AP 1+2', 'CAT 2'],
+      right: ['INOP SYS', 'F/CTL PROT', 'STABILIZER', 'ELAC PITCH', 'AP 1+2', 'CAT 2', 'GLS AUTOLAND'],
     });
   });
 

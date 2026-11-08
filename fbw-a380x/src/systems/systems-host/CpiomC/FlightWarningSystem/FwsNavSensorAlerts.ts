@@ -11,8 +11,9 @@ import { A380Failure } from '@failures';
  * - NAV LS 1(2)(1+2) FAULT: the ILS, GLS and FLS functions of the MMR are all lost, which is the case when the MMR is
  *   failed: the alert is the MMR failure. STATUS APPR & LDG: CAT 2, GLS AUTOLAND, LS 1(2) (LS 1+2).
  * - NAV FLS 1(2)(1+2) FAULT and NAV GLS 1(2)(1+2) FAULT: the FLS (GLS) function of the MMR is failed, the MMR still
- *   working. Crew awareness. STATUS APPR & LDG: FLS 1(2) (FLS 1+2), GLS AUTOLAND and GLS 1(2) (GLS 1+2). The FLS and
- *   GLS functions have no model: their flyPad failures only raise the alerts.
+ *   working. Crew awareness. STATUS APPR & LDG: FLS 1(2) (FLS 1+2), GLS AUTOLAND and GLS 1(2) (GLS 1+2). The FLS function
+ *   failure only raises the alerts; a GLS function failure also takes the GLS data of that MMR away
+ *   (L:A32NX_GLS_n_FAILED, published by the systems host).
  * - NAV ILS 1(2)(1+2) FAULT: the ILS receiver of the MMR is failed, the MMR still working. STATUS APPR & LDG: CAT 2,
  *   ILS 1(2) (ILS 1+2).
  *   Design choice: with one MMR failed and the ILS receiver of the other MMR failed, the alerts are LS 1(2) FAULT and

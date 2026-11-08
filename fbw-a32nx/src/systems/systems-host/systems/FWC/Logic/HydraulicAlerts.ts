@@ -21,7 +21,7 @@ import { Subject } from '@microsoft/msfs-sdk';
  * G(Y) RSVR LO LVL is inhibited for the first 15 s of phase 5.
  *
  * Not modelled (design choices): the SECONDARY FAILURES lines (*F/CTL, *WHEEL), the option lines of the STATUS (STEEP
- * APPR, GLS AUTOLAND), the A321 lines and the "If sys lost by RSVR LO AIR PR / RSVR OVHT" recovery lines of the dual
+ * APPR), the A321 lines and the "If sys lost by RSVR LO AIR PR / RSVR OVHT" recovery lines of the dual
  * failures STATUS. The ALTN LAW lines of the dual failures (G+B, G+Y) are the F/CTL ALTN LAW alert's (PseudoFWC,
  * FlightControlLawAlerts altnLawLines).
  */
@@ -758,6 +758,7 @@ const HYD_STATUS = {
   yawDamper1: '290300046',
   yawDamper2: '290300047',
   cat2: '290300048',
+  glsAutoland: '290300050',
   rat: '290300049',
 } as const;
 
@@ -887,6 +888,7 @@ export const hydraulicStatus = {
         ...(inputs.blue.reservoirLowLevel ? [S.emerGen] : []),
         S.yawDamper2,
         S.cat2,
+        S.glsAutoland,
       ],
     };
   },
@@ -929,6 +931,7 @@ export const hydraulicStatus = {
         S.bElecPump,
         S.yawDamper1,
         S.cat2,
+        S.glsAutoland,
       ],
     };
   },
@@ -968,6 +971,7 @@ export const hydraulicStatus = {
         S.lgRetract,
         ...(inputs.yellow.reservoirLowLevel ? [S.cargoDoor] : []),
         S.cat2,
+        S.glsAutoland,
       ],
     };
   },

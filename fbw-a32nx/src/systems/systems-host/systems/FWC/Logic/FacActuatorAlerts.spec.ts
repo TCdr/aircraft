@@ -164,11 +164,11 @@ describe('AUTO FLT yaw damper, rudder trim and rudder travel limiter alerts', ()
         '\x1b<5mLDG DIST PROC....APPLY',
         '\x1b<3mALTN LAW: PROT LOST',
       ].join('\r'),
-      right: `${INOP_SYS}\r\x1b<4mF/CTL PROT\r\x1b<4mYAW DAMPER\r\x1b<4mAP 1+2\r\x1b<4mCAT 2`,
+      right: `${INOP_SYS}\r\x1b<4mF/CTL PROT\r\x1b<4mYAW DAMPER\r\x1b<4mAP 1+2\r\x1b<4mCAT 2\r\x1b<4mGLS AUTOLAND`,
     });
     const rudderTrimSystem = facActuatorStatus.rudderTrimSystem();
     expect(formatStatusPage(rudderTrimSystem.left, rudderTrimSystem.inopSys).right).toBe(
-      `${INOP_SYS}\r\x1b<4mRUD TRIM\r\x1b<4mAP 1+2\r\x1b<4mCAT 2`,
+      `${INOP_SYS}\r\x1b<4mRUD TRIM\r\x1b<4mAP 1+2\r\x1b<4mCAT 2\r\x1b<4mGLS AUTOLAND`,
     );
   });
 

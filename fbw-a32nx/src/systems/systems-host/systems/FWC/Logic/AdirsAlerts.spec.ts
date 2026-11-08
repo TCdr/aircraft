@@ -227,7 +227,16 @@ describe('NAV ADR and IR STATUS', () => {
       'FLS LIMITED TO F-APP + RAW',
     ]);
     expect(status.right).toEqual(
-      expect.arrayContaining(['ADR 1+3', 'AP 1+2', 'A/THR', 'ATC/XPDR 1', 'RUD TRV LIM 1', 'GPWS', 'CAT 2']),
+      expect.arrayContaining([
+        'ADR 1+3',
+        'AP 1+2',
+        'A/THR',
+        'ATC/XPDR 1',
+        'RUD TRV LIM 1',
+        'GPWS',
+        'CAT 2',
+        'GLS AUTOLAND',
+      ]),
     );
     expect(status.right).not.toContain('ATC/XPDR 2');
     expect(page(adrDualFaultStatus([1, 2])).left).not.toContain('BOTH PFD ON SAME FAC');
@@ -252,7 +261,9 @@ describe('NAV ADR and IR STATUS', () => {
     expect(ir1.right).toEqual(expect.arrayContaining(['IR 1', 'CAT 3 DUAL', 'GPWS TERR', 'TCAS', 'ATC/XPDR 1']));
     const ir23 = page(irDualFaultStatus([2, 3]));
     expect(ir23.left).toEqual(expect.arrayContaining(['IR MAY BE AVAIL IN ATT', 'FLS LIMITED TO F-APP + RAW']));
-    expect(ir23.right).toEqual(expect.arrayContaining(['IR 2+3', 'YAW DAMPER 2', 'TCAS', 'CAT 2', 'ATC/XPDR 2']));
+    expect(ir23.right).toEqual(
+      expect.arrayContaining(['IR 2+3', 'YAW DAMPER 2', 'TCAS', 'CAT 2', 'GLS AUTOLAND', 'ATC/XPDR 2']),
+    );
     expect(ir23.right).not.toContain('GPWS TERR');
   });
 
@@ -274,7 +285,7 @@ describe('NAV ADR and IR STATUS', () => {
     const dual = page(ra1And2FaultStatus());
     expect(dual.left).toEqual(expect.arrayContaining(['WHEN L/G DN: DIRECT LAW', 'APPR SPD.....VREF+10 KT']));
     expect(dual.right).toEqual(
-      expect.arrayContaining(['RA 1+2', 'A/CALL OUT', 'GPWS', 'CAT 2', 'REAC W/S DET', 'TCAS']),
+      expect.arrayContaining(['RA 1+2', 'A/CALL OUT', 'GPWS', 'CAT 2', 'GLS AUTOLAND', 'REAC W/S DET', 'TCAS']),
     );
   });
 });

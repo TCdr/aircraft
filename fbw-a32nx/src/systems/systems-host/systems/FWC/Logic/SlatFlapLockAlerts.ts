@@ -115,6 +115,7 @@ const SlatFlapStatusCodes = {
   targetSpdVref50: '270400018',
   inopSlats: '270300030',
   inopFlaps: '270300031',
+  glsAutoland: '270300034',
 };
 
 const aerodynamicPenalty = (extended: boolean) =>
@@ -131,7 +132,7 @@ function slatsFaultLockedStatus(state: SlatFlapLockState): StatusLines {
       FctlCodes.ldgDistProcApply,
       ...aerodynamicPenalty(state.slatsExtended),
     ],
-    inopSys: [SlatFlapStatusCodes.inopSlats],
+    inopSys: [SlatFlapStatusCodes.inopSlats, SlatFlapStatusCodes.glsAutoland],
   };
 }
 
@@ -147,7 +148,7 @@ function flapsFaultLockedStatus(state: SlatFlapLockState): StatusLines {
       ...(state.flapsLocked ? [] : SlatFlapChannelStatusCodes.engApprIdleOnly),
       ...aerodynamicPenalty(state.flapsExtended),
     ],
-    inopSys: [SlatFlapStatusCodes.inopFlaps],
+    inopSys: [SlatFlapStatusCodes.inopFlaps, SlatFlapStatusCodes.glsAutoland],
   };
 }
 

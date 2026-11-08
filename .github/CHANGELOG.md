@@ -1043,6 +1043,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/MCDU] The ARRIVAL page shows the identifier and channel of a GLS approach, SELECTED NAVAIDS lists the GLS, and PERF APPR takes a radio minimum on a GLS approach - @TCdr
 1. [A32NX/PFD] GLS approaches: reference path identifier, channel and distance to the threshold in the LS information, and LOC and G/S deviations from the GLS - @TCdr
 1. [A32NX/PFD] The FMA shows AUTOLAND or CAT1 on a GLS approach, never CAT2 or CAT3 - @TCdr
+1. [A380X/EFB] New flyPad failure GBAS ground station (no GLS channel valid on either MMR), and the MMR n GLS function failures now take the GLS deviations of that MMR away - @TCdr
+1. [A380X/PFD] The GLS flag flashes for 9 s, then stays steady, when the LOC or G/S signal of a GLS approach is lost, and the GLS title flashes for 9 s when a GLS approach is selected with the LS pb on - @TCdr
+1. [A32NX/EFB] New flyPad failures GLS 1 function, GLS 2 function and GBAS ground station, with the ILS flag on the PFD when the GLS of a side is lost - @TCdr
+1. [A32NX/FWC] GLS AUTOLAND is listed as inoperative with CAT 2 on the STATUS page of AUTO FLT AP OFF (both APs), AUTO FLT YAW DAMPER SYS, AUTO FLT RUD TRIM SYS, ELEC AC BUS 2 FAULT, ELEC AC ESS BUS FAULT, F/CTL L(R) ELEV FAULT, F/CTL L+R ELEV FAULT, F/CTL STABILIZER JAM, HYD B+Y, G+B and G+Y SYS LO PR, L/G LGCIU 1+2 FAULT, NAV ADR, IR and RA faults - @TCdr
 
 ## 2024.1.0
 

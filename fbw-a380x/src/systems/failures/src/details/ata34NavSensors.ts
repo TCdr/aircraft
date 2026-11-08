@@ -465,8 +465,8 @@ const glsDetail = (mmr: number): FailureDetail => ({
     `${MMR_DESCRIPTION} The GLS function of MMR ${mmr} receives the GBAS landing system for precision approaches and ` +
     'automatic landings.',
   impact: [
-    `The GLS function of MMR ${mmr} is reported lost; the rest of the MMR works normally.`,
-    'The approach modes and autoland are not changed.',
+    `The GLS function of MMR ${mmr} is reported lost and sends no computed data: no GLS localiser and glideslope deviations from this MMR. The ILS and the rest of the MMR work normally.`,
+    'The other MMR keeps its GLS, so the approach can continue with the deviations of that side, at CAT 1 with no automatic landing.',
   ],
   alertIds: [mmr === 1 ? '340800030' : '340800031', '340800032'],
   effects: [
@@ -477,11 +477,46 @@ const glsDetail = (mmr: number): FailureDetail => ({
         `It has no lines. GLS AUTOLAND and GLS ${mmr} are listed as inoperative for approach and landing. NAV GLS 1+2 FAULT ` +
         'replaces both when both are failed, with GLS 1+2 listed as inoperative.',
     },
+    {
+      where: 'PFD',
+      text: `On a GLS approach the red GLS flag flashes for 9 s and then stays steady on PFD ${mmr}, in place of the GLS title, and its deviations are lost.`,
+    },
+    {
+      where: 'FMA',
+      text: 'The approach capability on a GLS approach is CAT1 instead of AUTO LAND.',
+    },
   ],
-  notSimulated: [functionNotSimulated],
+  notSimulated: ['The flight guidance does not disengage the autopilot when both GLS receivers are lost.'],
   logbook: { required: true, reason: 'GLS fault advisory' },
   clearing: MAINTENANCE_ONLY,
 });
+
+export const Ata34NavSensorsEntries: Record<number, FailureDetail> = {
+  [A380Failure.GbasGroundStation]: {
+    whatItIs:
+      'A GBAS ground station at the airport sends the corrections and the approach path data of the GLS approaches of its ' +
+      'runways. Both MMRs depend on it for every GLS channel.',
+    impact: [
+      'No GLS channel is valid on either MMR: no GLS localiser and glideslope deviations on either side, and no automatic landing on a GLS.',
+      'The ILS and FLS approaches are not affected.',
+      'The NAV GLS FAULT alerts are not raised: they report a failed receiver, not the ground station.',
+    ],
+    alertIds: [],
+    effects: [
+      {
+        where: 'PFD',
+        text: 'On a GLS approach the red GLS flag flashes for 9 s and then stays steady on both PFDs, in place of the GLS title, and the deviations are lost.',
+      },
+      {
+        where: 'FMA',
+        text: 'The approach capability on a GLS approach is CAT1 instead of AUTO LAND.',
+      },
+    ],
+    notSimulated: ['The flight guidance does not disengage the autopilot when both GLS receivers are lost.'],
+    logbook: { required: false, reason: 'a fault of the ground station, not of the aircraft' },
+    clearing: 'Restore it from the failure list.',
+  },
+};
 
 export const Ata34NavSensorsFamilies: FailureDetailFamily[] = [
   {

@@ -8,7 +8,7 @@ import { StatusLines } from './CondStatus';
  * once, in the order of StatusMessages, so the alerts of one failure (e.g. L ELEV FAULT and ALTN LAW) share their
  * common lines.
  *
- * Not shown: STEEP APPR, GLS AUTOLAND (options) and the FOR LDG : USE FLAP 3 reminder variant shown once CONF 3 is
+ * Not shown: STEEP APPR (option) and the FOR LDG : USE FLAP 3 reminder variant shown once CONF 3 is
  * selected.
  */
 
@@ -65,6 +65,7 @@ export const FlightControlStatusCodes = {
   fcdc2: '270300026',
   ap12: '270300027',
   cat2: '270300028',
+  glsAutoland: '270300034',
   /** 22 AUTO FLIGHT "CAT 3 DUAL" (StatusMessages, FWC 1(2) FAULT) */
   cat3Dual: '220300001',
   /** 78 "REVERSER 1" / "REVERSER 2" (StatusMessages, ENG REVERSER FAULT) */
@@ -186,7 +187,7 @@ export function elevServoFaultStatus(): StatusLines {
 /**
  * F/CTL L(R) ELEV FAULT STATUS: MAX SPEED 320 KT, MANEUVER WITH CARE, SPD BRK DO NOT USE, FOR GA: MAX
  * PITCH 15 DEG, APPR PROC (FOR LDG USE FLAP 3, GPWS LDG FLAP 3 ON, APPR SPD VREF+10 KT, LDG DIST PROC APPLY), ALTN LAW:
- * PROT LOST, WHEN L/G DN: DIRECT LAW; INOP SYS F/CTL PROT, L (R) ELEV, ELAC PITCH, AP 1+2, CAT 2.
+ * PROT LOST, WHEN L/G DN: DIRECT LAW; INOP SYS F/CTL PROT, L (R) ELEV, ELAC PITCH, AP 1+2, CAT 2, GLS AUTOLAND.
  * @param side the lost elevator
  * @returns the STATUS codes
  */
@@ -201,14 +202,14 @@ export function elevatorFaultStatus(side: 'L' | 'R'): StatusLines {
       S.altnLawProtLost,
       S.whenLgDownDirectLaw,
     ],
-    inopSys: [S.fctlProt, side === 'L' ? S.lElev : S.rElev, S.elacPitch, S.ap12, S.cat2],
+    inopSys: [S.fctlProt, side === 'L' ? S.lElev : S.rElev, S.elacPitch, S.ap12, S.cat2, S.glsAutoland],
   };
 }
 
 /**
  * F/CTL L+R ELEV FAULT STATUS: MAX SPEED 320/.77, SPD BRK DO NOT USE, APPR PROC (FOR LDG USE FLAP 3,
  * GPWS LDG FLAP 3 ON, MAN PITCH TRIM USE, APPR SPD VREF+10, LDG DIST PROC APPLY), PITCH MECH BACK UP, ROLL DIRECT LAW;
- * INOP SYS L+R ELEV, ELAC PITCH, AP 1+2, CAT 2.
+ * INOP SYS L+R ELEV, ELAC PITCH, AP 1+2, CAT 2, GLS AUTOLAND.
  * @returns the STATUS codes
  */
 export function leftAndRightElevatorFaultStatus(): StatusLines {
@@ -225,7 +226,7 @@ export function leftAndRightElevatorFaultStatus(): StatusLines {
       S.pitchMechBackUp,
       S.rollDirectLaw,
     ],
-    inopSys: [S.lrElev, S.elacPitch, S.ap12, S.cat2],
+    inopSys: [S.lrElev, S.elacPitch, S.ap12, S.cat2, S.glsAutoland],
   };
 }
 

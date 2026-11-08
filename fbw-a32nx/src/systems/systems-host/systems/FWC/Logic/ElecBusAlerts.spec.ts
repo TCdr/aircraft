@@ -299,6 +299,16 @@ describe('ELEC STATUS pages', () => {
     }
   });
 
+  it('AC BUS 2 and AC ESS BUS FAULT list GLS AUTOLAND after CAT 2, EMER CONFIG does not', () => {
+    for (const status of [acBus2FaultStatus(), acEssBusFaultStatus()]) {
+      const right = formatStatusPage(status.left, status.inopSys).right.split('\r');
+      const cat2 = right.indexOf('\x1b<4mCAT 2');
+      expect(cat2).toBeGreaterThan(0);
+      expect(right[cat2 + 1]).toBe('\x1b<4mGLS AUTOLAND');
+    }
+    expect(formatStatusPage([], elecEmerConfigStatus().inopSys).right).not.toContain('GLS AUTOLAND');
+  });
+
   it('GEN 1(2) FAULT / OFF / IDG DISC: CAT 3 SINGLE ONLY; MAIN GALLEY only without the APU GEN', () => {
     const withoutApu = formatStatusPage(
       engineGeneratorLostStatus(1, false).left,

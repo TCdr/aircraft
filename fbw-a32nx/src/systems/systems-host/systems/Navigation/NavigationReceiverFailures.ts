@@ -6,6 +6,7 @@ import { FailuresConsumer } from '@flybywiresim/fbw-sdk';
 import { A320Failure } from '@failures';
 import { MsfsComCircuitSwitch } from '@shared/communications/RadioCommunicationLogic';
 import {
+  GBAS_STATION_FAILED_VAR,
   NavigationReceiverIndex,
   NavigationReceiverKind,
   navigationReceiverFailedVar,
@@ -29,6 +30,9 @@ interface ReceiverFailure {
  * - Every receiver: publishes L:A32NX_{VOR,DME,ADF,ILS}_{1,2}_FAILED. The VOR bus of the NDs (VorBusPublisher) then
  *   drops the signal of that receiver: no bearing pointer, no deviation, no DME distance; the VOR/ADF flags come on, as
  *   when a VOR or ADF receiver fails.
+ * - GLS 1/2: publishes L:A32NX_GLS_{1,2}_FAILED from the GLS function failure of that receiver, which then sends no
+ *   computed data (GlsReceiver in the FBW module). The ILS of the same receiver is not affected, and the other way round.
+ * - GBAS ground station: publishes L:A32NX_GBAS_STATION_FAILED: no GLS channel is valid on either side.
  * - ILS 1: also switches the MSFS NAV 3 circuit (systems.cfg circuit.39, CIRCUIT_NAV:3) off, as the FBW module reads
  *   the localiser and glideslope of NAV 3 directly for PFD 1, the ISIS and the autoflight. ILS 2 (NAV 4, no circuit) is
  *   failed in the MMR 2 shim of the systems (navigation/ils.rs) for PFD 2. The FWC shows NAV ILS 1(2)(1+2) FAULT.
@@ -47,6 +51,8 @@ export class NavigationReceiverFailures implements Instrument {
       ['ADF', 2, A320Failure.Adf2Receiver],
       ['ILS', 1, A320Failure.Ils1Receiver],
       ['ILS', 2, A320Failure.Ils2Receiver],
+      ['GLS', 1, A320Failure.Gls1Function],
+      ['GLS', 2, A320Failure.Gls2Function],
     ] as [NavigationReceiverKind, NavigationReceiverIndex, number][]
   ).map(([kind, index, failure]) => ({
     kind,
@@ -55,6 +61,8 @@ export class NavigationReceiverFailures implements Instrument {
     failedVar: navigationReceiverFailedVar(kind, index),
     published: undefined,
   }));
+
+  private groundStationFailurePublished: boolean | undefined;
 
   private readonly ils1CircuitSwitch = new MsfsComCircuitSwitch();
 
@@ -72,6 +80,7 @@ export class NavigationReceiverFailures implements Instrument {
     for (const receiver of this.receivers) {
       this.failuresConsumer.register(receiver.failure);
     }
+    this.failuresConsumer.register(A320Failure.GbasGroundStation);
   }
 
   /** @inheritdoc */
@@ -84,6 +93,12 @@ export class NavigationReceiverFailures implements Instrument {
         receiver.published = failed;
         SimVar.SetSimVarValue(receiver.failedVar, 'bool', failed);
       }
+    }
+
+    const stationFailed = this.failuresConsumer.isActive(A320Failure.GbasGroundStation);
+    if (stationFailed !== this.groundStationFailurePublished) {
+      this.groundStationFailurePublished = stationFailed;
+      SimVar.SetSimVarValue(GBAS_STATION_FAILED_VAR, 'bool', stationFailed);
     }
 
     const circuit = NavigationReceiverFailures.ILS_1_MSFS_CIRCUIT;

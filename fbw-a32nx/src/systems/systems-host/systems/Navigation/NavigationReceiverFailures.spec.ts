@@ -90,4 +90,36 @@ describe('NavigationReceiverFailures (A32NX ATA 34 VOR, DME, ADF and ILS receive
     expect(simVars.get('L:A32NX_ILS_2_FAILED')).toBe(true);
     expect(toggles).toEqual([]);
   });
+
+  it('publishes the GLS of a receiver failed for its GLS function only, not for its ILS receiver', () => {
+    const active = new Set<number>([A320Failure.Gls1Function, A320Failure.Ils2Receiver]);
+    const system = new NavigationReceiverFailures(failures(active), () => 0);
+    system.init();
+    system.onUpdate();
+    expect(simVars.get('L:A32NX_GLS_1_FAILED')).toBe(true);
+    expect(simVars.get('L:A32NX_GLS_2_FAILED')).toBe(false);
+    expect(simVars.get('L:A32NX_ILS_2_FAILED')).toBe(true);
+
+    active.clear();
+    active.add(A320Failure.Gls2Function);
+    system.onUpdate();
+    expect(simVars.get('L:A32NX_GLS_1_FAILED')).toBe(false);
+    expect(simVars.get('L:A32NX_GLS_2_FAILED')).toBe(true);
+    // the GLS function failure leaves the ILS of the same receiver alone
+    expect(simVars.get('L:A32NX_ILS_2_FAILED')).toBe(false);
+    expect(toggles).toEqual([]);
+  });
+
+  it('publishes the failure of the GBAS ground station', () => {
+    const active = new Set<number>([A320Failure.GbasGroundStation]);
+    const system = new NavigationReceiverFailures(failures(active), () => 0);
+    system.init();
+    system.onUpdate();
+    expect(simVars.get('L:A32NX_GBAS_STATION_FAILED')).toBe(true);
+    expect(simVars.get('L:A32NX_GLS_1_FAILED')).toBe(false);
+
+    active.clear();
+    system.onUpdate();
+    expect(simVars.get('L:A32NX_GBAS_STATION_FAILED')).toBe(false);
+  });
 });

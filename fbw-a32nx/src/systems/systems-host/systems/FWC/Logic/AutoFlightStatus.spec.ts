@@ -48,10 +48,10 @@ describe('AUTO FLT AP OFF (involuntary) STATUS', () => {
     expect(statusLines(autoPilotOffInvoluntaryStatus(false, true))).toEqual({ left: [], right: ['INOP SYS', 'AP 2'] });
   });
 
-  it('INOP SYS AP 1+2 and CAT 2 when both APs are lost', () => {
+  it('INOP SYS AP 1+2, CAT 2 and GLS AUTOLAND when both APs are lost', () => {
     expect(statusLines(autoPilotOffInvoluntaryStatus(true, true))).toEqual({
       left: [],
-      right: ['INOP SYS', 'AP 1+2', 'CAT 2'],
+      right: ['INOP SYS', 'AP 1+2', 'CAT 2', 'GLS AUTOLAND'],
     });
   });
 

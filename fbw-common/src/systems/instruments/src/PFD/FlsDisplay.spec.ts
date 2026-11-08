@@ -9,10 +9,14 @@ import {
   GlsCapability,
   glsCapability,
   GlsCapabilityInputs,
+  GlsFlagInputs,
+  GlsFlagMonitor,
   isLsDeviationValid,
+  isLsTitleShown,
   lsDeviation,
   LsSource,
   lsSource,
+  LsFlashTimer,
   lsTitleText,
   ownSideGlsTopics,
 } from './FlsDisplay';
@@ -83,11 +87,13 @@ describe('the GLS data a PFD shows', () => {
       channel: 'mmr1GlsChannel',
       locValid: 'gls1LocValid',
       gsValid: 'gls1GsValid',
+      failed: 'gls1Failed',
     });
     expect(ownSideGlsTopics(2)).toEqual({
       channel: 'mmr2GlsChannel',
       locValid: 'gls2LocValid',
       gsValid: 'gls2GsValid',
+      failed: 'gls2Failed',
     });
   });
 });
@@ -190,5 +196,161 @@ describe('LS title', () => {
   it('is GLS on a GLS approach, whatever the FLS state', () => {
     expect(lsTitleText(false, false, true)).toBe('GLS');
     expect(lsTitleText(true, true, true)).toBe('GLS');
+  });
+  const shown = { lsButton: true, hasLoc: true, glsSelected: false, glsFlagShown: false };
+
+  it('shows with the LS pb on and a localizer signal on an ILS', () => {
+    expect(isLsTitleShown(shown)).toBe(true);
+    expect(isLsTitleShown({ ...shown, hasLoc: false })).toBe(false);
+    expect(isLsTitleShown({ ...shown, lsButton: false })).toBe(false);
+  });
+
+  it('shows GLS with the LS pb on whether or not the GLS is received', () => {
+    expect(isLsTitleShown({ ...shown, glsSelected: true, hasLoc: false })).toBe(true);
+    expect(isLsTitleShown({ ...shown, glsSelected: true, lsButton: false })).toBe(false);
+  });
+
+  it('gives way to the GLS flag, which takes its place', () => {
+    expect(isLsTitleShown({ ...shown, glsSelected: true, glsFlagShown: true })).toBe(false);
+  });
+});
+
+function glsFlagInputs(over: Partial<GlsFlagInputs> = {}): GlsFlagInputs {
+  return {
+    lsButton: true,
+    channel: 20001,
+    approachModeArmedOrEngaged: true,
+    landModesEngaged: false,
+    locValid: true,
+    gsValid: true,
+    glsFailed: false,
+    onGround: false,
+    ...over,
+  };
+}
+
+describe('GLS flag', () => {
+  const FRAME_MS = 100;
+
+  /** Runs the monitor for the given time and returns the last flag state */
+  const run = (monitor: GlsFlagMonitor, inputs: GlsFlagInputs, seconds: number) => {
+    let flag = false;
+    for (let i = 0; i < seconds * 10; i++) {
+      flag = monitor.update(inputs, FRAME_MS);
+    }
+    return flag;
+  };
+
+  /** A monitor that has received the GLS for long enough */
+  const receiving = () => {
+    const monitor = new GlsFlagMonitor();
+    expect(run(monitor, glsFlagInputs(), 2)).toBe(false);
+    return monitor;
+  };
+
+  it('stays off while the GLS is not received yet, even with the approach armed', () => {
+    expect(run(new GlsFlagMonitor(), glsFlagInputs({ locValid: false, gsValid: false }), 5)).toBe(false);
+  });
+
+  it('comes on when the LOC or the G/S that was received is lost', () => {
+    const monitor = receiving();
+    expect(run(monitor, glsFlagInputs({ gsValid: false }), 0.1)).toBe(true);
+    expect(run(monitor, glsFlagInputs(), 0.1)).toBe(false);
+    expect(run(monitor, glsFlagInputs({ locValid: false }), 0.1)).toBe(true);
+  });
+
+  it('does not count a signal that was valid for less than the confirmation time as received', () => {
+    const monitor = new GlsFlagMonitor();
+    expect(run(monitor, glsFlagInputs(), 0.5)).toBe(false);
+    expect(run(monitor, glsFlagInputs({ locValid: false, gsValid: false }), 1)).toBe(false);
+  });
+
+  it('comes on with the GLS or the ground station failed, whether or not it was received', () => {
+    const monitor = new GlsFlagMonitor();
+    expect(run(monitor, glsFlagInputs({ locValid: false, gsValid: false, glsFailed: true }), 0.1)).toBe(true);
+    expect(run(monitor, glsFlagInputs({ approachModeArmedOrEngaged: false, glsFailed: true }), 0.1)).toBe(true);
+  });
+
+  it('needs the LS pb and a GLS channel', () => {
+    const monitor = new GlsFlagMonitor();
+    const lost = { locValid: false, gsValid: false, glsFailed: true };
+    expect(run(monitor, glsFlagInputs({ ...lost, lsButton: false }), 0.1)).toBe(false);
+    expect(run(monitor, glsFlagInputs({ ...lost, channel: 0 }), 0.1)).toBe(false);
+  });
+
+  it('ignores the G/S in LAND, FLARE and ROLL OUT, where it is invalid past the glide path intercept point', () => {
+    const monitor = receiving();
+    expect(run(monitor, glsFlagInputs({ landModesEngaged: true, gsValid: false }), 0.1)).toBe(false);
+    expect(run(monitor, glsFlagInputs({ landModesEngaged: true, locValid: false }), 0.1)).toBe(true);
+  });
+
+  it('shows no lost-signal flag on the ground, but still the failure flag', () => {
+    const monitor = receiving();
+    expect(run(monitor, glsFlagInputs({ locValid: false, onGround: true }), 1)).toBe(false);
+    expect(run(monitor, glsFlagInputs({ locValid: false, onGround: true, glsFailed: true }), 0.1)).toBe(true);
+  });
+
+  it('forgets what was received when the approach modes drop', () => {
+    const monitor = receiving();
+    expect(run(monitor, glsFlagInputs({ approachModeArmedOrEngaged: false, locValid: false }), 0.1)).toBe(false);
+    // armed again, still out of range: a new approach that was not received yet
+    expect(run(monitor, glsFlagInputs({ locValid: false, gsValid: false }), 0.1)).toBe(false);
+  });
+
+  it('forgets what was received when the channel changes or the GLS is deselected', () => {
+    const monitor = receiving();
+    expect(run(monitor, glsFlagInputs({ channel: 20002, locValid: false, gsValid: false }), 0.1)).toBe(false);
+    expect(run(monitor, glsFlagInputs({ channel: 20002 }), 0.1)).toBe(false);
+    expect(run(monitor, glsFlagInputs({ channel: 0, locValid: false }), 0.1)).toBe(false);
+    expect(run(monitor, glsFlagInputs({ channel: 20002, locValid: false, gsValid: false }), 0.1)).toBe(false);
+  });
+
+  it('does not latch the validity of the previous station on the frame of a channel change', () => {
+    const monitor = receiving();
+    // the channel changes while the validity still is the old one's for one frame, then the new GLS is not received
+    expect(run(monitor, glsFlagInputs({ channel: 20002 }), 0.1)).toBe(false);
+    expect(run(monitor, glsFlagInputs({ channel: 20002, locValid: false, gsValid: false }), 2)).toBe(false);
+  });
+
+  it('flags a new channel that was received for longer than the confirmation time and then lost', () => {
+    const monitor = receiving();
+    expect(run(monitor, glsFlagInputs({ channel: 20002 }), 2)).toBe(false);
+    expect(run(monitor, glsFlagInputs({ channel: 20002, locValid: false }), 0.1)).toBe(true);
+  });
+});
+
+describe('LS flash timer', () => {
+  const run = (timer: LsFlashTimer, trigger: boolean, seconds: number) => {
+    let flashing = false;
+    for (let i = 0; i < seconds * 10; i++) {
+      flashing = timer.update(trigger, 100);
+    }
+    return flashing;
+  };
+
+  it('flashes for 9 s from the rising edge, then stays steady', () => {
+    const timer = new LsFlashTimer();
+    expect(run(timer, true, 8.5)).toBe(true);
+    expect(run(timer, true, 1)).toBe(false);
+    expect(run(timer, true, 60)).toBe(false);
+  });
+
+  it('stops at once when the trigger drops and starts again on the next rising edge', () => {
+    const timer = new LsFlashTimer();
+    expect(run(timer, true, 3)).toBe(true);
+    expect(run(timer, false, 0.1)).toBe(false);
+    expect(run(timer, true, 1)).toBe(true);
+    expect(run(timer, true, 8.5)).toBe(false);
+  });
+
+  it('does not let a time jump backwards stretch the flash', () => {
+    const timer = new LsFlashTimer();
+    expect(timer.update(true, 1000)).toBe(true);
+    expect(timer.update(true, -60000)).toBe(true);
+    expect(run(timer, true, 8.5)).toBe(false);
+  });
+
+  it('does not flash without the trigger', () => {
+    expect(run(new LsFlashTimer(), false, 20)).toBe(false);
   });
 });

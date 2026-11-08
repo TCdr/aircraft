@@ -935,12 +935,14 @@ export const A380Failure = Object.freeze({
   SideslipProbe1: 34120,
   SideslipProbe2: 34121,
   SideslipProbe3: 34122,
-  // The FLS and GLS functions of the MMRs (FWS only: NAV FLS 1(2) FAULT, GLS 1(2) FAULT; the ILS receiver and the rest of
-  // the MMR still work)
+  // The FLS and GLS functions of the MMRs (NAV FLS 1(2) FAULT, GLS 1(2) FAULT; the ILS receiver and the rest of the MMR
+  // still work; a GLS function failure also fails the GLS of that MMR in the FBW module, through the systems host MmrFailures)
   Mmr1FlsFunction: 34130,
   Mmr2FlsFunction: 34131,
   Mmr1GlsFunction: 34132,
   Mmr2GlsFunction: 34133,
+  // The GBAS ground station of the GLS approaches: no GLS channel is valid on either MMR
+  GbasGroundStation: 34134,
   // SURV SYS n (AESU n) as a whole, and its WXR functions (systems host EfisTawsBridge, Transponder)
   SurvSystem1: 34200,
   SurvSystem2: 34201,
@@ -2125,6 +2127,7 @@ export const failureDefinitionsAta32To80: FailureDefinition[] = [
   [34, A380Failure.Mmr2FlsFunction, 'MMR 2 FLS function'],
   [34, A380Failure.Mmr1GlsFunction, 'MMR 1 GLS function'],
   [34, A380Failure.Mmr2GlsFunction, 'MMR 2 GLS function'],
+  [34, A380Failure.GbasGroundStation, 'GBAS ground station'],
   [34, A380Failure.SurvSystem1, 'SURV SYS 1 (AESU 1)'],
   [34, A380Failure.SurvSystem2, 'SURV SYS 2 (AESU 2)'],
   [34, A380Failure.WxrDisplay1, 'WXR 1 (WX display)'],

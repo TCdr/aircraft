@@ -179,7 +179,16 @@ describe('ATA 32 STATUS', () => {
       ]),
     );
     expect(page.right).toEqual(
-      expect.arrayContaining(['REVERSER 1+2', 'AP 1+2', 'CAT 2', 'A/THR', 'LGCIU 1', 'LGCIU 2', 'GPWS']),
+      expect.arrayContaining([
+        'REVERSER 1+2',
+        'AP 1+2',
+        'CAT 2',
+        'GLS AUTOLAND',
+        'A/THR',
+        'LGCIU 1',
+        'LGCIU 2',
+        'GPWS',
+      ]),
     );
   });
 

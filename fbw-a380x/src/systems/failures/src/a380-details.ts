@@ -36,7 +36,7 @@ import { Ata36LeakDetectionEntries, Ata36LeakDetectionFamilies } from './details
 import { Ata30AntiIceEntries, Ata30AntiIceFamilies } from './details/ata30AntiIce';
 import { Ata30ProbesWindowsEntries, Ata30ProbesWindowsFamilies } from './details/ata30ProbesWindows';
 import { Ata34AirDataFamilies } from './details/ata34AirData';
-import { Ata34NavSensorsFamilies } from './details/ata34NavSensors';
+import { Ata34NavSensorsEntries, Ata34NavSensorsFamilies } from './details/ata34NavSensors';
 import { Ata34SurveillanceEntries, Ata34SurveillanceFamilies } from './details/ata34Surveillance';
 import { Ata42NetworkFamilies } from './details/ata42Network';
 import { Ata42IomFamilies } from './details/ata42Iom';
@@ -98,6 +98,7 @@ export const A380FailureDetails: FailureDetailTable = {
     ...Ata36LeakDetectionEntries,
     ...Ata30AntiIceEntries,
     ...Ata30ProbesWindowsEntries,
+    ...Ata34NavSensorsEntries,
     ...Ata34SurveillanceEntries,
     ...Ata42CpiomEntries,
     ...Ata52SlidesSystemsEntries,
