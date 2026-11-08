@@ -1799,12 +1799,12 @@ deviations like an ILS receiver. All values are raw numbers without a unit.
 
 - A32NX_GBAS_STATION_FAILED
     - Bool
-    - The GBAS ground station is failed: no MMR receives it. Read by fbw.wasm; nothing writes it yet
+    - The GBAS ground station is failed: no MMR receives it. Read by fbw.wasm and the PFD; nothing writes it yet
 
 - A32NX_GLS_{number}_FAILED
     - Bool
     - Number: 1 or 2
-    - MMR {number} is failed as a GLS receiver. Read by fbw.wasm; nothing writes it yet
+    - MMR {number} is failed as a GLS receiver. Read by fbw.wasm and the PFD; nothing writes it yet
 
 - A32NX_GLS_{number}_LOC_IS_VALID, A32NX_GLS_{number}_GS_IS_VALID
     - Bool

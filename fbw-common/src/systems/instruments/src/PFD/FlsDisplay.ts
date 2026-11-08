@@ -127,8 +127,8 @@ export function flsCapability(inputs: FlsCapabilityInputs): FlsCapability {
 }
 
 const OWN_SIDE_GLS_TOPICS = [
-  { channel: 'mmr1GlsChannel', locValid: 'gls1LocValid', gsValid: 'gls1GsValid' },
-  { channel: 'mmr2GlsChannel', locValid: 'gls2LocValid', gsValid: 'gls2GsValid' },
+  { channel: 'mmr1GlsChannel', locValid: 'gls1LocValid', gsValid: 'gls1GsValid', failed: 'gls1Failed' },
+  { channel: 'mmr2GlsChannel', locValid: 'gls2LocValid', gsValid: 'gls2GsValid', failed: 'gls2Failed' },
 ] as const;
 
 /**
@@ -186,6 +186,133 @@ export function glsCapability(inputs: GlsCapabilityInputs): GlsCapability {
     inputs.gls2LocValid &&
     (inputs.landModesEngaged || (inputs.gls1GsValid && inputs.gls2GsValid));
   return inputs.flightGuidanceCat2OrBetter && bothGlsReceiversValid ? GlsCapability.AutoLand : GlsCapability.Cat1;
+}
+
+export interface GlsFlagInputs {
+  /** the LS pb of this side is on */
+  lsButton: boolean;
+  /** the GLS channel the own side MMR is set to, 0 for none (an MMR with a channel is in GLS mode, received or not) */
+  channel: number;
+  /** LOC or G/S armed or engaged, or LAND, FLARE or ROLL OUT: a GLS approach is being flown */
+  approachModeArmedOrEngaged: boolean;
+  /** LAND, FLARE or ROLL OUT is engaged */
+  landModesEngaged: boolean;
+  locValid: boolean;
+  gsValid: boolean;
+  /** the GLS of the own side MMR or the ground station is failed */
+  glsFailed: boolean;
+  /** the aircraft is on the ground */
+  onGround: boolean;
+}
+
+/**
+ * The GLS flag: the GLS is failed, or the LOC or the G/S signal that was received during this approach is lost. A GLS that
+ * is not received yet (out of the service volume) is no loss, so each signal has to have been valid first. The G/S is not
+ * required in LAND, FLARE and ROLL OUT, as it ends at the glide path intercept point by design. What was received is
+ * forgotten when the approach modes drop or the GLS channel changes.
+ *
+ * A signal counts as received after it has been valid for a confirmation time, never on the frame of a channel change:
+ * the channel and the validity are written by different systems in no fixed order, so on that frame the validity can
+ * still be the one of the previous station.
+ *
+ * Design choice: no flag for a lost signal on the ground. ROLL OUT stays engaged during the taxi in, and the receiver
+ * makes the LOC invalid far off the centreline or past the stop end, which would flash the flag on every exit.
+ */
+export class GlsFlagMonitor {
+  /** Design choice: a signal must be valid this long to count as received, longer than any frame-order glitch */
+  static readonly RECEIVED_CONFIRMATION_MS = 1000;
+
+  private channel = 0;
+
+  private locValidMs = 0;
+
+  private gsValidMs = 0;
+
+  private locWasValid = false;
+
+  private gsWasValid = false;
+
+  /** @returns whether the GLS flag shows */
+  update(inputs: GlsFlagInputs, deltaTimeMs: number): boolean {
+    const glsSelected = inputs.channel > 0;
+    const channelChanged = inputs.channel !== this.channel;
+    if (channelChanged || !glsSelected || !inputs.approachModeArmedOrEngaged) {
+      this.locWasValid = false;
+      this.gsWasValid = false;
+      this.locValidMs = 0;
+      this.gsValidMs = 0;
+    }
+    this.channel = inputs.channel;
+    if (glsSelected && inputs.approachModeArmedOrEngaged && !channelChanged) {
+      const elapsedMs = Math.max(0, deltaTimeMs);
+      this.locValidMs = inputs.locValid ? this.locValidMs + elapsedMs : 0;
+      const gsExpected = inputs.gsValid && !inputs.landModesEngaged;
+      this.gsValidMs = gsExpected ? this.gsValidMs + elapsedMs : 0;
+      this.locWasValid = this.locWasValid || this.locValidMs >= GlsFlagMonitor.RECEIVED_CONFIRMATION_MS;
+      this.gsWasValid = this.gsWasValid || this.gsValidMs >= GlsFlagMonitor.RECEIVED_CONFIRMATION_MS;
+    }
+
+    if (!inputs.lsButton || !glsSelected) {
+      return false;
+    }
+    if (inputs.glsFailed) {
+      return true;
+    }
+    if (!inputs.approachModeArmedOrEngaged || inputs.onGround) {
+      return false;
+    }
+    return (this.locWasValid && !inputs.locValid) || (this.gsWasValid && !inputs.gsValid && !inputs.landModesEngaged);
+  }
+}
+
+/** The flags and titles of the LS flash for 9 s, then remain steady */
+const LS_FLASH_SECONDS = 9;
+
+/**
+ * The 9 s flash of a flag or title: it starts on the rising edge of the trigger and ends when the 9 s are over or the
+ * trigger drops, so that the display is steady from then on, and starts again on the next rising edge. The trigger must
+ * not include what hides the element, or hiding it and showing it again would restart the flash.
+ */
+export class LsFlashTimer {
+  private remainingSeconds = 0;
+
+  private triggered = false;
+
+  /**
+   * @param trigger the condition whose rising edge starts the flash
+   * @param deltaTimeMs the time since the last update, in milliseconds
+   * @returns whether the element flashes now
+   */
+  update(trigger: boolean, deltaTimeMs: number): boolean {
+    if (!trigger) {
+      this.triggered = false;
+      this.remainingSeconds = 0;
+      return false;
+    }
+    if (!this.triggered) {
+      this.remainingSeconds = LS_FLASH_SECONDS;
+    }
+    this.triggered = true;
+    // A sim time jump backwards must not stretch the flash
+    this.remainingSeconds = Math.max(0, this.remainingSeconds - Math.max(0, deltaTimeMs) / 1000);
+    return this.remainingSeconds > 0;
+  }
+}
+
+export interface LsTitleShownInputs {
+  lsButton: boolean;
+  /** a localizer signal is received (ILS, FLS or GLS) */
+  hasLoc: boolean;
+  glsSelected: boolean;
+  glsFlagShown: boolean;
+}
+
+/**
+ * Whether the LS title shows. A GLS title shows with the LS pb on and the GLS selected, received or not; an ILS or FLS title
+ * needs the signal. The GLS flag takes the place of the title.
+ */
+export function isLsTitleShown(inputs: LsTitleShownInputs): boolean {
+  return inputs.lsButton && (inputs.glsSelected || inputs.hasLoc) && !inputs.glsFlagShown;
 }
 
 /**

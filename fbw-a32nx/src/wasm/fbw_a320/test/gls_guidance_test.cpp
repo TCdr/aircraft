@@ -139,6 +139,45 @@ static void noComputedDataWhenOutOfVolumeOrFailed() {
          "past the glide path intercept point: localizer words stay, glide slope is lost");
 }
 
+/// Each MMR follows its own failure, the ground station failure takes both: the failed MMR keeps its GLS mode (channel in the
+/// frequency word) but sends no computed data, so it cannot fall back to a stale ILS beam
+static void eachMmrFollowsItsOwnFailure() {
+  const GlsApproachDefinition approach = northApproach();
+  const GlsDeviations inVolume = deviationsOnThePath(approach, 8);
+  struct Case {
+    const char* name;
+    bool mmr1Failed;
+    bool mmr2Failed;
+    bool stationFailed;
+    bool mmr1Valid;
+    bool mmr2Valid;
+  };
+  const Case cases[] = {
+      {"nothing failed", false, false, false, true, true},
+      {"MMR 1 failed", true, false, false, false, true},
+      {"MMR 2 failed", false, true, false, true, false},
+      {"both MMRs failed", true, true, false, false, false},
+      {"ground station failed", false, false, true, false, false},
+  };
+  for (const Case& c : cases) {
+    const base_ils_bus mmr1 = busOnApproach(approach, 20001, c.mmr1Failed, c.stationFailed, inVolume);
+    const base_ils_bus mmr2 = busOnApproach(approach, 20001, c.mmr2Failed, c.stationFailed, inVolume);
+    const unsigned int expected1 = c.mmr1Valid ? SSM_NORMAL : SSM_NCD;
+    const unsigned int expected2 = c.mmr2Valid ? SSM_NORMAL : SSM_NCD;
+    char what[160];
+    std::snprintf(what, sizeof(what), "%s: MMR 1 words", c.name);
+    expect(mmr1.localizer_deviation_deg.SSM == expected1 && mmr1.glideslope_deviation_deg.SSM == expected1 &&
+               mmr1.runway_heading_deg.SSM == expected1,
+           what);
+    std::snprintf(what, sizeof(what), "%s: MMR 2 words", c.name);
+    expect(mmr2.localizer_deviation_deg.SSM == expected2 && mmr2.glideslope_deviation_deg.SSM == expected2 &&
+               mmr2.runway_heading_deg.SSM == expected2,
+           what);
+    std::snprintf(what, sizeof(what), "%s: the channel stays in the frequency words", c.name);
+    expect(mmr1.ils_frequency_mhz.Data == 20001 && mmr2.ils_frequency_mhz.Data == 20001, what);
+  }
+}
+
 /// With no GLS tuned nothing is added to the bus and the FMS inputs are the ones of the radio, bit for bit
 static void ilsModeLeavesTheBusAndTheFmsInputsAlone() {
   const GlsApproachDefinition approach = northApproach();
@@ -693,6 +732,11 @@ static void sevenSecondLossRule() {
   if (ilsAfterEightSeconds.loc && ilsAfterEightSeconds.glideSlope) {
     std::printf("NOTE 7 s loss rule: plain ILS, 8 s without computed data at 1000 ft, LOC and G/S stay engaged (model gap)\n");
   }
+  // Both MMRs failed (or the ground station): the feed above marks both GLS buses as no computed data
+  const Outcome bothMmrsFailed = outcomeAfterLosingTheSignal(GuidanceSource::Gls, 1000, 8.0);
+  std::printf("NOTE both GLS words no computed data for 8 s at 1000 ft: autopilot %s, LOC %s, G/S %s, LAND %s (the real aircraft disengages the AP and FD; the model does not)\n",
+              bothMmrsFailed.autopilot ? "engaged" : "off", bothMmrsFailed.loc ? "engaged" : "off",
+              bothMmrsFailed.glideSlope ? "engaged" : "off", bothMmrsFailed.land ? "engaged" : "off");
   for (GuidanceSource source : {GuidanceSource::Ils, GuidanceSource::Gls}) {
     const Outcome belowTwoHundred = outcomeAfterLosingTheSignal(source, 150, 10.0);
     char what[160];
@@ -733,6 +777,7 @@ static void outerLoopsNeedTheDistanceAndTheAngle() {
 int main() {
   busWordsOfAReceivingMmr();
   noComputedDataWhenOutOfVolumeOrFailed();
+  eachMmrFollowsItsOwnFailure();
   ilsModeLeavesTheBusAndTheFmsInputsAlone();
   glsModeWithoutAnUplinkSendsNoComputedData();
   glsWinsOverTheFlsBeam();

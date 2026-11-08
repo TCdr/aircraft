@@ -16,10 +16,15 @@ import { PFDSimvars } from './shared/PFDSimvarPublisher';
 import { LagFilter } from './PFDUtils';
 import { FcuEfisCpBusEvents } from '@shared/publishers/EfisCpBusPublisher';
 import { FlashOneHertz } from '../MsfsAvionicsCommon/FlashingElementUtils';
+import { ExtendedClockEvents } from '../MsfsAvionicsCommon/providers/ExtendedClockProvider';
 import { PrimFgBusBaseEvents } from '@shared/publishers/PrimFgPublisher';
+import { approachModeStates } from './FMADefinitions';
 import {
   glsInfoTexts,
+  GlsFlagMonitor,
   isLsDeviationValid,
+  isLsTitleShown,
+  LsFlashTimer,
   lsDeviation,
   lsSource,
   lsTitleText,
@@ -721,13 +726,11 @@ class MarkerBeaconIndicator extends DisplayComponent<{ bus: EventBus }> {
 }
 
 class LsTitle extends DisplayComponent<{ bus: EventBus }> {
-  private readonly sub = this.props.bus.getSubscriber<FcuEfisCpBusEvents & PFDSimvars>();
+  private readonly sub = this.props.bus.getSubscriber<FcuEfisCpBusEvents & PFDSimvars & PrimFgBusBaseEvents>();
 
   private readonly fcuEisDiscreteWord2 = Arinc429LocalVarConsumerSubject.create(null);
 
   private readonly lsButton = this.fcuEisDiscreteWord2.map((word) => word.bitValueOr(14, true));
-
-  private readonly lsTitle = FSComponent.createRef<SVGTextElement>();
 
   private readonly flsLateralActive = ConsumerSubject.create(this.sub.on('flsLateralActive'), false);
 
@@ -756,11 +759,74 @@ class LsTitle extends DisplayComponent<{ bus: EventBus }> {
     this.glsSelected,
   );
 
-  private readonly ilsTitleShown = MappedSubject.create(
-    ([hasLoc, lsButton]) => hasLoc && lsButton,
-    this.hasLoc,
-    this.lsButton,
+  private readonly approachModeStates = MappedSubject.create(
+    ([word1, word2, word3, word4]) => approachModeStates(word1, word2, word3, word4),
+    Arinc429LocalVarConsumerSubject.create(this.sub.on('prim_fg_discrete_word_1')),
+    Arinc429LocalVarConsumerSubject.create(this.sub.on('prim_fg_discrete_word_2')),
+    Arinc429LocalVarConsumerSubject.create(this.sub.on('prim_fg_discrete_word_3')),
+    Arinc429LocalVarConsumerSubject.create(this.sub.on('prim_fg_discrete_word_4')),
   );
+
+  private readonly glsChannel = ConsumerSubject.create(this.sub.on(ownSideGlsTopics(getDisplayIndex()).channel), 0);
+
+  private readonly glsLocValid = ConsumerSubject.create(
+    this.sub.on(ownSideGlsTopics(getDisplayIndex()).locValid),
+    false,
+  );
+
+  private readonly glsGsValid = ConsumerSubject.create(this.sub.on(ownSideGlsTopics(getDisplayIndex()).gsValid), false);
+
+  private readonly ownGlsFailed = ConsumerSubject.create(
+    this.sub.on(ownSideGlsTopics(getDisplayIndex()).failed),
+    false,
+  );
+
+  private readonly leftMainGearCompressed = ConsumerSubject.create(this.sub.on('leftMainGearCompressed'), false);
+
+  private readonly rightMainGearCompressed = ConsumerSubject.create(this.sub.on('rightMainGearCompressed'), false);
+
+  private readonly gbasStationFailed = ConsumerSubject.create(this.sub.on('gbasStationFailed'), false);
+
+  private readonly oneHertzClock = ConsumerSubject.create(null, false);
+
+  private readonly glsFlagMonitor = new GlsFlagMonitor();
+
+  private readonly titleFlash = new LsFlashTimer();
+
+  private readonly flagFlash = new LsFlashTimer();
+
+  private readonly titleClass = Subject.create('FontLargest Magenta MiddleAlign HiddenElement');
+
+  private readonly flagClass = Subject.create('FontLargest Red MiddleAlign HiddenElement');
+
+  /** Evaluates the GLS flag and the flashes once per frame, as what was received during the approach is remembered */
+  private updateDisplay(deltaTimeMs: number): void {
+    const glsSelected = this.glsSelected.get();
+    const lsButton = this.lsButton.get();
+    const modeStates = this.approachModeStates.get();
+    const flagShown = this.glsFlagMonitor.update(
+      {
+        lsButton,
+        channel: this.glsChannel.get(),
+        approachModeArmedOrEngaged: modeStates.armedOrEngaged || modeStates.landModesEngaged,
+        landModesEngaged: modeStates.landModesEngaged,
+        locValid: this.glsLocValid.get(),
+        gsValid: this.glsGsValid.get(),
+        glsFailed: this.ownGlsFailed.get() || this.gbasStationFailed.get(),
+        onGround: this.leftMainGearCompressed.get() || this.rightMainGearCompressed.get(),
+      },
+      deltaTimeMs,
+    );
+    // The title flash starts when the crew selects a GLS with the LS pb on, not when the flag clears
+    const titleFlashing = this.titleFlash.update(glsSelected && lsButton, deltaTimeMs);
+    const flagFlashing = this.flagFlash.update(flagShown, deltaTimeMs);
+    const off = this.oneHertzClock.get();
+    const titleShown = isLsTitleShown({ lsButton, hasLoc: this.hasLoc.get(), glsSelected, glsFlagShown: flagShown });
+    this.titleClass.set(
+      `FontLargest Magenta MiddleAlign${titleShown && !(titleFlashing && off) ? '' : ' HiddenElement'}`,
+    );
+    this.flagClass.set(`FontLargest Red MiddleAlign${flagShown && !(flagFlashing && off) ? '' : ' HiddenElement'}`);
+  }
 
   onAfterRender(node: VNode): void {
     super.onAfterRender(node);
@@ -771,21 +837,21 @@ class LsTitle extends DisplayComponent<{ bus: EventBus }> {
       this.sub.on(isFo ? 'fcu_efis_r_discrete_word_2' : 'fcu_efis_l_discrete_word_2'),
     );
 
-    // normally the ident and freq should be always displayed when an ILS freq is set, but currently it only show when we have a signal
-    this.ilsTitleShown.sub((it) => {
-      if (it) {
-        this.lsTitle.instance.style.display = 'inline';
-      } else {
-        this.lsTitle.instance.style.display = 'none';
-      }
-    });
+    const clockSub = this.props.bus.getSubscriber<ExtendedClockEvents>();
+    this.oneHertzClock.setConsumer(clockSub.on('ext_clock_one_hertz'));
+    clockSub.on('ext_clock_delta_time').handle((deltaTime) => this.updateDisplay(deltaTime));
   }
 
   render(): VNode {
     return (
-      <text class="FontLargest Magenta MiddleAlign" ref={this.lsTitle} x="104" y="126">
-        {this.titleText}
-      </text>
+      <>
+        <text class={this.titleClass} x="104" y="126">
+          {this.titleText}
+        </text>
+        <text class={this.flagClass} x="104" y="126">
+          GLS
+        </text>
+      </>
     );
   }
 }
