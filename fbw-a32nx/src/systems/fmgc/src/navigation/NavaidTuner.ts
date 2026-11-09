@@ -20,11 +20,11 @@ import {
 import { FmgcFlightPhase } from '@shared/flightphase';
 import { ConsumerSubject, EventBus, GameStateProvider, SimVarValueType, Subject, Wait } from '@microsoft/msfs-sdk';
 import { GlsApproachData } from '@fmgc/navigation/gls/GlsApproachData';
+import { RmpGlsLoaders, RmpGlsTuning, updateRmpGlsReceivers } from '@fmgc/navigation/gls/RmpGlsTuning';
 import {
   applyManualGls,
   GlsManualEntryField,
   applySelectedLandingSystem,
-  leaveGlsMode,
   SelectedLandingSystem,
 } from '@fmgc/navigation/LandingSystemTuning';
 import { isRunwayLsMismatch } from '@fmgc/components/fms-messages/RwyLsMismatchLogic';
@@ -301,6 +301,13 @@ export class NavaidTuner {
     { selected: Subject.create(false), localVar: 'L:A32NX_FM2_BACKBEAM_SELECTED' },
   ];
 
+  /** The channel the RMPs tuned to the GLS (A32NX RMP), 0 for none. The A380X RMP does not write it. */
+  private static readonly RMP_GLS_CHANNEL_VAR = 'L:A32NX_RMP_GLS_CHANNEL';
+
+  private readonly rmpGlsTuning = new RmpGlsTuning();
+
+  private glsLoaders: RmpGlsLoaders | null = null;
+
   /** Whether the tuning event blocked message has been shown before. It is only shown once. */
   private blockEventMessageShown = false;
 
@@ -367,14 +374,28 @@ export class NavaidTuner {
       this.updateNavaidSelection();
       this.rwyLsMismatchMessage = this.hasRunwayLsMismatch(1) || this.hasRunwayLsMismatch(2);
     } else {
-      // The RMPs tune the radios: a GLS must not stay on the bus over the ILS tuned there
-      this.mmrTuningStatus.forEach((mmr) => leaveGlsMode(mmr));
+      updateRmpGlsReceivers(
+        this.rmpGlsTuning,
+        this.mmrTuningStatus,
+        {
+          rmpTuningActive: this.rmpTuningActive,
+          loaders: this.glsLoaders,
+          readChannel: () => SimVar.GetSimVarValue(NavaidTuner.RMP_GLS_CHANNEL_VAR, 'number'),
+          presentPosition: () => this.navigationProvider.getPpos(),
+        },
+        deltaTime,
+      );
       if (this.tuningLockoutTimer > 0) {
         this.tuningLockoutTimer -= deltaTime;
       }
     }
 
     this.updateArincBus();
+  }
+
+  /** Where the GLS procedures of the RMP tuned channels come from; set by the A32NX FMS, the A380X has no such tuning */
+  setGlsLoaders(loaders: RmpGlsLoaders): void {
+    this.glsLoaders = loaders;
   }
 
   private handleKeyEvent(key: string, value1?: number, value0?: number, value2?: number): void {

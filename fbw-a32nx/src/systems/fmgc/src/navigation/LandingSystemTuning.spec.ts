@@ -7,6 +7,7 @@ import type { MmrRadioTuningStatus } from '@fmgc/navigation/NavaidTuner';
 import { GlsApproachData } from '@fmgc/navigation/gls/GlsApproachData';
 import {
   applyManualGls,
+  applyRmpGls,
   applySelectedLandingSystem,
   canEnterLsCourse,
   leaveGlsMode,
@@ -259,6 +260,42 @@ describe('landing system tuning', () => {
       expect(mmr).toEqual(before);
     });
   });
+  describe('GLS tuned on the RMP', () => {
+    it('sets the MMR to the GLS as a crew entry', () => {
+      const mmr = idleMmr();
+
+      applyRmpGls(mmr, GLS);
+
+      expect(mmr.gls).toBe(GLS);
+      expect(mmr.manual).toBe(true);
+      expect(mmr.glsEntry).toBe('channel');
+      expect(mmr.frequency).toBeNull();
+      expect(mmr.course).toBe(246);
+    });
+
+    it('takes an ILS that was tuned off the MMR', () => {
+      const mmr = idleMmr();
+      applySelectedLandingSystem(mmr, selectedIls());
+
+      applyRmpGls(mmr, GLS);
+
+      expect(mmr.facility).toBeUndefined();
+      expect(mmr.frequency).toBeNull();
+      expect(mmr.gls).toBe(GLS);
+    });
+
+    it('changes to another channel and is left again with leaveGlsMode', () => {
+      const mmr = idleMmr();
+      applyRmpGls(mmr, GLS);
+
+      applyRmpGls(mmr, OTHER_GLS);
+      expect(mmr.gls).toBe(OTHER_GLS);
+
+      leaveGlsMode(mmr);
+      expect(mmr).toEqual(idleMmr());
+    });
+  });
+
   describe('course of a GLS', () => {
     it('cannot be entered by the crew, as the receiver takes it from the uplink', () => {
       const mmr = idleMmr();

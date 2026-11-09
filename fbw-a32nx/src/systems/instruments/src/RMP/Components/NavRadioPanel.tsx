@@ -7,8 +7,17 @@ import React, { useEffect, useState } from 'react';
 import { useSimVar, useInteractionEvent } from '@flybywiresim/fbw-sdk-react';
 import { StandbyFrequency, TransceiverType } from './StandbyFrequency';
 import { StandbyCourse } from './StandbyCourse';
+import { StandbyChannel } from './StandbyChannel';
 import { RadioPanelDisplay } from './RadioPanelDisplay';
-import { isApprModeArmedOrEngaged, isBelowIlsTuneInhibitHeight, isIlsTuneInhibited } from './RmpNavBackupTuning';
+import {
+  formatGlsChannel,
+  GLS_CHANNEL_DEFAULT,
+  isApprModeArmedOrEngaged,
+  isBelowIlsTuneInhibitHeight,
+  isLsTuneInhibited,
+  RMP_GLS_CHANNEL_VAR,
+  rmpTransferTuning,
+} from './RmpNavBackupTuning';
 
 interface Props {
   /**
@@ -17,7 +26,7 @@ interface Props {
   side: string;
 
   /**
-   * The NAV transceiver  (VOR, ILS, ADF).
+   * The NAV transceiver  (VOR, ILS, GLS, ADF).
    */
   transceiver: number;
 }
@@ -34,7 +43,7 @@ enum Mode {
 
 /**
  *
- * @param transceiver The transceiver type (VOR, ADF or ILS)
+ * @param transceiver The transceiver type (VOR, ADF, ILS or GLS)
  * @param side Side on which the transceiver is (L or R)
  * @returns a tuble simvar
  */
@@ -44,6 +53,9 @@ const useActiveFrequency = (transceiver: number, side: string) => {
       return useSimVar(`L:A32NX_RMP_${side}_SAVED_ACTIVE_FREQUENCY_VOR`, 'number');
     case TransceiverType.ADF:
       return useSimVar(`L:A32NX_RMP_${side}_SAVED_ACTIVE_FREQUENCY_ADF`, 'number');
+    case TransceiverType.GLS:
+      // Both MMRs are tuned to the same channel, whichever RMP tuned it
+      return useSimVar(RMP_GLS_CHANNEL_VAR, 'number');
     default:
       return useSimVar(`L:A32NX_RMP_${side}_SAVED_ACTIVE_FREQUENCY_ILS`, 'number');
   }
@@ -51,7 +63,7 @@ const useActiveFrequency = (transceiver: number, side: string) => {
 
 /**
  *
- * @param transceiver The transceiver type (VOR, ADF or ILS)
+ * @param transceiver The transceiver type (VOR, ADF, ILS or GLS)
  * @param side Side on which the transceiver is (L or R)
  * @returns a tuble simvar
  */
@@ -61,6 +73,8 @@ const useStandbyFrequency = (transceiver: number, side: string) => {
       return useSimVar(`L:A32NX_RMP_${side}_SAVED_STANDBY_FREQUENCY_VOR`, 'number');
     case TransceiverType.ADF:
       return useSimVar(`L:A32NX_RMP_${side}_SAVED_STANDBY_FREQUENCY_ADF`, 'number');
+    case TransceiverType.GLS:
+      return useSimVar(`L:A32NX_RMP_${side}_SAVED_STANDBY_CHANNEL_GLS`, 'number');
     default:
       return useSimVar(`L:A32NX_RMP_${side}_SAVED_STANDBY_FREQUENCY_ILS`, 'number');
   }
@@ -68,7 +82,7 @@ const useStandbyFrequency = (transceiver: number, side: string) => {
 
 /**
  *
- * @param transceiver The transceiver type (VOR, ADF or ILS)
+ * @param transceiver The transceiver type (VOR, ADF, ILS or GLS)
  * @param side Side on which the transceiver is (L or R)
  * @returns a tuble simvar
  */
@@ -93,6 +107,12 @@ const setActiveFrequencySimVar = (transceiver: number, index: number, frequency:
   SimVar.SetSimVarValue(`K:NAV${index}_RADIO_SET_HZ`, 'Hz', frequency);
 };
 
+/** Tunes both MMRs to a GLS channel. The ILS receiver is detuned: an MMR is either on an ILS or on a GLS. */
+const tuneGlsChannel = (channel: number) => {
+  SimVar.SetSimVarValue(RMP_GLS_CHANNEL_VAR, 'number', channel);
+  SimVar.SetSimVarValue('K:NAV3_RADIO_SET_HZ', 'Hz', 0);
+};
+
 /**
  * NAV radio management panel React component.
  * Hooks into the mode active and standby frequency SimVars and wires transfer button.
@@ -112,13 +132,15 @@ export const NavRadioPanel = (props: Props) => {
   const [standbyFrequency, setStandbyFrequencySaved] = useStandbyFrequency(props.transceiver, props.side);
   const [course, setCourseSaved] = useCourse(props.transceiver, props.side);
 
+  const isGls = props.transceiver === TransceiverType.GLS;
+
   const [, setCourse] = useSimVar(
     props.transceiver === TransceiverType.VOR ? `K:VOR${index}_SET` : 'L:A32NX_FM_LS_COURSE',
     'number',
     100,
   );
 
-  // ILS tune inhibit inputs (see RmpNavBackupTuning.isIlsTuneInhibited)
+  // ILS tune inhibit inputs (see RmpNavBackupTuning.isLsTuneInhibited)
   const [fmaLateralMode] = useSimVar('L:A32NX_FMA_LATERAL_MODE', 'number');
   const [fmaLateralArmed] = useSimVar('L:A32NX_FMA_LATERAL_ARMED', 'number');
   const [fmaVerticalMode] = useSimVar('L:A32NX_FMA_VERTICAL_MODE', 'number');
@@ -129,28 +151,46 @@ export const NavRadioPanel = (props: Props) => {
   const [radioAltitude1] = useSimVar('L:A32NX_RA_1_RADIO_ALTITUDE', 'number');
   const [radioAltitude2] = useSimVar('L:A32NX_RA_2_RADIO_ALTITUDE', 'number');
 
+  // Nothing is saved before the first entry: the window starts at the bottom of the channel range
+  const standbyChannel = standbyFrequency > 0 ? standbyFrequency : GLS_CHANNEL_DEFAULT;
+
   useInteractionEvent(`A32NX_RMP_${props.side}_TRANSFER_BUTTON_PRESSED`, () => {
-    const ilsTuneInhibited = isIlsTuneInhibited(
-      props.transceiver === TransceiverType.ILS,
+    const lsTuneInhibited = isLsTuneInhibited(
+      props.transceiver === TransceiverType.ILS || isGls,
       isBelowIlsTuneInhibitHeight(radioAltitude1, radioAltitude2),
       isApprModeArmedOrEngaged(fmaLateralMode, fmaLateralArmed, fmaVerticalMode, fmaVerticalArmed),
       apEngaged > 0 || fd1Engaged > 0 || fd2Engaged > 0,
     );
-    if (!ilsTuneInhibited) {
+    if (!lsTuneInhibited) {
       if (mode === Mode.FREQUENCY) {
-        if (props.transceiver !== TransceiverType.ADF) {
+        // Design choice: the receiver of a GLS flies the course of its uplink, so the GLS has no course to enter
+        if (props.transceiver !== TransceiverType.ADF && !isGls) {
           setMode(Mode.COURSE);
         }
 
-        // FCOM compliant: Both RMPs must be in nav backup mode in order to tune the ILS
-        if (
-          props.transceiver !== TransceiverType.ILS ||
-          (SimVar.GetSimVarValue('L:A32NX_RMP_L_NAV_BUTTON_SELECTED', 'Bool') &&
-            SimVar.GetSimVarValue('L:A32NX_RMP_R_NAV_BUTTON_SELECTED', 'Bool'))
-        ) {
+        let receiver: 'ILS' | 'GLS' | 'OTHER' = 'OTHER';
+        if (isGls) {
+          receiver = 'GLS';
+        } else if (props.transceiver === TransceiverType.ILS) {
+          receiver = 'ILS';
+        }
+        const bothNavKeysOn =
+          !!SimVar.GetSimVarValue('L:A32NX_RMP_L_NAV_BUTTON_SELECTED', 'Bool') &&
+          !!SimVar.GetSimVarValue('L:A32NX_RMP_R_NAV_BUTTON_SELECTED', 'Bool');
+        const tuning = rmpTransferTuning(receiver, bothNavKeysOn);
+
+        if (tuning === 'gls-channel') {
+          tuneGlsChannel(standbyChannel);
+        } else if (tuning !== 'none') {
+          if (tuning === 'ils-frequency') {
+            // The MMRs leave the GLS mode for the ILS
+            SimVar.SetSimVarValue(RMP_GLS_CHANNEL_VAR, 'number', 0);
+          }
           setActiveFrequencySimVar(props.transceiver, index, standbyFrequency);
         }
-        setActiveFrequencySaved(standbyFrequency);
+        if (!isGls) {
+          setActiveFrequencySaved(standbyFrequency);
+        }
       } else {
         setCourse(course);
         setMode(Mode.FREQUENCY);
@@ -168,7 +208,9 @@ export const NavRadioPanel = (props: Props) => {
     }
   }, [standbyFrequency]);
 
-  if (mode === Mode.FREQUENCY) {
+  if (mode === Mode.FREQUENCY && isGls) {
+    standbyWindow = <StandbyChannel side={props.side} value={standbyChannel} setValue={setStandbyFrequencySaved} />;
+  } else if (mode === Mode.FREQUENCY) {
     standbyWindow = (
       <StandbyFrequency
         side={props.side}
@@ -181,9 +223,15 @@ export const NavRadioPanel = (props: Props) => {
     standbyWindow = <StandbyCourse side={props.side} value={course} setValue={setCourseSaved} />;
   }
 
+  // Blank, not DATA, while no GLS channel is tuned
+  let activeValue: number | string = activeFrequency;
+  if (isGls) {
+    activeValue = activeFrequency > 0 ? formatGlsChannel(activeFrequency) : '';
+  }
+
   return (
     <span>
-      <RadioPanelDisplay value={activeFrequency} />
+      <RadioPanelDisplay value={activeValue} />
       {standbyWindow}
     </span>
   );

@@ -3,7 +3,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { GlsApproachData } from './GlsApproachData';
-import { ManualGlsTuningContext, tuneManualGls } from './ManualGlsTuning';
+import { createGbasTableAirportLoader, ManualGlsTuningContext, tuneManualGls } from './ManualGlsTuning';
 
 const EDDF_25C = {
   ident: 'RW25C',
@@ -115,5 +115,21 @@ describe('manual GLS tuning', () => {
 
     expect(tuned).toHaveLength(0);
     expect(loadRunways).not.toHaveBeenCalled();
+  });
+});
+
+describe('GBAS table airport loader', () => {
+  it('reads the database once and keeps only ident and location', async () => {
+    const getAirports = vi.fn(() =>
+      Promise.resolve([{ ident: 'EDDF', location: { lat: 50.033, long: 8.57 }, name: 'Frankfurt' }]),
+    );
+    const load = createGbasTableAirportLoader(() => ({ getAirports }));
+
+    const first = await load();
+    const second = await load();
+
+    expect(getAirports).toHaveBeenCalledTimes(1);
+    expect(second).toBe(first);
+    expect(first).toEqual([{ ident: 'EDDF', location: { lat: 50.033, long: 8.57 } }]);
   });
 });

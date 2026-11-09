@@ -12,6 +12,10 @@ export interface GlsInfoInputs {
   channel: number;
   /** nautical miles to the runway threshold */
   thresholdDistance: number;
+  /**
+   * An RMP tunes the GLS: the receiver then gives no distance, as for an ILS tuned on the RMP. Defaults to false.
+   */
+  rmpTuned?: boolean;
 }
 
 export interface GlsInfoTexts {
@@ -28,6 +32,6 @@ export function glsInfoTexts(inputs: GlsInfoInputs): GlsInfoTexts {
   return {
     ident: inputs.received ? SimVarString.unpack([inputs.identWord]) : '',
     channel: inputs.channel > 0 ? inputs.channel.toFixed(0) : '',
-    distance: inputs.received ? inputs.thresholdDistance : null,
+    distance: inputs.received && !inputs.rmpTuned ? inputs.thresholdDistance : null,
   };
 }

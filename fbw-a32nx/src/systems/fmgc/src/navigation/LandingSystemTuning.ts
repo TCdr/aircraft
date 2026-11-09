@@ -97,6 +97,17 @@ export function applyManualGls(
   mmr.databaseCourse = null;
 }
 
+/**
+ * Sets an MMR to the GLS that an RMP tuned. The RMP owns the inhibit of its tuning (the ILS and the GLS freeze on final
+ * approach there), so the FMS tuning lock does not apply.
+ */
+export function applyRmpGls(mmr: MmrRadioTuningStatus, gls: GlsApproachData): void {
+  setGls(mmr, gls);
+  mmr.manual = true;
+  mmr.glsEntry = 'channel';
+  mmr.databaseCourse = null;
+}
+
 /** The crew cannot enter the course of a GLS: the receiver takes it from the uplink */
 export function canEnterLsCourse(mmr: Pick<MmrRadioTuningStatus, 'gls'>): boolean {
   return !mmr.gls;

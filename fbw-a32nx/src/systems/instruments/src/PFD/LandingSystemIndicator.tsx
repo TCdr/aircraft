@@ -176,12 +176,14 @@ class LandingSystemInfo extends DisplayComponent<LandingSystemInfoProps> {
   private readonly glsSelected = this.glsChannel.map((channel) => channel > 0);
 
   private readonly glsTexts = MappedSubject.create(
-    ([received, identWord, channel, thresholdDistance]) =>
-      glsInfoTexts({ received, identWord, channel, thresholdDistance }),
+    ([received, identWord, channel, thresholdDistance, fmNavDiscrete]) =>
+      // The FM stops sending the tuning discrete when an RMP tunes the receivers
+      glsInfoTexts({ received, identWord, channel, thresholdDistance, rmpTuned: !fmNavDiscrete.isNormalOperation() }),
     this.glsLocValid,
     this.glsIdentWord,
     this.glsChannel,
     this.glsThresholdDistance,
+    this.fm1NavDiscrete,
   );
 
   private readonly glsDistanceRounded = this.glsTexts.map((texts) => MathUtils.round(texts.distance ?? 0, 0.1));
