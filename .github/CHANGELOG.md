@@ -1050,6 +1050,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/EFB] New flyPad failures GLS 1 function, GLS 2 function and GBAS ground station, with the ILS flag on the PFD when the GLS of a side is lost - @TCdr
 1. [A32NX/FWC] GLS AUTOLAND is listed as inoperative with CAT 2 on the STATUS page of AUTO FLT AP OFF (both APs), AUTO FLT YAW DAMPER SYS, AUTO FLT RUD TRIM SYS, ELEC AC BUS 2 FAULT, ELEC AC ESS BUS FAULT, F/CTL L(R) ELEV FAULT, F/CTL L+R ELEV FAULT, F/CTL STABILIZER JAM, HYD B+Y, G+B and G+Y SYS LO PR, L/G LGCIU 1+2 FAULT, NAV ADR, IR and RA faults - @TCdr
 1. [A32NX/RMP] The GLS key works in the NAV backup mode: the knobs set the GLS channel and the transfer key tunes both MMRs to it; the PFDs show no GLS distance while the RMP tunes the GLS - @TCdr
+1. [A32NX/GPWS] Mode 5 GLIDESLOPE alert, the mode 2B envelope and the mode 1 glide slope bias also work on a GLS approach - @TCdr
+1. [A380X/TAWS] Mode 5 GLIDE SLOPE alert and the mode 2B envelope also work on a GLS approach - @TCdr
+1. [A32NX/FWC] The smart FIVE HUNDRED callout uses the GLS glide on a GLS approach - @TCdr
+1. [A380X/FWS] The smart FIVE HUNDRED callout uses the GLS glide on a GLS approach - @TCdr
 
 ## 2024.1.0
 

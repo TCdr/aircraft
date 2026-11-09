@@ -1464,7 +1464,8 @@ deviations like an ILS receiver. All values are raw numbers without a unit.
 - A32NX_MMR_{number}_GLS_CHANNEL
     - Number: 1 or 2
     - The GLS channel MMR {number} is set to, 0 when the MMR is in ILS mode. Written by the FMGC. The PFD, the FMA and
-      the flight guidance follow it: an MMR with a channel is in GLS mode, whether or not it receives the station
+      the flight guidance follow it, and so do the systems MMR shim (EGPWS on the A32NX) and the systems host GPWS and
+      FWC: an MMR with a channel is in GLS mode, whether or not it receives the station
 
 - A32NX_GBAS_STATION_FAILED
     - Bool
@@ -1481,12 +1482,12 @@ deviations like an ILS receiver. All values are raw numbers without a unit.
     - Bool
     - Number: 1 or 2
     - The lateral (vertical) deviation of the GLS is valid for MMR {number}: it receives the station, inside the service
-      volume and before the azimuth reference point (glide path intercept point). Written by fbw.wasm
+      volume and before the azimuth reference point (glide path intercept point). Written by fbw.wasm. Read by the MMR shim of the systems (GPWS mode 5 and 2B) and the FWC (smart FIVE HUNDRED callout) for the MMR in GLS mode
 
 - A32NX_GLS_LOC_DEVIATION, A32NX_GLS_GS_DEVIATION
     - Number in degrees
     - The lateral (vertical) deviation of the GLS, with the sign and scale of A32NX_RADIO_RECEIVER_LOC_DEVIATION
-      (A32NX_RADIO_RECEIVER_GS_DEVIATION). Written by fbw.wasm
+      (A32NX_RADIO_RECEIVER_GS_DEVIATION). Written by fbw.wasm. Read by the MMR shim of the systems (GPWS mode 5 and 2B) and the FWC (smart FIVE HUNDRED callout) for the MMR in GLS mode
 
 - A32NX_GLS_THRESHOLD_DISTANCE
     - Number in nautical miles

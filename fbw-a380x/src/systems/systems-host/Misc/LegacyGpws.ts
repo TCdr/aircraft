@@ -13,6 +13,7 @@ import { EventBus, SimVarValueType } from '@microsoft/msfs-sdk';
 import { FwsSoundManagerControlEvents } from '../CpiomC/FlightWarningSystem/FwsSoundManager';
 import { GpwsMode2 } from './GpwsMode2';
 import { HeightCalloutRepeatGate } from './HeightCalloutRepeatGate';
+import { MmrOneLandingSystem } from '../../../../../fbw-common/src/systems/shared/src/MmrLandingSystem';
 import { publishedTawsSystem } from './TawsSystemInUse';
 import { isFwsStallWarningActive, isReactiveWindshearWarningActive } from './SurvAlertPriority';
 
@@ -22,6 +23,8 @@ type ModesType = {
   type: any[];
   onChange?: (arg0: number, arg1: number) => void;
 };
+
+const mmrOne = new MmrOneLandingSystem((name) => SimVar.GetSimVarValue(name, 'number'));
 
 /**
  * This 1:1 port from the A32NX's GPWS+FWS serves as temporary replacement, until a more sophisticated system simulation is in place.
@@ -78,18 +81,14 @@ export class LegacyGpws {
    * One dot: 0.4 degree of glide slope (as mode 5), 0.8 degree of localizer.
    * @returns true when both the glide slope and the localizer are received with less than 2 dots of deviation
    */
-  static areIlsDeviationsBelowTwoDots(): boolean {
-    if (
-      !(SimVar.GetSimVarValue('L:A32NX_RADIO_RECEIVER_GS_IS_VALID', 'number') > 0) ||
-      !(SimVar.GetSimVarValue('L:A32NX_RADIO_RECEIVER_LOC_IS_VALID', 'number') > 0)
-    ) {
+  static areLsDeviationsBelowTwoDots(): boolean {
+    const glideSlope = mmrOne.glideSlope();
+    const localizer = mmrOne.localizer();
+    if (!glideSlope.valid || !localizer.valid) {
       return false;
     }
-    const glideSlopeDots = Math.abs(SimVar.GetSimVarValue('L:A32NX_RADIO_RECEIVER_GS_DEVIATION', 'number')) / 0.4;
-    const localizerDots =
-      Math.abs(
-        MathUtils.correctMsfsLocaliserError(SimVar.GetSimVarValue('L:A32NX_RADIO_RECEIVER_LOC_DEVIATION', 'number')),
-      ) / 0.8;
+    const glideSlopeDots = Math.abs(glideSlope.deviation) / 0.4;
+    const localizerDots = Math.abs(MathUtils.correctMsfsLocaliserError(localizer.deviation)) / 0.8;
     return glideSlopeDots < 2 && localizerDots < 2;
   }
 
@@ -383,7 +382,7 @@ export class LegacyGpws {
         altitudeFt: baroAlt.isNormalOperation() ? baroAlt.value : SimVar.GetSimVarValue('PLANE ALTITUDE', 'feet'),
         landingFlaps: FlapsInLandingConfig,
         gearDown: gearExtended,
-        ilsDeviationsBelowTwoDots: LegacyGpws.areIlsDeviationsBelowTwoDots(),
+        ilsDeviationsBelowTwoDots: LegacyGpws.areLsDeviationsBelowTwoDots(),
       });
       this.GPWSMode3(this.modes[2], radioAlt.value, phase);
       this.GPWSMode4(this.modes[3], radioAlt.value, Airspeed, FlapsInLandingConfig, gearExtended, phase);
@@ -664,12 +663,12 @@ export class LegacyGpws {
       mode.current = 0;
       return;
     }
-    if (!SimVar.GetSimVarValue('L:A32NX_RADIO_RECEIVER_GS_IS_VALID', 'number')) {
+    const glideSlope = mmrOne.glideSlope();
+    if (!glideSlope.valid) {
       mode.current = 0;
       return;
     }
-    const error = SimVar.GetSimVarValue('L:A32NX_RADIO_RECEIVER_GS_DEVIATION', 'number');
-    const dots = -error * 2.5; // According to the FCOM, one dot is approx. 0.4 degrees. 1/0.4 = 2.5
+    const dots = -glideSlope.deviation * 2.5; // According to the FCOM, one dot is approx. 0.4 degrees. 1/0.4 = 2.5
 
     const minAltForWarning = dots < 2.9 ? -75 * dots + 247.5 : 30;
     const minAltForHardWarning = dots < 3.8 ? -66.66 * dots + 283.33 : 30;
@@ -838,10 +837,10 @@ export class LegacyGpws {
           this.AltCallState.action('up');
         } else if (radioAlt <= 513) {
           // FIVE HUNDRED, or smart FIVE HUNDRED: only when off the glide by more than half a dot
-          const glideValid = SimVar.GetSimVarValue('L:A32NX_RADIO_RECEIVER_GS_IS_VALID', 'number') > 0;
+          const glideSlope = mmrOne.glideSlope();
           // one dot is approx. 0.4 degrees, as in GPWSMode5
-          const glideDots = SimVar.GetSimVarValue('L:A32NX_RADIO_RECEIVER_GS_DEVIATION', 'number') * 2.5;
-          if (isFiveHundredCalloutDue(this.autoCallOutPins, glideValid, glideDots)) {
+          const glideDots = glideSlope.deviation * 2.5;
+          if (isFiveHundredCalloutDue(this.autoCallOutPins, glideSlope.valid, glideDots)) {
             this.enqueueAltitudeCallout('alt_500');
           }
           this.AltCallState.action('down');
