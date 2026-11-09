@@ -3,7 +3,10 @@ use crate::{
         arinc429::{Arinc429Word, SignStatus},
         ConsumePower, ElectricalBusType, ElectricalBuses,
     },
-    simulation::{Read, SimulationElement, UpdateContext, VariableIdentifier, Write},
+    simulation::{
+        InitContext, Read, SimulationElement, SimulatorReader, UpdateContext, VariableIdentifier,
+        Write,
+    },
 };
 use uom::si::{
     angle::degree,
@@ -38,6 +41,9 @@ pub trait InstrumentLandingSystemBus {
 /// An unpowered MMR is a dead box: it receives nothing, and its bus words carry failure warning
 /// where a receiver without a signal sends no computed data. The flight guidance flies the bus of
 /// the other MMR only for failure warning.
+///
+/// The ILS bus (`InstrumentLandingSystemBus`) carries the active mode of the MMR: the GLS while the MMR is set to a GLS
+/// channel, else the ILS.
 pub struct MultiModeReceiverShim {
     powered_by: ElectricalBusType,
     is_powered: bool,
@@ -48,6 +54,7 @@ pub struct MultiModeReceiverShim {
     localizer_deviation: Angle,
     glideslope_valid: bool,
     glideslope_deviation: Angle,
+    gls: GlsSignals,
 
     frequency_id: VariableIdentifier,
     nav_valid_id: VariableIdentifier,
@@ -67,11 +74,7 @@ impl MultiModeReceiverShim {
     const POWER_CONSUMPTION_WATT: f64 = 15.;
 
     /// The MMR `number` (1 or 2), powered by `powered_by`.
-    pub fn new(
-        context: &mut crate::simulation::InitContext,
-        number: usize,
-        powered_by: ElectricalBusType,
-    ) -> Self {
+    pub fn new(context: &mut InitContext, number: usize, powered_by: ElectricalBusType) -> Self {
         let nav_index = Self::sim_nav_index(number);
 
         Self {
@@ -84,6 +87,7 @@ impl MultiModeReceiverShim {
             localizer_deviation: Angle::default(),
             glideslope_valid: false,
             glideslope_deviation: Angle::default(),
+            gls: GlsSignals::new(context, number),
 
             frequency_id: context.get_identifier(format!("NAV FREQUENCY:{nav_index}")),
             nav_valid_id: context.get_identifier(format!("NAV HAS NAV:{nav_index}")),
@@ -131,7 +135,7 @@ impl MultiModeReceiverShim {
 
     /// Corrects an MSFS localiser radial error to give the correct deviations on the back beam.
     fn get_corrected_localizer_deviation(&self) -> Angle {
-        let normalized_error = Self::normalize_180(self.localizer_deviation);
+        let normalized_error = Self::normalize_180(self.bus_localizer_error());
 
         if normalized_error < Angle::new::<degree>(-90.0) {
             Angle::new::<degree>(-180.0) - normalized_error
@@ -160,11 +164,52 @@ impl MultiModeReceiverShim {
         (angle + Angle::new::<degree>(360.0)) % Angle::new::<degree>(360.0)
     }
 }
+impl MultiModeReceiverShim {
+    /// The MMR is set to a GLS channel, so its bus carries the GLS instead of the ILS
+    fn in_gls_mode(&self) -> bool {
+        self.gls.channel > 0.
+    }
+
+    /// The GLS is a function of the box, not of its ILS receiver: it only needs the box powered
+    fn gls_is_operative(&self) -> bool {
+        self.is_powered
+    }
+
+    fn active_mode<T>(&self, ils: T, gls: T) -> T {
+        if self.in_gls_mode() {
+            gls
+        } else {
+            ils
+        }
+    }
+
+    fn bus_loc_valid(&self) -> bool {
+        self.active_mode(
+            self.localizer_is_valid(),
+            self.gls.loc_valid && self.gls_is_operative(),
+        )
+    }
+
+    fn bus_glideslope_valid(&self) -> bool {
+        self.active_mode(
+            self.glideslope_is_valid(),
+            self.gls.glideslope_valid && self.gls_is_operative(),
+        )
+    }
+
+    fn bus_localizer_error(&self) -> Angle {
+        self.active_mode(self.localizer_deviation, self.gls.localizer_deviation)
+    }
+
+    fn bus_glideslope_error(&self) -> Angle {
+        self.active_mode(self.glideslope_deviation, self.gls.glideslope_deviation)
+    }
+}
 impl InstrumentLandingSystemBus for MultiModeReceiverShim {
     fn runway_heading(&self) -> Arinc429Word<Angle> {
         Arinc429Word::new(
             self.localizer_course,
-            if self.localizer_is_valid() {
+            if self.bus_loc_valid() {
                 SignStatus::NormalOperation
             } else {
                 self.invalid_status()
@@ -184,7 +229,7 @@ impl InstrumentLandingSystemBus for MultiModeReceiverShim {
     fn localizer_deviation(&self) -> Arinc429Word<Ratio> {
         Arinc429Word::new(
             self.get_corrected_localizer_deviation() / Angle::new::<degree>(0.8) * 0.0775,
-            if self.localizer_is_valid() {
+            if self.bus_loc_valid() {
                 SignStatus::NormalOperation
             } else {
                 self.invalid_status()
@@ -193,8 +238,8 @@ impl InstrumentLandingSystemBus for MultiModeReceiverShim {
     }
     fn glideslope_deviation(&self) -> Arinc429Word<Ratio> {
         Arinc429Word::new(
-            self.glideslope_deviation / Angle::new::<degree>(0.4) * 0.0875,
-            if self.glideslope_is_valid() {
+            self.bus_glideslope_error() / Angle::new::<degree>(0.4) * 0.0875,
+            if self.bus_glideslope_valid() {
                 SignStatus::NormalOperation
             } else {
                 self.invalid_status()
@@ -209,7 +254,7 @@ impl InstrumentLandingSystemBus for MultiModeReceiverShim {
     }
 }
 impl SimulationElement for MultiModeReceiverShim {
-    fn read(&mut self, reader: &mut crate::simulation::SimulatorReader) {
+    fn read(&mut self, reader: &mut SimulatorReader) {
         self.frequency = reader.read(&self.frequency_id);
         self.nav_valid = reader.read(&self.nav_valid_id);
         self.loc_valid = reader.read(&self.loc_valid_id);
@@ -217,6 +262,7 @@ impl SimulationElement for MultiModeReceiverShim {
         self.localizer_deviation = reader.read(&self.localizer_deviation_id);
         self.glideslope_valid = reader.read(&self.glideslope_valid_id);
         self.glideslope_deviation = reader.read(&self.glideslope_deviation_id);
+        self.gls.read(reader);
     }
 
     fn write(&self, writer: &mut crate::simulation::SimulatorWriter) {
@@ -234,6 +280,48 @@ impl SimulationElement for MultiModeReceiverShim {
                 Power::new::<watt>(Self::POWER_CONSUMPTION_WATT),
             );
         }
+    }
+}
+
+/// The GLS data of one MMR, written by the FBW module (fbw.wasm) with the same sign and scale as the ILS receiver
+/// variables. The deviations are shared by both MMRs, the valid flags are per MMR.
+struct GlsSignals {
+    /// The FMS writes a channel of 0 for ILS mode
+    channel: f64,
+    loc_valid: bool,
+    glideslope_valid: bool,
+    localizer_deviation: Angle,
+    glideslope_deviation: Angle,
+
+    channel_id: VariableIdentifier,
+    loc_valid_id: VariableIdentifier,
+    glideslope_valid_id: VariableIdentifier,
+    localizer_deviation_id: VariableIdentifier,
+    glideslope_deviation_id: VariableIdentifier,
+}
+impl GlsSignals {
+    fn new(context: &mut InitContext, number: usize) -> Self {
+        Self {
+            channel: 0.,
+            loc_valid: false,
+            glideslope_valid: false,
+            localizer_deviation: Angle::default(),
+            glideslope_deviation: Angle::default(),
+
+            channel_id: context.get_identifier(format!("MMR_{number}_GLS_CHANNEL")),
+            loc_valid_id: context.get_identifier(format!("GLS_{number}_LOC_IS_VALID")),
+            glideslope_valid_id: context.get_identifier(format!("GLS_{number}_GS_IS_VALID")),
+            localizer_deviation_id: context.get_identifier("GLS_LOC_DEVIATION".to_owned()),
+            glideslope_deviation_id: context.get_identifier("GLS_GS_DEVIATION".to_owned()),
+        }
+    }
+
+    fn read(&mut self, reader: &mut SimulatorReader) {
+        self.channel = reader.read(&self.channel_id);
+        self.loc_valid = reader.read(&self.loc_valid_id);
+        self.glideslope_valid = reader.read(&self.glideslope_valid_id);
+        self.localizer_deviation = reader.read(&self.localizer_deviation_id);
+        self.glideslope_deviation = reader.read(&self.glideslope_deviation_id);
     }
 }
 
@@ -358,6 +446,105 @@ mod tests {
                 .abs()
                 < 1e-9
         );
+    }
+
+    /// MMR `number` set to a GLS channel and receiving the given GLS deviations (degrees)
+    fn put_mmr_on_a_gls(
+        test_bed: &mut SimulationTestBed<TestAircraft>,
+        number: usize,
+        localizer_deviation: f64,
+        glideslope_deviation: f64,
+    ) {
+        test_bed.write_by_name(&format!("MMR_{number}_GLS_CHANNEL"), 40123.);
+        test_bed.write_by_name(&format!("GLS_{number}_LOC_IS_VALID"), true);
+        test_bed.write_by_name(&format!("GLS_{number}_GS_IS_VALID"), true);
+        test_bed.write_by_name("GLS_LOC_DEVIATION", localizer_deviation);
+        test_bed.write_by_name("GLS_GS_DEVIATION", glideslope_deviation);
+        test_bed.run();
+    }
+
+    #[test]
+    fn an_mmr_in_gls_mode_puts_the_gls_deviations_on_its_bus() {
+        let mut test_bed = test_bed_with_both_receivers_on_an_ils();
+        // the FMS detunes NAV 3 in GLS mode
+        test_bed.write_by_name("NAV HAS LOC:3", false);
+        test_bed.write_by_name("NAV HAS GLIDE SLOPE:3", false);
+        put_mmr_on_a_gls(&mut test_bed, 1, 0.4, -0.6);
+
+        let glideslope = test_bed.query(|a| a.mmr_1.glideslope_deviation());
+        assert!(glideslope.is_normal_operation());
+        assert!((glideslope.value().get::<ratio>() - (-0.6 / 0.4 * 0.0875)).abs() < 1e-9);
+        let localizer = test_bed.query(|a| a.mmr_1.localizer_deviation());
+        assert!(localizer.is_normal_operation());
+        assert!((localizer.value().get::<ratio>() - (0.4 / 0.8 * 0.0775)).abs() < 1e-9);
+    }
+
+    #[test]
+    fn an_mmr_in_gls_mode_ignores_its_ils_signal() {
+        let mut test_bed = test_bed_with_both_receivers_on_an_ils();
+        test_bed.write_by_name("MMR_1_GLS_CHANNEL", 40123.);
+        test_bed.write_by_name("GLS_1_LOC_IS_VALID", false);
+        test_bed.write_by_name("GLS_1_GS_IS_VALID", false);
+        test_bed.run();
+
+        assert!(test_bed.query(|a| a.mmr_1.glideslope_deviation().is_no_computed_data()));
+        assert!(test_bed.query(|a| a.mmr_1.localizer_deviation().is_no_computed_data()));
+        assert!(test_bed.query(|a| a.mmr_1.runway_heading().is_no_computed_data()));
+    }
+
+    #[test]
+    fn only_the_mmr_in_gls_mode_uses_the_gls() {
+        let mut test_bed = test_bed_with_both_receivers_on_an_ils();
+        put_mmr_on_a_gls(&mut test_bed, 1, 0.4, -0.6);
+
+        let mmr_2_glideslope = test_bed.query(|a| a.mmr_2.glideslope_deviation());
+        assert!(mmr_2_glideslope.is_normal_operation());
+        assert!((mmr_2_glideslope.value().get::<ratio>() - 0.3 / 0.4 * 0.0875).abs() < 1e-9);
+    }
+
+    #[test]
+    fn an_unpowered_mmr_in_gls_mode_gives_no_gls_and_failure_warning() {
+        let mut test_bed = test_bed_with_both_receivers_on_an_ils();
+        test_bed.write_by_name("FM_LS_COURSE", 270.);
+        put_mmr_on_a_gls(&mut test_bed, 1, 0.4, -0.6);
+        assert!(test_bed.query(|a| a.mmr_1.glideslope_deviation().is_normal_operation()));
+
+        test_bed.command(|a| a.is_ac_1_powered = false);
+        test_bed.run();
+        test_bed.run();
+        assert!(test_bed.query(|a| a.mmr_1.glideslope_deviation().is_failure_warning()));
+        assert!(test_bed.query(|a| a.mmr_1.localizer_deviation().is_failure_warning()));
+        assert!(test_bed.query(|a| a.mmr_1.runway_heading().is_failure_warning()));
+
+        test_bed.command(|a| a.is_ac_1_powered = true);
+        test_bed.run();
+        test_bed.run();
+        assert!(test_bed.query(|a| a.mmr_1.glideslope_deviation().is_normal_operation()));
+    }
+
+    #[test]
+    fn an_mmr_that_loses_its_power_in_gls_mode_sends_nothing_valid_in_the_same_frame() {
+        let mut test_bed = test_bed_with_both_receivers_on_an_ils();
+        put_mmr_on_a_gls(&mut test_bed, 1, 0.4, -0.6);
+        test_bed.run();
+
+        test_bed.command(|a| a.is_ac_1_powered = false);
+        test_bed.run_with_delta(Duration::from_millis(1));
+
+        assert!(test_bed.query(|a| a.mmr_1.glideslope_deviation().is_failure_warning()));
+        assert!(test_bed.query(|a| a.mmr_1.localizer_deviation().is_failure_warning()));
+    }
+
+    #[test]
+    fn the_runway_heading_follows_the_gls_localizer_validity() {
+        let mut test_bed = test_bed_with_both_receivers_on_an_ils();
+        test_bed.write_by_name("FM_LS_COURSE", 270.);
+        put_mmr_on_a_gls(&mut test_bed, 1, 0.4, -0.6);
+        assert!(test_bed.query(|a| a.mmr_1.runway_heading().is_normal_operation()));
+
+        test_bed.write_by_name("GLS_1_LOC_IS_VALID", false);
+        test_bed.run();
+        assert!(test_bed.query(|a| a.mmr_1.runway_heading().is_no_computed_data()));
     }
 
     #[test]

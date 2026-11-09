@@ -285,8 +285,14 @@ impl Aircraft for A320 {
             self.radio_altimeters.radio_altimeter_2(),
             self.adirs.adr_bus(1),
             self.adirs.ir_bus(1),
-            &self.mmr_1,
+            Self::egpws_landing_system([&self.mmr_1, &self.mmr_2]),
         );
+    }
+}
+impl A320 {
+    /// The EGPWS follows MMR 1 for mode 5, the mode 2B envelope and the mode 1 glide slope bias
+    fn egpws_landing_system(mmrs: [&MultiModeReceiverShim; 2]) -> &MultiModeReceiverShim {
+        mmrs[0]
     }
 }
 impl SimulationElement for A320 {
@@ -354,6 +360,44 @@ mod tests {
 
     fn mmr_is_powered(test_bed: &mut SimulationTestBed<A320>, number: usize) -> bool {
         test_bed.read_by_name(&format!("MMR_{number}_IS_POWERED"))
+    }
+
+    /// The EGPWS follows MMR 1, so the GLS of MMR 1 must reach it and the GLS of MMR 2 must not.
+    #[test]
+    fn the_egpws_gets_the_gls_glide_slope_of_mmr_1_only() {
+        use systems::navigation::ils::InstrumentLandingSystemBus;
+
+        let mut test_bed = aircraft_with_the_ac_buses_powered();
+        for nav_index in [3, 4] {
+            test_bed.write_by_name(&format!("NAV HAS GLIDE SLOPE:{nav_index}"), false);
+        }
+        test_bed.write_by_name("GLS_GS_DEVIATION", -0.6);
+
+        test_bed.write_by_name("MMR_1_GLS_CHANNEL", 40123.);
+        test_bed.write_by_name("GLS_1_GS_IS_VALID", true);
+        test_bed.run_with_delta(Duration::from_millis(50));
+        let on_mmr_1 = test_bed
+            .query(|a| A320::egpws_landing_system([&a.mmr_1, &a.mmr_2]).glideslope_deviation());
+        assert!(on_mmr_1.is_normal_operation());
+
+        let ac_ess_failure =
+            FailureType::ElectricalBus(ElectricalBusType::AlternatingCurrentEssential);
+        test_bed.fail(ac_ess_failure);
+        test_bed.run_multiple_frames(Duration::from_secs(2));
+        let unpowered = test_bed
+            .query(|a| A320::egpws_landing_system([&a.mmr_1, &a.mmr_2]).glideslope_deviation());
+        assert!(unpowered.is_failure_warning());
+        test_bed.unfail(ac_ess_failure);
+        test_bed.run_multiple_frames(Duration::from_secs(2));
+
+        test_bed.write_by_name("MMR_1_GLS_CHANNEL", 0.);
+        test_bed.write_by_name("GLS_1_GS_IS_VALID", false);
+        test_bed.write_by_name("MMR_2_GLS_CHANNEL", 40123.);
+        test_bed.write_by_name("GLS_2_GS_IS_VALID", true);
+        test_bed.run_with_delta(Duration::from_millis(50));
+        let on_mmr_2 = test_bed
+            .query(|a| A320::egpws_landing_system([&a.mmr_1, &a.mmr_2]).glideslope_deviation());
+        assert!(!on_mmr_2.is_normal_operation());
     }
 
     /// MMR 1 is supplied by AC ESS, MMR 2 by AC 2: the MMR of the side of a lost bus is lost, the other side keeps its own

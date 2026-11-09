@@ -5,6 +5,7 @@ import { LegacySoundManager, soundList } from './LegacySoundManager';
 import { A380X_DEFAULT_RADIO_AUTO_CALL_OUTS, A380XRadioAutoCallOutFlags } from '../../shared/src/AutoCallOuts';
 import { EventBus, SimVarValueType } from '@microsoft/msfs-sdk';
 import { FwsSoundManagerControlEvents } from '../CpiomC/FlightWarningSystem/FwsSoundManager';
+import { MmrOneLandingSystem } from '../../../../../fbw-common/src/systems/shared/src/MmrLandingSystem';
 
 type ModesType = {
   current: number;
@@ -12,6 +13,8 @@ type ModesType = {
   type: any[];
   onChange?: (arg0: number, arg1: number) => void;
 };
+
+const mmrOne = new MmrOneLandingSystem((name) => SimVar.GetSimVarValue(name, 'number'));
 
 /**
  * This 1:1 port from the A32NX's GPWS+FWS serves as temporary replacement, until a more sophisticated system simulation is in place.
@@ -557,12 +560,12 @@ export class LegacyGpws {
       mode.current = 0;
       return;
     }
-    if (!SimVar.GetSimVarValue('L:A32NX_RADIO_RECEIVER_GS_IS_VALID', 'number')) {
+    const glideSlope = mmrOne.glideSlope();
+    if (!glideSlope.valid) {
       mode.current = 0;
       return;
     }
-    const error = SimVar.GetSimVarValue('L:A32NX_RADIO_RECEIVER_GS_DEVIATION', 'number');
-    const dots = -error * 2.5; // According to the FCOM, one dot is approx. 0.4 degrees. 1/0.4 = 2.5
+    const dots = -glideSlope.deviation * 2.5; // According to the FCOM, one dot is approx. 0.4 degrees. 1/0.4 = 2.5
 
     const minAltForWarning = dots < 2.9 ? -75 * dots + 247.5 : 30;
     const minAltForHardWarning = dots < 3.8 ? -66.66 * dots + 283.33 : 30;

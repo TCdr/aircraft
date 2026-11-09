@@ -134,6 +134,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/PFD] The FMA shows AUTOLAND or CAT1 on a GLS approach, never CAT2 or CAT3 - @TCdr
 1. [A32NX/NAV] MMR 1 is powered by AC ESS and MMR 2 by AC 2: an unpowered MMR loses its ILS and GLS on its own side only, the FMGCs fly the other one - @TCdr
 1. [A380X/NAV] MMR 1 is powered by AC EMER and MMR 2 by AC 3: an unpowered MMR loses its ILS, GLS and FLS on its own side only, the PRIMs fly the other one - @TCdr
+1. [A32NX/GPWS] Mode 5 GLIDESLOPE alert, the mode 2B envelope and the mode 1 glide slope bias also work on a GLS approach - @TCdr
+1. [A380X/TAWS] Mode 5 GLIDE SLOPE alert also works on a GLS approach - @TCdr
+1. [A32NX/FWC] The smart FIVE HUNDRED callout uses the GLS glide on a GLS approach - @TCdr
 
 ## 2024.1.0
 

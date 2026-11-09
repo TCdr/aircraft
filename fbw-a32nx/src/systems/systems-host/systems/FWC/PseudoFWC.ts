@@ -48,6 +48,7 @@ import { FwsSoundManager } from './FwsSoundManager';
 // FIXME should not import from instruments
 import { PseudoFwcSimvars } from '../../../instruments/src/MsfsAvionicsCommon/providers/PseudoFwcPublisher';
 import { A32NXEcpBusEvents } from '@shared/publishers/A32NXEcpBusPublisher';
+import { MmrOneLandingSystem } from '../../../../../../fbw-common/src/systems/shared/src/MmrLandingSystem';
 import { A32NX_DEFAULT_RADIO_AUTO_CALL_OUTS } from '@shared/AutoCallOuts';
 
 export const DEFAULT_MONITOR_TIME = 0.3;
@@ -1787,12 +1788,22 @@ export class PseudoFWC {
     this.excessPressure,
   );
 
-  public readonly glideSlopeDeviation = RegisteredSimVar.create(
-    'L:A32NX_RADIO_RECEIVER_GS_DEVIATION',
-    SimVarValueType.Number,
-  );
+  private readonly landingSystemSimVars = new Map<string, RegisteredSimVar<number>>();
 
-  public readonly glideSlopeValid = RegisteredSimVar.createBoolean('L:A32NX_RADIO_RECEIVER_GS_IS_VALID');
+  private readonly mmrOne = new MmrOneLandingSystem((name) => {
+    let simVar = this.landingSystemSimVars.get(name);
+    if (!simVar) {
+      simVar = RegisteredSimVar.create(name, SimVarValueType.Number);
+      this.landingSystemSimVars.set(name, simVar);
+    }
+    return simVar.get();
+  });
+
+  /** Same shape as the SimVar it replaces, because the auto callouts read it with get() */
+  public readonly glideSlopeDeviation = { get: () => this.mmrOne.glideSlope().deviation };
+
+  /** Same shape as the SimVar it replaces, because the auto callouts read it with get() */
+  public readonly glideSlopeValid = { get: () => this.mmrOne.glideSlope().valid };
 
   /* SETTINGS */
   private readonly configPortableDevices = Subject.create(false);
