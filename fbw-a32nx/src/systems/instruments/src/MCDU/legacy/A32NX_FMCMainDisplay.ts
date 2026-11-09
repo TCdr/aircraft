@@ -181,9 +181,12 @@ import { flsBeamOfPlan } from '@fmgc/navigation/fls/FlsBeam';
 import { FlsBeamPublisher } from '@fmgc/navigation/fls/FlsBeamPublisher';
 import { GbasUplinkPublisher } from '@fmgc/navigation/gls/GbasUplinkPublisher';
 import { createGlsSyntheticApproachProvider } from '@fmgc/navigation/gls/GlsSyntheticApproaches';
-import { ManualGlsTuningResult, tuneManualGls } from '@fmgc/navigation/gls/ManualGlsTuning';
+import {
+  createGbasTableAirportLoader,
+  ManualGlsTuningResult,
+  tuneManualGls,
+} from '@fmgc/navigation/gls/ManualGlsTuning';
 import { GlsManualEntryField } from '@fmgc/navigation/LandingSystemTuning';
-import { gbasAirports } from '../../../../../../../fbw-common/src/systems/shared/src/gbas/GbasApproachTable';
 import { EgpwcRunwayWords } from '@fmgc/navigation/EgpwcRunwayWords';
 export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInterface, Fmgc {
   private static DEBUG_INSTANCE: FMCMainDisplay;
@@ -661,6 +664,10 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     this.efisSymbolsLeft.init();
     this.efisSymbolsRight.init();
     this.navigation.init();
+    this.navigation.getNavaidTuner().setGlsLoaders({
+      loadTableAirports: this.glsTableAirportLoader,
+      loadRunways: (airportIdent) => this.navigationDatabase.backendDatabase.getRunways(airportIdent),
+    });
 
     // This is used to determine the Mach number corresponding to a CAS at the manual crossover altitude
     // The curve was calculated numerically and approximated using a few interpolated values
@@ -4412,7 +4419,8 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
     return await this.navigation.getNavaidTuner().setManualIls(facilityOrFrequency);
   }
 
-  private glsTableAirports: { ident: string; location: Coordinates }[] | null = null;
+  /** The GBAS table airports are read once for the MCDU entry and for the GLS tuned on the RMP */
+  private readonly glsTableAirportLoader = createGbasTableAirportLoader(() => this.navigationDatabase.backendDatabase);
 
   /**
    * Tunes the GLS that the crew typed as a channel or a reference path identifier
@@ -4426,13 +4434,7 @@ export abstract class FMCMainDisplay implements FmsDataInterface, FmsDisplayInte
       destinationIdent: plan.destinationAirport?.ident ?? null,
       originIdent: plan.originAirport?.ident ?? null,
       presentPosition: this.navigation.getPpos(),
-      loadTableAirports: async () => {
-        if (!this.glsTableAirports) {
-          const airports = await database.getAirports(gbasAirports());
-          this.glsTableAirports = airports.map((airport) => ({ ident: airport.ident, location: airport.location }));
-        }
-        return this.glsTableAirports;
-      },
+      loadTableAirports: this.glsTableAirportLoader,
       loadRunways: (airportIdent) => database.getRunways(airportIdent),
       isTuningLocked: () => this.isMmrTuningLocked(),
       setManualGls: (gls, manualField) => this.navigation.getNavaidTuner().setManualGls(gls, manualField),

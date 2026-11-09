@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createGbasTableAirportLoader } from '@fmgc/navigation/gls/ManualGlsTuning';
 import { FMCMainDisplay } from './A32NX_FMCMainDisplay';
 
 /* The GLS parts of the FMS: the course it publishes to the flight guidance and the manual entry of a GLS. The class is
@@ -84,15 +85,16 @@ describe('the manual GLS entry of the FMS', () => {
     const setManualGls = vi.fn();
     const getAirports = vi.fn(() => Promise.resolve([{ ident: 'EDDF', location: { lat: 50.033, long: 8.57 } }]));
     const getRunways = vi.fn(() => Promise.resolve([EDDF_25C]));
+    const navigationDatabase = { backendDatabase: { getAirports, getRunways } };
     const screen = {
       flightPlanService: { active: { destinationAirport: { ident: 'EDDF' }, originAirport: { ident: 'EDDM' } } },
-      navigationDatabase: { backendDatabase: { getAirports, getRunways } },
+      navigationDatabase,
       navigation: {
         getPpos: vi.fn(() => ({ lat: 50.5, long: 8.5 })),
         getNavaidTuner: () => ({ setManualGls }),
       },
       isMmrTuningLocked: options.locked ?? (() => false),
-      glsTableAirports: null as unknown,
+      glsTableAirportLoader: createGbasTableAirportLoader(() => navigationDatabase.backendDatabase),
     };
     return { screen, setManualGls, getAirports, getRunways };
   }

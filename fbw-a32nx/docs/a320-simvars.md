@@ -594,6 +594,17 @@
     - Number
     - The ILS course tuned via the left/right RMP
 
+- A32NX_RMP_{L,R}_SAVED_STANDBY_CHANNEL_GLS
+    - Number (channel, 20001 to 39999; 0 before the first entry, the window then starts at 20001)
+    - The GLS channel of the STBY window of the left/right RMP, set by the knobs.
+    - Written and read by the RMP
+
+- A32NX_RMP_GLS_CHANNEL
+    - Number (channel; 0 = none)
+    - The GLS channel the RMPs tuned with the transfer key. Both MMRs are set to it while an RMP is in the NAV backup mode. Shown in the ACTIVE window of the GLS on both RMPs.
+      Cleared by an ILS transfer and when no RMP is in the NAV backup mode.
+    - Written by the RMP, read by the FMS NavaidTuner
+
 - A32NX_TO_CONFIG_FLAPS
     - Enum
     - The pilot-entered FLAPS value in the PERF TAKE OFF page. 0 is a valid entry, -1 if not entered

@@ -7,7 +7,12 @@ import { useSimVar, useInteractionSimVar, useInteractionEvent } from '@flybywire
 import { TransceiverType } from './StandbyFrequency';
 import { VhfRadioPanel } from './VhfRadioPanel';
 import { NavRadioPanel } from './NavRadioPanel';
-import { RmpStbyNavKey, rmpStbyNavKeyPanelMode } from './RmpNavBackupTuning';
+import {
+  isRmpGlsChannelDropped,
+  RMP_GLS_CHANNEL_VAR,
+  RmpStbyNavKey,
+  rmpStbyNavKeyPanelMode,
+} from './RmpNavBackupTuning';
 import { isRmpOperative, RmpSide, rmpFailedVar } from '@shared/communications/RadioCommunicationLogic';
 import { bfoAfterRmpBfoKey } from '@shared/navigation/NavigationReceivers';
 import { NavRadioUtils } from '@fmgc/navigation/NavRadioUtils';
@@ -90,12 +95,18 @@ const PoweredRadioPanel = (props: Props) => {
     if (navButtonPressed) {
       setPanelMode(previousPanelMode);
       setNavTransceiverType(TransceiverType.RADIO_VHF);
+
+      // Nothing is tuned before the next transfer: the GLS channel is dropped once no RMP is in the NAV backup mode
+      const otherSide = props.side === 'L' ? 'R' : 'L';
+      if (isRmpGlsChannelDropped(!!SimVar.GetSimVarValue(`L:A32NX_RMP_${otherSide}_NAV_BUTTON_SELECTED`, 'Bool'))) {
+        SimVar.SetSimVarValue(RMP_GLS_CHANNEL_VAR, 'number', 0);
+      }
     }
 
     setNavButton(!navButtonPressed);
   });
 
-  /** A STBY NAV key: selects its receiver in the NAV backup mode (GLS and MLS are not installed, see RmpNavBackupTuning) */
+  /** A STBY NAV key: selects its receiver in the NAV backup mode (the MLS is not installed, see RmpNavBackupTuning) */
   const onStbyNavKey = (key: RmpStbyNavKey, transceiver: TransceiverType) => {
     const mode = rmpStbyNavKeyPanelMode(key, !!navButtonPressed);
     if (mode !== null) {
@@ -126,10 +137,11 @@ const PoweredRadioPanel = (props: Props) => {
       return <VhfRadioPanel side={props.side} vhf={panelMode} />;
     case TransceiverType.VOR:
     case TransceiverType.ILS:
+    case TransceiverType.GLS:
     case TransceiverType.ADF:
       return <NavRadioPanel side={props.side} transceiver={navTransceiverType} />;
     default:
-      // No receiver to show (should not happen: GLS and MLS cannot be selected): blank windows
+      // No receiver to show (should not happen: the MLS cannot be selected): blank windows
       return <UnpoweredRadioPanel />;
   }
 };

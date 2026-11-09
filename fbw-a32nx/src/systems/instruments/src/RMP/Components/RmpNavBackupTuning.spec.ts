@@ -4,13 +4,18 @@
 import { describe, expect, it } from 'vitest';
 import { Arinc429SignStatusMatrix, Arinc429Word } from '@flybywiresim/fbw-sdk';
 import {
+  formatGlsChannel,
   isApprModeArmedOrEngaged,
   isBelowIlsTuneInhibitHeight,
-  isIlsTuneInhibited,
+  isLsTuneInhibited,
   RMP_PANEL_MODE_ADF,
+  RMP_PANEL_MODE_GLS,
   RMP_PANEL_MODE_ILS,
   RMP_PANEL_MODE_VOR,
   rmpStbyNavKeyPanelMode,
+  isRmpGlsChannelDropped,
+  rmpTransferTuning,
+  stepGlsChannel,
 } from './RmpNavBackupTuning';
 
 const radioHeight = (feet: number, ssm = Arinc429SignStatusMatrix.NormalOperation): number =>
@@ -32,8 +37,12 @@ describe('RMP STBY NAV keys', () => {
     expect(rmpStbyNavKeyPanelMode('ILS', false)).toBeNull();
   });
 
-  it('GLS and MLS (receivers not installed) do nothing, also in the NAV backup mode', () => {
-    expect(rmpStbyNavKeyPanelMode('GLS', true)).toBeNull();
+  it('select the GLS in the NAV backup mode only', () => {
+    expect(rmpStbyNavKeyPanelMode('GLS', true)).toBe(RMP_PANEL_MODE_GLS);
+    expect(rmpStbyNavKeyPanelMode('GLS', false)).toBeNull();
+  });
+
+  it('MLS (receiver not installed) does nothing, also in the NAV backup mode', () => {
     expect(rmpStbyNavKeyPanelMode('MLS', true)).toBeNull();
   });
 });
@@ -65,17 +74,73 @@ describe('ILS tune inhibit', () => {
     expect(isBelowIlsTuneInhibitHeight(0, 0)).toBe(false);
   });
 
-  it('freezes the ILS below 700 ft RA with APPR armed or engaged and an AP or FD engaged', () => {
-    expect(isIlsTuneInhibited(true, true, true, true)).toBe(true);
+  it('freezes the ILS or GLS below 700 ft RA with APPR armed or engaged and an AP or FD engaged', () => {
+    expect(isLsTuneInhibited(true, true, true, true)).toBe(true);
   });
 
   it('does not freeze the ILS above 700 ft, without APPR, or without AP and FD', () => {
-    expect(isIlsTuneInhibited(true, false, true, true)).toBe(false);
-    expect(isIlsTuneInhibited(true, true, false, true)).toBe(false);
-    expect(isIlsTuneInhibited(true, true, true, false)).toBe(false);
+    expect(isLsTuneInhibited(true, false, true, true)).toBe(false);
+    expect(isLsTuneInhibited(true, true, false, true)).toBe(false);
+    expect(isLsTuneInhibited(true, true, true, false)).toBe(false);
   });
 
   it('leaves VOR and ADF tunable', () => {
-    expect(isIlsTuneInhibited(false, true, true, true)).toBe(false);
+    expect(isLsTuneInhibited(false, true, true, true)).toBe(false);
+  });
+});
+
+describe('GLS channel entry', () => {
+  it('moves the hundreds with the outer knob', () => {
+    expect(stepGlsChannel(20001, 1, 0)).toBe(20101);
+    expect(stepGlsChannel(20101, -1, 0)).toBe(20001);
+    expect(stepGlsChannel(31434, 2, 0)).toBe(31634);
+  });
+
+  it('stays inside the channel range with the outer knob', () => {
+    expect(stepGlsChannel(39999, 1, 0)).toBe(39999);
+    expect(stepGlsChannel(20050, -1, 0)).toBe(20001);
+  });
+
+  it('moves the last two digits with the inner knob and wraps inside the hundred', () => {
+    expect(stepGlsChannel(31434, 0, 1)).toBe(31435);
+    expect(stepGlsChannel(31499, 0, 1)).toBe(31400);
+    expect(stepGlsChannel(31400, 0, -1)).toBe(31499);
+  });
+
+  it('wraps over the missing channel 20000', () => {
+    expect(stepGlsChannel(20099, 0, 1)).toBe(20001);
+    expect(stepGlsChannel(20001, 0, -1)).toBe(20099);
+  });
+
+  it('moves by the clicks of the rate multiplier, as the ILS knobs do', () => {
+    expect(stepGlsChannel(31434, 0, 25)).toBe(31459);
+    expect(stepGlsChannel(31434, 0, 250)).toBe(31484);
+    expect(stepGlsChannel(20001, 25, 0)).toBe(22501);
+    expect(stepGlsChannel(20001, -50, 0)).toBe(20001);
+    expect(stepGlsChannel(39999, 50, 0)).toBe(39999);
+  });
+
+  it('is shown as its digits', () => {
+    expect(formatGlsChannel(20001)).toBe('20001');
+    expect(formatGlsChannel(31434)).toBe('31434');
+  });
+});
+
+describe('RMP transfer key', () => {
+  it('tunes the GLS channel and the ILS frequency only while both RMPs are in the NAV backup mode', () => {
+    expect(rmpTransferTuning('GLS', true)).toBe('gls-channel');
+    expect(rmpTransferTuning('ILS', true)).toBe('ils-frequency');
+    expect(rmpTransferTuning('GLS', false)).toBe('none');
+    expect(rmpTransferTuning('ILS', false)).toBe('none');
+  });
+
+  it('tunes VOR and ADF with one RMP in the NAV backup mode', () => {
+    expect(rmpTransferTuning('OTHER', false)).toBe('frequency');
+    expect(rmpTransferTuning('OTHER', true)).toBe('frequency');
+  });
+
+  it('drops the GLS channel when the last RMP leaves the NAV backup mode', () => {
+    expect(isRmpGlsChannelDropped(false)).toBe(true);
+    expect(isRmpGlsChannelDropped(true)).toBe(false);
   });
 });

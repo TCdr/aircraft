@@ -27,4 +27,16 @@ describe('GLS information block of the PFD', () => {
   it('shows no channel for a receiver in ILS mode', () => {
     expect(glsInfoTexts({ received: false, identWord: 0, channel: 0, thresholdDistance: 0 }).channel).toBe('');
   });
+
+  it('shows no distance while the RMP tunes the GLS, the ident and channel stay', () => {
+    expect(
+      glsInfoTexts({ received: true, identWord: IDENT_WORD, channel: 20001, thresholdDistance: 7.4, rmpTuned: true }),
+    ).toEqual({ ident: 'G25A', channel: '20001', distance: null });
+  });
+
+  it("keeps today's result when rmpTuned is false or not given", () => {
+    const base = { received: true, identWord: IDENT_WORD, channel: 20001, thresholdDistance: 7.4 };
+    expect(glsInfoTexts({ ...base, rmpTuned: false })).toEqual(glsInfoTexts(base));
+    expect(glsInfoTexts(base).distance).toBe(7.4);
+  });
 });
