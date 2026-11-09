@@ -18,3 +18,6 @@ fi
 clang++ -std=c++20 -Wall -Wextra -Werror -fsyntax-only $FIX_FLAGS -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src gls_guidance_test.cpp
 clang++ -std=c++20 -Wall -Wextra -w $FIX_FLAGS -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src   gls_guidance_test.cpp ../src/fmgc/Fmgc.cpp ../src/model/*.cpp ../src/Arinc429Utils.cpp -o ../obj/gls_guidance_test
 ../obj/gls_guidance_test
+# Health of the multi-mode receivers on the ILS buses (fbw-common MultiModeReceiverHealth.h, IlsBusBuilder.h): which words a dead function takes away, and that each bus follows its own MMR.
+clang++ -std=c++20 -Wall -Wextra -Werror -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src mmr_health_test.cpp -o ../obj/mmr_health_test
+../obj/mmr_health_test

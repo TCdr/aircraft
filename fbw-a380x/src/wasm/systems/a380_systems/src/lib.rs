@@ -49,8 +49,9 @@ use systems::{
     engine::{reverser_thrust::ReverserForce, trent_engine::TrentEngine, EngineFireOverheadPanel},
     enhanced_gpwc::EnhancedGroundProximityWarningComputer,
     landing_gear::{LandingGear, LandingGearControlInterfaceUnitSet},
-    navigation::adirs::{
-        AirDataInertialReferenceSystem, AirDataInertialReferenceSystemOverheadPanel,
+    navigation::{
+        adirs::{AirDataInertialReferenceSystem, AirDataInertialReferenceSystemOverheadPanel},
+        ils::MultiModeReceiverShim,
     },
     shared::ElectricalBusType,
     simulation::{
@@ -90,6 +91,8 @@ pub struct A380 {
     landing_gear: LandingGear,
     pneumatic: A380Pneumatic,
     radio_altimeters: A380RadioAltimeters,
+    mmr_1: MultiModeReceiverShim,
+    mmr_2: MultiModeReceiverShim,
     cds: A380ControlDisplaySystem,
     egpwc: EnhancedGroundProximityWarningComputer,
     icing_simulation: Icing,
@@ -100,6 +103,10 @@ pub struct A380 {
     reverse_thrust: ReverserForce,
 }
 impl A380 {
+    /// The supply of MMR 1 and MMR 2
+    const MMR_1_POWERED_BY: ElectricalBusType = ElectricalBusType::AlternatingCurrentEssential;
+    const MMR_2_POWERED_BY: ElectricalBusType = ElectricalBusType::AlternatingCurrent(3);
+
     pub fn new(context: &mut InitContext) -> A380 {
         let mut adcn = A380AvionicsDataCommunicationNetwork::new(context);
         let adcn_simvar_translation =
@@ -145,6 +152,10 @@ impl A380 {
             landing_gear: LandingGear::new(context, true),
             pneumatic: A380Pneumatic::new(context),
             radio_altimeters: A380RadioAltimeters::new(context),
+            // MMR 1 is on AC EMER (AlternatingCurrentEssential in this model), MMR 2 on AC 3. Only their power
+            // supply is used so far: the flight guidance and the PFDs read it
+            mmr_1: MultiModeReceiverShim::new(context, 1, Self::MMR_1_POWERED_BY),
+            mmr_2: MultiModeReceiverShim::new(context, 2, Self::MMR_2_POWERED_BY),
             cds: A380ControlDisplaySystem::new(context),
             egpwc: EnhancedGroundProximityWarningComputer::new(
                 context,
@@ -385,6 +396,8 @@ impl SimulationElement for A380 {
         accept_iterable!(self.ext_pwrs, visitor);
         self.lgcius.accept(visitor);
         self.radio_altimeters.accept(visitor);
+        self.mmr_1.accept(visitor);
+        self.mmr_2.accept(visitor);
         self.autobrake_panel.accept(visitor);
         self.hydraulic.accept(visitor);
         self.hydraulic_overhead.accept(visitor);
@@ -400,5 +413,76 @@ impl SimulationElement for A380 {
         self.reverse_thrust.accept(visitor);
 
         visitor.visit(self);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+    use systems::failures::FailureType;
+    use systems::simulation::{
+        test::{ReadByName, SimulationTestBed, TestBed, WriteByName},
+        InitContext,
+    };
+
+    /// The four engines running, so that the four AC buses are powered by their generators
+    fn a380_with_engines_running() -> SimulationTestBed<A380> {
+        let mut test_bed = SimulationTestBed::new(|context: &mut InitContext| A380::new(context));
+        test_bed.set_on_ground(true);
+        for engine_number in 1..=4 {
+            test_bed.write_by_name(&format!("ENGINE_STATE:{}", engine_number), 1.);
+            for speed in ["ENGINE_N3", "ENGINE_N2", "TURB ENG CORRECTED N2"] {
+                test_bed.write_by_name(&format!("{}:{}", speed, engine_number), 80.);
+            }
+            test_bed.write_by_name(&format!("TURB ENG CORRECTED N1:{}", engine_number), 40.);
+        }
+        test_bed.run_multiple_frames(Duration::from_secs(10));
+        for bus in ["AC_2", "AC_3"] {
+            let powered: bool = test_bed.read_by_name(&format!("ELEC_{}_BUS_IS_POWERED", bus));
+            assert!(powered, "{bus} not powered");
+        }
+        test_bed
+    }
+
+    fn mmr_is_powered(test_bed: &mut SimulationTestBed<A380>, number: usize) -> bool {
+        test_bed.read_by_name(&format!("MMR_{number}_IS_POWERED"))
+    }
+
+    /// MMR 1 is supplied by AC EMER and MMR 2 by AC 3: the MMR of the side of a lost bus is lost, the other side keeps its own
+    #[test]
+    fn mmr_1_is_supplied_by_ac_emer_and_mmr_2_by_ac_3() {
+        let mut test_bed = a380_with_engines_running();
+        assert!(mmr_is_powered(&mut test_bed, 1) && mmr_is_powered(&mut test_bed, 2));
+
+        let ac_3_failure = FailureType::ElectricalBus(ElectricalBusType::AlternatingCurrent(3));
+        test_bed.fail(ac_3_failure);
+        // The shim reads its power one frame late, so two frames
+        test_bed.run_multiple_frames(Duration::from_secs(2));
+        assert!(mmr_is_powered(&mut test_bed, 1));
+        assert!(!mmr_is_powered(&mut test_bed, 2));
+        test_bed.unfail(ac_3_failure);
+
+        let ac_emer_failure =
+            FailureType::ElectricalBus(ElectricalBusType::AlternatingCurrentEssential);
+        test_bed.fail(ac_emer_failure);
+        test_bed.run_multiple_frames(Duration::from_secs(2));
+        assert!(!mmr_is_powered(&mut test_bed, 1));
+        assert!(mmr_is_powered(&mut test_bed, 2));
+    }
+
+    /// With all four engine generators lost MMR 1 stays powered (emergency generator, static inverter), MMR 2 is lost
+    #[test]
+    fn mmr_1_stays_powered_in_the_emergency_electrical_configuration() {
+        let mut test_bed = a380_with_engines_running();
+        for bus_number in 1..=4 {
+            test_bed.fail(FailureType::ElectricalBus(
+                ElectricalBusType::AlternatingCurrent(bus_number),
+            ));
+        }
+        test_bed.run_multiple_frames(Duration::from_secs(60));
+
+        assert!(mmr_is_powered(&mut test_bed, 1));
+        assert!(!mmr_is_powered(&mut test_bed, 2));
     }
 }

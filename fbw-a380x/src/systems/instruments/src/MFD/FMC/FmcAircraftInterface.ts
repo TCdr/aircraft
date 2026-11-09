@@ -1699,7 +1699,8 @@ export class FmcAircraftInterface {
     let course = -1;
     if (mmr.course !== null) {
       course = mmr.course;
-    } else if (mmr.frequency !== null && SimVar.GetSimVarValue('L:A32NX_RADIO_RECEIVER_LOC_IS_VALID', 'number') === 1) {
+      // The sim radio, not the validity the ILS receiver of MMR 1 gives: with MMR 1 dead the course is still needed for ILS 2
+    } else if (mmr.frequency !== null && SimVar.GetSimVarValue('NAV HAS LOCALIZER:3', 'bool')) {
       course = SimVar.GetSimVarValue('NAV LOCALIZER:3', 'degrees');
     }
 

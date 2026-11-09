@@ -132,6 +132,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/MCDU] The ARRIVAL page shows the identifier and channel of a GLS approach, SELECTED NAVAIDS lists the GLS, and PERF APPR takes a radio minimum on a GLS approach - @TCdr
 1. [A32NX/PFD] GLS approaches: reference path identifier, channel and distance to the threshold in the LS information, and LOC and G/S deviations from the GLS - @TCdr
 1. [A32NX/PFD] The FMA shows AUTOLAND or CAT1 on a GLS approach, never CAT2 or CAT3 - @TCdr
+1. [A32NX/NAV] MMR 1 is powered by AC ESS and MMR 2 by AC 2: an unpowered MMR loses its ILS and GLS on its own side only, the FMGCs fly the other one - @TCdr
+1. [A380X/NAV] MMR 1 is powered by AC EMER and MMR 2 by AC 3: an unpowered MMR loses its ILS, GLS and FLS on its own side only, the PRIMs fly the other one - @TCdr
 
 ## 2024.1.0
 

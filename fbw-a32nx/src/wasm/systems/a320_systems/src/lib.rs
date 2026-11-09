@@ -83,10 +83,15 @@ pub struct A320 {
     egpwc: EnhancedGroundProximityWarningComputer,
     egpwc_2: EnhancedGroundProximityWarningComputer2,
     egpws_electrical_harness: A320EgpwsElectricalHarness,
-    mmr: MultiModeReceiverShim,
+    mmr_1: MultiModeReceiverShim,
+    mmr_2: MultiModeReceiverShim,
     reverse_thrust: ReverserForce,
 }
 impl A320 {
+    /// The supply of MMR 1 and MMR 2
+    const MMR_1_POWERED_BY: ElectricalBusType = ElectricalBusType::AlternatingCurrentEssential;
+    const MMR_2_POWERED_BY: ElectricalBusType = ElectricalBusType::AlternatingCurrent(2);
+
     pub fn new(context: &mut InitContext) -> A320 {
         A320 {
             adirs: A320AirDataInertialReferenceSystemBuilder::build(context),
@@ -144,7 +149,8 @@ impl A320 {
                 ElectricalBusType::AlternatingCurrent(1),
             ),
             egpws_electrical_harness: A320EgpwsElectricalHarness::new(context),
-            mmr: MultiModeReceiverShim::new(context),
+            mmr_1: MultiModeReceiverShim::new(context, 1, Self::MMR_1_POWERED_BY),
+            mmr_2: MultiModeReceiverShim::new(context, 2, Self::MMR_2_POWERED_BY),
             reverse_thrust: ReverserForce::new(context),
         }
     }
@@ -279,7 +285,7 @@ impl Aircraft for A320 {
             self.radio_altimeters.radio_altimeter_2(),
             self.adirs.adr_bus(1),
             self.adirs.ir_bus(1),
-            &self.mmr,
+            &self.mmr_1,
         );
     }
 }
@@ -315,9 +321,60 @@ impl SimulationElement for A320 {
         self.egpwc.accept(visitor);
         self.egpws_electrical_harness.accept(visitor);
         self.egpwc_2.accept(visitor);
-        self.mmr.accept(visitor);
+        self.mmr_1.accept(visitor);
+        self.mmr_2.accept(visitor);
         self.reverse_thrust.accept(visitor);
 
         visitor.visit(self);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::Duration;
+    use systems::failures::FailureType;
+    use systems::simulation::{
+        test::{ReadByName, SimulationTestBed, TestBed, WriteByName},
+        InitContext,
+    };
+
+    /// Both engines running for a few seconds, so that the generators supply the AC buses
+    fn aircraft_with_the_ac_buses_powered() -> SimulationTestBed<A320> {
+        let mut test_bed = SimulationTestBed::new(|context: &mut InitContext| A320::new(context));
+        test_bed.set_on_ground(true);
+        for engine_number in 1..=2 {
+            test_bed.write_by_name(&format!("FUELSYSTEM VALVE SWITCH:{}", engine_number), true);
+            test_bed.write_by_name(&format!("ENGINE_STATE:{}", engine_number), 1.);
+            test_bed.write_by_name(&format!("ENGINE_N2:{}", engine_number), 68.);
+        }
+        test_bed.run_multiple_frames(Duration::from_secs(10));
+        test_bed
+    }
+
+    fn mmr_is_powered(test_bed: &mut SimulationTestBed<A320>, number: usize) -> bool {
+        test_bed.read_by_name(&format!("MMR_{number}_IS_POWERED"))
+    }
+
+    /// MMR 1 is supplied by AC ESS, MMR 2 by AC 2: the MMR of the side of a lost bus is lost, the other side keeps its own
+    #[test]
+    fn mmr_1_is_supplied_by_ac_ess_and_mmr_2_by_ac_2() {
+        let mut test_bed = aircraft_with_the_ac_buses_powered();
+        assert!(mmr_is_powered(&mut test_bed, 1) && mmr_is_powered(&mut test_bed, 2));
+
+        let ac_2_failure = FailureType::ElectricalBus(ElectricalBusType::AlternatingCurrent(2));
+        test_bed.fail(ac_2_failure);
+        // The shim reads its power one frame late, so two frames
+        test_bed.run_multiple_frames(Duration::from_secs(2));
+        assert!(mmr_is_powered(&mut test_bed, 1));
+        assert!(!mmr_is_powered(&mut test_bed, 2));
+        test_bed.unfail(ac_2_failure);
+
+        let ac_ess_failure =
+            FailureType::ElectricalBus(ElectricalBusType::AlternatingCurrentEssential);
+        test_bed.fail(ac_ess_failure);
+        test_bed.run_multiple_frames(Duration::from_secs(2));
+        assert!(!mmr_is_powered(&mut test_bed, 1));
+        assert!(mmr_is_powered(&mut test_bed, 2));
     }
 }

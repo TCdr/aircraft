@@ -1145,10 +1145,24 @@ deviations like an ILS receiver. All values are raw numbers without a unit.
     - Bool
     - The GBAS ground station is failed: no MMR receives it. Read by fbw.wasm; nothing writes it yet
 
+- A32NX_MMR_{number}_IS_POWERED
+    - Bool
+    - Number: 1 or 2
+    - MMR {number} is supplied: MMR 1 by AC ESS, MMR 2 by AC 2. An unpowered MMR receives no ILS and no GLS and sends failure
+      warning on its ILS bus. Written by systems.wasm (fbw-common navigation/ils.rs), read by fbw.wasm.
+      Reads 0 until systems.wasm has written it, so both MMRs are dead while systems.wasm is not running
+
+- A32NX_ILS_{number}_FAILED
+    - Bool
+    - Number: 1 or 2
+    - The ILS receiver of MMR {number} is failed: the MMR sends failure warning on its ILS bus, so that the FMGCs fly the
+      other one. Read by fbw.wasm; nothing writes it yet
+
 - A32NX_GLS_{number}_FAILED
     - Bool
     - Number: 1 or 2
-    - MMR {number} is failed as a GLS receiver. Read by fbw.wasm; nothing writes it yet
+    - MMR {number} is failed as a GLS receiver: the MMR sends failure warning on its ILS bus while it is on a GLS channel.
+      Read by fbw.wasm; nothing writes it yet
 
 - A32NX_GLS_{number}_LOC_IS_VALID, A32NX_GLS_{number}_GS_IS_VALID
     - Bool
