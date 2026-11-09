@@ -1,5 +1,6 @@
 #pragma once
 #include "../model/FmgcComputer.h"
+#include "LandingSystemSignalLoss.h"
 #include "../utils/PowerSupplyMonitor.h"
 
 class Fmgc {
@@ -29,9 +30,14 @@ class Fmgc {
 
   void updateSelfTest(double deltaTime);
 
+  LandingSystemSignalLoss::Output monitorLandingSystemSignal(double deltaTime);
+
+  static void disengageAutopilotAndFlightDirectors(FmgcComputer::ExternalInputs_FmgcComputer_T& inputs);
+
   // Model
   FmgcComputer fmgcComputer;
   fmgc_outputs modelOutputs;
+  LandingSystemSignalLoss::Monitor landingSystemSignalLoss;
 
   // Computer Self-monitoring vars
   bool monitoringHealthy = false;

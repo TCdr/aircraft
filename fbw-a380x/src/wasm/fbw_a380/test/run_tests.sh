@@ -79,13 +79,16 @@ clang++ -std=c++20 -Wall -Wextra -I ../src/model -I ../../../../../fbw-common/sr
 # GLS words on the ILS bus and what the generated A380PrimComputerFg does with them (fbw-common GlsReceiver.h). With WITHOUT_THE_FIX=1
 # the ILS bus keeps the words of the detuned receiver and the test must fail. The model sources are built without -Werror, the test with it.
 clang++ -std=c++20 -Wall -Wextra -Werror -fsyntax-only -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src gls_guidance_test.cpp
-clang++ -std=c++20 $FLAGS -w -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src gls_guidance_test.cpp ../src/model/*.cpp \
+clang++ -std=c++20 $FLAGS -w -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src gls_guidance_test.cpp ../src/model/*.cpp ../src/Arinc429Utils.cpp \
   -o ../obj/gls_guidance_test
 ../obj/gls_guidance_test
 # Health of the multi-mode receivers on the ILS buses (fbw-common MultiModeReceiverHealth.h, IlsBusBuilder.h): which words a dead function takes
 # away, and that each bus follows its own MMR.
 clang++ -std=c++20 -Wall -Wextra -Werror -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src mmr_health_test.cpp -o ../obj/mmr_health_test
 ../obj/mmr_health_test
+# Loss of the LOC or G/S signal in the flight guidance (fbw-common LandingSystemSignalLoss.h, applied by src/prim/PrimLandingSystemSignalLoss.h): the autopilot and the flight directors disengage after 7 s above 200 ft radio height, and at once when both receivers are lost.
+clang++ -std=c++20 -Wall -Wextra $FLAGS -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src ls_signal_loss_test.cpp ../src/model/*.cpp ../src/Arinc429Utils.cpp -o ../obj/ls_signal_loss_test
+../obj/ls_signal_loss_test
 # A380 values of the normal law protections (high speed, pitch attitude, bank in high lift) and the direct law triggers
 # (abnormal attitude angle of attack, three IRs lost). With WITHOUT_THE_FIX=1 the lateral normal law is called without
 # its high lift input and the test must fail.

@@ -1,5 +1,6 @@
 #include "Fmgc.h"
 #include "../Arinc429.h"
+#include "../Arinc429Utils.h"
 
 Fmgc::Fmgc(bool isUnit1) : isUnit1(isUnit1) {
   fmgcComputer.initialize();
@@ -32,9 +33,50 @@ void Fmgc::update(double deltaTime, double simulationTime, bool faultActive, boo
   monitorSelf(faultActive);
 
   modelInputs.in.sim_data.computer_running = monitoringHealthy;
-  fmgcComputer.setExternalInputs(&modelInputs);
+  if (monitorLandingSystemSignal(deltaTime).disengage) {
+    // The signal loss acts on a copy, so that the FCU and ELAC words the interface wrote stay as they were
+    auto inputsToModel = modelInputs;
+    disengageAutopilotAndFlightDirectors(inputsToModel);
+    fmgcComputer.setExternalInputs(&inputsToModel);
+  } else {
+    fmgcComputer.setExternalInputs(&modelInputs);
+  }
   fmgcComputer.step();
   modelOutputs = fmgcComputer.getExternalOutputs().out;
+}
+
+// The mode flags are those of the previous frame, as the model's own delays are
+LandingSystemSignalLoss::Output Fmgc::monitorLandingSystemSignal(double deltaTime) {
+  const auto& logic = fmgcComputer.getExternalOutputs().out.ap_fd_logic;
+  const auto& buses = modelInputs.in.bus_inputs;
+
+  LandingSystemSignalLoss::Inputs inputs;
+  inputs.localizerModeEngaged = logic.lateral_modes.loc_cpt_active || logic.lateral_modes.loc_trk_active || logic.lateral_modes.land_active;
+  inputs.localizerModeArmedOrEngaged = inputs.localizerModeEngaged || logic.armed_modes.loc_armed;
+  inputs.glideSlopeModeEngaged = logic.longitudinal_modes.gs_capt_active || logic.longitudinal_modes.gs_trk_active;
+  const auto isNormal = [](const base_arinc_429& word) { return word.SSM == LandingSystemSignalLoss::SSM_NORMAL_OPERATION; };
+  const auto& radioHeight = isNormal(buses.ra_own_bus.radio_height_ft) ? buses.ra_own_bus.radio_height_ft : buses.ra_opp_bus.radio_height_ft;
+  inputs.radioHeightValid = isNormal(radioHeight);
+  inputs.radioHeightFt = radioHeight.Data;
+  inputs.signal = LandingSystemSignalLoss::flownSignal(buses.ils_own_bus, buses.ils_opp_bus);
+
+  // Design choice: no A320 rule disengages at once when both receivers are lost, so that is a lost signal like any other. The FLS
+  // is covered as well, the model would otherwise fly a deviation of zero there too. A radio height without computed data counts as
+  // invalid here, so the rule waits for the model's own radio altimeter handling.
+  LandingSystemSignalLoss::Rules rules;
+  rules.glideSlopeLossDisengages = true;
+  return landingSystemSignalLoss.update(deltaTime, inputs, rules);
+}
+
+// Both ELAC autopilot disconnect inputs end the autopilot, and the FD off bits of the FCU word end the flight directors. When the
+// pulse is over the FDs engage again by themselves, in the basic modes, as when the crew presses the FD pushbuttons twice.
+void Fmgc::disengageAutopilotAndFlightDirectors(FmgcComputer::ExternalInputs_FmgcComputer_T& inputs) {
+  constexpr int FD_1_OFF_BIT = 26;
+  constexpr int FD_2_OFF_BIT = 27;
+  inputs.in.discrete_inputs.elac_own_ap_disc = true;
+  inputs.in.discrete_inputs.elac_opp_ap_disc = true;
+  Arinc429Utils::setBit(inputs.in.bus_inputs.fcu_bus.fcu_discrete_word_2, FD_1_OFF_BIT, true);
+  Arinc429Utils::setBit(inputs.in.bus_inputs.fcu_bus.fcu_discrete_word_2, FD_2_OFF_BIT, true);
 }
 
 // Perform self monitoring

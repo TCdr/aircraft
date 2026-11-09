@@ -758,10 +758,9 @@ static void signalLossIsTreatedAsOnAnIls() {
   }
 }
 
-/// The 7 s loss rule: seven seconds without computed data at 1000 ft radio height with LOC and G/S engaged should disengage them, and
-/// below 200 ft the autopilot stays engaged. The generated FmgcComputer does not do this for a plain ILS: it reads no computed data as
-/// valid, so LOC and G/S stay engaged however long the words are lost (a gap of the A32NX model, left as it is). What is checked is
-/// that the GLS words behave exactly as the ILS ones, and that the autopilot stays engaged in LAND below 200 ft.
+/// The 7 s loss rule (ls_signal_loss_test.cpp has the full set): seven seconds without computed data at 1000 ft radio height with LOC
+/// and G/S engaged disengage the autopilot, and below 200 ft the autopilot stays engaged in LAND. The GLS words must behave exactly as
+/// the ILS ones.
 static void sevenSecondLossRule() {
   for (double lostSeconds : {5.0, 8.0}) {
     const Outcome ils = outcomeAfterLosingTheSignal(GuidanceSource::Ils, 1000, lostSeconds);
@@ -770,15 +769,16 @@ static void sevenSecondLossRule() {
     std::snprintf(what, sizeof(what), "%.0f s without computed data at 1000 ft: GLS words give the ILS outcome", lostSeconds);
     expect(gls == ils, what);
   }
-  const Outcome ilsAfterEightSeconds = outcomeAfterLosingTheSignal(GuidanceSource::Ils, 1000, 8.0);
-  if (ilsAfterEightSeconds.loc && ilsAfterEightSeconds.glideSlope) {
-    std::printf("NOTE 7 s loss rule: plain ILS, 8 s without computed data at 1000 ft, LOC and G/S stay engaged (model gap)\n");
+  for (GuidanceSource source : {GuidanceSource::Ils, GuidanceSource::Gls}) {
+    const Outcome afterFiveSeconds = outcomeAfterLosingTheSignal(source, 1000, 5.0);
+    const Outcome afterEightSeconds = outcomeAfterLosingTheSignal(source, 1000, 8.0);
+    char what[160];
+    std::snprintf(what, sizeof(what), "%s: 5 s without computed data at 1000 ft: LOC and G/S stay engaged", nameOf(source));
+    expect(afterFiveSeconds.autopilot && afterFiveSeconds.loc && afterFiveSeconds.glideSlope, what);
+    std::snprintf(what, sizeof(what), "%s: 8 s without computed data at 1000 ft (both buses): the autopilot, LOC and G/S disengage",
+                  nameOf(source));
+    expect(!afterEightSeconds.autopilot && !afterEightSeconds.loc && !afterEightSeconds.glideSlope, what);
   }
-  // Both MMRs failed (or the ground station): the feed above marks both GLS buses as no computed data
-  const Outcome bothMmrsFailed = outcomeAfterLosingTheSignal(GuidanceSource::Gls, 1000, 8.0);
-  std::printf("NOTE both GLS words no computed data for 8 s at 1000 ft: autopilot %s, LOC %s, G/S %s, LAND %s (the real aircraft disengages the AP and FD; the model does not)\n",
-              bothMmrsFailed.autopilot ? "engaged" : "off", bothMmrsFailed.loc ? "engaged" : "off",
-              bothMmrsFailed.glideSlope ? "engaged" : "off", bothMmrsFailed.land ? "engaged" : "off");
   for (GuidanceSource source : {GuidanceSource::Ils, GuidanceSource::Gls}) {
     const Outcome belowTwoHundred = outcomeAfterLosingTheSignal(source, 150, 10.0);
     char what[160];
@@ -820,9 +820,8 @@ static void theFlightGuidanceFliesTheOtherMmrWhenOneIsDead() {
   }
 }
 
-/// Both MMRs dead: no ILS bus is left to fly. The flight guidance does not drop the LOC and G/S modes yet (the loss rule is a
-/// separate change), so this only reports what it does, as the loss-of-signal test above does.
-static void bothMmrsDeadIsReported() {
+/// Both MMRs dead: no ILS bus is left to fly, so the signal is lost for the flight guidance and the autopilot disengages after 7 s
+static void bothMmrsDeadDisengagesTheAutopilot() {
   for (GuidanceSource source : {GuidanceSource::Ils, GuidanceSource::Gls}) {
     ApproachFlight flight;
     flyToGlideSlopeTrack(flight, source);
@@ -830,9 +829,13 @@ static void bothMmrsDeadIsReported() {
     flight.deadMmr = ApproachFlight::BOTH_MMRS;
     flight.deadMmrInGlsMode = source == GuidanceSource::Gls;
     feedGuidance(flight, source, 0.05, 80);
-    flight.fly(8.0);
-    std::printf("NOTE %s, both MMRs dead for 8 s: autopilot %s, LOC %s, G/S %s (the real aircraft disengages the autopilot)\n", nameOf(source),
-                flight.apEngaged() ? "engaged" : "off", flight.locEngaged() ? "engaged" : "off", flight.gsEngaged() ? "engaged" : "off");
+    flight.fly(5.0);
+    char what[160];
+    std::snprintf(what, sizeof(what), "%s, both MMRs dead for 5 s: the autopilot is still engaged", nameOf(source));
+    expect(flight.apEngaged() && flight.locEngaged() && flight.gsEngaged(), what);
+    flight.fly(3.0);
+    std::snprintf(what, sizeof(what), "%s, both MMRs dead for 8 s: the autopilot, LOC and G/S disengage", nameOf(source));
+    expect(!flight.apEngaged() && !flight.locEngaged() && !flight.gsEngaged(), what);
   }
 }
 
@@ -881,7 +884,7 @@ int main() {
   sevenSecondLossRule();
   outerLoopsNeedTheDistanceAndTheAngle();
   theFlightGuidanceFliesTheOtherMmrWhenOneIsDead();
-  bothMmrsDeadIsReported();
+  bothMmrsDeadDisengagesTheAutopilot();
   if (failures > 0) {
     std::printf("gls_guidance_test: %d check(s) FAILED\n", failures);
     return 1;
