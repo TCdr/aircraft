@@ -4,22 +4,25 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { FailuresConsumer } from '@flybywiresim/fbw-sdk';
 import { A380Failure } from '@failures';
-import { isGlsFailed, isNav3ReceiverOn, MmrFailures } from './MmrFailures';
+import { isGlsFailed, isIlsFailed, MmrFailures } from './MmrFailures';
 
 const failures =
   (...active: number[]) =>
   (failure: number) =>
     active.includes(failure);
 
-describe('the sim NAV 3 radio of MMR 1', () => {
-  it('is off with MMR 1 or its ILS receiver failed', () => {
-    expect(isNav3ReceiverOn(failures(A380Failure.Mmr1))).toBe(false);
-    expect(isNav3ReceiverOn(failures(A380Failure.Ils1Receiver))).toBe(false);
+describe('the ILS of an MMR', () => {
+  it('is failed with its ILS receiver or the whole MMR failed', () => {
+    expect(isIlsFailed(failures(A380Failure.Ils1Receiver), 1)).toBe(true);
+    expect(isIlsFailed(failures(A380Failure.Mmr1), 1)).toBe(true);
+    expect(isIlsFailed(failures(A380Failure.Ils2Receiver), 2)).toBe(true);
+    expect(isIlsFailed(failures(A380Failure.Mmr2), 2)).toBe(true);
   });
 
-  it('stays on with only MMR 2 failed', () => {
-    expect(isNav3ReceiverOn(failures(A380Failure.Mmr2, A380Failure.Ils2Receiver))).toBe(true);
-    expect(isNav3ReceiverOn(failures())).toBe(true);
+  it('is not failed by the failure of the other MMR or the GLS function', () => {
+    expect(isIlsFailed(failures(A380Failure.Mmr2, A380Failure.Ils2Receiver), 1)).toBe(false);
+    expect(isIlsFailed(failures(A380Failure.Mmr1GlsFunction), 1)).toBe(false);
+    expect(isIlsFailed(failures(), 2)).toBe(false);
   });
 });
 
@@ -38,7 +41,7 @@ describe('the GLS of an MMR', () => {
   });
 });
 
-describe('MmrFailures publishing the GLS failures', () => {
+describe('MmrFailures publishing the failures', () => {
   const { GetSimVarValue, SetSimVarValue } = SimVar;
 
   afterEach(() => {
@@ -53,12 +56,20 @@ describe('MmrFailures publishing the GLS failures', () => {
       written.set(name, value);
       return Promise.resolve();
     };
-    const active = new Set<number>([A380Failure.Mmr1GlsFunction, A380Failure.GbasGroundStation]);
+    const active = new Set<number>([
+      A380Failure.Mmr1GlsFunction,
+      A380Failure.GbasGroundStation,
+      A380Failure.Ils2Receiver,
+    ]);
     const system = new MmrFailures({ isActive: (failure: number) => active.has(failure) } as FailuresConsumer);
     system.onUpdate();
     expect(written.get('L:A32NX_GLS_1_FAILED')).toBe(true);
     expect(written.get('L:A32NX_GLS_2_FAILED')).toBe(false);
     expect(written.get('L:A32NX_GBAS_STATION_FAILED')).toBe(true);
+    // The FBW module builds the ILS buses of both sides from NAV 3, so it is never switched off
+    expect(written.get('L:A32NX_ILS_1_FAILED')).toBe(false);
+    expect(written.get('L:A32NX_ILS_2_FAILED')).toBe(true);
+    expect(written.has('K:ELECTRICAL_CIRCUIT_TOGGLE')).toBe(false);
 
     active.clear();
     system.onUpdate();

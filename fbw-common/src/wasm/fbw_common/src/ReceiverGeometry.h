@@ -5,6 +5,7 @@
 /// The great-circle geometry and the ARINC 429 sign status values that the FLS and GLS receivers have in common.
 namespace ReceiverGeometry {
 
+constexpr unsigned int SSM_FAILURE_WARNING = 0b00;
 constexpr unsigned int SSM_NO_COMPUTED_DATA = 0b01;
 constexpr unsigned int SSM_NORMAL_OPERATION = 0b11;
 constexpr double EARTH_RADIUS_NM = 3440.065;

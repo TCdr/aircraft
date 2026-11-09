@@ -2978,3 +2978,5 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FWC] While the stall warning sounds, the GPWS voices are silenced and the other FWC sounds (chimes, cavalry charge, C chord, callouts) wait until it ends - @TCdr
 1. [A32NX/FWC] The radio height callouts, PITCH PITCH and the sidestick priority voices wait while a TCAS voice message is said - @TCdr
 1. [A32NX/FWC] The altitude alert C chord is inhibited during a TCAS RA also when the AP/FD TCAS mode is not available - @TCdr
+1. [A32NX/NAV] MMR 1 is powered by AC ESS and MMR 2 by AC 2: an unpowered or failed MMR loses its ILS and GLS on its own side only, the FMGCs fly the other one - @TCdr
+1. [A380X/NAV] MMR 1 is powered by AC EMER and MMR 2 by AC 3: an unpowered or failed MMR loses its ILS, GLS and FLS on its own side only, the PRIMs fly the other one - @TCdr

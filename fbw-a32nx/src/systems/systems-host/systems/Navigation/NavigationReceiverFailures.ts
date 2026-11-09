@@ -4,7 +4,6 @@
 import { Instrument } from '@microsoft/msfs-sdk';
 import { FailuresConsumer } from '@flybywiresim/fbw-sdk';
 import { A320Failure } from '@failures';
-import { MsfsComCircuitSwitch } from '@shared/communications/RadioCommunicationLogic';
 import {
   GBAS_STATION_FAILED_VAR,
   NavigationReceiverIndex,
@@ -30,17 +29,14 @@ interface ReceiverFailure {
  * - Every receiver: publishes L:A32NX_{VOR,DME,ADF,ILS}_{1,2}_FAILED. The VOR bus of the NDs (VorBusPublisher) then
  *   drops the signal of that receiver: no bearing pointer, no deviation, no DME distance; the VOR/ADF flags come on, as
  *   when a VOR or ADF receiver fails.
- * - GLS 1/2: publishes L:A32NX_GLS_{1,2}_FAILED from the GLS function failure of that receiver, which then sends no
- *   computed data (GlsReceiver in the FBW module). The ILS of the same receiver is not affected, and the other way round.
+ * - GLS 1/2: publishes L:A32NX_GLS_{1,2}_FAILED from the GLS function failure of that receiver, which then sends failure
+ *   warning (GlsReceiver in the FBW module). The ILS of the same receiver is not affected, and the other way round.
  * - GBAS ground station: publishes L:A32NX_GBAS_STATION_FAILED: no GLS channel is valid on either side.
- * - ILS 1: also switches the MSFS NAV 3 circuit (systems.cfg circuit.39, CIRCUIT_NAV:3) off, as the FBW module reads
- *   the localiser and glideslope of NAV 3 directly for PFD 1, the ISIS and the autoflight. ILS 2 (NAV 4, no circuit) is
- *   failed in the MMR 2 shim of the systems (navigation/ils.rs) for PFD 2. The FWC shows NAV ILS 1(2)(1+2) FAULT.
+ * - The failed ILS receiver sends failure warning on its own ILS bus (FBW module, from L:A32NX_ILS_{1,2}_FAILED) and the
+ *   MMR shims of the systems (navigation/ils.rs) drop its data for the PFDs. The sim NAV 3 radio stays on, as the FBW
+ *   module builds the ILS buses of both sides from it. The FWC shows NAV ILS 1(2)(1+2) FAULT.
  */
 export class NavigationReceiverFailures implements Instrument {
-  /** systems.cfg circuit.39 = CIRCUIT_NAV:3, the sim radio of the MMR 1 ILS receiver */
-  private static readonly ILS_1_MSFS_CIRCUIT = 39;
-
   private readonly receivers: ReceiverFailure[] = (
     [
       ['VOR', 1, A320Failure.Vor1Receiver],
@@ -64,16 +60,8 @@ export class NavigationReceiverFailures implements Instrument {
 
   private groundStationFailurePublished: boolean | undefined;
 
-  private readonly ils1CircuitSwitch = new MsfsComCircuitSwitch();
-
-  /**
-   * @param failuresConsumer The failures consumer.
-   * @param now The clock used to space the circuit toggles, in milliseconds.
-   */
-  constructor(
-    private readonly failuresConsumer: NavigationReceiverFailuresSource = new FailuresConsumer(),
-    private readonly now: () => number = Date.now,
-  ) {}
+  /** @param failuresConsumer The failures consumer. */
+  constructor(private readonly failuresConsumer: NavigationReceiverFailuresSource = new FailuresConsumer()) {}
 
   /** @inheritdoc */
   public init(): void {
@@ -99,13 +87,6 @@ export class NavigationReceiverFailures implements Instrument {
     if (stationFailed !== this.groundStationFailurePublished) {
       this.groundStationFailurePublished = stationFailed;
       SimVar.SetSimVarValue(GBAS_STATION_FAILED_VAR, 'bool', stationFailed);
-    }
-
-    const circuit = NavigationReceiverFailures.ILS_1_MSFS_CIRCUIT;
-    const shouldBeOn = !this.failuresConsumer.isActive(A320Failure.Ils1Receiver);
-    const isOn = SimVar.GetSimVarValue(`A:CIRCUIT SWITCH ON:${circuit}`, 'bool') > 0;
-    if (this.ils1CircuitSwitch.update(shouldBeOn, isOn, this.now())) {
-      SimVar.SetSimVarValue('K:ELECTRICAL_CIRCUIT_TOGGLE', 'number', circuit);
     }
   }
 }

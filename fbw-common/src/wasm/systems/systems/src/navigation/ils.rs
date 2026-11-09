@@ -1,11 +1,17 @@
 use crate::{
     failures::{Failure, FailureType},
-    shared::arinc429::{Arinc429Word, SignStatus},
-    simulation::{Read, SimulationElement, SimulationElementVisitor, VariableIdentifier, Write},
+    shared::{
+        arinc429::{Arinc429Word, SignStatus},
+        ConsumePower, ElectricalBusType, ElectricalBuses,
+    },
+    simulation::{
+        Read, SimulationElement, SimulationElementVisitor, UpdateContext, VariableIdentifier, Write,
+    },
 };
 use uom::si::{
     angle::degree,
-    f64::{Angle, Frequency, Ratio},
+    f64::{Angle, Frequency, Power, Ratio},
+    power::watt,
 };
 
 pub trait InstrumentLandingSystemBus {
@@ -34,7 +40,13 @@ pub trait InstrumentLandingSystemBus {
 /// PFD 2 shows ILS 2 (both aircraft). In the sim, MMR 1 is NAV 3 and MMR 2 is NAV 4
 /// (systems.cfg [RADIOS]). Each shim writes the data of its own NAV radio to MMR_n_* variables,
 /// read by the PFD of its side.
+///
+/// An unpowered MMR is a dead box: it receives nothing, and its bus words carry failure warning
+/// where a receiver without a signal sends no computed data. The flight guidance flies the bus of
+/// the other MMR only for failure warning.
 pub struct MultiModeReceiverShim {
+    powered_by: ElectricalBusType,
+    is_powered: bool,
     frequency: Frequency,
     nav_valid: bool,
     loc_valid: bool,
@@ -61,16 +73,26 @@ pub struct MultiModeReceiverShim {
     localizer_deviation_output_id: VariableIdentifier,
     glideslope_valid_output_id: VariableIdentifier,
     glideslope_deviation_output_id: VariableIdentifier,
+    is_powered_output_id: VariableIdentifier,
 }
 impl MultiModeReceiverShim {
     /// The sim NAV radio of MMR 1, MMR 2 has the next one.
     const MMR_1_SIM_NAV_INDEX: usize = 3;
 
-    /// The ILS receiver of MMR `number` (1 or 2).
-    pub fn new(context: &mut crate::simulation::InitContext, number: usize) -> Self {
+    /// The MMR draws as much as the GPS receiver inside the same box
+    const POWER_CONSUMPTION_WATT: f64 = 15.;
+
+    /// The ILS receiver of MMR `number` (1 or 2), powered by `powered_by`.
+    pub fn new(
+        context: &mut crate::simulation::InitContext,
+        number: usize,
+        powered_by: ElectricalBusType,
+    ) -> Self {
         let nav_index = Self::sim_nav_index(number);
 
         Self {
+            powered_by,
+            is_powered: false,
             frequency: Frequency::default(),
             nav_valid: false,
             loc_valid: false,
@@ -98,6 +120,7 @@ impl MultiModeReceiverShim {
             glideslope_valid_output_id: context.get_identifier(format!("MMR_{number}_GS_IS_VALID")),
             glideslope_deviation_output_id: context
                 .get_identifier(format!("MMR_{number}_GS_DEVIATION")),
+            is_powered_output_id: context.get_identifier(format!("MMR_{number}_IS_POWERED")),
         }
     }
 
@@ -111,6 +134,32 @@ impl MultiModeReceiverShim {
     }
 }
 impl MultiModeReceiverShim {
+    /// The box works: it has power and neither the ILS receiver nor the whole MMR is failed
+    fn is_working(&self) -> bool {
+        self.is_powered && !self.failure.is_active() && !self.mmr_failure.is_active()
+    }
+
+    /// Failure warning when the box is dead, no computed data when it only has no signal
+    fn invalid_status(&self) -> SignStatus {
+        if self.is_working() {
+            SignStatus::NoComputedData
+        } else {
+            SignStatus::FailureWarning
+        }
+    }
+
+    // The flags are read before the power of the frame is known, so a box that just lost its power
+    // must not send what it received a frame ago.
+    fn localizer_is_valid(&self) -> bool {
+        self.loc_valid && self.is_working()
+    }
+    fn glideslope_is_valid(&self) -> bool {
+        self.glideslope_valid && self.is_working()
+    }
+    fn frequency_is_valid(&self) -> bool {
+        self.nav_valid && self.is_working()
+    }
+
     /// Corrects an MSFS localiser radial error to give the correct deviations on the back beam.
     fn get_corrected_localizer_deviation(&self) -> Angle {
         let normalized_error = Self::normalize_180(self.localizer_deviation);
@@ -146,40 +195,40 @@ impl InstrumentLandingSystemBus for MultiModeReceiverShim {
     fn runway_heading(&self) -> Arinc429Word<Angle> {
         Arinc429Word::new(
             self.localizer_course,
-            if self.loc_valid {
+            if self.localizer_is_valid() {
                 SignStatus::NormalOperation
             } else {
-                SignStatus::NoComputedData
+                self.invalid_status()
             },
         )
     }
     fn ils_frequency(&self) -> Arinc429Word<Frequency> {
         Arinc429Word::new(
             self.frequency,
-            if self.nav_valid {
+            if self.frequency_is_valid() {
                 SignStatus::NormalOperation
             } else {
-                SignStatus::NoComputedData
+                self.invalid_status()
             },
         )
     }
     fn localizer_deviation(&self) -> Arinc429Word<Ratio> {
         Arinc429Word::new(
             self.get_corrected_localizer_deviation() / Angle::new::<degree>(0.8) * 0.0775,
-            if self.loc_valid {
+            if self.localizer_is_valid() {
                 SignStatus::NormalOperation
             } else {
-                SignStatus::NoComputedData
+                self.invalid_status()
             },
         )
     }
     fn glideslope_deviation(&self) -> Arinc429Word<Ratio> {
         Arinc429Word::new(
             self.glideslope_deviation / Angle::new::<degree>(0.4) * 0.0875,
-            if self.glideslope_valid {
+            if self.glideslope_is_valid() {
                 SignStatus::NormalOperation
             } else {
-                SignStatus::NoComputedData
+                self.invalid_status()
             },
         )
     }
@@ -198,8 +247,8 @@ impl SimulationElement for MultiModeReceiverShim {
     }
 
     fn read(&mut self, reader: &mut crate::simulation::SimulatorReader) {
-        // A failed receiver receives nothing
-        let receives = !self.failure.is_active() && !self.mmr_failure.is_active();
+        // A failed or unpowered receiver receives nothing
+        let receives = self.is_working();
         self.frequency = reader.read(&self.frequency_id);
         let nav_valid: bool = reader.read(&self.nav_valid_id);
         let loc_valid: bool = reader.read(&self.loc_valid_id);
@@ -216,39 +265,94 @@ impl SimulationElement for MultiModeReceiverShim {
         // Same contract as the A32NX_RADIO_RECEIVER_* variables of the FBW module with the sim
         // signals: valid flags, raw sim deviations in degrees (the localiser error is not corrected
         // for the back beam, the PFD does that).
-        writer.write(&self.localizer_valid_output_id, self.loc_valid);
+        writer.write(&self.localizer_valid_output_id, self.localizer_is_valid());
         writer.write(
             &self.localizer_deviation_output_id,
             self.localizer_deviation,
         );
-        writer.write(&self.glideslope_valid_output_id, self.glideslope_valid);
+        writer.write(&self.glideslope_valid_output_id, self.glideslope_is_valid());
         writer.write(
             &self.glideslope_deviation_output_id,
             self.glideslope_deviation,
         );
+        writer.write(&self.is_powered_output_id, self.is_powered);
+    }
+
+    fn receive_power(&mut self, buses: &impl ElectricalBuses) {
+        self.is_powered = buses.is_powered(self.powered_by);
+    }
+
+    fn consume_power<T: ConsumePower>(&mut self, _: &UpdateContext, consumption: &mut T) {
+        if self.is_powered {
+            consumption.consume_from_bus(
+                self.powered_by,
+                Power::new::<watt>(Self::POWER_CONSUMPTION_WATT),
+            );
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::electrical::test::TestElectricitySource;
+    use crate::electrical::{ElectricalBus, Electricity};
+    use crate::shared::PotentialOrigin;
     use crate::simulation::test::{ReadByName, SimulationTestBed, TestBed, WriteByName};
     use crate::simulation::{Aircraft, InitContext, SimulationElementVisitor};
-    use uom::si::ratio::ratio;
+    use std::time::Duration;
+    use uom::si::{electric_potential::volt, f64::ElectricPotential, ratio::ratio};
 
     struct TestAircraft {
+        electricity_source: TestElectricitySource,
+        ac_1_bus: ElectricalBus,
+        ac_2_bus: ElectricalBus,
+        is_ac_1_powered: bool,
+        is_ac_2_powered: bool,
         mmr_1: MultiModeReceiverShim,
         mmr_2: MultiModeReceiverShim,
     }
     impl TestAircraft {
         fn new(context: &mut InitContext) -> Self {
             Self {
-                mmr_1: MultiModeReceiverShim::new(context, 1),
-                mmr_2: MultiModeReceiverShim::new(context, 2),
+                electricity_source: TestElectricitySource::powered(
+                    context,
+                    PotentialOrigin::EngineGenerator(1),
+                ),
+                ac_1_bus: ElectricalBus::new(context, ElectricalBusType::AlternatingCurrent(1)),
+                ac_2_bus: ElectricalBus::new(context, ElectricalBusType::AlternatingCurrent(2)),
+                is_ac_1_powered: true,
+                is_ac_2_powered: true,
+                mmr_1: MultiModeReceiverShim::new(
+                    context,
+                    1,
+                    ElectricalBusType::AlternatingCurrent(1),
+                ),
+                mmr_2: MultiModeReceiverShim::new(
+                    context,
+                    2,
+                    ElectricalBusType::AlternatingCurrent(2),
+                ),
             }
         }
     }
-    impl Aircraft for TestAircraft {}
+    impl Aircraft for TestAircraft {
+        fn update_before_power_distribution(
+            &mut self,
+            _: &UpdateContext,
+            electricity: &mut Electricity,
+        ) {
+            self.electricity_source
+                .power_with_potential(ElectricPotential::new::<volt>(115.));
+            electricity.supplied_by(&self.electricity_source);
+            if self.is_ac_1_powered {
+                electricity.flow(&self.electricity_source, &self.ac_1_bus);
+            }
+            if self.is_ac_2_powered {
+                electricity.flow(&self.electricity_source, &self.ac_2_bus);
+            }
+        }
+    }
     impl SimulationElement for TestAircraft {
         fn accept<T: SimulationElementVisitor>(&mut self, visitor: &mut T) {
             self.mmr_1.accept(visitor);
@@ -271,6 +375,8 @@ mod tests {
                 glideslope_error,
             );
         }
+        // The first frame powers the receivers, the second one lets them receive
+        test_bed.run();
         test_bed.run();
         test_bed
     }
@@ -324,7 +430,7 @@ mod tests {
     }
 
     #[test]
-    fn a_failed_ils_receiver_gives_no_localiser_and_glideslope() {
+    fn a_failed_ils_receiver_gives_failure_warning_on_all_words() {
         let mut test_bed = test_bed_with_both_receivers_on_an_ils();
         test_bed.fail(FailureType::IlsReceiver(2));
         test_bed.run();
@@ -332,9 +438,9 @@ mod tests {
 
         assert!(!read_flag(&mut test_bed, "MMR_2_LOC_IS_VALID"));
         assert!(!read_flag(&mut test_bed, "MMR_2_GS_IS_VALID"));
-        assert!(test_bed.query(|a| a.mmr_2.localizer_deviation().is_no_computed_data()));
-        assert!(test_bed.query(|a| a.mmr_2.glideslope_deviation().is_no_computed_data()));
-        assert!(test_bed.query(|a| a.mmr_2.ils_frequency().is_no_computed_data()));
+        assert!(test_bed.query(|a| a.mmr_2.localizer_deviation().is_failure_warning()));
+        assert!(test_bed.query(|a| a.mmr_2.glideslope_deviation().is_failure_warning()));
+        assert!(test_bed.query(|a| a.mmr_2.ils_frequency().is_failure_warning()));
         // The other receiver still works
         assert!(read_flag(&mut test_bed, "MMR_1_LOC_IS_VALID"));
         assert!(read_flag(&mut test_bed, "MMR_1_GS_IS_VALID"));
@@ -355,13 +461,134 @@ mod tests {
 
         assert!(!read_flag(&mut test_bed, "MMR_1_LOC_IS_VALID"));
         assert!(!read_flag(&mut test_bed, "MMR_1_GS_IS_VALID"));
-        assert!(test_bed.query(|a| a.mmr_1.localizer_deviation().is_no_computed_data()));
+        assert!(test_bed.query(|a| a.mmr_1.localizer_deviation().is_failure_warning()));
         assert!(read_flag(&mut test_bed, "MMR_2_LOC_IS_VALID"));
 
         test_bed.unfail(FailureType::MultiModeReceiver(1));
         test_bed.run();
         test_bed.run();
         assert!(read_flag(&mut test_bed, "MMR_1_LOC_IS_VALID"));
+    }
+
+    #[test]
+    fn an_unpowered_mmr_is_a_dead_box() {
+        let mut test_bed = test_bed_with_both_receivers_on_an_ils();
+        test_bed.command(|a| a.is_ac_2_powered = false);
+        test_bed.run();
+        test_bed.run();
+
+        assert!(!read_flag(&mut test_bed, "MMR_2_IS_POWERED"));
+        assert!(!read_flag(&mut test_bed, "MMR_2_LOC_IS_VALID"));
+        assert!(!read_flag(&mut test_bed, "MMR_2_GS_IS_VALID"));
+        assert!(test_bed.query(|a| a.mmr_2.runway_heading().is_failure_warning()));
+        assert!(test_bed.query(|a| a.mmr_2.ils_frequency().is_failure_warning()));
+        assert!(test_bed.query(|a| a.mmr_2.localizer_deviation().is_failure_warning()));
+        assert!(test_bed.query(|a| a.mmr_2.glideslope_deviation().is_failure_warning()));
+
+        // The other MMR, on the other bus, is not affected
+        assert!(read_flag(&mut test_bed, "MMR_1_IS_POWERED"));
+        assert!(read_flag(&mut test_bed, "MMR_1_LOC_IS_VALID"));
+        assert!(test_bed.query(|a| a.mmr_1.localizer_deviation().is_normal_operation()));
+
+        test_bed.command(|a| a.is_ac_2_powered = true);
+        test_bed.run();
+        test_bed.run();
+        assert!(read_flag(&mut test_bed, "MMR_2_IS_POWERED"));
+        assert!(read_flag(&mut test_bed, "MMR_2_LOC_IS_VALID"));
+        assert!(test_bed.query(|a| a.mmr_2.localizer_deviation().is_normal_operation()));
+    }
+
+    #[test]
+    fn a_powered_mmr_without_signal_sends_no_computed_data() {
+        let mut test_bed = test_bed_with_both_receivers_on_an_ils();
+        test_bed.write_by_name("NAV HAS LOCALIZER:3", false);
+        test_bed.write_by_name("NAV HAS GLIDE SLOPE:3", false);
+        test_bed.run();
+        test_bed.run();
+
+        assert!(test_bed.query(|a| a.mmr_1.localizer_deviation().is_no_computed_data()));
+        assert!(test_bed.query(|a| a.mmr_1.glideslope_deviation().is_no_computed_data()));
+        assert!(test_bed.query(|a| a.mmr_1.runway_heading().is_no_computed_data()));
+        // The other MMR still receives its signal
+        assert!(test_bed.query(|a| a.mmr_2.localizer_deviation().is_normal_operation()));
+    }
+
+    #[test]
+    fn a_failed_mmr_sends_failure_warning_so_that_the_flight_guidance_flies_the_other_one() {
+        for failure in [
+            FailureType::MultiModeReceiver(2),
+            FailureType::IlsReceiver(2),
+        ] {
+            let mut test_bed = test_bed_with_both_receivers_on_an_ils();
+            test_bed.fail(failure);
+            test_bed.run();
+            test_bed.run();
+
+            assert!(read_flag(&mut test_bed, "MMR_2_IS_POWERED"));
+            assert!(!read_flag(&mut test_bed, "MMR_2_LOC_IS_VALID"));
+            assert!(test_bed.query(|a| a.mmr_2.runway_heading().is_failure_warning()));
+            assert!(test_bed.query(|a| a.mmr_2.ils_frequency().is_failure_warning()));
+            assert!(test_bed.query(|a| a.mmr_2.localizer_deviation().is_failure_warning()));
+            assert!(test_bed.query(|a| a.mmr_2.glideslope_deviation().is_failure_warning()));
+            assert!(test_bed.query(|a| a.mmr_1.localizer_deviation().is_normal_operation()));
+        }
+    }
+
+    #[test]
+    fn a_box_that_loses_its_power_sends_nothing_valid_in_the_same_frame() {
+        let mut test_bed = test_bed_with_both_receivers_on_an_ils();
+        test_bed.run();
+        test_bed.run();
+        assert!(read_flag(&mut test_bed, "MMR_2_LOC_IS_VALID"));
+
+        test_bed.command(|a| a.is_ac_2_powered = false);
+        test_bed.run_with_delta(Duration::from_millis(1));
+
+        assert!(!read_flag(&mut test_bed, "MMR_2_LOC_IS_VALID"));
+        assert!(!read_flag(&mut test_bed, "MMR_2_GS_IS_VALID"));
+        assert!(test_bed.query(|a| a.mmr_2.localizer_deviation().is_failure_warning()));
+        assert!(test_bed.query(|a| a.mmr_2.glideslope_deviation().is_failure_warning()));
+    }
+
+    #[test]
+    fn two_powered_healthy_mmrs_send_the_words_they_always_did() {
+        let test_bed = test_bed_with_both_receivers_on_an_ils();
+
+        for ils in [
+            test_bed.query(|a| {
+                (
+                    a.mmr_1.runway_heading(),
+                    a.mmr_1.ils_frequency(),
+                    a.mmr_1.localizer_deviation(),
+                    a.mmr_1.glideslope_deviation(),
+                )
+            }),
+            test_bed.query(|a| {
+                (
+                    a.mmr_2.runway_heading(),
+                    a.mmr_2.ils_frequency(),
+                    a.mmr_2.localizer_deviation(),
+                    a.mmr_2.glideslope_deviation(),
+                )
+            }),
+        ] {
+            assert!(ils.0.is_normal_operation());
+            assert!(ils.1.is_normal_operation());
+            assert!(ils.2.is_normal_operation());
+            assert!(ils.3.is_normal_operation());
+        }
+        assert!(
+            (test_bed.query(|a| a.mmr_1.localizer_deviation().value().get::<ratio>())
+                - 0.4 / 0.8 * 0.0775)
+                .abs()
+                < 1e-9
+        );
+        assert!(
+            (test_bed.query(|a| a.mmr_2.glideslope_deviation().value().get::<ratio>())
+                - 0.3 / 0.4 * 0.0875)
+                .abs()
+                < 1e-9
+        );
     }
 
     struct SingleMmrAircraft {
@@ -379,7 +606,7 @@ mod tests {
     #[should_panic(expected = "There are two MMRs")]
     fn there_is_no_third_mmr() {
         SimulationTestBed::new(|context| SingleMmrAircraft {
-            mmr: MultiModeReceiverShim::new(context, 3),
+            mmr: MultiModeReceiverShim::new(context, 3, ElectricalBusType::AlternatingCurrent(1)),
         });
     }
 }

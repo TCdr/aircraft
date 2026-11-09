@@ -117,8 +117,8 @@ class GlsReceiver {
   /// An MMR set to a GLS channel sends the GLS words on its ILS bus in place of whatever the detuned ILS receiver gives, with
   /// the same signs and scaling, so that the LOC and G/S modes and the landing modes use them as they use an ILS. The channel
   /// goes into the frequency word, where the flight guidance compares the two MMRs. An MMR on a channel that receives nothing
-  /// (no uplink, wrong channel, failure) still sends its GLS words, as no computed data: it must not fall back to a stale ILS
-  /// beam. An MMR in ILS mode keeps its words.
+  /// (no uplink, wrong channel, no ground station) still sends its GLS words, as no computed data, and a failed one as failure
+  /// warning: neither must fall back to a stale ILS beam. An MMR in ILS mode keeps its words.
   template <typename IlsBus>
   static void applyToIlsBus(IlsBus& bus,
                             const GlsApproachDefinition& uplink,
@@ -130,8 +130,11 @@ class GlsReceiver {
       return;
     }
     const bool receiving = isReceiving(uplink, mmrChannel, mmrFailed, groundStationFailed);
-    const unsigned int lateralSsm = receiving && deviations.lateralValid ? SSM_NORMAL_OPERATION : SSM_NO_COMPUTED_DATA;
-    const unsigned int verticalSsm = receiving && deviations.verticalValid ? SSM_NORMAL_OPERATION : SSM_NO_COMPUTED_DATA;
+    // A failed MMR is a dead function, which the flight guidance must tell from a lost signal: it flies the other MMR then
+    const unsigned int lateralSsm =
+        mmrFailed ? SSM_FAILURE_WARNING : receiving && deviations.lateralValid ? SSM_NORMAL_OPERATION : SSM_NO_COMPUTED_DATA;
+    const unsigned int verticalSsm =
+        mmrFailed ? SSM_FAILURE_WARNING : receiving && deviations.verticalValid ? SSM_NORMAL_OPERATION : SSM_NO_COMPUTED_DATA;
 
     bus.runway_heading_deg.SSM = lateralSsm;
     bus.runway_heading_deg.Data = uplink.valid ? static_cast<float>(uplink.courseTrueDeg) : 0.0F;
@@ -189,6 +192,7 @@ class GlsReceiver {
   }
 
  private:
+  static constexpr unsigned int SSM_FAILURE_WARNING = ReceiverGeometry::SSM_FAILURE_WARNING;
   static constexpr unsigned int SSM_NO_COMPUTED_DATA = ReceiverGeometry::SSM_NO_COMPUTED_DATA;
   static constexpr unsigned int SSM_NORMAL_OPERATION = ReceiverGeometry::SSM_NORMAL_OPERATION;
   static constexpr double FEET_PER_NM = ReceiverGeometry::FEET_PER_NM;

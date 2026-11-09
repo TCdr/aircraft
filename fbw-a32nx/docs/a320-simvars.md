@@ -1463,7 +1463,7 @@ deviations like an ILS receiver. All values are raw numbers without a unit.
 - A32NX_GLS_{number}_FAILED
     - Bool
     - Number: 1 or 2
-    - The GLS of MMR {number} is failed: the MMR sends no computed GLS data. Written by the systems host from the GLS
+    - The GLS of MMR {number} is failed: the MMR sends failure warning on its ILS bus while it is on a GLS channel. Written by the systems host from the GLS
       function failure of that MMR. Read by fbw.wasm and the PFD
 
 - A32NX_GLS_{number}_LOC_IS_VALID, A32NX_GLS_{number}_GS_IS_VALID
@@ -2450,7 +2450,8 @@ In the variables below, {number} should be replaced with one item in the set: { 
 - A32NX_VOR_{number}_FAILED, A32NX_DME_{number}_FAILED, A32NX_ADF_{number}_FAILED, A32NX_ILS_{number}_FAILED
     - Bool
     - The VOR, DME, ADF or ILS receiver {number} (1 or 2) has failed (flyPad ATA 34 failures, written by the systems
-      host): the NDs then get no bearing, deviation or distance from it.
+      host): the NDs then get no bearing, deviation or distance from it. A failed ILS receiver sends failure warning on its
+      own ILS bus (fbw.wasm), so that the FMGCs fly the other one.
 
 - A32NX_PUSH_TRUE_REF
     - Bool
@@ -2550,6 +2551,13 @@ In the variables below, {number} should be replaced with one item in the set: { 
     - The localizer (glide slope) signal of the ILS receiver of MMR {number} is valid. MMR 1 is the sim NAV 3, MMR 2
       NAV 4. Written by systems.wasm (fbw-common navigation/ils.rs). The F/O PFD reads MMR 2; the CAPT PFD keeps the
       A32NX_RADIO_RECEIVER_* variables (MMR 1)
+
+- A32NX_MMR_{number}_IS_POWERED
+    - Bool
+    - number: 1 or 2
+    - MMR {number} is supplied: MMR 1 by AC ESS, MMR 2 by AC 2. An unpowered MMR receives no ILS and no GLS and sends failure
+      warning on its ILS bus. Written by systems.wasm (fbw-common navigation/ils.rs), read by fbw.wasm.
+      Reads 0 until systems.wasm has written it, so both MMRs are dead while systems.wasm is not running
 
 - A32NX_MMR_{number}_LOC_DEVIATION, A32NX_MMR_{number}_GS_DEVIATION
     - Number in degrees
