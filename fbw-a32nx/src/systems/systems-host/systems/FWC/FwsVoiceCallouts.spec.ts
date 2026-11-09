@@ -7,6 +7,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventBus, Subject } from '@microsoft/msfs-sdk';
 import { Arinc429SignStatusMatrix, Arinc429Word } from '@flybywiresim/fbw-sdk';
 import { FwsAuralsList, FwsSoundManager } from './FwsSoundManager';
+import { A32NXRadioAutoCallOutFlags } from '@shared/AutoCallOuts';
 import { PseudoFWC } from './PseudoFWC';
 import { computeFwcAvailability } from './Logic/FwcAvailability';
 
@@ -117,6 +118,77 @@ describe('A32NX intermediate height callout on the whole FWC', () => {
     expect(said[0]).toBeLessThan(12.5); // plus a sound being played at the time
     expect(said[1] - said[0]).toBeCloseTo(4, 0);
     expect(writtenTrueAt.get('L:A32NX_FWS_AUDIO_200')).toBeUndefined();
+  });
+});
+
+describe('A32NX smart FIVE HUNDRED callout on the whole FWC', () => {
+  interface Receivers {
+    glsSelected: boolean;
+    glsReceived?: boolean;
+    glsGlideDeg?: number;
+    ilsReceived?: boolean;
+    ilsGlideDeg?: number;
+  }
+
+  /**
+   * Descends to 505 ft with the smart FIVE HUNDRED pin and the given receivers of MMR 1. The GLS receiver values are
+   * set even in ILS mode, so a FWC that ignores the mode would take them.
+   * Checks the callout decision of the FWC, a chime of the aural manager can hold the voice back in this bare setup.
+   */
+  const fiveHundredCalled = ({
+    glsSelected,
+    glsReceived = true,
+    glsGlideDeg = 0,
+    ilsReceived = false,
+    ilsGlideDeg = 0,
+  }: Receivers) => {
+    const { fwc, soundManager } = createFwc();
+    (fwc as any).autoCallouts.autoCallOutPins = A32NXRadioAutoCallOutFlags.FiveHundredGlide;
+    // the callouts wait for a descending radio height
+    for (const ra of [1, 2]) {
+      simvars.set(`L:A32NX_RA_${ra}_RADIO_ALTITUDE`, normalWord(900));
+    }
+    run(fwc, soundManager, 10);
+    for (const ra of [1, 2]) {
+      simvars.set(`L:A32NX_RA_${ra}_RADIO_ALTITUDE`, normalWord(505));
+    }
+    let called = false;
+    (fwc as any).autoCallouts.fiveHundredAudio.sub((value: boolean) => {
+      called = called || value;
+    });
+    simvars.set('L:A32NX_MMR_1_GLS_CHANNEL', glsSelected ? 40123 : 0);
+    simvars.set('L:A32NX_GLS_1_GS_IS_VALID', glsReceived ? 1 : 0);
+    simvars.set('L:A32NX_GLS_GS_DEVIATION', glsGlideDeg);
+    simvars.set('L:A32NX_RADIO_RECEIVER_GS_IS_VALID', ilsReceived ? 1 : 0);
+    simvars.set('L:A32NX_RADIO_RECEIVER_GS_DEVIATION', ilsGlideDeg);
+    run(fwc, soundManager, 5);
+    return called;
+  };
+
+  it('on the GLS glide: no FIVE HUNDRED', () => {
+    expect(fiveHundredCalled({ glsSelected: true })).toBe(false);
+  });
+
+  it('above the GLS glide by more than the threshold: FIVE HUNDRED', () => {
+    expect(fiveHundredCalled({ glsSelected: true, glsGlideDeg: 0.3 })).toBe(true);
+  });
+
+  it('GLS selected but not received: FIVE HUNDRED (no valid glide)', () => {
+    expect(fiveHundredCalled({ glsSelected: true, glsReceived: false })).toBe(true);
+  });
+
+  it('GLS selected: a valid ILS receiver above the glide does not count', () => {
+    expect(fiveHundredCalled({ glsSelected: true, ilsReceived: true, ilsGlideDeg: 0.3 })).toBe(false);
+  });
+
+  it('without a GLS selected the ILS still decides: on the glide no FIVE HUNDRED, above it FIVE HUNDRED', () => {
+    expect(fiveHundredCalled({ glsSelected: false, ilsReceived: true })).toBe(false);
+    expect(fiveHundredCalled({ glsSelected: false, ilsReceived: true, ilsGlideDeg: 0.3 })).toBe(true);
+  });
+
+  it('without a GLS selected the GLS values are ignored', () => {
+    expect(fiveHundredCalled({ glsSelected: false, ilsReceived: false, glsGlideDeg: 0 })).toBe(true);
+    expect(fiveHundredCalled({ glsSelected: false, ilsReceived: true, glsGlideDeg: 0.3 })).toBe(false);
   });
 });
 

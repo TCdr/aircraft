@@ -639,3 +639,134 @@ describe('GPWS gear down threshold', () => {
     expect(modesWithGear(1).glideSlope).toBeGreaterThan(0);
   });
 });
+
+/*
+ * On a GLS approach MMR 1 gives the GLS and its ILS receiver is detuned, so mode 2B, mode 5 and the smart FIVE HUNDRED
+ * callout follow the GLS and never the ILS.
+ */
+describe('GLS approach', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  interface Receivers {
+    glsSelected?: boolean;
+    glsReceived?: boolean;
+    glsLocalizerReceived?: boolean;
+    glsGlideDeg?: number;
+    glsLocalizerDeg?: number;
+    ilsReceived?: boolean;
+    ilsGlideDeg?: number;
+    gpwsGlideSlopeOff?: boolean;
+  }
+
+  const mockReceivers = ({
+    glsSelected = true,
+    glsReceived = true,
+    glsLocalizerReceived = glsReceived,
+    glsGlideDeg = 0,
+    glsLocalizerDeg = 0,
+    ilsReceived = false,
+    ilsGlideDeg = 0,
+    gpwsGlideSlopeOff = false,
+  }: Receivers) => {
+    vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) => {
+      switch (name) {
+        case 'L:A32NX_MMR_1_GLS_CHANNEL':
+          return glsSelected ? 40123 : 0;
+        case 'L:A32NX_GLS_1_GS_IS_VALID':
+          return glsReceived ? 1 : 0;
+        case 'L:A32NX_GLS_1_LOC_IS_VALID':
+          return glsLocalizerReceived ? 1 : 0;
+        case 'L:A32NX_GLS_GS_DEVIATION':
+          return glsGlideDeg;
+        case 'L:A32NX_GLS_LOC_DEVIATION':
+          return glsLocalizerDeg;
+        case 'L:A32NX_RADIO_RECEIVER_GS_IS_VALID':
+        case 'L:A32NX_RADIO_RECEIVER_LOC_IS_VALID':
+          return ilsReceived ? 1 : 0;
+        case 'L:A32NX_RADIO_RECEIVER_GS_DEVIATION':
+          return ilsGlideDeg;
+        case 'L:A32NX_GPWS_GS_OFF':
+          return gpwsGlideSlopeOff ? 1 : 0;
+        default:
+          return 0;
+      }
+    });
+  };
+
+  const mode5At300ft = (receivers: Receivers) => {
+    mockReceivers(receivers);
+    const gpws = new LegacyGpws(new EventBus(), {} as LegacySoundManager);
+    const mode = { current: 0, previous: 0, type: [] };
+    gpws.GPWSMode5(mode, 300, true);
+    return mode.current;
+  };
+
+  it('mode 5: GLIDE SLOPE (hard) at 300 ft, 2.5 dots below the GLS, with the ILS receiver detuned', () => {
+    expect(mode5At300ft({ glsGlideDeg: -1 })).toBe(2);
+  });
+
+  it('mode 5: the G/S MODE button OFF inhibits it on a GLS too', () => {
+    expect(mode5At300ft({ glsGlideDeg: -1, gpwsGlideSlopeOff: true })).toBe(0);
+  });
+
+  it('mode 5: a GLS selected but not received gives no alert, even with a stale valid ILS below the glide', () => {
+    expect(mode5At300ft({ glsReceived: false, ilsReceived: true, ilsGlideDeg: -1 })).toBe(0);
+  });
+
+  it('mode 5: without a GLS selected the ILS still works', () => {
+    expect(mode5At300ft({ glsSelected: false, ilsReceived: true, ilsGlideDeg: -1 })).toBe(2);
+  });
+
+  const belowTwoDots = (receivers: Receivers) => {
+    mockReceivers(receivers);
+    return LegacyGpws.areLsDeviationsBelowTwoDots();
+  };
+
+  it('mode 2B: true at 1 dot of glide slope and 1 dot of localizer on the GLS', () => {
+    expect(belowTwoDots({ glsGlideDeg: 0.4, glsLocalizerDeg: 0.8 })).toBe(true);
+  });
+
+  it('mode 2B: false at 2.5 dots of glide slope on the GLS', () => {
+    expect(belowTwoDots({ glsGlideDeg: 1, glsLocalizerDeg: 0 })).toBe(false);
+  });
+
+  it('mode 2B: false with a GLS selected but not received, even with a stale valid ILS', () => {
+    expect(belowTwoDots({ glsReceived: false, ilsReceived: true })).toBe(false);
+  });
+
+  it('mode 2B: false when only the GLS localizer is not received, mode 5 still alerts', () => {
+    expect(belowTwoDots({ glsLocalizerReceived: false, glsGlideDeg: 0.4 })).toBe(false);
+    expect(mode5At300ft({ glsLocalizerReceived: false, glsGlideDeg: -1 })).toBe(2);
+  });
+
+  const smart = A380XRadioAutoCallOutFlags.FiveHundred | A380XRadioAutoCallOutFlags.FiveHundredGlide;
+
+  const descendThrough500 = (receivers: Receivers) => {
+    mockReceivers(receivers);
+    const bus = new EventBus();
+    const sounds: string[] = [];
+    bus
+      .getSubscriber<{ enqueueSound: string }>()
+      .on('enqueueSound')
+      .handle((sound) => sounds.push(sound));
+    const gpws = new LegacyGpws(bus, {} as LegacySoundManager);
+    gpws.autoCallOutPins = smart;
+    gpws.AltCallState.setState('over500');
+    gpws.UpdateAltState(510);
+    return sounds;
+  };
+
+  it('smart FIVE HUNDRED: not called out on the GLS glide', () => {
+    expect(descendThrough500({ glsGlideDeg: 0 })).toEqual([]);
+  });
+
+  it('smart FIVE HUNDRED: called out more than half a dot off the GLS glide', () => {
+    expect(descendThrough500({ glsGlideDeg: 0.3 })).toEqual(['alt_500']);
+  });
+
+  it('smart FIVE HUNDRED: called out with a GLS selected but not received', () => {
+    expect(descendThrough500({ glsReceived: false, ilsReceived: true })).toEqual(['alt_500']);
+  });
+});

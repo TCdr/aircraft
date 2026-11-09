@@ -1047,6 +1047,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/PFD] The GLS flag flashes for 9 s, then stays steady, when the LOC or G/S signal of a GLS approach is lost, and the GLS title flashes for 9 s when a GLS approach is selected with the LS pb on - @TCdr
 1. [A32NX/EFB] New flyPad failures GLS 1 function, GLS 2 function and GBAS ground station, with the ILS flag on the PFD when the GLS of a side is lost - @TCdr
 1. [A32NX/FWC] GLS AUTOLAND is listed as inoperative with CAT 2 on the STATUS page of AUTO FLT AP OFF (both APs), AUTO FLT YAW DAMPER SYS, AUTO FLT RUD TRIM SYS, ELEC AC BUS 2 FAULT, ELEC AC ESS BUS FAULT, F/CTL L(R) ELEV FAULT, F/CTL L+R ELEV FAULT, F/CTL STABILIZER JAM, HYD B+Y, G+B and G+Y SYS LO PR, L/G LGCIU 1+2 FAULT, NAV ADR, IR and RA faults - @TCdr
+1. [A32NX/GPWS] Mode 5 GLIDESLOPE alert, the mode 2B envelope and the mode 1 glide slope bias also work on a GLS approach - @TCdr
+1. [A380X/TAWS] Mode 5 GLIDE SLOPE alert and the mode 2B envelope also work on a GLS approach - @TCdr
+1. [A32NX/FWC] The smart FIVE HUNDRED callout uses the GLS glide on a GLS approach - @TCdr
+1. [A380X/FWS] The smart FIVE HUNDRED callout uses the GLS glide on a GLS approach - @TCdr
 
 ## 2024.1.0
 
