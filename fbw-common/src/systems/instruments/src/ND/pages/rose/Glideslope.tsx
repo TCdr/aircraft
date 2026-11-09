@@ -8,22 +8,20 @@ import {
   DisplayComponent,
   VNode,
   Subject,
-  EventBus,
   MappedSubject,
   Subscribable,
-  ConsumerSubject,
 } from '@microsoft/msfs-sdk';
-import { GenericVorEvents } from '../../types/GenericVorEvents';
 import { Layer } from '../../../MsfsAvionicsCommon/Layer';
 
 export interface GlideSlopeProps extends ComponentProps {
-  bus: EventBus;
   backbeam?: Subscribable<boolean>;
+  /** the G/S deviation is valid; from the ILS receiver or the GLS of the shown MMR */
+  valid: Subscribable<boolean>;
+  /** degrees */
+  deviation: Subscribable<number>;
 }
 
 export class GlideSlope extends DisplayComponent<GlideSlopeProps> {
-  private readonly sub = this.props.bus.getSubscriber<GenericVorEvents>();
-
   private readonly backbeam = this.props.backbeam ?? Subject.create(false);
 
   // FIXME hook up when MMR ready
@@ -35,7 +33,7 @@ export class GlideSlope extends DisplayComponent<GlideSlopeProps> {
     this.mixLocVnav,
   );
 
-  private readonly glideSlopeValid = ConsumerSubject.create(this.sub.on('glideSlopeValid'), false);
+  private readonly glideSlopeValid = this.props.valid;
 
   private readonly gsAvailable = MappedSubject.create(
     ([isHidden, glideSlopeValid]) => !isHidden && glideSlopeValid,
@@ -43,7 +41,7 @@ export class GlideSlope extends DisplayComponent<GlideSlopeProps> {
     this.glideSlopeValid,
   );
 
-  private readonly gsDeviation = ConsumerSubject.create(this.sub.on('glideSlopeDeviation'), 0);
+  private readonly gsDeviation = this.props.deviation;
 
   private readonly deviationPxSub = this.gsDeviation.map((deviation) => {
     return (deviation / 0.8) * 128;

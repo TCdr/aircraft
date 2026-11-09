@@ -22,6 +22,14 @@ import { GlideSlope } from './Glideslope';
 import { GenericDisplayManagementEvents } from '../../types/GenericDisplayManagementEvents';
 import { GenericVorEvents } from '../../types/GenericVorEvents';
 import { GenericFlightManagementBusEvents } from '../../types/GenericFlightManagementBusEvents';
+import { NDSimvars } from '../../NDSimvarPublisher';
+import {
+  roseLsCourse,
+  roseLsCourseKnown,
+  roseLsCoursePointerVisible,
+  roseLsDeviationSource,
+  roseLsGlsTopics,
+} from './RoseLsInfo';
 
 export interface RoseLsProps<T extends number> extends RoseModeProps<T> {
   index: 1 | 2;
@@ -29,22 +37,107 @@ export interface RoseLsProps<T extends number> extends RoseModeProps<T> {
 
 export class RoseLSPage<T extends number> extends RoseMode<T, RoseLsProps<T>> {
   private readonly sub = this.props.bus.getSubscriber<
-    GenericAdirsEvents & GenericDisplayManagementEvents & GenericVorEvents & GenericFlightManagementBusEvents
+    GenericAdirsEvents &
+      GenericDisplayManagementEvents &
+      GenericVorEvents &
+      GenericFlightManagementBusEvents &
+      NDSimvars
   >();
 
   isVisible = Subject.create(false);
 
   //  private readonly headingWord = Arinc429ConsumerSubject.create(null);
 
-  private readonly courseSub = Subject.create(0);
+  private readonly ilsCourseSub = ConsumerSubject.create(null, 0);
 
-  private readonly courseDeviationSub = Subject.create(0);
+  private readonly ilsCourseDeviationSub = ConsumerSubject.create(null, 0);
 
-  private readonly ilsAvailableSub = Subject.create(false);
+  private readonly ilsFrequencySub = ConsumerSubject.create(null, 0);
 
-  private readonly ilsFrequencySub = Subject.create(0);
+  private readonly localizerValidSub = ConsumerSubject.create(null, false);
 
-  private readonly localizerValidSub = Subject.create(false);
+  private readonly glideSlopeValidSub = ConsumerSubject.create(null, false);
+
+  private readonly glideSlopeDeviationSub = ConsumerSubject.create(null, 0);
+
+  private readonly glsChannelSub = ConsumerSubject.create(null, 0);
+
+  private readonly glsLocValidSub = ConsumerSubject.create(null, false);
+
+  private readonly glsGsValidSub = ConsumerSubject.create(null, false);
+
+  private readonly glsLocDeviationSub = ConsumerSubject.create(null, 0);
+
+  private readonly glsGsDeviationSub = ConsumerSubject.create(null, 0);
+
+  private readonly glsCourseSub = ConsumerSubject.create(null, -1);
+
+  // Design choice: both NDs take the GLS course from the FMS landing system course, as there is no course L:var per
+  // MMR. The FMS tunes both MMRs alike, so the two only differ while one MMR is tuned by hand.
+  private readonly courseSub = MappedSubject.create(
+    ([glsChannel, glsCourse, ilsCourse]) => roseLsCourse(glsChannel, glsCourse, ilsCourse),
+    this.glsChannelSub,
+    this.glsCourseSub,
+    this.ilsCourseSub,
+  );
+
+  private readonly coursePointerVisibleSub = MappedSubject.create(
+    ([glsChannel, glsCourse, ilsFrequency]) => roseLsCoursePointerVisible(glsChannel, glsCourse, ilsFrequency),
+    this.glsChannelSub,
+    this.glsCourseSub,
+    this.ilsFrequencySub,
+  );
+
+  private readonly courseKnownSub = MappedSubject.create(
+    ([glsChannel, glsCourse]) => roseLsCourseKnown(glsChannel, glsCourse),
+    this.glsChannelSub,
+    this.glsCourseSub,
+  );
+
+  private readonly deviationSub = MappedSubject.create(
+    ([
+      glsChannel,
+      ilsLocValid,
+      ilsLocDeviation,
+      ilsGsValid,
+      ilsGsDeviation,
+      glsLocDeviation,
+      glsGsDeviation,
+      glsCourse,
+      glsLocValid,
+      glsGsValid,
+    ]) =>
+      roseLsDeviationSource({
+        glsChannel,
+        ilsLocValid,
+        ilsLocDeviation,
+        ilsGsValid,
+        ilsGsDeviation,
+        glsLocDeviation,
+        glsGsDeviation,
+        glsCourse,
+        glsLocValid,
+        glsGsValid,
+      }),
+    this.glsChannelSub,
+    this.localizerValidSub,
+    this.ilsCourseDeviationSub,
+    this.glideSlopeValidSub,
+    this.glideSlopeDeviationSub,
+    this.glsLocDeviationSub,
+    this.glsGsDeviationSub,
+    this.glsCourseSub,
+    this.glsLocValidSub,
+    this.glsGsValidSub,
+  );
+
+  private readonly locValidSub = this.deviationSub.map((deviation) => deviation.locValid);
+
+  private readonly locDeviationSub = this.deviationSub.map((deviation) => deviation.locDeviation);
+
+  private readonly gsValidSub = this.deviationSub.map((deviation) => deviation.gsValid);
+
+  private readonly gsDeviationSub = this.deviationSub.map((deviation) => deviation.gsDeviation);
 
   private readonly backbeam = ConsumerSubject.create(this.sub.on('fm.1.backbeam'), false);
 
@@ -55,30 +148,20 @@ export class RoseLSPage<T extends number> extends RoseMode<T, RoseLsProps<T>> {
 
     const index: 3 | 4 = (this.props.index + 2) as 3 | 4;
 
-    this.sub
-      .on(`nav${index}Obs`)
-      .whenChanged()
-      .handle((v) => this.courseSub.set(v));
+    this.ilsCourseSub.setConsumer(this.sub.on(`nav${index}Obs`).whenChanged());
+    this.ilsCourseDeviationSub.setConsumer(this.sub.on(`nav${index}RadialError`).whenChanged());
+    this.ilsFrequencySub.setConsumer(this.sub.on(`nav${index}Frequency`).whenChanged());
+    this.localizerValidSub.setConsumer(this.sub.on('localizerValid').whenChanged());
+    this.glideSlopeValidSub.setConsumer(this.sub.on('glideSlopeValid').whenChanged());
+    this.glideSlopeDeviationSub.setConsumer(this.sub.on('glideSlopeDeviation').whenChanged());
 
-    this.sub
-      .on(`nav${index}RadialError`)
-      .whenChanged()
-      .handle((v) => this.courseDeviationSub.set(v));
-
-    this.sub
-      .on(`nav${index}Available`)
-      .whenChanged()
-      .handle((v) => this.ilsAvailableSub.set(v));
-
-    this.sub
-      .on(`nav${index}Frequency`)
-      .whenChanged()
-      .handle((v) => this.ilsFrequencySub.set(v));
-
-    this.sub
-      .on('localizerValid')
-      .whenChanged()
-      .handle((v) => this.localizerValidSub.set(v));
+    const glsTopics = roseLsGlsTopics(this.props.index);
+    this.glsChannelSub.setConsumer(this.sub.on(glsTopics.channel).whenChanged());
+    this.glsLocValidSub.setConsumer(this.sub.on(glsTopics.locValid).whenChanged());
+    this.glsGsValidSub.setConsumer(this.sub.on(glsTopics.gsValid).whenChanged());
+    this.glsLocDeviationSub.setConsumer(this.sub.on('glsLocDeviation').whenChanged());
+    this.glsGsDeviationSub.setConsumer(this.sub.on('glsGsDeviation').whenChanged());
+    this.glsCourseSub.setConsumer(this.sub.on('ilsCourse').whenChanged());
 
     publisher.pub('set_show_map', false);
   }
@@ -105,7 +188,7 @@ export class RoseLSPage<T extends number> extends RoseMode<T, RoseLsProps<T>> {
 
         <IlsInfoIndicator bus={this.props.bus} index={this.props.index} />
 
-        <GlideSlope bus={this.props.bus} backbeam={this.backbeam} />
+        <GlideSlope backbeam={this.backbeam} valid={this.gsValidSub} deviation={this.gsDeviationSub} />
 
         <RoseModeUnderlay
           bus={this.props.bus}
@@ -117,10 +200,11 @@ export class RoseLSPage<T extends number> extends RoseMode<T, RoseLsProps<T>> {
         <IlsCaptureOverlay
           heading={this.props.headingWord}
           course={this.courseSub}
-          courseDeviation={this.courseDeviationSub}
+          courseDeviation={this.locDeviationSub}
           backbeam={this.backbeam}
-          available={this.localizerValidSub}
-          ilsFrequency={this.ilsFrequencySub}
+          available={this.locValidSub}
+          pointerVisible={this.coursePointerVisibleSub}
+          scaleVisible={this.courseKnownSub}
         />
       </g>
     );
@@ -133,14 +217,14 @@ interface IlsCaptureOverlayProps extends ComponentProps {
   courseDeviation: Subscribable<number>;
   backbeam: Subscribable<boolean>;
   available: Subscribable<boolean>;
-  ilsFrequency: Subscribable<number>;
+  pointerVisible: Subscribable<boolean>;
+  scaleVisible: Subscribable<boolean>;
 }
 
 class IlsCaptureOverlay extends DisplayComponent<IlsCaptureOverlayProps> {
-  // we can't tell if the course is valid from the MSFS radio, so at least check that the frequency is
-  private readonly pointerVisibilitySub = MappedSubject.create(([ilsFrequency]) => {
-    return ilsFrequency >= 108 && ilsFrequency <= 112 ? 'inherit' : 'hidden';
-  }, this.props.ilsFrequency);
+  private readonly pointerVisibilitySub = this.props.pointerVisible.map((visible) => (visible ? 'inherit' : 'hidden'));
+
+  private readonly scaleVisibilitySub = this.props.scaleVisible.map((visible) => (visible ? 'inherit' : 'hidden'));
 
   private readonly visible = MappedSubject.create(([heading]) => {
     return heading.isNormalOperation();
@@ -200,7 +284,7 @@ class IlsCaptureOverlay extends DisplayComponent<IlsCaptureOverlayProps> {
           </text>
         </g>
 
-        <g id="ils-deviation-scale">
+        <g id="ils-deviation-scale" visibility={this.scaleVisibilitySub}>
           <circle cx={236} cy={384} r={5} />
           <circle cx={310} cy={384} r={5} />
           <circle cx={458} cy={384} r={5} />
