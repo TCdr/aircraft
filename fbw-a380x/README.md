@@ -25,7 +25,10 @@ This list is divided into standardized ATA chapters, if there are no noteworthy 
 
 ### ATA 22 Autoflight / FCU
 
-- FLS
+- FLS: the FMS builds the beam for VOR, NDB and RNAV approaches (F-LOC and F-G/S) and for LOC and LOC B/C approaches
+  (F-G/S only), the F-LOC and F-G/S modes fly it with the LOC and G/S laws, with F-APP, F-APP+RAW or RAW ONLY on the
+  FMA and the deviations on the PFD; not modelled: an F-LOC capture of its own (the plain LOC capture law is used), FLS
+  on an ILS approach flown without its glide slope, the GPWS mode 5 inhibition on an FLS approach
 - THR NOISE, DCLB
 - AFS CP ALT button (immediate level-off, and alt hold indication)
 
@@ -125,7 +128,11 @@ This list is divided into standardized ATA chapters, if there are no noteworthy 
 
 - MMR implementation: the GPS receivers, the GPIRS position, the GPS modes (TEST, ALTAID, AIDED, DIFF) and the GPS
   deselection are modelled; the satellites come from the nominal 24-slot constellation, not from a real almanac
-- GLS
+- GLS: a synthetic GBAS station on the real GLS runways of a built-in table only (39 procedures at 7 airports: EDDF,
+  KEWR, KIAH, KSFO, LEMG, YMML, YSSY), each listed on ARRIVAL as a copy of the ILS approach of its runway; the MMRs
+  give ILS-scaled deviations, with CAT 1 or AUTO LAND on the FMA, the PFD, ND ROSE LS and SFD indications, GPWS mode 5
+  and the GBAS station and MMR GLS failures; not modelled: the VDB datalink and the GBAS service levels (the station is
+  either received or failed), GLS tuning on the RMP (it has no NAV backup page)
 - ISIS SND (second ISIS): SFD/SND reconfiguration (the MODE pb only switches the SND off and on), power-up self-test,
   FIX display on the SFD; the position source is shown as GPIR (see MMR / GPIRS above); the coordinate entry with the
   SET/SEL knob, the list size (10 waypoints) and the waypoint sequencing are simplified (not described in the FCOM)
