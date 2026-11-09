@@ -3,6 +3,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { EventBus, SimVarPublisher, SimVarPublisherEntry, SimVarValueType } from '@microsoft/msfs-sdk';
+import { GLS_RECEIVER_SIMVARS } from '../../../../../../../fbw-common/src/systems/instruments/src/ND/types/GlsReceiverSimVars';
 import {
   isSignalReceived,
   NAV_RADIO_RECEIVERS,
@@ -63,6 +64,16 @@ export interface VorSimVars {
   localizerValid: boolean;
   glideSlopeValid: boolean;
   glideSlopeDeviation: number;
+
+  mmr1GlsChannel: number;
+  mmr2GlsChannel: number;
+  gls1LocValid: boolean;
+  gls2LocValid: boolean;
+  gls1GsValid: boolean;
+  gls2GsValid: boolean;
+  glsLocDeviation: number;
+  glsGsDeviation: number;
+  gbasIdent: number;
 
   adf1Ident: string;
   adf1ActiveFrequency: number;
@@ -187,6 +198,8 @@ export class VorBusPublisher extends SimVarPublisher<VorSimVars> {
         ['localizerValid', { name: 'L:A32NX_RADIO_RECEIVER_LOC_IS_VALID', type: SimVarValueType.Bool }],
         ['glideSlopeValid', { name: 'L:A32NX_RADIO_RECEIVER_GS_IS_VALID', type: SimVarValueType.Bool }],
         ['glideSlopeDeviation', { name: 'L:A32NX_RADIO_RECEIVER_GS_DEVIATION', type: SimVarValueType.Number }],
+
+        ...GLS_RECEIVER_SIMVARS,
 
         ['adf1Ident', { name: 'ADF IDENT:1', type: SimVarValueType.String }],
         ['adf1ActiveFrequency', { name: 'ADF ACTIVE FREQUENCY:1', type: SimVarValueType.KHz }],

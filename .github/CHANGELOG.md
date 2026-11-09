@@ -154,6 +154,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [ND] Add a TERR ON ND terrain display that works without SimBridge, and a terrain profile on the A380X VD - @TCdr
 1. [TCAS] Show and count RA-level intruders as TAs while the RAs are inhibited (TA ONLY, or below 1000 ft) - @TCdr
 1. [ND] Show the selected weather radar mode (WX, WX+T, TURB, MAP) on the ROSE and ARC pages - @TCdr
+1. [ND] ROSE LS shows a GLS: GLS1/GLS2, channel, course, ident once received and the LOC and G/S deviations of the MMR of that side (A32NX and A380X) - @TCdr
 1. [A32NX/MCDU] Make the captain and first officer MCDUs independent, each with its own page, scratchpad and messages on the shared FMS data - @TCdr
 1. [A32NX/EGPWS] Add the RAAS runway awareness callouts (approaching, on runway, on taxiway, distance remaining...) as an aircraft option in the flyPad - @TCdr
 1. [A380X/OANS] Show the RWY AHEAD advisory without a Navigraph airport map, from the sim's own runways - @TCdr
