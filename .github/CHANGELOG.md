@@ -137,6 +137,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/GPWS] Mode 5 GLIDESLOPE alert, the mode 2B envelope and the mode 1 glide slope bias also work on a GLS approach - @TCdr
 1. [A380X/TAWS] Mode 5 GLIDE SLOPE alert also works on a GLS approach - @TCdr
 1. [A32NX/FWC] The smart FIVE HUNDRED callout uses the GLS glide on a GLS approach - @TCdr
+1. [A32NX/AP] AP and FDs disengage when the LOC or G/S signal is lost for 7 s above 200 ft RA (ILS, GLS, FLS), the FDs come back in HDG V/S or TRK FPA - @TCdr
+1. [A380X/AP] AP and FDs disengage when the LOC signal (ILS transmitter, GBAS station, FLS) is lost for 7 s above 200 ft RA, and after 0.2 s when both receivers are lost in approach; the FDs that were on come back flashing in HDG/TRACK and V/S/FPA, with a triple click - @TCdr
 
 ## 2024.1.0
 

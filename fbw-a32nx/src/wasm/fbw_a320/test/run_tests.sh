@@ -21,3 +21,6 @@ clang++ -std=c++20 -Wall -Wextra -w $FIX_FLAGS -I ../src/model -I ../../../../..
 # Health of the multi-mode receivers on the ILS buses (fbw-common MultiModeReceiverHealth.h, IlsBusBuilder.h): which words a dead function takes away, and that each bus follows its own MMR.
 clang++ -std=c++20 -Wall -Wextra -Werror -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src mmr_health_test.cpp -o ../obj/mmr_health_test
 ../obj/mmr_health_test
+# Loss of the LOC or G/S signal in the flight guidance (fbw-common LandingSystemSignalLoss.h, applied in Fmgc.cpp): the autopilot and the flight directors disengage after 7 s above 200 ft radio height.
+clang++ -std=c++20 -Wall -Wextra -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src ls_signal_loss_test.cpp ../src/fmgc/Fmgc.cpp ../src/model/*.cpp ../src/Arinc429Utils.cpp -o ../obj/ls_signal_loss_test
+../obj/ls_signal_loss_test

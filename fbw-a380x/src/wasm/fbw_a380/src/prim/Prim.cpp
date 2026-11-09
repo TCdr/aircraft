@@ -105,6 +105,10 @@ void Prim::update(double deltaTime,
   }
   primFg.A380PrimComputerFg_U.in = primFe.A380PrimComputerFe_Y.out;
 
+  if (!fgDisabled) {
+    landingSystemSignalLoss.apply(deltaTime, primFg.A380PrimComputerFg_Y.out, primFg.A380PrimComputerFg_U.in);
+  }
+
   if (fctlDisabled || fgDisabled) {
     simConnectInterface.setClientDataPrimFlightEnvelopeOutput(primFe.A380PrimComputerFe_Y.out.flight_envelope);
   }
@@ -120,6 +124,9 @@ void Prim::update(double deltaTime,
     primFg.A380PrimComputerFg_Y.out.fg_laws = simConnectInterface.getClientDataPrimFgLawsOutput();
   }
   primFctl.A380PrimComputerFctl_U.in = primFg.A380PrimComputerFg_Y.out;
+  if (!fgDisabled) {
+    landingSystemSignalLoss.raiseTripleClick(primFctl.A380PrimComputerFctl_U.in);
+  }
 
   if (fctlDisabled) {
     simConnectInterface.setClientDataPrimFgLogicOutput(primFg.A380PrimComputerFg_Y.out.fg_logic);
