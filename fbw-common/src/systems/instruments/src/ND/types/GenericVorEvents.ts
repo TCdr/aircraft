@@ -51,6 +51,16 @@ export interface GenericVorEvents {
   glideSlopeValid: boolean;
   glideSlopeDeviation: number;
 
+  mmr1GlsChannel: number;
+  mmr2GlsChannel: number;
+  gls1LocValid: boolean;
+  gls2LocValid: boolean;
+  gls1GsValid: boolean;
+  gls2GsValid: boolean;
+  glsLocDeviation: number;
+  glsGsDeviation: number;
+  gbasIdent: number;
+
   adf1Ident: string;
   adf1ActiveFrequency: number;
   adf1SignalStrength: number;

@@ -11,7 +11,6 @@ import {
   EventBus,
   MappedSubject,
   Subscribable,
-  ConsumerSubject,
   ClockEvents,
 } from '@microsoft/msfs-sdk';
 import { GenericVorEvents } from '../../types/GenericVorEvents';
@@ -23,6 +22,10 @@ export interface GlideSlopeProps extends ComponentProps {
   bus: EventBus;
   instrument: BaseInstrument;
   backbeam?: Subscribable<boolean>;
+  /** the G/S deviation is valid; from the ILS receiver or the GLS of the shown MMR */
+  valid: Subscribable<boolean>;
+  /** degrees */
+  deviation: Subscribable<number>;
 }
 
 export class GlideSlope extends DisplayComponent<GlideSlopeProps> {
@@ -41,7 +44,7 @@ export class GlideSlope extends DisplayComponent<GlideSlopeProps> {
     this.mixLocVnav,
   );
 
-  private readonly glideSlopeValid = ConsumerSubject.create(this.sub.on('glideSlopeValid'), false);
+  private readonly glideSlopeValid = this.props.valid;
 
   private readonly gsAvailable = MappedSubject.create(
     ([isHidden, glideSlopeValid]) => !isHidden && glideSlopeValid,
@@ -49,7 +52,7 @@ export class GlideSlope extends DisplayComponent<GlideSlopeProps> {
     this.glideSlopeValid,
   );
 
-  private readonly gsDeviation = ConsumerSubject.create(this.sub.on('glideSlopeDeviation'), 0);
+  private readonly gsDeviation = this.props.deviation;
 
   private readonly deviationPxSub = Subject.create(0);
 

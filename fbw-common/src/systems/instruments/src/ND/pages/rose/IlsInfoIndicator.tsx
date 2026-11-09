@@ -16,7 +16,9 @@ import { Arinc429RegisterSubject } from '@flybywiresim/fbw-sdk';
 
 import { GenericVorEvents } from '../../types/GenericVorEvents';
 import { GenericFlightManagementBusEvents } from '../../types/GenericFlightManagementBusEvents';
+import { NDSimvars } from '../../NDSimvarPublisher';
 import { Layer } from '../../../MsfsAvionicsCommon/Layer';
+import { roseLsGlsTopics, roseLsInfo } from './RoseLsInfo';
 
 export interface IlsInfoIndicatorProps {
   bus: EventBus;
@@ -30,6 +32,35 @@ export class IlsInfoIndicator extends DisplayComponent<IlsInfoIndicatorProps> {
 
   private readonly ilsCourse = ConsumerSubject.create(null, -1);
 
+  private readonly glsChannel = ConsumerSubject.create(null, 0);
+
+  private readonly glsReceived = ConsumerSubject.create(null, false);
+
+  private readonly glsIdentWord = ConsumerSubject.create(null, 0);
+
+  private readonly glsCourse = ConsumerSubject.create(null, -1);
+
+  private readonly lsInfo = MappedSubject.create(
+    ([ilsIdent, ilsFrequency, ilsCourse, glsChannel, glsReceived, glsIdentWord, glsCourse]) =>
+      roseLsInfo({
+        index: this.props.index,
+        glsChannel,
+        glsReceived,
+        glsIdentWord,
+        glsCourse,
+        ilsIdent,
+        ilsFrequency,
+        ilsCourse,
+      }),
+    this.ilsIdent,
+    this.ilsFrequency,
+    this.ilsCourse,
+    this.glsChannel,
+    this.glsReceived,
+    this.glsIdentWord,
+    this.glsCourse,
+  );
+
   private readonly fm1Healthy = Subject.create(false);
 
   private readonly fm2Healthy = Subject.create(false);
@@ -37,16 +68,6 @@ export class IlsInfoIndicator extends DisplayComponent<IlsInfoIndicatorProps> {
   private readonly fm1NavTuningWord = Arinc429RegisterSubject.createEmpty();
 
   private readonly fm2NavTuningWord = Arinc429RegisterSubject.createEmpty();
-
-  private readonly ilsFrequencyValid = Subject.create(false);
-
-  private readonly ilsCourseValid = Subject.create(false);
-
-  private readonly frequencyIntTextSub = Subject.create('');
-
-  private readonly frequencyDecimalTextSub = Subject.create('');
-
-  private readonly courseTextSub = Subject.create('');
 
   private readonly tuningMode = MappedSubject.create(
     ([fm1Healthy, fm2Healthy, fm1NavTuningWord, fm2NavTuningWord]) => {
@@ -74,7 +95,7 @@ export class IlsInfoIndicator extends DisplayComponent<IlsInfoIndicatorProps> {
   onAfterRender(node: VNode) {
     super.onAfterRender(node);
 
-    const subs = this.props.bus.getSubscriber<GenericVorEvents & GenericFlightManagementBusEvents>();
+    const subs = this.props.bus.getSubscriber<GenericVorEvents & GenericFlightManagementBusEvents & NDSimvars>();
 
     // TODO select correct MMR
     // Fixed now??
@@ -86,8 +107,11 @@ export class IlsInfoIndicator extends DisplayComponent<IlsInfoIndicatorProps> {
 
     this.ilsCourse.setConsumer(subs.on(`nav${index}Obs`).whenChanged());
 
-    this.ilsFrequency.sub((freq) => this.ilsFrequencyValid.set(freq >= 108 && freq <= 112), true);
-    this.ilsFrequencyValid.sub((valid) => this.ilsCourseValid.set(valid), true);
+    const glsTopics = roseLsGlsTopics(this.props.index);
+    this.glsChannel.setConsumer(subs.on(glsTopics.channel).whenChanged());
+    this.glsReceived.setConsumer(subs.on(glsTopics.locValid).whenChanged());
+    this.glsIdentWord.setConsumer(subs.on('gbasIdent').whenChanged());
+    this.glsCourse.setConsumer(subs.on('ilsCourse').whenChanged());
 
     subs
       .on('fm.1.healthy_discrete')
@@ -108,26 +132,6 @@ export class IlsInfoIndicator extends DisplayComponent<IlsInfoIndicatorProps> {
       .on('fm.2.tuning_discrete_word')
       .whenChanged()
       .handle((word) => this.fm2NavTuningWord.setWord(word));
-
-    MappedSubject.create(
-      ([freq, valid]) => {
-        if (valid) {
-          const [int, dec] = freq.toFixed(2).split('.', 2);
-
-          this.frequencyIntTextSub.set(int);
-          this.frequencyDecimalTextSub.set(dec);
-        } else {
-          this.frequencyIntTextSub.set('---');
-          this.frequencyDecimalTextSub.set('--');
-        }
-      },
-      this.ilsFrequency,
-      this.ilsFrequencyValid,
-    );
-
-    this.ilsCourse.sub((course) => {
-      this.courseTextSub.set(this.ilsFrequency.get() > 0 ? Math.round(course).toString().padStart(3, '0') : '---');
-    }, true);
   }
 
   private readonly visibilityFn = (v) => (v ? 'inherit' : 'hidden');
@@ -136,14 +140,15 @@ export class IlsInfoIndicator extends DisplayComponent<IlsInfoIndicatorProps> {
     return (
       <Layer x={748} y={28}>
         <text x={-102} y={0} font-size={25} class="White" text-anchor="end">
-          ILS
-          {this.props.index.toString()}
+          {this.lsInfo.map((info) => info.label)}
         </text>
 
         <g>
           <text x={0} y={0} font-size={25} class="Magenta" text-anchor="end">
-            {this.frequencyIntTextSub}
-            <tspan font-size={20}>.{this.frequencyDecimalTextSub}</tspan>
+            {this.lsInfo.map((info) => info.frequencyMain)}
+            <tspan font-size={20}>
+              {this.lsInfo.map((info) => (info.frequencyDecimal ? `.${info.frequencyDecimal}` : ''))}
+            </tspan>
           </text>
         </g>
 
@@ -151,18 +156,24 @@ export class IlsInfoIndicator extends DisplayComponent<IlsInfoIndicatorProps> {
           CRS
         </text>
         <text x={20} y={30} font-size={25} text-anchor="end">
-          <tspan class="Magenta">{this.courseTextSub}</tspan>
+          <tspan class="Magenta">{this.lsInfo.map((info) => info.course)}</tspan>
           <tspan class="Cyan">&deg;</tspan>
         </text>
 
-        <g visibility={this.ilsFrequency.map((v) => v > 0).map(this.visibilityFn)}>
+        <g
+          visibility={MappedSubject.create(
+            ([frequency, channel]) => frequency > 0 || channel > 0,
+            this.ilsFrequency,
+            this.glsChannel,
+          ).map(this.visibilityFn)}
+        >
           <text x={-80} y={58} font-size={20} class="White" text-anchor="end" text-decoration="underline">
             {this.tuningMode}
           </text>
         </g>
 
         <text x={0} y={60} font-size={25} class="Magenta" text-anchor="end">
-          {this.ilsIdent}
+          {this.lsInfo.map((info) => info.ident)}
         </text>
       </Layer>
     );
