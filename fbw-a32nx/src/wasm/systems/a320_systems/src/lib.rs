@@ -176,6 +176,10 @@ pub struct A320 {
     reverse_thrust: ReverserForce,
 }
 impl A320 {
+    /// The supply of MMR 1 and MMR 2, shared by the box's GPS receiver and its ILS receiver
+    const MMR_1_POWERED_BY: ElectricalBusType = ElectricalBusType::AlternatingCurrentEssential;
+    const MMR_2_POWERED_BY: ElectricalBusType = ElectricalBusType::AlternatingCurrent(2);
+
     pub fn new(context: &mut InitContext) -> A320 {
         Self::new_with_terrain_grid(
             context,
@@ -255,10 +259,9 @@ impl A320 {
             probe_window_heat: A320ProbeWindowHeat::new(context),
             tyre_pressure: A320TyrePressureIndicatingSystem::new(context),
             radio_altimeters: A320RadioAltimeters::new(context),
-            // The GPS receivers of MMR 1 and 2. No published power supply: MMR 1 on AC ESS and MMR
-            // 2 on AC 2, as the other side 1 / side 2 navigation receivers (design choice)
-            gps_1: GpsReceiver::new(context, 1, ElectricalBusType::AlternatingCurrentEssential),
-            gps_2: GpsReceiver::new(context, 2, ElectricalBusType::AlternatingCurrent(2)),
+            // The GPS receivers of MMR 1 and 2. MMR 1 is on AC ESS and MMR 2 on AC 2
+            gps_1: GpsReceiver::new(context, 1, Self::MMR_1_POWERED_BY),
+            gps_2: GpsReceiver::new(context, 2, Self::MMR_2_POWERED_BY),
             gpirs: Gpirs::new(context),
             egpwc: EnhancedGroundProximityWarningComputer::new(
                 context,
@@ -281,8 +284,8 @@ impl A320 {
             ),
             egpws_electrical_harness: A320EgpwsElectricalHarness::new(context),
             predictive_terrain: A320PredictiveTerrain::new(context, terrain_grid, obstacle_grid),
-            mmr_1: MultiModeReceiverShim::new(context, 1),
-            mmr_2: MultiModeReceiverShim::new(context, 2),
+            mmr_1: MultiModeReceiverShim::new(context, 1, Self::MMR_1_POWERED_BY),
+            mmr_2: MultiModeReceiverShim::new(context, 2, Self::MMR_2_POWERED_BY),
             reverse_thrust: ReverserForce::new(context),
         }
     }
@@ -993,11 +996,25 @@ mod tests {
         assert!((last.longitude_degrees - 139.76).abs() < 0.01);
     }
 
+    /// Both engines running for a few seconds, so that the generators supply the AC buses
+    fn aircraft_with_the_ac_buses_powered() -> SimulationTestBed<A320> {
+        let mut test_bed = aircraft_with_engines_at_idle();
+        test_bed.run_multiple_frames(Duration::from_secs(10));
+        test_bed
+    }
+
+    fn mmr_is_powered(test_bed: &mut SimulationTestBed<A320>, number: usize) -> bool {
+        test_bed.read_by_name(&format!("MMR_{number}_IS_POWERED"))
+    }
+
+    fn read_flag(test_bed: &mut SimulationTestBed<A320>, name: &str) -> bool {
+        test_bed.read_by_name(name)
+    }
+
     /// PFD1 shows ILS1 (MMR 1, sim NAV 3), PFD2 shows ILS2 (MMR 2, sim NAV 4).
     #[test]
     fn each_mmr_writes_the_deviations_of_its_own_ils_receiver() {
-        let mut test_bed = SimulationTestBed::new(|context: &mut InitContext| A320::new(context));
-        test_bed.set_on_ground(true);
+        let mut test_bed = aircraft_with_the_ac_buses_powered();
         test_bed.write_by_name("NAV HAS GLIDE SLOPE:3", false);
         test_bed.write_by_name("NAV GLIDE SLOPE ERROR:3", 0.);
         test_bed.write_by_name("NAV HAS GLIDE SLOPE:4", true);
@@ -1010,5 +1027,57 @@ mod tests {
         assert!(!mmr_1_valid);
         assert!(mmr_2_valid);
         assert!((mmr_2_deviation - 0.25).abs() < 1e-9);
+    }
+
+    fn tune_both_ils_receivers(test_bed: &mut SimulationTestBed<A320>) {
+        for nav_index in [3, 4] {
+            test_bed.write_by_name(&format!("NAV HAS LOCALIZER:{nav_index}"), true);
+            test_bed.write_by_name(&format!("NAV HAS GLIDE SLOPE:{nav_index}"), true);
+        }
+        test_bed.run_with_delta(Duration::from_millis(50));
+    }
+
+    /// MMR 1 is supplied by AC ESS, MMR 2 by AC 2: the ILS of the side of a lost bus is lost, the other side keeps its own
+    #[test]
+    fn mmr_1_is_supplied_by_ac_ess_and_mmr_2_by_ac_2() {
+        let mut test_bed = aircraft_with_the_ac_buses_powered();
+        tune_both_ils_receivers(&mut test_bed);
+        assert!(mmr_is_powered(&mut test_bed, 1) && mmr_is_powered(&mut test_bed, 2));
+
+        let ac_2_failure = FailureType::ElectricalBus(ElectricalBusType::AlternatingCurrent(2));
+        test_bed.fail(ac_2_failure);
+        // The shim reads its power one frame late, so two frames
+        test_bed.run_multiple_frames(Duration::from_secs(2));
+        assert!(mmr_is_powered(&mut test_bed, 1));
+        assert!(!mmr_is_powered(&mut test_bed, 2));
+        assert!(read_flag(&mut test_bed, "MMR_1_LOC_IS_VALID"));
+        assert!(!read_flag(&mut test_bed, "MMR_2_LOC_IS_VALID"));
+        assert!(!read_flag(&mut test_bed, "MMR_2_GS_IS_VALID"));
+        test_bed.unfail(ac_2_failure);
+
+        let ac_ess_failure =
+            FailureType::ElectricalBus(ElectricalBusType::AlternatingCurrentEssential);
+        test_bed.fail(ac_ess_failure);
+        test_bed.run_multiple_frames(Duration::from_secs(2));
+        assert!(!mmr_is_powered(&mut test_bed, 1));
+        assert!(mmr_is_powered(&mut test_bed, 2));
+        assert!(!read_flag(&mut test_bed, "MMR_1_LOC_IS_VALID"));
+        assert!(read_flag(&mut test_bed, "MMR_2_LOC_IS_VALID"));
+    }
+
+    /// The whole aircraft cannot be put into the emergency electrical configuration in the test bed: the RAT does not
+    /// deploy without the hydraulic and air data inputs of a flight, and the air conditioning controller panics on
+    /// the missing temperatures once the DC buses go. The electrical tests of the module show AC ESS supplied by
+    /// the emergency generator with AC 1 and AC 2 lost, so MMR 1 on AC ESS keeps its power there and MMR 2 on AC 2 does not.
+    #[test]
+    fn mmr_1_is_on_the_bus_the_emergency_generator_supplies_and_mmr_2_is_not() {
+        assert_eq!(
+            A320::MMR_1_POWERED_BY,
+            ElectricalBusType::AlternatingCurrentEssential
+        );
+        assert_eq!(
+            A320::MMR_2_POWERED_BY,
+            ElectricalBusType::AlternatingCurrent(2)
+        );
     }
 }

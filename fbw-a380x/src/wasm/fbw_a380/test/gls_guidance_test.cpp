@@ -15,6 +15,7 @@
 #include "A380PrimComputerFg.h"
 #include "FlsReceiver.h"
 #include "GlsReceiver.h"
+#include "MultiModeReceiverHealth.h"
 
 static int failures = 0;
 
@@ -26,6 +27,7 @@ static void expect(bool condition, const char* what) {
 }
 
 static constexpr double FEET_PER_NM = 6076.12;
+static constexpr unsigned int SSM_FAILURE_WARNING = 0b00;
 static constexpr unsigned int SSM_NCD = 0b01;
 static constexpr unsigned int SSM_NORMAL = 0b11;
 
@@ -110,7 +112,8 @@ static void noComputedDataWhenOutOfVolumeOrFailed() {
   expect(far.ils_frequency_mhz.SSM == SSM_NORMAL && far.ils_frequency_mhz.Data == 20001, "out of the volume: the channel is still sent");
 
   const GlsDeviations inVolume = deviationsOnThePath(approach, 8);
-  expect(busOnApproach(approach, 20001, true, false, inVolume).localizer_deviation_deg.SSM == SSM_NCD, "failed MMR: no computed data");
+  expect(busOnApproach(approach, 20001, true, false, inVolume).localizer_deviation_deg.SSM == SSM_FAILURE_WARNING,
+         "failed MMR: failure warning, so that the flight guidance flies the other MMR");
   expect(busOnApproach(approach, 20001, false, true, inVolume).glideslope_deviation_deg.SSM == SSM_NCD,
          "failed ground station: no computed data");
   const base_ils_bus otherChannel = busOnApproach(approach, 20002, false, false, inVolume);
@@ -126,7 +129,7 @@ static void noComputedDataWhenOutOfVolumeOrFailed() {
 }
 
 /// Each MMR follows its own failure, the ground station failure takes both: the failed MMR keeps its GLS mode (channel in the
-/// frequency word) but sends no computed data, so it cannot fall back to a stale ILS beam
+/// frequency word) but sends failure warning, so it cannot fall back to a stale ILS beam; the lost ground station is a lost signal
 static void eachMmrFollowsItsOwnFailure() {
   const GlsApproachDefinition approach = northApproach();
   const GlsDeviations inVolume = deviationsOnThePath(approach, 8);
@@ -148,8 +151,8 @@ static void eachMmrFollowsItsOwnFailure() {
   for (const Case& c : cases) {
     const base_ils_bus mmr1 = busOnApproach(approach, 20001, c.mmr1Failed, c.stationFailed, inVolume);
     const base_ils_bus mmr2 = busOnApproach(approach, 20001, c.mmr2Failed, c.stationFailed, inVolume);
-    const unsigned int expected1 = c.mmr1Valid ? SSM_NORMAL : SSM_NCD;
-    const unsigned int expected2 = c.mmr2Valid ? SSM_NORMAL : SSM_NCD;
+    const unsigned int expected1 = c.mmr1Failed ? SSM_FAILURE_WARNING : c.mmr1Valid ? SSM_NORMAL : SSM_NCD;
+    const unsigned int expected2 = c.mmr2Failed ? SSM_FAILURE_WARNING : c.mmr2Valid ? SSM_NORMAL : SSM_NCD;
     char what[160];
     std::snprintf(what, sizeof(what), "%s: MMR 1 words", c.name);
     expect(mmr1.localizer_deviation_deg.SSM == expected1 && mmr1.glideslope_deviation_deg.SSM == expected1 &&
@@ -249,6 +252,19 @@ static void setArinc(base_arinc_429& word, double value) {
 }
 
 /// PRIM 1 in flight, master, healthy, on a runway heading north, with the autopilot 1 engaged and the APPR pushbutton to press
+/// What an MMR without power puts on its ILS bus. Without the fix a dead MMR sends no computed data with zero deviations.
+static void applyDeadMmr(base_ils_bus& bus, bool glsMode) {
+#ifndef WITHOUT_THE_FIX
+  MmrHealth unpowered;
+  unpowered.powered = false;
+  MultiModeReceiverHealth::applyToIlsBus(bus, unpowered, glsMode ? MmrFunction::Gls : MmrFunction::Ils);
+#else
+  (void)glsMode;
+  bus.runway_heading_deg.SSM = bus.localizer_deviation_deg.SSM = bus.glideslope_deviation_deg.SSM = SSM_NCD;
+  bus.runway_heading_deg.Data = bus.localizer_deviation_deg.Data = bus.glideslope_deviation_deg.Data = 0;
+#endif
+}
+
 class ApproachFlight {
  public:
   ApproachFlight() {
@@ -347,6 +363,11 @@ class ApproachFlight {
   bool gsEngaged() const { return out().fg_mode_logic.longitudinal_modes.gs_capt_active || out().fg_mode_logic.longitudinal_modes.gs_trk_active; }
   bool landEngaged() const { return out().fg_mode_logic.lateral_modes.land_active; }
 
+  /// The MMR (0 = ILS 1, the bus the PRIM flies first; 1 = ILS 2) that has no power, from the next step on; BOTH_MMRS for both; -1 for none
+  static constexpr int BOTH_MMRS = 2;
+  int deadMmr = -1;
+  bool deadMmrInGlsMode = false;
+
   A380PrimComputerFg fg;
   prim_outputs inputs{};
   double time = 0.0;
@@ -356,6 +377,12 @@ class ApproachFlight {
  private:
   void step() {
     time += TIME_STEP_S;
+    if (deadMmr == 0 || deadMmr == BOTH_MMRS) {
+      applyDeadMmr(inputs.data.bus_inputs.ils_1_bus, deadMmrInGlsMode);
+    }
+    if (deadMmr == 1 || deadMmr == BOTH_MMRS) {
+      applyDeadMmr(inputs.data.bus_inputs.ils_2_bus, deadMmrInGlsMode);
+    }
     inputs.data.time.dt = TIME_STEP_S;
     inputs.data.time.simulation_time = time;
     inputs.data.time.monotonic_time = time;
@@ -395,7 +422,7 @@ static void feedGuidance(ApproachFlight& flight, GuidanceSource source, double e
       fls.verticalDeviationDeg = -1.0;
       FlsReceiver::applyToIlsBus(bus, beam, fls);
     }
-    GlsReceiver::applyToIlsBus(bus, approach, approach.channel, lost, false, deviations);
+    GlsReceiver::applyToIlsBus(bus, approach, approach.channel, false, lost, deviations);
     flight.inputs.data.bus_inputs.ils_1_bus = bus;
     flight.inputs.data.bus_inputs.ils_2_bus = bus;
   } else {
@@ -495,6 +522,55 @@ static void signalLossIsTreatedAsOnAnIls() {
   expect(belowTwoHundred.autopilot && belowTwoHundred.land, "loss of the GLS below 200 ft: the autopilot stays engaged in LAND");
 }
 
+/// What the autopilot does with one MMR dead on the approach: it flies the other bus, and nothing differs from two working MMRs
+struct OneMmrDeadOutcome {
+  bool stillOnLocAndGlideSlope = false;
+  ap_raw_output_command orders{};
+};
+
+static OneMmrDeadOutcome flyWithOneMmrDead(GuidanceSource source, int deadMmr) {
+  ApproachFlight flight;
+  flight.deadMmr = deadMmr;
+  flight.deadMmrInGlsMode = source == GuidanceSource::Gls;
+  flyToGlideSlopeTrack(flight, source);
+  // Slightly high and to the side, so that the orders are not zero and a deviation of zero on a dead bus would show
+  feedGuidance(flight, source, 0.05, 80);
+  flight.fly(5.0);
+  return {flight.apEngaged() && flight.locEngaged() && flight.gsEngaged(), flight.out().fg_laws.ap_fd_1.autopilot};
+}
+
+static void theFlightGuidanceFliesTheOtherMmrWhenOneIsDead() {
+  for (GuidanceSource source : {GuidanceSource::Ils, GuidanceSource::Gls}) {
+    const OneMmrDeadOutcome bothWorking = flyWithOneMmrDead(source, -1);
+    for (int deadMmr : {0, 1}) {
+      const OneMmrDeadOutcome oneDead = flyWithOneMmrDead(source, deadMmr);
+      char what[200];
+      std::snprintf(what, sizeof(what), "%s, MMR %d dead: AP, LOC and G/S track stay engaged", nameOf(source), deadMmr + 1);
+      expect(bothWorking.stillOnLocAndGlideSlope && oneDead.stillOnLocAndGlideSlope, what);
+      std::snprintf(what, sizeof(what), "%s, MMR %d dead: the orders are those of two working MMRs", nameOf(source), deadMmr + 1);
+      expect(std::abs(oneDead.orders.Theta_c_deg - bothWorking.orders.Theta_c_deg) < 0.01 &&
+                 std::abs(oneDead.orders.Phi_c_deg - bothWorking.orders.Phi_c_deg) < 0.01 && std::abs(bothWorking.orders.Phi_c_deg) > 0.01,
+             what);
+    }
+  }
+}
+
+/// Both MMRs dead: no ILS bus is left to fly. The flight guidance does not drop the LOC and G/S modes yet (the loss rule is a
+/// separate change), so this only reports what it does, as the loss-of-signal test above does.
+static void bothMmrsDeadIsReported() {
+  for (GuidanceSource source : {GuidanceSource::Ils, GuidanceSource::Gls}) {
+    ApproachFlight flight;
+    flyToGlideSlopeTrack(flight, source);
+    expect(flight.locEngaged() && flight.gsEngaged(), "both MMRs dead: the approach was tracking before the loss");
+    flight.deadMmr = ApproachFlight::BOTH_MMRS;
+    flight.deadMmrInGlsMode = source == GuidanceSource::Gls;
+    feedGuidance(flight, source, 0.05, 80);
+    flight.fly(8.0);
+    std::printf("NOTE %s, both MMRs dead for 8 s: autopilot %s, LOC %s, G/S %s (the real aircraft disengages the autopilot)\n", nameOf(source),
+                flight.apEngaged() ? "engaged" : "off", flight.locEngaged() ? "engaged" : "off", flight.gsEngaged() ? "engaged" : "off");
+  }
+}
+
 /// The orders of the autopilot a few seconds after the aircraft is slightly high on the path and to the side, with the FMS inputs
 /// forced from the start: the glide slope angle is stored when the glide slope is captured
 static ap_raw_output_command ordersWithInputs(const GlsFmsGuidanceInputs& inputs) {
@@ -535,6 +611,8 @@ int main() {
   flsBeamWithoutGlsStillBlocksLand();
   signalLossIsTreatedAsOnAnIls();
   outerLoopsNeedTheDistanceAndTheAngle();
+  theFlightGuidanceFliesTheOtherMmrWhenOneIsDead();
+  bothMmrsDeadIsReported();
   if (failures > 0) {
     std::printf("gls_guidance_test: %d check(s) FAILED\n", failures);
     return 1;

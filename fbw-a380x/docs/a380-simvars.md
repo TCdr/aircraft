@@ -3173,6 +3173,13 @@ The probe and window heat, ice detectors and drain masts (a380_systems probe_win
       NAV 4. Written by systems.wasm (fbw-common navigation/ils.rs). The F/O PFD reads MMR 2; the CAPT PFD keeps the
       A32NX_RADIO_RECEIVER_* variables (MMR 1)
 
+- A32NX_MMR_{number}_IS_POWERED
+    - Bool
+    - number: 1 or 2
+    - MMR {number} is supplied: MMR 1 by AC EMER, MMR 2 by AC 3. An unpowered MMR receives no ILS and no GLS and sends failure
+      warning on its ILS bus. Written by systems.wasm (fbw-common navigation/ils.rs), read by fbw.wasm.
+      Reads 0 until systems.wasm has written it, so both MMRs are dead while systems.wasm is not running
+
 - A32NX_MMR_{number}_LOC_DEVIATION, A32NX_MMR_{number}_GS_DEVIATION
     - Number in degrees
     - The localizer (glide slope) deviation of the ILS receiver of MMR {number}, the sim signal (NAV RADIAL ERROR,
@@ -3240,10 +3247,16 @@ deviations like an ILS receiver. All values are raw numbers without a unit.
     - The GBAS ground station is failed (flyPad failure GBAS ground station): no MMR receives it. Written by the systems host,
       read by fbw.wasm and the PFD
 
+- A32NX_ILS_{number}_FAILED
+    - Bool
+    - Number: 1 or 2
+    - The ILS of MMR {number} is failed: its ILS receiver or the whole MMR. The MMR sends failure warning on its ILS bus, so
+      that the PRIMs fly the other one. Written by the systems host, read by fbw.wasm
+
 - A32NX_GLS_{number}_FAILED
     - Bool
     - Number: 1 or 2
-    - The GLS of MMR {number} is failed: the MMR sends no computed GLS data. Written by the systems host from the GLS
+    - The GLS of MMR {number} is failed: the MMR sends failure warning on its ILS bus while it is on a GLS channel. Written by the systems host from the GLS
       function failure of that MMR or the failure of the whole MMR. Read by fbw.wasm and the PFD
 
 - A32NX_GLS_{number}_LOC_IS_VALID, A32NX_GLS_{number}_GS_IS_VALID

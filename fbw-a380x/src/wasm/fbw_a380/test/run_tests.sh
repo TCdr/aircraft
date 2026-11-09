@@ -82,6 +82,10 @@ clang++ -std=c++20 -Wall -Wextra -Werror -fsyntax-only -I ../src/model -I ../../
 clang++ -std=c++20 $FLAGS -w -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src gls_guidance_test.cpp ../src/model/*.cpp \
   -o ../obj/gls_guidance_test
 ../obj/gls_guidance_test
+# Health of the multi-mode receivers on the ILS buses (fbw-common MultiModeReceiverHealth.h, IlsBusBuilder.h): which words a dead function takes
+# away, and that each bus follows its own MMR.
+clang++ -std=c++20 -Wall -Wextra -Werror -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src mmr_health_test.cpp -o ../obj/mmr_health_test
+../obj/mmr_health_test
 # A380 values of the normal law protections (high speed, pitch attitude, bank in high lift) and the direct law triggers
 # (abnormal attitude angle of attack, three IRs lost). With WITHOUT_THE_FIX=1 the lateral normal law is called without
 # its high lift input and the test must fail.

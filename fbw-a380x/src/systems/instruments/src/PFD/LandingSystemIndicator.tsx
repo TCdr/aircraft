@@ -22,6 +22,7 @@ import { approachModeStates } from './FMADefinitions';
 import {
   glsInfoTexts,
   GlsFlagMonitor,
+  ilsReceiverInfo,
   isLsDeviationValid,
   isLsTitleShown,
   LsFlashTimer,
@@ -30,6 +31,7 @@ import {
   lsTitleText,
   LsSource,
   ownSideGlsTopics,
+  ownSideIlsHealthTopics,
 } from '@flybywiresim/pfd';
 
 export class LandingSystem extends DisplayComponent<{ bus: ArincEventBus; instrument: BaseInstrument }> {
@@ -148,6 +150,10 @@ class LandingSystemInfo extends DisplayComponent<{ bus: EventBus; isVisible: Sub
 
   private navIdent = '';
 
+  private mmrPowered = true;
+
+  private ilsReceiverFailed = false;
+
   private freqTextLeading = Subject.create('');
 
   private freqTextTrailing = Subject.create('');
@@ -208,6 +214,22 @@ class LandingSystemInfo extends DisplayComponent<{ bus: EventBus; isVisible: Sub
       });
 
     const displayIndex = getDisplayIndex();
+    const ilsHealthTopics = ownSideIlsHealthTopics(displayIndex);
+    sub
+      .on(ilsHealthTopics.mmrPowered)
+      .whenChanged()
+      .handle((powered) => {
+        this.mmrPowered = powered;
+        this.updateContents();
+      });
+    sub
+      .on(ilsHealthTopics.ilsFailed)
+      .whenChanged()
+      .handle((failed) => {
+        this.ilsReceiverFailed = failed;
+        this.updateContents();
+      });
+
     sub
       .on(ownSideGlsTopics(displayIndex).locValid)
       .whenChanged()
@@ -256,8 +278,16 @@ class LandingSystemInfo extends DisplayComponent<{ bus: EventBus; isVisible: Sub
       hasDme = gls.distance !== null;
       dmeDistance = gls.distance ?? 0;
     } else {
-      this.identText.set(this.navIdent);
-      const freqTextSplit = (Math.round(this.navFreq * 1000) / 1000).toString().split('.');
+      const ils = ilsReceiverInfo({
+        mmrPowered: this.mmrPowered,
+        ilsReceiverFailed: this.ilsReceiverFailed,
+        ident: this.navIdent,
+        frequency: this.navFreq,
+        hasDme: this.hasDme,
+      });
+      hasDme = ils.hasDme;
+      this.identText.set(ils.ident);
+      const freqTextSplit = (Math.round(ils.frequency * 1000) / 1000).toString().split('.');
       this.freqTextLeading.set(freqTextSplit[0] === '0' ? '' : freqTextSplit[0]);
       if (freqTextSplit[1]) {
         this.freqTextTrailing.set(`.${freqTextSplit[1].padEnd(2, '0')}`);

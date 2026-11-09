@@ -8,6 +8,8 @@
 #include "EngineStartThrottleHold.h"
 #include "FlsReceiver.h"
 #include "GlsReceiver.h"
+#include "IlsBusBuilder.h"
+#include "MultiModeReceiverHealth.h"
 #include "FadecFailureInputs.h"
 #include "FadecComputer.h"
 #include "InterpolatingLookupTable.h"
@@ -141,6 +143,10 @@ class FlyByWireInterface {
   GlsDeviations glsDeviations;
   int glsMmrChannel[2] = {};
   bool glsMmrFailed[2] = {};
+  /// The localizer and glide slope of the NAV 3 radio, before MMR health is applied: both ILS buses are built from them
+  IlsRadioData ilsRadio;
+  /// Health of MMR 1 and MMR 2, read once per frame
+  std::array<MmrHealth, 2> mmrHealth = {};
   bool glsGroundStationFailed = false;
   /// An MMR is set to a GLS channel, whether or not it receives
   bool glsMode = false;
@@ -282,6 +288,8 @@ class FlyByWireInterface {
   std::unique_ptr<LocalVariable> idGbasStationFailed;
   std::unique_ptr<LocalVariable> idMmrGlsChannel[2];
   std::unique_ptr<LocalVariable> idGlsFailed[2];
+  std::unique_ptr<LocalVariable> idMmrPowered[2];
+  std::unique_ptr<LocalVariable> idIlsFailed[2];
   std::unique_ptr<LocalVariable> idGlsLocalizerValid[2];
   std::unique_ptr<LocalVariable> idGlsGlideSlopeValid[2];
   std::unique_ptr<LocalVariable> idGlsLocalizerDeviation;
@@ -757,6 +765,8 @@ class FlyByWireInterface {
   bool updateSfcc(int sfccIndex);
 
   bool updateFls();
+
+  void updateMmrHealth();
 
   bool updateGls();
 

@@ -77,6 +77,8 @@ bool FlyByWireInterface::update(double sampleTime) {
   // handle simulation rate reduction
   result &= handleSimulationRate(sampleTime);
 
+  updateMmrHealth();
+
   // update radio receivers
   result &= updateRadioReceiver(sampleTime);
 
@@ -399,6 +401,8 @@ void FlyByWireInterface::setupLocalVariables() {
     const std::string mmrString = std::to_string(i + 1);
     idMmrGlsChannel[i] = std::make_unique<LocalVariable>("A32NX_MMR_" + mmrString + "_GLS_CHANNEL");
     idGlsFailed[i] = std::make_unique<LocalVariable>("A32NX_GLS_" + mmrString + "_FAILED");
+    idMmrPowered[i] = std::make_unique<LocalVariable>("A32NX_MMR_" + mmrString + "_IS_POWERED");
+    idIlsFailed[i] = std::make_unique<LocalVariable>("A32NX_ILS_" + mmrString + "_FAILED");
     idGlsLocalizerValid[i] = std::make_unique<LocalVariable>("A32NX_GLS_" + mmrString + "_LOC_IS_VALID");
     idGlsGlideSlopeValid[i] = std::make_unique<LocalVariable>("A32NX_GLS_" + mmrString + "_GS_IS_VALID");
   }
@@ -1212,18 +1216,25 @@ bool FlyByWireInterface::updateRadioReceiver(double sampleTime) {
       simData.nav_gs_valid, simData.nav_loc_deg, simData.nav_gs_deg, simData.nav_gs_pos.Latitude, simData.nav_gs_pos.Longitude,
       simData.nav_gs_pos.Altitude, simData.latitude_deg, simData.longitude_deg, simData.altitude_m);
 
+  // The NAV 3 radio is the ILS receiver of MMR 1: the consumers of the radio variables (PFD 1, ISIS, ND, GPWS) see MMR 1 dead
+  // when it has no power or its ILS fails, while both ILS buses keep the radio data and mark their own MMR dead themselves
+  const bool mmr1IlsOperative = IlsBusBuilder::radioConsumersSeeIlsSignal(mmrHealth);
+
   // update local variables
   if (idRadioReceiverUsageEnabled->get()) {
-    idRadioReceiverLocalizerValid->set(localizer.isValid);
+    ilsRadio = {localizer.isValid, MathUtils::correctMsfsLocaliserError(localizer.deviation), glideSlope.isValid, glideSlope.deviation};
+    idRadioReceiverLocalizerValid->set(localizer.isValid && mmr1IlsOperative);
     idRadioReceiverLocalizerDeviation->set(localizer.deviation);
     idRadioReceiverLocalizerDistance->set(localizer.distance);
-    idRadioReceiverGlideSlopeValid->set(glideSlope.isValid);
+    idRadioReceiverGlideSlopeValid->set(glideSlope.isValid && mmr1IlsOperative);
     idRadioReceiverGlideSlopeDeviation->set(glideSlope.deviation);
   } else {
-    idRadioReceiverLocalizerValid->set(simData.nav_loc_valid);
+    ilsRadio = {simData.nav_loc_valid != 0, MathUtils::correctMsfsLocaliserError(simData.nav_loc_error_deg), simData.nav_gs_valid != 0,
+               simData.nav_gs_error_deg};
+    idRadioReceiverLocalizerValid->set(simData.nav_loc_valid && mmr1IlsOperative);
     idRadioReceiverLocalizerDeviation->set(simData.nav_loc_error_deg);
     idRadioReceiverLocalizerDistance->set(simData.nav_dme_valid ? simData.nav_dme_nmi : simData.nav_loc_valid ? localizer.distance : 0);
-    idRadioReceiverGlideSlopeValid->set(simData.nav_gs_valid);
+    idRadioReceiverGlideSlopeValid->set(simData.nav_gs_valid && mmr1IlsOperative);
     idRadioReceiverGlideSlopeDeviation->set(simData.nav_gs_error_deg);
   }
 
@@ -1417,10 +1428,18 @@ bool FlyByWireInterface::updateFls() {
   return true;
 }
 
+void FlyByWireInterface::updateMmrHealth() {
+  for (int i = 0; i < 2; i++) {
+    mmrHealth[i] = MmrHealth::fromSimVars(idMmrPowered[i]->get(), idIlsFailed[i]->get(), idGlsFailed[i]->get());
+  }
+}
+
 bool FlyByWireInterface::updateGls() {
   // The channels are read without an uplink too: an MMR on a GLS channel is in GLS mode, whatever it receives
   for (int i = 0; i < 2; i++) {
     glsMmrChannel[i] = static_cast<int>(idMmrGlsChannel[i]->get());
+    // An unpowered MMR has no GLS either
+    glsMmrFailed[i] = !mmrHealth[i].glsOperative();
   }
   glsMode = glsMmrChannel[0] > 0 || glsMmrChannel[1] > 0;
 
@@ -1457,7 +1476,6 @@ bool FlyByWireInterface::updateGls() {
 
   bool mmrReceiving[2];
   for (int i = 0; i < 2; i++) {
-    glsMmrFailed[i] = idGlsFailed[i]->get() != 0;
     mmrReceiving[i] = GlsReceiver::isReceiving(glsUplink, glsMmrChannel[i], glsMmrFailed[i], glsGroundStationFailed);
   }
   glsActive = mmrReceiving[0] || mmrReceiving[1];
@@ -1483,38 +1501,18 @@ bool FlyByWireInterface::updateGls() {
 bool FlyByWireInterface::updateIls(int ilsIndex) {
   SimData simData = simConnectInterface.getSimData();
 
-  bool nav_loc_valid;
-  double nav_loc_error_deg;
-  bool nav_gs_valid;
-  double nav_gs_error_deg;
-
-  if (idRadioReceiverUsageEnabled->get()) {
-    nav_loc_valid = idRadioReceiverLocalizerValid->get() != 0;
-    nav_loc_error_deg = idRadioReceiverLocalizerDeviation->get();
-    nav_gs_valid = idRadioReceiverGlideSlopeValid->get() != 0;
-    nav_gs_error_deg = idRadioReceiverGlideSlopeDeviation->get();
-  } else {
-    nav_loc_valid = (simData.nav_loc_valid != 0);
-    nav_loc_error_deg = simData.nav_loc_error_deg;
-    nav_gs_valid = (simData.nav_gs_valid != 0);
-    nav_gs_error_deg = simData.nav_gs_error_deg;
-  }
-
-  ilsBusOutputs[ilsIndex].runway_heading_deg.SSM = nav_loc_valid ? Arinc429SignStatus::NormalOperation : Arinc429SignStatus::NoComputedData;
-  ilsBusOutputs[ilsIndex].runway_heading_deg.Data = std::fmod(std::fmod(idFmsLsCourse->get() - simData.nav_loc_magvar_deg, 360) + 360, 360);
-  ilsBusOutputs[ilsIndex].ils_frequency_mhz.SSM = Arinc429SignStatus::NormalOperation;
-  ilsBusOutputs[ilsIndex].ils_frequency_mhz.Data = 0;
-  ilsBusOutputs[ilsIndex].localizer_deviation_deg.SSM =
-      nav_loc_valid ? Arinc429SignStatus::NormalOperation : Arinc429SignStatus::NoComputedData;
-  ilsBusOutputs[ilsIndex].localizer_deviation_deg.Data = MathUtils::correctMsfsLocaliserError(nav_loc_error_deg);
-  ilsBusOutputs[ilsIndex].glideslope_deviation_deg.SSM =
-      nav_gs_valid ? Arinc429SignStatus::NormalOperation : Arinc429SignStatus::NoComputedData;
-  ilsBusOutputs[ilsIndex].glideslope_deviation_deg.Data = nav_gs_error_deg;
-
-  FlsReceiver::applyToIlsBus(ilsBusOutputs[ilsIndex], flsBeam, flsDeviations);
-  // Last, so that a GLS set on the MMR wins over an FLS beam
-  GlsReceiver::applyToIlsBus(ilsBusOutputs[ilsIndex], glsUplink, glsMmrChannel[ilsIndex], glsMmrFailed[ilsIndex],
-                             glsGroundStationFailed, glsDeviations);
+  IlsBusSources sources;
+  sources.radio = ilsRadio;
+  sources.fmsCourseDeg = idFmsLsCourse->get();
+  sources.localizerMagvarDeg = simData.nav_loc_magvar_deg;
+  sources.flsBeam = flsBeam;
+  sources.flsDeviations = flsDeviations;
+  sources.glsUplink = glsUplink;
+  sources.glsDeviations = glsDeviations;
+  sources.glsGroundStationFailed = glsGroundStationFailed;
+  sources.glsChannel = {glsMmrChannel[0], glsMmrChannel[1]};
+  sources.mmrHealth = mmrHealth;
+  IlsBusBuilder::build(ilsBusOutputs[ilsIndex], ilsIndex, sources);
 
   if (clientDataEnabled) {
     simConnectInterface.setClientDataIls(ilsBusOutputs[ilsIndex], ilsIndex);

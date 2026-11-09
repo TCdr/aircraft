@@ -181,6 +181,10 @@ pub struct A380 {
     reverse_thrust: ReverserForce,
 }
 impl A380 {
+    /// The supply of MMR 1 and MMR 2, shared by the box's GPS receiver and its ILS receiver
+    const MMR_1_POWERED_BY: ElectricalBusType = ElectricalBusType::AlternatingCurrentEssential;
+    const MMR_2_POWERED_BY: ElectricalBusType = ElectricalBusType::AlternatingCurrent(3);
+
     pub fn new(context: &mut InitContext) -> A380 {
         let mut adcn = A380AvionicsDataCommunicationNetwork::new(context);
         let adcn_simvar_translation =
@@ -241,21 +245,11 @@ impl A380 {
             radio_altimeters: A380RadioAltimeters::new(context),
             // The GPS receivers of MMR 1 and 2: MMR 1 on AC EMER (491XP, AlternatingCurrentEssential in this
             // model), MMR 2 on AC 3. The A380 MMRs use satellite based augmentation (DIFF mode).
-            gps_1: GpsReceiver::new_with_augmentation(
-                context,
-                1,
-                ElectricalBusType::AlternatingCurrentEssential,
-                true,
-            ),
-            gps_2: GpsReceiver::new_with_augmentation(
-                context,
-                2,
-                ElectricalBusType::AlternatingCurrent(3),
-                true,
-            ),
+            gps_1: GpsReceiver::new_with_augmentation(context, 1, Self::MMR_1_POWERED_BY, true),
+            gps_2: GpsReceiver::new_with_augmentation(context, 2, Self::MMR_2_POWERED_BY, true),
             // ILS 1 in MMR 1, ILS 2 in MMR 2
-            mmr_1: MultiModeReceiverShim::new(context, 1),
-            mmr_2: MultiModeReceiverShim::new(context, 2),
+            mmr_1: MultiModeReceiverShim::new(context, 1, Self::MMR_1_POWERED_BY),
+            mmr_2: MultiModeReceiverShim::new(context, 2, Self::MMR_2_POWERED_BY),
             gpirs: Gpirs::new(context),
             cds: A380ControlDisplaySystem::new(context),
             // TAWS = SURV SYS 1 (WXR/TAWS) = 115 V AC ESS. AC ESS (400XP) is AlternatingCurrentEssentialShed,
@@ -654,27 +648,6 @@ mod tests {
         assert!(!clogged_1);
     }
 
-    /// Captain PFD shows ILS 1 (MMR 1, sim NAV 3), first officer PFD ILS 2 (MMR 2, sim NAV 4).
-    #[test]
-    fn each_mmr_writes_the_deviations_of_its_own_ils_receiver() {
-        let mut test_bed = SimulationTestBed::new(|context: &mut InitContext| A380::new(context));
-        test_bed.set_on_ground(true);
-        test_bed.write_by_name("NAV HAS LOCALIZER:3", true);
-        test_bed.write_by_name("NAV RADIAL ERROR:3", 0.5);
-        test_bed.write_by_name("NAV HAS LOCALIZER:4", false);
-        test_bed.write_by_name("NAV RADIAL ERROR:4", -1.5);
-        test_bed.run_with_delta(Duration::from_millis(50));
-
-        let mmr_1_valid: bool = test_bed.read_by_name("MMR_1_LOC_IS_VALID");
-        let mmr_2_valid: bool = test_bed.read_by_name("MMR_2_LOC_IS_VALID");
-        let mmr_1_deviation: f64 = test_bed.read_by_name("MMR_1_LOC_DEVIATION");
-        let mmr_2_deviation: f64 = test_bed.read_by_name("MMR_2_LOC_DEVIATION");
-        assert!(mmr_1_valid);
-        assert!(!mmr_2_valid);
-        assert!((mmr_1_deviation - 0.5).abs() < 1e-9);
-        assert!((mmr_2_deviation + 1.5).abs() < 1e-9);
-    }
-
     /// The four engines running, so that the four AC buses are powered by their generators
     fn a380_with_engines_running() -> SimulationTestBed<A380> {
         let mut test_bed = SimulationTestBed::new(|context: &mut InitContext| A380::new(context));
@@ -692,6 +665,85 @@ mod tests {
             assert!(powered, "{bus} not powered");
         }
         test_bed
+    }
+
+    /// Captain PFD shows ILS 1 (MMR 1, sim NAV 3), first officer PFD ILS 2 (MMR 2, sim NAV 4).
+    #[test]
+    fn each_mmr_writes_the_deviations_of_its_own_ils_receiver() {
+        let mut test_bed = a380_with_engines_running();
+        test_bed.write_by_name("NAV HAS LOCALIZER:3", true);
+        test_bed.write_by_name("NAV RADIAL ERROR:3", 0.5);
+        test_bed.write_by_name("NAV HAS LOCALIZER:4", false);
+        test_bed.write_by_name("NAV RADIAL ERROR:4", -1.5);
+        test_bed.run_with_delta(Duration::from_millis(50));
+
+        let mmr_1_valid: bool = test_bed.read_by_name("MMR_1_LOC_IS_VALID");
+        let mmr_2_valid: bool = test_bed.read_by_name("MMR_2_LOC_IS_VALID");
+        let mmr_1_deviation: f64 = test_bed.read_by_name("MMR_1_LOC_DEVIATION");
+        let mmr_2_deviation: f64 = test_bed.read_by_name("MMR_2_LOC_DEVIATION");
+        assert!(mmr_1_valid);
+        assert!(!mmr_2_valid);
+        assert!((mmr_1_deviation - 0.5).abs() < 1e-9);
+        assert!((mmr_2_deviation + 1.5).abs() < 1e-9);
+    }
+
+    fn mmr_is_powered(test_bed: &mut SimulationTestBed<A380>, number: usize) -> bool {
+        test_bed.read_by_name(&format!("MMR_{number}_IS_POWERED"))
+    }
+
+    fn read_flag(test_bed: &mut SimulationTestBed<A380>, name: &str) -> bool {
+        test_bed.read_by_name(name)
+    }
+
+    fn tune_both_ils_receivers(test_bed: &mut SimulationTestBed<A380>) {
+        for nav_index in [3, 4] {
+            test_bed.write_by_name(&format!("NAV HAS LOCALIZER:{nav_index}"), true);
+            test_bed.write_by_name(&format!("NAV HAS GLIDE SLOPE:{nav_index}"), true);
+        }
+        test_bed.run_with_delta(Duration::from_millis(50));
+    }
+
+    /// MMR 1 is supplied by AC EMER and MMR 2 by AC 3: the ILS of the side of a lost bus is lost, the other side keeps its own
+    #[test]
+    fn mmr_1_is_supplied_by_ac_emer_and_mmr_2_by_ac_3() {
+        let mut test_bed = a380_with_engines_running();
+        tune_both_ils_receivers(&mut test_bed);
+        assert!(mmr_is_powered(&mut test_bed, 1) && mmr_is_powered(&mut test_bed, 2));
+
+        let ac_3_failure = FailureType::ElectricalBus(ElectricalBusType::AlternatingCurrent(3));
+        test_bed.fail(ac_3_failure);
+        // The shim reads its power one frame late, so two frames
+        test_bed.run_multiple_frames(Duration::from_secs(2));
+        assert!(mmr_is_powered(&mut test_bed, 1));
+        assert!(!mmr_is_powered(&mut test_bed, 2));
+        assert!(read_flag(&mut test_bed, "MMR_1_LOC_IS_VALID"));
+        assert!(!read_flag(&mut test_bed, "MMR_2_LOC_IS_VALID"));
+        assert!(!read_flag(&mut test_bed, "MMR_2_GS_IS_VALID"));
+        test_bed.unfail(ac_3_failure);
+
+        let ac_emer_failure =
+            FailureType::ElectricalBus(ElectricalBusType::AlternatingCurrentEssential);
+        test_bed.fail(ac_emer_failure);
+        test_bed.run_multiple_frames(Duration::from_secs(2));
+        assert!(!mmr_is_powered(&mut test_bed, 1));
+        assert!(mmr_is_powered(&mut test_bed, 2));
+        assert!(!read_flag(&mut test_bed, "MMR_1_LOC_IS_VALID"));
+        assert!(read_flag(&mut test_bed, "MMR_2_LOC_IS_VALID"));
+    }
+
+    /// With all four engine generators lost MMR 1 stays powered (emergency generator, static inverter), MMR 2 is lost
+    #[test]
+    fn mmr_1_stays_powered_in_the_emergency_electrical_configuration() {
+        let mut test_bed = a380_with_engines_running();
+        for bus_number in 1..=4 {
+            test_bed.fail(FailureType::ElectricalBus(
+                ElectricalBusType::AlternatingCurrent(bus_number),
+            ));
+        }
+        test_bed.run_multiple_frames(Duration::from_secs(60));
+
+        assert!(mmr_is_powered(&mut test_bed, 1));
+        assert!(!mmr_is_powered(&mut test_bed, 2));
     }
 
     /// GPS 2 is the GPS part of MMR 2, supplied by AC 3

@@ -25,8 +25,7 @@ describe('NavigationReceiverFailures (A32NX ATA 34 VOR, DME, ADF and ILS receive
   });
 
   beforeEach(() => {
-    // the MSFS NAV 3 circuit switched on
-    simVars = new Map<string, any>([['A:CIRCUIT SWITCH ON:39', 1]]);
+    simVars = new Map<string, any>();
     toggles = [];
     SimVar.GetSimVarValue = (name: string) => simVars.get(name) ?? 0;
     SimVar.SetSimVarValue = (name: string, _unit: string, value: any) => {
@@ -41,7 +40,7 @@ describe('NavigationReceiverFailures (A32NX ATA 34 VOR, DME, ADF and ILS receive
 
   it('publishes each failed receiver for the displays', () => {
     const active = new Set<number>([A320Failure.Vor1Receiver, A320Failure.Adf2Receiver]);
-    const system = new NavigationReceiverFailures(failures(active), () => 0);
+    const system = new NavigationReceiverFailures(failures(active));
     system.init();
     system.onUpdate();
 
@@ -56,44 +55,27 @@ describe('NavigationReceiverFailures (A32NX ATA 34 VOR, DME, ADF and ILS receive
     system.onUpdate();
     expect(simVars.get('L:A32NX_VOR_1_FAILED')).toBe(false);
     expect(simVars.get('L:A32NX_DME_2_FAILED')).toBe(true);
-    // no toggle of the NAV 3 circuit without an ILS 1 failure
-    expect(toggles).toEqual([]);
   });
 
-  it('switches the MSFS NAV 3 radio off with ILS 1 failed, and on again when the failure is cleared', () => {
+  it('publishes ILS 1 failed without ever switching the MSFS NAV 3 radio off, so that ILS 2 keeps its data', () => {
     const active = new Set<number>([A320Failure.Ils1Receiver]);
-    let now = 0;
-    const system = new NavigationReceiverFailures(failures(active), () => now);
+    const system = new NavigationReceiverFailures(failures(active));
     system.init();
+    system.onUpdate();
     system.onUpdate();
     expect(simVars.get('L:A32NX_ILS_1_FAILED')).toBe(true);
-    expect(toggles).toEqual([39]);
+    expect(simVars.get('L:A32NX_ILS_2_FAILED')).toBe(false);
+    expect(toggles).toEqual([]);
 
-    // the sim has not applied the toggle yet: no second toggle within the retry delay
-    now = 500;
-    system.onUpdate();
-    expect(toggles).toEqual([39]);
-
-    simVars.set('A:CIRCUIT SWITCH ON:39', 0);
     active.clear();
-    now = 600;
     system.onUpdate();
-    expect(toggles).toEqual([39, 39]);
     expect(simVars.get('L:A32NX_ILS_1_FAILED')).toBe(false);
-  });
-
-  it('leaves the NAV 3 radio alone with ILS 2 failed (MMR 2 is failed in the systems)', () => {
-    const active = new Set<number>([A320Failure.Ils2Receiver]);
-    const system = new NavigationReceiverFailures(failures(active), () => 0);
-    system.init();
-    system.onUpdate();
-    expect(simVars.get('L:A32NX_ILS_2_FAILED')).toBe(true);
     expect(toggles).toEqual([]);
   });
 
   it('publishes the GLS of a receiver failed for its GLS function only, not for its ILS receiver', () => {
     const active = new Set<number>([A320Failure.Gls1Function, A320Failure.Ils2Receiver]);
-    const system = new NavigationReceiverFailures(failures(active), () => 0);
+    const system = new NavigationReceiverFailures(failures(active));
     system.init();
     system.onUpdate();
     expect(simVars.get('L:A32NX_GLS_1_FAILED')).toBe(true);
@@ -107,12 +89,11 @@ describe('NavigationReceiverFailures (A32NX ATA 34 VOR, DME, ADF and ILS receive
     expect(simVars.get('L:A32NX_GLS_2_FAILED')).toBe(true);
     // the GLS function failure leaves the ILS of the same receiver alone
     expect(simVars.get('L:A32NX_ILS_2_FAILED')).toBe(false);
-    expect(toggles).toEqual([]);
   });
 
   it('publishes the failure of the GBAS ground station', () => {
     const active = new Set<number>([A320Failure.GbasGroundStation]);
-    const system = new NavigationReceiverFailures(failures(active), () => 0);
+    const system = new NavigationReceiverFailures(failures(active));
     system.init();
     system.onUpdate();
     expect(simVars.get('L:A32NX_GBAS_STATION_FAILED')).toBe(true);
