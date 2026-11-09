@@ -9,6 +9,7 @@
 #include "../utils/HysteresisNode.h"
 #include "../utils/PulseNode.h"
 #include "../utils/SRFlipFlop.h"
+#include "PrimLandingSystemSignalLoss.h"
 
 class Prim {
  public:
@@ -54,6 +55,7 @@ class Prim {
   A380PrimComputerFctl primFctl;
   A380PrimComputerFe primFe;
   A380PrimComputerFg primFg;
+  PrimLandingSystemSignalLoss landingSystemSignalLoss;
 
   // Computer Self-monitoring vars
   bool monitoringHealthy;

@@ -2987,3 +2987,5 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/FWC] The altitude alert C chord is inhibited during a TCAS RA also when the AP/FD TCAS mode is not available - @TCdr
 1. [A32NX/NAV] MMR 1 is powered by AC ESS and MMR 2 by AC 2: an unpowered or failed MMR loses its ILS and GLS on its own side only, the FMGCs fly the other one - @TCdr
 1. [A380X/NAV] MMR 1 is powered by AC EMER and MMR 2 by AC 3: an unpowered or failed MMR loses its ILS, GLS and FLS on its own side only, the PRIMs fly the other one - @TCdr
+1. [A32NX/AP] AP and FDs disengage when the LOC or G/S signal is lost for 7 s above 200 ft RA (ILS, GLS, FLS), the FDs come back in HDG V/S or TRK FPA - @TCdr
+1. [A380X/AP] AP and FDs disengage when the LOC signal (ILS transmitter, GBAS station, FLS) is lost for 7 s above 200 ft RA, and after 0.2 s when both receivers are lost in approach; the FDs that were on come back flashing in HDG/TRACK and V/S/FPA, with a triple click - @TCdr
