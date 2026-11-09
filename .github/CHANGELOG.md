@@ -140,6 +140,7 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/AP] AP and FDs disengage when the LOC or G/S signal is lost for 7 s above 200 ft RA (ILS, GLS, FLS), the FDs come back in HDG V/S or TRK FPA - @TCdr
 1. [A380X/AP] AP and FDs disengage when the LOC signal (ILS transmitter, GBAS station, FLS) is lost for 7 s above 200 ft RA, and after 0.2 s when both receivers are lost in approach; the FDs that were on come back flashing in HDG/TRACK and V/S/FPA, with a triple click - @TCdr
 1. [ND] ROSE LS shows a GLS: GLS1/GLS2, channel, course, ident once received and the LOC and G/S deviations of the MMR of that side (A32NX and A380X) - @TCdr
+1. [ISIS] The LS scales of the ISIS (A32NX ISIS, A380X SFD) show the GLS deviations of MMR 1 on a GLS approach - @TCdr
 
 ## 2024.1.0
 

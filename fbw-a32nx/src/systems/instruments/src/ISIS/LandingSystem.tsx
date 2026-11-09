@@ -5,6 +5,7 @@
 import React from 'react';
 
 import { MathUtils, useInteractionSimVar, useSimVar } from '@flybywiresim/fbw-sdk-react';
+import { isisLsDeviations } from '../../../../../../fbw-common/src/systems/instruments/src/PFD/IsisLsDeviations';
 
 type DeviationIndicatorProps = {
   deviation: number;
@@ -48,20 +49,37 @@ export const LandingSystem: React.FC = () => {
   const [gsAvailable] = useSimVar('L:A32NX_RADIO_RECEIVER_GS_IS_VALID', 'number', 50);
   const [lsDeviation] = useSimVar('L:A32NX_RADIO_RECEIVER_LOC_DEVIATION', 'number', 50);
   const [lsAvailable] = useSimVar('L:A32NX_RADIO_RECEIVER_LOC_IS_VALID', 'number', 50);
+  const [mmr1GlsChannel] = useSimVar('L:A32NX_MMR_1_GLS_CHANNEL', 'number', 50);
+  const [gls1LocValid] = useSimVar('L:A32NX_GLS_1_LOC_IS_VALID', 'number', 50);
+  const [gls1GsValid] = useSimVar('L:A32NX_GLS_1_GS_IS_VALID', 'number', 50);
+  const [glsLocDeviation] = useSimVar('L:A32NX_GLS_LOC_DEVIATION', 'number', 50);
+  const [glsGsDeviation] = useSimVar('L:A32NX_GLS_GS_DEVIATION', 'number', 50);
 
   const [lsActive] = useInteractionSimVar('L:A32NX_ISIS_LS_ACTIVE', 'Boolean', 'H:A32NX_ISIS_LS_PRESSED');
+
+  const deviations = isisLsDeviations({
+    mmr1GlsChannel,
+    ilsLocValid: !!lsAvailable,
+    ilsLocDeviation: lsDeviation,
+    ilsGsValid: !!gsAvailable,
+    ilsGsDeviation: gsDeviation,
+    gls1LocValid: !!gls1LocValid,
+    gls1GsValid: !!gls1GsValid,
+    glsLocDeviation,
+    glsGsDeviation,
+  });
 
   return (
     lsActive && (
       <g id="LandingSystem">
         <g transform="translate(166.869 376.62)">
           <DeviationIndicator
-            deviation={MathUtils.correctMsfsLocaliserError(lsDeviation) / 2}
-            available={lsAvailable}
+            deviation={MathUtils.correctMsfsLocaliserError(deviations.locDeviation) / 2}
+            available={deviations.locValid}
           />
         </g>
         <g transform="translate(340.133 180.869) rotate(90 0 0)">
-          <DeviationIndicator deviation={gsDeviation} available={gsAvailable} />
+          <DeviationIndicator deviation={deviations.gsDeviation} available={deviations.gsValid} />
         </g>
       </g>
     )
