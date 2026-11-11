@@ -3,6 +3,7 @@
 
 import { isLsDeviationValid, lsDeviation, lsSource, ownSideGlsTopics } from '../../../PFD/FlsDisplay';
 import { glsInfoTexts } from '../../../PFD/GlsInfoTexts';
+import { ilsReceiverInfo } from '../../../PFD/IlsReceiverHealth';
 
 export interface RoseLsInfoInputs {
   /** the MMR the ND shows, which is the cross side one */
@@ -18,6 +19,10 @@ export interface RoseLsInfoInputs {
   ilsIdent: string;
   ilsFrequency: number;
   ilsCourse: number;
+  /** that MMR has power */
+  mmrPowered: boolean;
+  /** the ILS receiver of that MMR, or the whole MMR, is failed */
+  ilsReceiverFailed: boolean;
 }
 
 export interface RoseLsInfo {
@@ -37,6 +42,31 @@ const NO_COURSE = '---';
  */
 export function roseLsGlsTopics(index: number) {
   return ownSideGlsTopics(index);
+}
+
+const ROSE_LS_ILS_TOPICS = [
+  {
+    locValid: 'localizerValid',
+    gsValid: 'glideSlopeValid',
+    gsDeviation: 'glideSlopeDeviation',
+    mmrPowered: 'mmr1Powered',
+    ilsFailed: 'ils1Failed',
+  },
+  {
+    locValid: 'mmr2LocValid',
+    gsValid: 'mmr2GsValid',
+    gsDeviation: 'mmr2GsDeviation',
+    mmrPowered: 'mmr2Powered',
+    ilsFailed: 'ils2Failed',
+  },
+] as const;
+
+/**
+ * The ILS receiver and the health of the MMR the ND page with this index shows. The frequency, the course and the LOC
+ * deviation come from the radio of that MMR, so its validity and its G/S must come from the same one.
+ */
+export function roseLsIlsTopics(index: number) {
+  return ROSE_LS_ILS_TOPICS[index === 2 ? 1 : 0];
 }
 
 // We can't tell if the ILS course is valid from the MSFS radio, so at least check that the frequency is
@@ -62,8 +92,10 @@ export function roseLsCoursePointerVisible(glsChannel: number, glsCourse: number
   return isIlsBand(ilsFrequency);
 }
 
+// North reads 360, never 000
 function courseText(course: number): string {
-  return Math.round(course).toString().padStart(3, '0');
+  const degrees = Math.round(course) % 360;
+  return (degrees === 0 ? 360 : degrees).toString().padStart(3, '0');
 }
 
 export function roseLsInfo(inputs: RoseLsInfoInputs): RoseLsInfo {
@@ -83,15 +115,22 @@ export function roseLsInfo(inputs: RoseLsInfoInputs): RoseLsInfo {
     };
   }
 
-  const [frequencyMain, frequencyDecimal] = isIlsBand(inputs.ilsFrequency)
-    ? inputs.ilsFrequency.toFixed(2).split('.', 2)
+  const ils = ilsReceiverInfo({
+    ident: inputs.ilsIdent,
+    frequency: inputs.ilsFrequency,
+    hasDme: false,
+    mmrPowered: inputs.mmrPowered,
+    ilsReceiverFailed: inputs.ilsReceiverFailed,
+  });
+  const [frequencyMain, frequencyDecimal] = isIlsBand(ils.frequency)
+    ? ils.frequency.toFixed(2).split('.', 2)
     : ['---', '--'];
   return {
     label: `ILS${inputs.index}`,
     frequencyMain,
     frequencyDecimal,
-    course: inputs.ilsFrequency > 0 ? courseText(inputs.ilsCourse) : NO_COURSE,
-    ident: inputs.ilsIdent,
+    course: ils.frequency > 0 ? courseText(inputs.ilsCourse) : NO_COURSE,
+    ident: ils.ident,
   };
 }
 

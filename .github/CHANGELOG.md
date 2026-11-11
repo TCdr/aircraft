@@ -1072,6 +1072,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/EFB] flyPad failure details of the ILS receivers: the autoflight flies the ILS of the other receiver when one is lost - @TCdr
 1. [A380X/EFB] flyPad failure details of the MMR, ILS receiver, GLS function and GBAS ground station failures: PFD losses, the MMR the autoflight flies and the autopilot disengagement on a lost GLS - @TCdr
 1. [A32NX/FWC] The smart FIVE HUNDRED callout also comes more than half a dot below the glide slope, not only above it - @TCdr
+1. [ND] ROSE LS takes the LOC and G/S of the ILS receiver it names (ILS2 on the captain ND, ILS1 on the first officer ND), and shows dashes and no ident when that receiver is failed or its MMR has no power (A32NX and A380X) - @TCdr
+1. [A32NX/PFD] The red ILS1(2) flag also shows when the ILS receiver of that side is failed with its power on; a GLS approach keeps its indications then, as the GLS function still works - @TCdr
+1. [ND] ROSE LS shows a north course as 360, not 000 - @TCdr
 
 ## 2024.1.0
 

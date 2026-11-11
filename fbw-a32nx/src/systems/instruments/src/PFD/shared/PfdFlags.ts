@@ -38,30 +38,36 @@ export interface LandingSystemFlagInputs {
   dmeInterrogatorPowered: boolean;
   /** a GLS is selected and the GLS function of that MMR, or the ground station, is failed: the receiver sends no GLS */
   glsReceiverFailed?: boolean;
+  /** the ILS receiver of that MMR, or the whole MMR, is failed */
+  ilsReceiverFailed?: boolean;
+  /** that MMR is set to a GLS channel */
+  glsSelected?: boolean;
 }
 
 /**
  * ILS1 (ILS2) flag (red): replaces the ILS frequency indication on PFD 1 (PFD 2) when the ILS frequency, the LOC or
- * the G/S signal fails. The sim has no ILS receiver failure: the receiver fails when it loses its power (LS 1 is lost
- * with the AC ESS bus, ILS 2 with the AC bus 2). The same receiver holds the GLS: a failed GLS function or ground station
- * is a lost frequency on a GLS approach.
+ * the G/S signal fails: the MMR has lost its power, or its ILS receiver is failed. The same MMR holds the GLS: a failed
+ * GLS function or ground station is a lost frequency on a GLS approach, while a failed ILS receiver leaves the GLS
+ * working and raises no flag then.
  * @param i the inputs
  * @returns whether the ILS flag replaces the ILS ident and frequency
  */
 export function isIlsFlagShown(i: LandingSystemFlagInputs): boolean {
-  return i.lsSelected && (!i.ilsReceiverPowered || !!i.glsReceiverFailed);
+  const ilsLost = !!i.ilsReceiverFailed && !i.glsSelected;
+  return i.lsSelected && (!i.ilsReceiverPowered || !!i.glsReceiverFailed || ilsLost);
 }
 
 /**
  * DME1 (DME2) flag (red): replaces the DME distance indication on PFD 1 (PFD 2) when the DME distance is not valid. A
  * DME distance that is only not received (no DME at the station, out of range) is no computed data and stays blank.
  * The interrogator fails when it loses its power (DME 1 is lost with the AC ESS SHED bus while the CAPT PFD remains,
- * DME 2 with the AC bus 2).
+ * DME 2 with the AC bus 2). On a GLS the distance shown is the one to the runway threshold, which the MMR computes: the
+ * DME interrogator has no part in it and its flag would cover a valid distance.
  * @param i the inputs
  * @returns whether the DME flag replaces the DME distance
  */
 export function isDmeFlagShown(i: LandingSystemFlagInputs): boolean {
-  return i.lsSelected && !i.dmeInterrogatorPowered;
+  return i.lsSelected && !i.dmeInterrogatorPowered && !i.glsSelected;
 }
 
 /**
@@ -75,22 +81,17 @@ export function landingSystemFlagText(receiver: 'ILS' | 'DME', displayIndex: num
 }
 
 /** The A32NXElectricalSystemPublisher topics of the buses that power the PFD landing system receivers */
-export type LandingSystemPowerTopic =
-  | 'a32nx_elec_ac_ess_bus_is_powered'
-  | 'a32nx_elec_ac_ess_shed_bus_is_powered'
-  | 'a32nx_elec_ac_2_bus_is_powered';
+export type LandingSystemPowerTopic = 'a32nx_elec_ac_ess_shed_bus_is_powered' | 'a32nx_elec_ac_2_bus_is_powered';
 
 /**
- * The electrical bus that powers the ILS receiver and the DME interrogator a PFD reads.
- * MMR 1 (LS 1): AC ESS, DME 1: AC ESS SHED; MMR 2 (ILS 2) and DME 2: AC 2.
+ * The electrical bus that powers the DME interrogator a PFD reads. DME 1: AC ESS SHED; DME 2: AC 2.
+ * The power of the MMRs is not listed here: the systems tell whether an MMR is powered, so that the flag and the
+ * receiver can never disagree on the bus.
  * @param displayIndex 1 for the CAPT PFD, 2 for the F/O PFD
- * @returns the bus topics of the A32NXElectricalSystemPublisher
+ * @returns the bus topic of the A32NXElectricalSystemPublisher
  */
-export function landingSystemPowerTopics(displayIndex: number): {
-  ilsReceiver: LandingSystemPowerTopic;
-  dmeInterrogator: LandingSystemPowerTopic;
-} {
+export function landingSystemPowerTopics(displayIndex: number): { dmeInterrogator: LandingSystemPowerTopic } {
   return displayIndex === 2
-    ? { ilsReceiver: 'a32nx_elec_ac_2_bus_is_powered', dmeInterrogator: 'a32nx_elec_ac_2_bus_is_powered' }
-    : { ilsReceiver: 'a32nx_elec_ac_ess_bus_is_powered', dmeInterrogator: 'a32nx_elec_ac_ess_shed_bus_is_powered' };
+    ? { dmeInterrogator: 'a32nx_elec_ac_2_bus_is_powered' }
+    : { dmeInterrogator: 'a32nx_elec_ac_ess_shed_bus_is_powered' };
 }

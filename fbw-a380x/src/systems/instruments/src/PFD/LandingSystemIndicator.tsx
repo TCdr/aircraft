@@ -33,6 +33,20 @@ import {
   ownSideGlsTopics,
   ownSideIlsHealthTopics,
 } from '@flybywiresim/pfd';
+import { isGlsReceiverInoperative } from './GlsReceiverHealth';
+import { isOwnSideFlsDeviationValid, ownSideFlsFailedTopic } from './FlsReceiverHealth';
+
+/** The FLS beam validity of one axis as the MMR of this display's side delivers it */
+function ownSideFlsValid(bus: EventBus, beamValidTopic: 'flsLocValid' | 'flsGsValid'): Subscribable<boolean> {
+  const sub = bus.getSubscriber<PFDSimvars>();
+  const displayIndex = getDisplayIndex();
+  return MappedSubject.create(
+    ([beamValid, flsFailed, mmrPowered]) => isOwnSideFlsDeviationValid({ beamValid, flsFailed, mmrPowered }),
+    ConsumerSubject.create(sub.on(beamValidTopic), false),
+    ConsumerSubject.create(sub.on(ownSideFlsFailedTopic(displayIndex)), false),
+    ConsumerSubject.create(sub.on(ownSideIlsHealthTopics(displayIndex).mmrPowered), true),
+  );
+}
 
 export class LandingSystem extends DisplayComponent<{ bus: ArincEventBus; instrument: BaseInstrument }> {
   private readonly sub = this.props.bus.getArincSubscriber<Arinc429Values & FcuEfisCpBusEvents>();
@@ -402,7 +416,7 @@ class LocalizerIndicator extends DisplayComponent<{ bus: EventBus; instrument: B
         isLsDeviationValid(lsSourceValue, ilsLocValid, flsLocValid, glsLocValid),
       source,
       ConsumerSubject.create(sub.on('hasLoc'), false),
-      ConsumerSubject.create(sub.on('flsLocValid'), false),
+      ownSideFlsValid(this.props.bus, 'flsLocValid'),
       ConsumerSubject.create(sub.on(ownSideGlsTopics(getDisplayIndex()).locValid), false),
     ).sub((hasLoc) => {
       if (hasLoc) {
@@ -513,7 +527,7 @@ class GlideSlopeIndicator extends DisplayComponent<{ bus: EventBus; instrument: 
         isLsDeviationValid(lsSourceValue, ilsGsValid, flsGsValid, glsGsValid),
       source,
       ConsumerSubject.create(sub.on('hasGlideslope'), false),
-      ConsumerSubject.create(sub.on('flsGsValid'), false),
+      ownSideFlsValid(this.props.bus, 'flsGsValid'),
       ConsumerSubject.create(sub.on(ownSideGlsTopics(getDisplayIndex()).gsValid), false),
     ).sub((hasGlideSlope) => {
       this.hasGlideSlope = hasGlideSlope;
@@ -777,7 +791,7 @@ class LsTitle extends DisplayComponent<{ bus: EventBus }> {
     this.flsLateralActive,
     this.glsSelected,
     ConsumerSubject.create(this.sub.on('hasLoc'), false),
-    ConsumerSubject.create(this.sub.on('flsLocValid'), false),
+    ownSideFlsValid(this.props.bus, 'flsLocValid'),
     ConsumerSubject.create(this.sub.on(ownSideGlsTopics(getDisplayIndex()).locValid), false),
   );
 
@@ -817,6 +831,11 @@ class LsTitle extends DisplayComponent<{ bus: EventBus }> {
 
   private readonly gbasStationFailed = ConsumerSubject.create(this.sub.on('gbasStationFailed'), false);
 
+  private readonly mmrPowered = ConsumerSubject.create(
+    this.sub.on(ownSideIlsHealthTopics(getDisplayIndex()).mmrPowered),
+    true,
+  );
+
   private readonly oneHertzClock = ConsumerSubject.create(null, false);
 
   private readonly glsFlagMonitor = new GlsFlagMonitor();
@@ -825,9 +844,9 @@ class LsTitle extends DisplayComponent<{ bus: EventBus }> {
 
   private readonly flagFlash = new LsFlashTimer();
 
-  private readonly titleClass = Subject.create('FontLargest Magenta MiddleAlign HiddenElement');
+  private readonly titleHidden = Subject.create(true);
 
-  private readonly flagClass = Subject.create('FontLargest Red MiddleAlign HiddenElement');
+  private readonly flagHidden = Subject.create(true);
 
   /** Evaluates the GLS flag and the flashes once per frame, as what was received during the approach is remembered */
   private updateDisplay(deltaTimeMs: number): void {
@@ -842,7 +861,11 @@ class LsTitle extends DisplayComponent<{ bus: EventBus }> {
         landModesEngaged: modeStates.landModesEngaged,
         locValid: this.glsLocValid.get(),
         gsValid: this.glsGsValid.get(),
-        glsFailed: this.ownGlsFailed.get() || this.gbasStationFailed.get(),
+        glsFailed: isGlsReceiverInoperative({
+          glsFailed: this.ownGlsFailed.get(),
+          stationFailed: this.gbasStationFailed.get(),
+          mmrPowered: this.mmrPowered.get(),
+        }),
         onGround: this.leftMainGearCompressed.get() || this.rightMainGearCompressed.get(),
       },
       deltaTimeMs,
@@ -852,10 +875,8 @@ class LsTitle extends DisplayComponent<{ bus: EventBus }> {
     const flagFlashing = this.flagFlash.update(flagShown, deltaTimeMs);
     const off = this.oneHertzClock.get();
     const titleShown = isLsTitleShown({ lsButton, hasLoc: this.hasLoc.get(), glsSelected, glsFlagShown: flagShown });
-    this.titleClass.set(
-      `FontLargest Magenta MiddleAlign${titleShown && !(titleFlashing && off) ? '' : ' HiddenElement'}`,
-    );
-    this.flagClass.set(`FontLargest Red MiddleAlign${flagShown && !(flagFlashing && off) ? '' : ' HiddenElement'}`);
+    this.titleHidden.set(!titleShown || (titleFlashing && off));
+    this.flagHidden.set(!flagShown || (flagFlashing && off));
   }
 
   onAfterRender(node: VNode): void {
@@ -875,10 +896,18 @@ class LsTitle extends DisplayComponent<{ bus: EventBus }> {
   render(): VNode {
     return (
       <>
-        <text class={this.titleClass} x="104" y="126">
+        <text
+          class={{ FontLargest: true, Magenta: true, MiddleAlign: true, HiddenElement: this.titleHidden }}
+          x="104"
+          y="126"
+        >
           {this.titleText}
         </text>
-        <text class={this.flagClass} x="104" y="126">
+        <text
+          class={{ FontLargest: true, Red: true, MiddleAlign: true, HiddenElement: this.flagHidden }}
+          x="104"
+          y="126"
+        >
           GLS
         </text>
       </>
