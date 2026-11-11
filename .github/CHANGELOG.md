@@ -1054,6 +1054,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/TAWS] Mode 5 GLIDE SLOPE alert and the mode 2B envelope also work on a GLS approach - @TCdr
 1. [A32NX/FWC] The smart FIVE HUNDRED callout uses the GLS glide on a GLS approach - @TCdr
 1. [A380X/FWS] The smart FIVE HUNDRED callout uses the GLS glide on a GLS approach - @TCdr
+1. [A32NX/RMP] In the NAV backup mode an ILS tuned from an RMP now reaches the receivers of both sides (PFD 2 and ND 1 no longer stay without the ILS), and a GLS tuned from an RMP takes both receivers off their ILS frequency - @TCdr
+1. [A32NX/RMP] The transfer key of the ADF now exchanges the ACTIVE and STBY frequencies - @TCdr
 
 ## 2024.1.0
 

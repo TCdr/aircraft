@@ -6,10 +6,6 @@
 
 import { MathUtils } from '@microsoft/msfs-sdk';
 import { Arinc429Word } from '@flybywiresim/fbw-sdk';
-import {
-  GBAS_CHANNEL_MAX,
-  GBAS_CHANNEL_MIN,
-} from '../../../../../../../fbw-common/src/systems/shared/src/gbas/GbasApproachTable';
 
 export type RmpStbyNavKey = 'VOR' | 'ILS' | 'GLS' | 'MLS' | 'ADF';
 
@@ -49,8 +45,15 @@ export function rmpStbyNavKeyPanelMode(key: RmpStbyNavKey, navBackupSelected: bo
   }
 }
 
+/**
+ * The GBAS channel range. Kept here, not imported from the table of the GBAS approaches: that module would put the
+ * whole table into the RMP, which only needs the two ends of the range.
+ */
+export const RMP_GLS_CHANNEL_MIN = 20001;
+export const RMP_GLS_CHANNEL_MAX = 39999;
+
 /** The channel the STBY window of the GLS starts with: the bottom of the channel range */
-export const GLS_CHANNEL_DEFAULT = GBAS_CHANNEL_MIN;
+export const GLS_CHANNEL_DEFAULT = RMP_GLS_CHANNEL_MIN;
 
 /** The channel the RMPs tuned to the GLS, which the FMS NavaidTuner tunes both MMRs to; 0 for none */
 export const RMP_GLS_CHANNEL_VAR = 'L:A32NX_RMP_GLS_CHANNEL';
@@ -72,14 +75,18 @@ const GLS_CHANNELS_PER_HUNDRED = 100;
  * @param innerOffset clicks of the inner knob
  */
 export function stepGlsChannel(channel: number, outerOffset: number, innerOffset: number): number {
-  const moved = MathUtils.clamp(channel + outerOffset * GLS_CHANNELS_PER_HUNDRED, GBAS_CHANNEL_MIN, GBAS_CHANNEL_MAX);
+  const moved = MathUtils.clamp(
+    channel + outerOffset * GLS_CHANNELS_PER_HUNDRED,
+    RMP_GLS_CHANNEL_MIN,
+    RMP_GLS_CHANNEL_MAX,
+  );
   if (innerOffset === 0) {
     return moved;
   }
 
   const hundred = Math.floor(moved / GLS_CHANNELS_PER_HUNDRED) * GLS_CHANNELS_PER_HUNDRED;
-  const firstChannel = Math.max(hundred, GBAS_CHANNEL_MIN);
-  const lastChannel = Math.min(hundred + GLS_CHANNELS_PER_HUNDRED - 1, GBAS_CHANNEL_MAX);
+  const firstChannel = Math.max(hundred, RMP_GLS_CHANNEL_MIN);
+  const lastChannel = Math.min(hundred + GLS_CHANNELS_PER_HUNDRED - 1, RMP_GLS_CHANNEL_MAX);
   const count = lastChannel - firstChannel + 1;
   return firstChannel + ((((moved - firstChannel + innerOffset) % count) + count) % count);
 }
@@ -106,6 +113,43 @@ export function rmpTransferTuning(receiver: 'ILS' | 'GLS' | 'OTHER', bothNavKeys
     return 'none';
   }
   return receiver === 'GLS' ? 'gls-channel' : 'ils-frequency';
+}
+
+/** A value the RMP sets in the sim: an L:var or a key event */
+export interface RmpSimVarWrite {
+  name: string;
+  unit: string;
+  value: number;
+}
+
+/**
+ * What a transfer of the ILS or of the GLS sets. Either RMP tunes the receivers of both sides (the sim radios NAV 3 and
+ * NAV 4 are the ILS receivers of MMR 1 and MMR 2), as each side displays and flies its own receiver. An MMR is either
+ * on an ILS or on a GLS, so the one that is tuned takes the other away.
+ * @param tuning what the transfer tunes
+ * @param standby the frequency in Hz (ILS) or the channel (GLS) of the STBY window
+ */
+export function rmpLandingSystemTransferWrites(
+  tuning: 'gls-channel' | 'ils-frequency',
+  standby: number,
+): RmpSimVarWrite[] {
+  const isGls = tuning === 'gls-channel';
+  const ilsFrequency = isGls ? 0 : standby;
+  return [
+    { name: RMP_GLS_CHANNEL_VAR, unit: 'number', value: isGls ? standby : 0 },
+    { name: 'K:NAV3_RADIO_SET_HZ', unit: 'Hz', value: ilsFrequency },
+    { name: 'K:NAV4_RADIO_SET_HZ', unit: 'Hz', value: ilsFrequency },
+  ];
+}
+
+/**
+ * The frequency of the STBY window of the ADF after a transfer: the two windows trade places. The receivers with a
+ * course do not: their STBY window goes on to the course, and shows the active frequency afterwards.
+ * @param active the frequency of the ACTIVE window before the transfer; 0 while the RMP has not tuned the ADF
+ * @param standby the frequency of the STBY window before the transfer
+ */
+export function rmpAdfStandbyAfterTransfer(active: number, standby: number): number {
+  return active > 0 ? active : standby;
 }
 
 /**

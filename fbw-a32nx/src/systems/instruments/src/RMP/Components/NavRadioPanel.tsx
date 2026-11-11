@@ -16,6 +16,8 @@ import {
   isBelowIlsTuneInhibitHeight,
   isLsTuneInhibited,
   RMP_GLS_CHANNEL_VAR,
+  rmpAdfStandbyAfterTransfer,
+  rmpLandingSystemTransferWrites,
   rmpTransferTuning,
 } from './RmpNavBackupTuning';
 
@@ -107,12 +109,6 @@ const setActiveFrequencySimVar = (transceiver: number, index: number, frequency:
   SimVar.SetSimVarValue(`K:NAV${index}_RADIO_SET_HZ`, 'Hz', frequency);
 };
 
-/** Tunes both MMRs to a GLS channel. The ILS receiver is detuned: an MMR is either on an ILS or on a GLS. */
-const tuneGlsChannel = (channel: number) => {
-  SimVar.SetSimVarValue(RMP_GLS_CHANNEL_VAR, 'number', channel);
-  SimVar.SetSimVarValue('K:NAV3_RADIO_SET_HZ', 'Hz', 0);
-};
-
 /**
  * NAV radio management panel React component.
  * Hooks into the mode active and standby frequency SimVars and wires transfer button.
@@ -121,10 +117,8 @@ const tuneGlsChannel = (channel: number) => {
 export const NavRadioPanel = (props: Props) => {
   let standbyWindow: JSX.Element;
 
-  let index = props.side === 'L' ? 1 : 2;
-  if (props.transceiver === TransceiverType.ILS) {
-    index = 3; // Both RMPs manage the same ILS
-  }
+  // The VOR and the ADF of the RMP's own side
+  const index = props.side === 'L' ? 1 : 2;
 
   const [mode, setMode] = useState(Mode.FREQUENCY);
 
@@ -179,17 +173,18 @@ export const NavRadioPanel = (props: Props) => {
           !!SimVar.GetSimVarValue('L:A32NX_RMP_R_NAV_BUTTON_SELECTED', 'Bool');
         const tuning = rmpTransferTuning(receiver, bothNavKeysOn);
 
-        if (tuning === 'gls-channel') {
-          tuneGlsChannel(standbyChannel);
-        } else if (tuning !== 'none') {
-          if (tuning === 'ils-frequency') {
-            // The MMRs leave the GLS mode for the ILS
-            SimVar.SetSimVarValue(RMP_GLS_CHANNEL_VAR, 'number', 0);
-          }
+        if (tuning === 'gls-channel' || tuning === 'ils-frequency') {
+          rmpLandingSystemTransferWrites(tuning, isGls ? standbyChannel : standbyFrequency).forEach((write) =>
+            SimVar.SetSimVarValue(write.name, write.unit, write.value),
+          );
+        } else if (tuning === 'frequency') {
           setActiveFrequencySimVar(props.transceiver, index, standbyFrequency);
         }
         if (!isGls) {
           setActiveFrequencySaved(standbyFrequency);
+        }
+        if (props.transceiver === TransceiverType.ADF) {
+          setStandbyFrequencySaved(rmpAdfStandbyAfterTransfer(activeFrequency, standbyFrequency));
         }
       } else {
         setCourse(course);
