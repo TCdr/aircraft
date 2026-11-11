@@ -1054,6 +1054,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/TAWS] Mode 5 GLIDE SLOPE alert and the mode 2B envelope also work on a GLS approach - @TCdr
 1. [A32NX/FWC] The smart FIVE HUNDRED callout uses the GLS glide on a GLS approach - @TCdr
 1. [A380X/FWS] The smart FIVE HUNDRED callout uses the GLS glide on a GLS approach - @TCdr
+1. [FMS] The FLS beam (F-G/S) crosses the runway threshold 50 ft above it: it was too high by the threshold elevation, which put the F-G/S deviation off the scale on final at any airport above about 250 ft - @TCdr
+1. [FMS] The FLS beam stays valid while the missed approach point is sequenced, and NO FLS FOR THIS APPR is not raised a second time there - @TCdr
+1. [FMS] The FLS beam takes the course the final leg has at the missed approach point, not at the fix before it (a difference at high latitudes only) - @TCdr
+1. [A380X/ND] The vertical display names the FLS end point by its runway alone (EP33L, not EPLFBO33L) - @TCdr
 
 ## 2024.1.0
 

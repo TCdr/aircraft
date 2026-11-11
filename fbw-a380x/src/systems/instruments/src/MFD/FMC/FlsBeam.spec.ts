@@ -23,7 +23,7 @@ const vorApproach: FlsBeamInputs = {
     verticalAngle: -3,
   },
   runway: {
-    ident: 'RW33L',
+    ident: 'LFBO33L',
     airportIdent: 'LFBO',
     bearing: runwayBearing,
     thresholdLocation: threshold,
