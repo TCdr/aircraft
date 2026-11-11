@@ -678,6 +678,17 @@
       POSITION/NAVAIDS page that does not correspond with the approach of the flight plan, in cruise less than 100 NM
       from the T/D, in descent, or in approach above 800 ft)
 
+- A32NX_FM_LS_COURSE
+    - Number<Degrees | -1>
+    - Landing system course. Written by the FMS, read by fbw.wasm, the systems MMR shim (fbw-common navigation/ils.rs),
+      the PFD and the ND. Values, in priority order:
+        - Course of the GLS approach when MMR 1 is set to a GLS channel (-1 when it has none)
+        - FLS course (magnetic) on an FLS approach whose F-LOC replaces the localizer
+        - Pilot entered course
+        - Database course
+        - Course received from LOC when LOC available
+        - -1 when invalid
+
 - A32NX_FM_FLS_BEAM_VALID
     - Bool
     - The FMS computes an FLS beam: a non precision approach with a beam is selected and the FMS is in descent or approach
@@ -3171,14 +3182,14 @@ The probe and window heat, ice detectors and drain masts (a380_systems probe_win
     - number: 1 or 2
     - The localizer (glide slope) signal of the ILS receiver of MMR {number} is valid. MMR 1 is the sim NAV 3, MMR 2
       NAV 4. Written by systems.wasm (fbw-common navigation/ils.rs). The F/O PFD reads MMR 2; the CAPT PFD keeps the
-      A32NX_RADIO_RECEIVER_* variables (MMR 1)
+      A32NX_RADIO_RECEIVER_* variables (MMR 1), so the variables of MMR 1 have no reader
 
 - A32NX_MMR_{number}_IS_POWERED
     - Bool
     - number: 1 or 2
     - MMR {number} is supplied: MMR 1 by AC EMER, MMR 2 by AC 3. An unpowered MMR receives no ILS and no GLS and sends failure
-      warning on its ILS bus. Written by systems.wasm (fbw-common navigation/ils.rs), read by fbw.wasm.
-      Reads 0 until systems.wasm has written it, so both MMRs are dead while systems.wasm is not running
+      warning on its ILS bus. Written by systems.wasm (fbw-common navigation/ils.rs), read by fbw.wasm and the PFD of
+      its side. Reads 0 until systems.wasm has written it, so both MMRs are dead while systems.wasm is not running
 
 - A32NX_MMR_{number}_LOC_DEVIATION, A32NX_MMR_{number}_GS_DEVIATION
     - Number in degrees
@@ -3207,7 +3218,8 @@ deviations like an ILS receiver. All values are raw numbers without a unit.
 - A32NX_GBAS_VALID
     - Bool
     - A GLS procedure is uploaded (an MMR is set to a GLS whose channel has a table row and a matching sim runway).
-      Written by the FMS (fmgc navigation/gls/GbasUplinkPublisher.ts)
+      Written by the FMS (fmgc navigation/gls/GbasUplinkPublisher.ts). False while the fields of a new procedure are
+      written, true again after them: fbw.wasm reads the fields only while it is true
 
 - A32NX_GBAS_CHANNEL
     - Number
@@ -3223,7 +3235,7 @@ deviations like an ILS receiver. All values are raw numbers without a unit.
 
 - A32NX_GBAS_LENGTH
     - Number in metres
-    - Length of the runway
+    - Length of the runway from the landing threshold to the stop end: a displaced threshold is not counted
 
 - A32NX_GBAS_COURSE
     - Number in degrees
@@ -3238,7 +3250,8 @@ deviations like an ILS receiver. All values are raw numbers without a unit.
     - The reference path identifier (RPI) of the uploaded procedure, packed with SimVarString.pack(rpi, 4)
 
 - A32NX_MMR_{number}_GLS_CHANNEL
-    - Number: 1 or 2
+    - Number: 20001 to 39999, or 0
+    - {number}: 1 or 2
     - The GLS channel MMR {number} is set to, 0 when the MMR is in ILS mode. Written by the FMS. The PFD, the FMA and
       the flight guidance follow it, and so do the systems MMR shim (EGPWS on the A32NX) and the systems host GPWS and
       FWC: an MMR with a channel is in GLS mode, whether or not it receives the station
@@ -3252,24 +3265,30 @@ deviations like an ILS receiver. All values are raw numbers without a unit.
     - Bool
     - Number: 1 or 2
     - The ILS of MMR {number} is failed: its ILS receiver or the whole MMR. The MMR sends failure warning on its ILS bus, so
-      that the PRIMs fly the other one. Written by the systems host, read by fbw.wasm
+      that the PRIMs fly the other one. Written by the systems host, read by fbw.wasm and the PFD of its side
 
 - A32NX_GLS_{number}_FAILED
     - Bool
     - Number: 1 or 2
-    - The GLS of MMR {number} is failed: the MMR sends failure warning on its ILS bus while it is on a GLS channel. Written by the systems host from the GLS
-      function failure of that MMR or the failure of the whole MMR. Read by fbw.wasm and the PFD
+    - The GLS of MMR {number} is failed: the MMR sends failure warning on the ILS bus fbw.wasm builds for the PRIMs
+      while it is on a GLS channel. fbw.wasm stops its GLS deviations, so the systems MMR shim sees a GLS without
+      signal. Written by the systems host from the GLS function failure of that MMR or the failure of the whole MMR.
+      Read by fbw.wasm and the PFD
 
 - A32NX_GLS_{number}_LOC_IS_VALID, A32NX_GLS_{number}_GS_IS_VALID
     - Bool
     - Number: 1 or 2
     - The lateral (vertical) deviation of the GLS is valid for MMR {number}: it receives the station, inside the service
-      volume and before the azimuth reference point (glide path intercept point). Written by fbw.wasm. Read by the systems host GPWS (mode 5, mode 2B, smart FIVE HUNDRED callout) for MMR 1 in GLS mode
+      volume and before the azimuth reference point (glide path intercept point). Written by fbw.wasm.
+      Read by the systems host GPWS (mode 5, mode 2B, smart FIVE HUNDRED callout) for MMR 1 in GLS mode, the systems
+      MMR shim, the PFDs, the NDs and the SFD (MMR 1)
 
 - A32NX_GLS_LOC_DEVIATION, A32NX_GLS_GS_DEVIATION
     - Number in degrees
     - The lateral (vertical) deviation of the GLS, with the sign and scale of A32NX_RADIO_RECEIVER_LOC_DEVIATION
-      (A32NX_RADIO_RECEIVER_GS_DEVIATION). Written by fbw.wasm. Read by the systems host GPWS (mode 5, mode 2B, smart FIVE HUNDRED callout) for MMR 1 in GLS mode
+      (A32NX_RADIO_RECEIVER_GS_DEVIATION). Written by fbw.wasm.
+      Read by the systems host GPWS (mode 5, mode 2B, smart FIVE HUNDRED callout) for MMR 1 in GLS mode, the systems
+      MMR shim, the PFDs, the NDs and the SFD
 
 - A32NX_GLS_THRESHOLD_DISTANCE
     - Number in nautical miles

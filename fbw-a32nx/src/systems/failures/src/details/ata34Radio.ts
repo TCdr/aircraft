@@ -104,13 +104,11 @@ const IlsReceiverFamily: FailureDetailFamily = {
   detail: (number): FailureDetail => ({
     whatItIs:
       'The two ILS receivers, in the multi-mode receivers, pick up the localiser and glide slope signals. Receiver 1 ' +
-      'feeds the CAPT primary flight display and receiver 2 the F/O one. The autoflight uses receiver 1 to fly and ' +
-      'capture the ILS.',
+      'feeds the CAPT primary flight display and receiver 2 the F/O one. Each flight management and guidance computer ' +
+      'flies the ILS of its own side and takes the other receiver when its own one is lost.',
     impact: [
       `ILS ${number} receives nothing: no localiser and no glide slope for its side.`,
-      number === 1
-        ? 'The autoflight uses receiver 1, so it also loses the signal and cannot capture the ILS.'
-        : 'Receiver 1 and the autoflight keep working, so the ILS approach is still possible with the other side.',
+      'The autoflight flies the ILS of the other receiver, so the ILS approach is still possible.',
       'Both receivers lost: no ILS approach is possible.',
     ],
     alertIds: [ILS_FAULT_ALERTS[number - 1], ILS_FAULT_ALERTS[2]],

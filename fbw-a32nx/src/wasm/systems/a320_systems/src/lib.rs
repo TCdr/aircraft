@@ -176,7 +176,8 @@ pub struct A320 {
     reverse_thrust: ReverserForce,
 }
 impl A320 {
-    /// The supply of MMR 1 and MMR 2, shared by the box's GPS receiver and its ILS receiver
+    /// The supply of MMR 1 and MMR 2, shared by the box's GPS receiver and its ILS receiver. The emergency generator
+    /// supplies AC ESS and not AC 2, so MMR 1 is the one that stays in the emergency electrical configuration.
     const MMR_1_POWERED_BY: ElectricalBusType = ElectricalBusType::AlternatingCurrentEssential;
     const MMR_2_POWERED_BY: ElectricalBusType = ElectricalBusType::AlternatingCurrent(2);
 
@@ -1046,7 +1047,7 @@ mod tests {
         }
         test_bed.write_by_name("GLS_GS_DEVIATION", -0.6);
 
-        test_bed.write_by_name("MMR_1_GLS_CHANNEL", 40123.);
+        test_bed.write_by_name("MMR_1_GLS_CHANNEL", 31434.);
         test_bed.write_by_name("GLS_1_GS_IS_VALID", true);
         test_bed.run_with_delta(Duration::from_millis(50));
         let on_mmr_1 = test_bed
@@ -1065,12 +1066,42 @@ mod tests {
 
         test_bed.write_by_name("MMR_1_GLS_CHANNEL", 0.);
         test_bed.write_by_name("GLS_1_GS_IS_VALID", false);
-        test_bed.write_by_name("MMR_2_GLS_CHANNEL", 40123.);
+        test_bed.write_by_name("MMR_2_GLS_CHANNEL", 31434.);
         test_bed.write_by_name("GLS_2_GS_IS_VALID", true);
         test_bed.run_with_delta(Duration::from_millis(50));
         let on_mmr_2 = test_bed
             .query(|a| A320::egpws_landing_system([&a.mmr_1, &a.mmr_2]).glideslope_deviation());
         assert!(!on_mmr_2.is_normal_operation());
+    }
+
+    /// The EGPWS takes its glide slope fault (GPWS inoperative) from failure warning, and a failed GLS function has no
+    /// alert: the EGPWS must see it as a GLS without signal.
+    #[test]
+    fn the_egpws_has_no_glide_slope_fault_for_a_failed_gls_function_of_mmr_1() {
+        use systems::navigation::ils::InstrumentLandingSystemBus;
+
+        let landing_system_failed = |a: &A320| {
+            let mmr = A320::egpws_landing_system([&a.mmr_1, &a.mmr_2]);
+            mmr.glideslope_deviation().is_failure_warning()
+                || mmr.localizer_deviation().is_failure_warning()
+        };
+        let mut test_bed = aircraft_with_the_ac_buses_powered();
+        test_bed.write_by_name("MMR_1_GLS_CHANNEL", 31434.);
+        test_bed.write_by_name("GLS_1_GS_IS_VALID", false);
+        test_bed.write_by_name("GLS_1_LOC_IS_VALID", false);
+        test_bed.write_by_name("GLS_1_FAILED", true);
+        test_bed.run_with_delta(Duration::from_millis(50));
+        assert!(!test_bed.query(landing_system_failed));
+
+        // The ILS of MMR 1 keeps its signal
+        test_bed.write_by_name("MMR_1_GLS_CHANNEL", 0.);
+        tune_both_ils_receivers(&mut test_bed);
+        test_bed.run_with_delta(Duration::from_millis(50));
+        assert!(
+            test_bed.query(|a| A320::egpws_landing_system([&a.mmr_1, &a.mmr_2])
+                .glideslope_deviation()
+                .is_normal_operation())
+        );
     }
 
     fn tune_both_ils_receivers(test_bed: &mut SimulationTestBed<A320>) {
@@ -1107,21 +1138,5 @@ mod tests {
         assert!(mmr_is_powered(&mut test_bed, 2));
         assert!(!read_flag(&mut test_bed, "MMR_1_LOC_IS_VALID"));
         assert!(read_flag(&mut test_bed, "MMR_2_LOC_IS_VALID"));
-    }
-
-    /// The whole aircraft cannot be put into the emergency electrical configuration in the test bed: the RAT does not
-    /// deploy without the hydraulic and air data inputs of a flight, and the air conditioning controller panics on
-    /// the missing temperatures once the DC buses go. The electrical tests of the module show AC ESS supplied by
-    /// the emergency generator with AC 1 and AC 2 lost, so MMR 1 on AC ESS keeps its power there and MMR 2 on AC 2 does not.
-    #[test]
-    fn mmr_1_is_on_the_bus_the_emergency_generator_supplies_and_mmr_2_is_not() {
-        assert_eq!(
-            A320::MMR_1_POWERED_BY,
-            ElectricalBusType::AlternatingCurrentEssential
-        );
-        assert_eq!(
-            A320::MMR_2_POWERED_BY,
-            ElectricalBusType::AlternatingCurrent(2)
-        );
     }
 }

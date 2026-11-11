@@ -1069,6 +1069,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A32NX/MCDU] RAD NAV no longer comes back by itself when the crew opened another page while an LS entry was being looked up - @TCdr
 1. [A32NX/RMP] In the NAV backup mode an ILS tuned from an RMP now reaches the receivers of both sides (PFD 2 and ND 1 no longer stay without the ILS), and a GLS tuned from an RMP takes both receivers off their ILS frequency - @TCdr
 1. [A32NX/RMP] The transfer key of the ADF now exchanges the ACTIVE and STBY frequencies - @TCdr
+1. [A32NX/EFB] flyPad failure details of the ILS receivers: the autoflight flies the ILS of the other receiver when one is lost - @TCdr
+1. [A380X/EFB] flyPad failure details of the MMR, ILS receiver, GLS function and GBAS ground station failures: PFD losses, the MMR the autoflight flies and the autopilot disengagement on a lost GLS - @TCdr
+1. [A32NX/FWC] The smart FIVE HUNDRED callout also comes more than half a dot below the glide slope, not only above it - @TCdr
 
 ## 2024.1.0
 

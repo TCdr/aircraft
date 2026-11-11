@@ -918,7 +918,8 @@ export const A380Failure = Object.freeze({
   Ir2Fault: 34081,
   Ir3Fault: 34082,
   // MMR n as a whole (ILS and GPS receivers) and its ILS receiver alone (Rust navigation ils.rs, gnss.rs); the systems
-  // host also switches the sim NAV 3 radio of MMR 1 off (MmrFailures.ts). The FWS shows NAV LS / ILS FAULT.
+  // host gives the failed ILS of each side to the FBW module and the PFD (MmrFailures.ts). The FWS shows NAV LS / ILS
+  // FAULT.
   Mmr1: 34100,
   Mmr2: 34101,
   Ils1Receiver: 34102,

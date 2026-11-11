@@ -156,7 +156,7 @@ describe('A32NX smart FIVE HUNDRED callout on the whole FWC', () => {
     (fwc as any).autoCallouts.fiveHundredAudio.sub((value: boolean) => {
       called = called || value;
     });
-    simvars.set('L:A32NX_MMR_1_GLS_CHANNEL', glsSelected ? 40123 : 0);
+    simvars.set('L:A32NX_MMR_1_GLS_CHANNEL', glsSelected ? 31434 : 0);
     simvars.set('L:A32NX_GLS_1_GS_IS_VALID', glsReceived ? 1 : 0);
     simvars.set('L:A32NX_GLS_GS_DEVIATION', glsGlideDeg);
     simvars.set('L:A32NX_RADIO_RECEIVER_GS_IS_VALID', ilsReceived ? 1 : 0);
@@ -171,6 +171,32 @@ describe('A32NX smart FIVE HUNDRED callout on the whole FWC', () => {
 
   it('above the GLS glide by more than the threshold: FIVE HUNDRED', () => {
     expect(fiveHundredCalled({ glsSelected: true, glsGlideDeg: 0.3 })).toBe(true);
+  });
+
+  it('below the GLS glide by more than the threshold: FIVE HUNDRED', () => {
+    expect(fiveHundredCalled({ glsSelected: true, glsGlideDeg: -0.3 })).toBe(true);
+  });
+
+  it('below the ILS glide by more than the threshold: FIVE HUNDRED', () => {
+    expect(fiveHundredCalled({ glsSelected: false, ilsReceived: true, ilsGlideDeg: -0.3 })).toBe(true);
+  });
+
+  it('on the GLS: the same threshold above and below the glide', () => {
+    expect(fiveHundredCalled({ glsSelected: true, glsGlideDeg: 0.17 })).toBe(false);
+    expect(fiveHundredCalled({ glsSelected: true, glsGlideDeg: -0.17 })).toBe(false);
+    expect(fiveHundredCalled({ glsSelected: true, glsGlideDeg: 0.18 })).toBe(true);
+    expect(fiveHundredCalled({ glsSelected: true, glsGlideDeg: -0.18 })).toBe(true);
+  });
+
+  it('on the ILS: the same threshold above and below the glide', () => {
+    expect(fiveHundredCalled({ glsSelected: false, ilsReceived: true, ilsGlideDeg: 0.17 })).toBe(false);
+    expect(fiveHundredCalled({ glsSelected: false, ilsReceived: true, ilsGlideDeg: -0.17 })).toBe(false);
+    expect(fiveHundredCalled({ glsSelected: false, ilsReceived: true, ilsGlideDeg: -0.18 })).toBe(true);
+  });
+
+  it('no valid glide: FIVE HUNDRED whatever the deviation reads', () => {
+    expect(fiveHundredCalled({ glsSelected: true, glsReceived: false, glsGlideDeg: -0.1 })).toBe(true);
+    expect(fiveHundredCalled({ glsSelected: false, ilsReceived: false, ilsGlideDeg: -0.1 })).toBe(true);
   });
 
   it('GLS selected but not received: FIVE HUNDRED (no valid glide)', () => {

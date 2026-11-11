@@ -28,7 +28,7 @@ describe('MmrOneLandingSystem', () => {
   });
 
   it('in GLS mode gives the GLS values and ignores the ILS receiver', () => {
-    const mmr = mmrOneWith({ ...ilsValues, ...glsValues, 'L:A32NX_MMR_1_GLS_CHANNEL': 40123 });
+    const mmr = mmrOneWith({ ...ilsValues, ...glsValues, 'L:A32NX_MMR_1_GLS_CHANNEL': 31434 });
     expect(mmr.glideSlope()).toEqual({ valid: true, deviation: -0.6 });
     expect(mmr.localizer()).toEqual({ valid: true, deviation: -0.3 });
   });
@@ -39,20 +39,46 @@ describe('MmrOneLandingSystem', () => {
       ...glsValues,
       'L:A32NX_GLS_1_GS_IS_VALID': 0,
       'L:A32NX_GLS_1_LOC_IS_VALID': 0,
-      'L:A32NX_MMR_1_GLS_CHANNEL': 40123,
+      'L:A32NX_MMR_1_GLS_CHANNEL': 31434,
     });
     expect(mmr.glideSlope().valid).toBe(false);
     expect(mmr.localizer().valid).toBe(false);
   });
 
   it('keeps the glide slope and localizer valid flags apart', () => {
-    const mmr = mmrOneWith({ ...glsValues, 'L:A32NX_GLS_1_LOC_IS_VALID': 0, 'L:A32NX_MMR_1_GLS_CHANNEL': 40123 });
+    const mmr = mmrOneWith({ ...glsValues, 'L:A32NX_GLS_1_LOC_IS_VALID': 0, 'L:A32NX_MMR_1_GLS_CHANNEL': 31434 });
     expect(mmr.glideSlope().valid).toBe(true);
     expect(mmr.localizer().valid).toBe(false);
   });
 
   it('reads the GLS of MMR 1 only', () => {
-    const mmr = mmrOneWith({ 'L:A32NX_GLS_2_GS_IS_VALID': 1, 'L:A32NX_MMR_1_GLS_CHANNEL': 40123 });
+    const mmr = mmrOneWith({ 'L:A32NX_GLS_2_GS_IS_VALID': 1, 'L:A32NX_MMR_1_GLS_CHANNEL': 31434 });
     expect(mmr.glideSlope().valid).toBe(false);
+  });
+
+  it('refreshes one result per axis, as its readers run every frame', () => {
+    const mmr = mmrOneWith({ ...glsValues, 'L:A32NX_MMR_1_GLS_CHANNEL': 31434 });
+    expect(mmr.glideSlope()).toBe(mmr.glideSlope());
+    expect(mmr.localizer()).toBe(mmr.localizer());
+  });
+
+  it('keeps the glide slope result while the localizer is read', () => {
+    const mmr = mmrOneWith({ ...glsValues, 'L:A32NX_MMR_1_GLS_CHANNEL': 31434 });
+    const glideSlope = mmr.glideSlope();
+    const localizer = mmr.localizer();
+    expect(glideSlope).toEqual({ valid: true, deviation: -0.6 });
+    expect(localizer).toEqual({ valid: true, deviation: -0.3 });
+  });
+
+  it('gives the present values on every read, also after a change of mode', () => {
+    const values: Record<string, number> = { ...ilsValues, ...glsValues, 'L:A32NX_MMR_1_GLS_CHANNEL': 31434 };
+    const mmr = new MmrOneLandingSystem((name) => values[name]);
+    expect(mmr.glideSlope()).toEqual({ valid: true, deviation: -0.6 });
+
+    values['L:A32NX_GLS_GS_DEVIATION'] = 0.25;
+    expect(mmr.glideSlope()).toEqual({ valid: true, deviation: 0.25 });
+
+    values['L:A32NX_MMR_1_GLS_CHANNEL'] = 0;
+    expect(mmr.glideSlope()).toEqual({ valid: true, deviation: 0.1 });
   });
 });
