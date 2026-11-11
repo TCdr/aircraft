@@ -1834,6 +1834,13 @@ deviations like an ILS receiver. All values are raw numbers without a unit.
     - MMR {number} is failed as a GLS receiver: the MMR sends failure warning on its ILS bus while it is on a GLS channel.
       Read by fbw.wasm and the PFD; nothing writes it yet
 
+- A32NX_FLS_{number}_FAILED
+    - Bool
+    - Number: 1 or 2
+    - The FLS of MMR {number} is failed with the whole MMR: the MMR sends failure warning on the F-LOC and F-G/S words of its ILS bus,
+      so that the PRIMs fly the other one. Read by fbw.wasm (the F-LOC and F-G/S words of the ILS bus of that MMR) and the
+      PFD of its side (no FLS deviation scales); nothing writes it yet
+
 - A32NX_GLS_{number}_LOC_IS_VALID, A32NX_GLS_{number}_GS_IS_VALID
     - Bool
     - Number: 1 or 2

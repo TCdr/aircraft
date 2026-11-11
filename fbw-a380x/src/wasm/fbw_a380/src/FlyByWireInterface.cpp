@@ -397,6 +397,7 @@ void FlyByWireInterface::setupLocalVariables() {
     idGlsFailed[i] = std::make_unique<LocalVariable>("A32NX_GLS_" + mmrString + "_FAILED");
     idMmrPowered[i] = std::make_unique<LocalVariable>("A32NX_MMR_" + mmrString + "_IS_POWERED");
     idIlsFailed[i] = std::make_unique<LocalVariable>("A32NX_ILS_" + mmrString + "_FAILED");
+    idFlsFailed[i] = std::make_unique<LocalVariable>("A32NX_FLS_" + mmrString + "_FAILED");
     idGlsLocalizerValid[i] = std::make_unique<LocalVariable>("A32NX_GLS_" + mmrString + "_LOC_IS_VALID");
     idGlsGlideSlopeValid[i] = std::make_unique<LocalVariable>("A32NX_GLS_" + mmrString + "_GS_IS_VALID");
   }
@@ -1399,7 +1400,7 @@ bool FlyByWireInterface::updateFls() {
 
 void FlyByWireInterface::updateMmrHealth() {
   for (int i = 0; i < 2; i++) {
-    mmrHealth[i] = MmrHealth::fromSimVars(idMmrPowered[i]->get(), idIlsFailed[i]->get(), idGlsFailed[i]->get());
+    mmrHealth[i] = MmrHealth::fromSimVars(idMmrPowered[i]->get(), idIlsFailed[i]->get(), idGlsFailed[i]->get(), idFlsFailed[i]->get());
   }
 }
 
@@ -2084,7 +2085,8 @@ bool FlyByWireInterface::updatePrimFgShim(double sampleTime) {
     radioInputs.locErrorDeg = simData.nav_loc_error_deg;
     radioInputs.gsValid = simData.nav_gs_valid != 0;
     radioInputs.gsErrorDeg = simData.nav_gs_error_deg;
-    const AutolandMonitorInputs monitorInputs = GlsReceiver::autolandMonitorInputs(glsMode, glsActive, glsDeviations, radioInputs);
+    const AutolandMonitorInputs monitorInputs = GlsReceiver::autolandMonitorInputs(
+        glsMode, glsActive, glsDeviations, radioInputs, IlsBusBuilder::anIlsReceiverIsOperative(mmrHealth));
     if (!(ap1Engaged || ap2Engaged) || GlsReceiver::exceedsAutolandLimits(simData.H_radio_ft, monitorInputs)) {
       autolandWarningTriggered = true;
       idAutopilotShimAutolandWarning->set(1);

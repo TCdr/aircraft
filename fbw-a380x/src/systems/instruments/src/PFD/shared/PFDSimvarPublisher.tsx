@@ -58,6 +58,8 @@ export interface PFDSimvars {
   mmr2GlsChannel: number;
   gls1Failed: boolean;
   gls2Failed: boolean;
+  fls1Failed: boolean;
+  fls2Failed: boolean;
   mmr1Powered: boolean;
   mmr2Powered: boolean;
   ils1Failed: boolean;
@@ -190,6 +192,8 @@ export enum PFDVars {
   mmr2GlsChannel = 'L:A32NX_MMR_2_GLS_CHANNEL',
   gls1Failed = 'L:A32NX_GLS_1_FAILED',
   gls2Failed = 'L:A32NX_GLS_2_FAILED',
+  fls1Failed = 'L:A32NX_FLS_1_FAILED',
+  fls2Failed = 'L:A32NX_FLS_2_FAILED',
   mmr1Powered = 'L:A32NX_MMR_1_IS_POWERED',
   mmr2Powered = 'L:A32NX_MMR_2_IS_POWERED',
   ils1Failed = 'L:A32NX_ILS_1_FAILED',
@@ -323,6 +327,8 @@ export class PFDSimvarPublisher extends UpdatableSimVarPublisher<PFDSimvars> {
     ['mmr2GlsChannel', { name: PFDVars.mmr2GlsChannel, type: SimVarValueType.Number }],
     ['gls1Failed', { name: PFDVars.gls1Failed, type: SimVarValueType.Bool }],
     ['gls2Failed', { name: PFDVars.gls2Failed, type: SimVarValueType.Bool }],
+    ['fls1Failed', { name: PFDVars.fls1Failed, type: SimVarValueType.Bool }],
+    ['fls2Failed', { name: PFDVars.fls2Failed, type: SimVarValueType.Bool }],
     ['mmr1Powered', { name: PFDVars.mmr1Powered, type: SimVarValueType.Bool }],
     ['mmr2Powered', { name: PFDVars.mmr2Powered, type: SimVarValueType.Bool }],
     ['ils1Failed', { name: PFDVars.ils1Failed, type: SimVarValueType.Bool }],

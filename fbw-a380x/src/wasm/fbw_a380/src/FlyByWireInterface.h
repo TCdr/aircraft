@@ -286,6 +286,7 @@ class FlyByWireInterface {
   std::unique_ptr<LocalVariable> idGlsFailed[2];
   std::unique_ptr<LocalVariable> idMmrPowered[2];
   std::unique_ptr<LocalVariable> idIlsFailed[2];
+  std::unique_ptr<LocalVariable> idFlsFailed[2];
   std::unique_ptr<LocalVariable> idGlsLocalizerValid[2];
   std::unique_ptr<LocalVariable> idGlsGlideSlopeValid[2];
   std::unique_ptr<LocalVariable> idGlsLocalizerDeviation;

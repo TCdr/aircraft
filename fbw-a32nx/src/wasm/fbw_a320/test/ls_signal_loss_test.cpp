@@ -7,6 +7,8 @@
 // The generated model reads a word with no computed data as valid with a deviation of zero, so without the monitor the autopilot
 // keeps flying a beam that is not there. The AP and the FDs disengage when LOC or G/S has been lost for 7 s above 200 ft radio
 // height, and the FDs come back in HDG V/S.
+//
+// Built with -DWITHOUT_THE_FIX the model gets its inputs unchanged and the checks of the disconnection fail.
 
 #include <cmath>
 #include <cstdio>
@@ -34,8 +36,8 @@ static void expectAtFrameTime(bool condition, const char* what, double frameTime
 }
 
 constexpr double TIME_STEP_S = 0.05;
-// Frame times of the sim: 60 and 30 fps, 4x sim rate at 60 and 30 fps, and slow frames
-constexpr double FRAME_TIMES_S[] = {0.016, 0.033, 0.067, 0.1, 0.133, 0.15, 0.25, 0.5};
+// Frame times of the sim: 60 and 30 fps, 4x sim rate at 60 and 30 fps, slow frames, and a high sim rate at a low frame rate
+constexpr double FRAME_TIMES_S[] = {0.016, 0.033, 0.067, 0.1, 0.133, 0.15, 0.25, 0.5, 0.6, 1.0};
 // Bits 26 and 27 of the FCU discrete word 2: the FD 1 and FD 2 off levels
 constexpr double FLIGHT_DIRECTORS_OFF_WORD = 100663296.0;
 constexpr double APPROACH_SPEED_KNOTS = 140.0;
@@ -60,16 +62,16 @@ static void setWord(base_arinc_429& word, double value) {
 
 /// Master's Fmgc leaves its power supply and self-test state uninitialised (the module gets zeroed memory in the sim), so the test
 /// gives it zeroed memory too, instead of whatever the stack holds
-static Fmgc& zeroedFmgc() {
+static Fmgc& zeroedFmgc(bool isUnit1) {
   void* memory = std::calloc(1, sizeof(Fmgc));
-  return *new (memory) Fmgc(true);
+  return *new (memory) Fmgc(isUnit1);
 }
 
 class ApproachFlight {
  public:
-  ApproachFlight() : fmgc(zeroedFmgc()) {
+  explicit ApproachFlight(bool isUnit1 = true) : fmgc(zeroedFmgc(isUnit1)) {
     auto& discrete = fmgc.modelInputs.in.discrete_inputs;
-    discrete.is_unit_1 = true;
+    discrete.is_unit_1 = isUnit1;
     discrete.fcu_opp_healthy = discrete.fcu_own_healthy = discrete.fac_opp_healthy = discrete.fac_own_healthy = true;
     discrete.fmgc_opp_healthy = true;
     discrete.fwc_opp_valid = discrete.fwc_own_valid = discrete.pfd_opp_valid = discrete.pfd_own_valid = true;
@@ -319,6 +321,16 @@ static void belowTwoHundredFeetNothingDisengages() {
   expect(!land300.autopilot, "LAND engaged at 300 ft, signal lost 9 s: AP off");
   const Outcome land150 = loseTheSignal(150, 12.0, true, true);
   expect(land150.autopilot && land150.land, "signal lost 12 s at 150 ft: the autopilot stays in LAND");
+
+  // The autoland warning is what tells the crew there
+  ApproachFlight bothDead;
+  bothDead.flyToTrack();
+  bothDead.setRadioHeight(150);
+  bothDead.fly(5.0);
+  expect(bothDead.apEngaged() && bothDead.landEngaged(), "setup: LAND at 150 ft");
+  bothDead.killReceiver(Side::Both);
+  bothDead.fly(12.0);
+  expect(bothDead.apEngaged() && bothDead.landEngaged(), "both receivers dead 12 s at 150 ft: the autopilot stays in LAND");
 }
 
 static void descendingBelowTwoHundredFeetBeforeSevenSecondsDoesNotTrip() {
@@ -458,7 +470,38 @@ static void theRadioAltimeterOfTheOtherSideIsUsedWhenTheOwnOneFailed() {
   bothFailed.fly(1.0);
   bothFailed.setBeam(Side::Both, false, 0, false, 0);
   bothFailed.fly(9.0);
-  expect(!(!bothFailed.apEngaged() && bothFailed.fdEngaged() && bothFailed.basicModes()), "both radio altimeters failed: the 7 s rule does not trip");
+  expect(bothFailed.apEngaged() && bothFailed.locEngaged(), "both radio altimeters failed: the 7 s rule does not trip");
+}
+
+static void theFlightDirectorsAloneLoseTheApproachToo() {
+  ApproachFlight flight;
+  flight.setBeam(Side::Both, true, START_LOCALIZER_DEVIATION_DEG, true, START_GLIDE_SLOPE_DEVIATION_DEG);
+  flight.fly(6.0);
+  flight.captureTheApproach();
+  expect(!flight.apEngaged() && flight.fdEngaged() && flight.locEngaged() && flight.gsEngaged(), "setup: LOC and G/S with the FDs only");
+  flight.setRadioHeight(1000);
+  flight.fly(1.0);
+  flight.setBeam(Side::Both, false, 0, false, 0);
+  flight.fly(6.0);
+  expect(flight.locEngaged() && flight.gsEngaged(), "FDs only: LOC and G/S stay for 6 s without the signal");
+  flight.fly(3.0);
+  expect(!flight.locEngaged() && !flight.gsEngaged() && !flight.locArmed() && !flight.gsArmed(),
+         "FDs only, signal lost 9 s: LOC and G/S are neither engaged nor armed");
+  expect(flight.fdEngaged() && flight.basicModes(), "FDs only, signal lost 9 s: the FD comes back in HDG V/S");
+}
+
+static void theSecondFmgcDisengagesItsAutopilotToo() {
+  ApproachFlight flight(false);
+  flight.flyToTrack();
+  expect(flight.stillOnTheApproach(), "setup: FMGC 2 flies the approach with its autopilot");
+  flight.setRadioHeight(1000);
+  flight.fly(1.0);
+  flight.setBeam(Side::Both, false, 0, false, 0);
+  flight.fly(6.0);
+  expect(flight.stillOnTheApproach(), "FMGC 2: still engaged after 6 s without the signal");
+  flight.fly(3.0);
+  expect(!flight.apEngaged() && !flight.locEngaged() && !flight.gsEngaged(), "FMGC 2, signal lost 9 s: AP off, LOC and G/S off");
+  expect(flight.fdEngaged() && flight.basicModes(), "FMGC 2, signal lost 9 s: the FD comes back in HDG V/S");
 }
 
 // Each FMGC flies its own bus first, so one bus that lost its signal while the other is good is flown by that side alone
@@ -540,6 +583,8 @@ int main() {
   theHeightLimitIsTwoHundredFeet();
   theRadioAltimeterOfTheOtherSideIsUsedWhenTheOwnOneFailed();
   anOwnBusWithoutSignalIsFlownByThatSide();
+  theFlightDirectorsAloneLoseTheApproachToo();
+  theSecondFmgcDisengagesItsAutopilotToo();
   if (failures > 0) {
     std::printf("ls_signal_loss_test: %d check(s) FAILED\n", failures);
     return 1;

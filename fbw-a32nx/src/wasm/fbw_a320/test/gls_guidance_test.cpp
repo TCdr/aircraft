@@ -208,7 +208,7 @@ static void ilsModeLeavesTheBusAndTheFmsInputsAlone() {
          "no GLS: the FMS inputs are the ones of the radio, bit for bit");
 
   const AutolandMonitorInputs radioMonitor = {true, 0.11, true, -0.21};
-  const AutolandMonitorInputs monitor = GlsReceiver::autolandMonitorInputs(false, false, deviations, radioMonitor);
+  const AutolandMonitorInputs monitor = GlsReceiver::autolandMonitorInputs(false, false, deviations, radioMonitor, true);
   expect(std::memcmp(&monitor, &radioMonitor, sizeof(monitor)) == 0, "no GLS: the autoland monitor reads the radio, bit for bit");
 }
 
@@ -282,7 +282,7 @@ static bool autolandWarns(const AutolandMonitorInputs& monitor, double radioHeig
 /// The inputs the way FlyByWireInterface builds them: the radio readings, replaced by the GLS ones in GLS mode
 static AutolandMonitorInputs autolandInputsFrom(bool glsMode, bool glsReceiving, const GlsDeviations& gls, const AutolandMonitorInputs& radio) {
 #ifndef WITHOUT_THE_FIX
-  return GlsReceiver::autolandMonitorInputs(glsMode, glsReceiving, gls, radio);
+  return GlsReceiver::autolandMonitorInputs(glsMode, glsReceiving, gls, radio, true);
 #else
   (void)glsMode;
   (void)glsReceiving;

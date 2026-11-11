@@ -2194,7 +2194,8 @@ bool FlyByWireInterface::updateFmgcShim(double sampleTime) {
   radioInputs.locErrorDeg = simData.nav_loc_error_deg;
   radioInputs.gsValid = simData.nav_gs_valid != 0;
   radioInputs.gsErrorDeg = simData.nav_gs_error_deg;
-  const AutolandMonitorInputs monitorInputs = GlsReceiver::autolandMonitorInputs(glsMode, glsActive, glsDeviations, radioInputs);
+  const AutolandMonitorInputs monitorInputs = GlsReceiver::autolandMonitorInputs(
+      glsMode, glsActive, glsDeviations, radioInputs, IlsBusBuilder::anIlsReceiverIsOperative(mmrHealth));
 
   // if at least one AP engaged and LAND or FLARE mode -> latch
   if (simData.H_radio_ft < 200 && (fmgcsDiscreteOutputs[0].ap_own_engaged || fmgcsDiscreteOutputs[1].ap_own_engaged) &&

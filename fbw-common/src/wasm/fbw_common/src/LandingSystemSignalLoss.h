@@ -20,6 +20,10 @@ constexpr double SIGNAL_LOSS_MIN_RADIO_HEIGHT_FT = 200.0;
 /// few frames. A real receiver rides through such short interrupts, so the immediate disengagement waits this long.
 constexpr double BOTH_RECEIVERS_LOST_CONFIRM_S = 0.2;
 
+/// Design choice: one slow frame is longer than the confirm time, and a single frame is just the short interrupt to ride through, so
+/// the receivers must also be seen lost on this many frames in a row.
+constexpr int BOTH_RECEIVERS_LOST_CONFIRM_FRAMES = 2;
+
 /// Design choice: long enough for both FMGCs, or the three PRIMs, to see the autopilot and the flight directors off for a few frames
 /// even when their frames are not in step.
 constexpr double DISENGAGE_PULSE_S = 0.5;
@@ -81,12 +85,16 @@ class Monitor {
       pulseRemainingS -= deltaTimeS;
       confirmTimerS = 0;
       bothReceiversLostTimerS = 0;
+      bothReceiversLostFrames = 0;
     } else {
       const bool bothReceiversLost =
           rules.bothReceiversLostDisengagesAtOnce && in.signal.bothBusesFailureWarning && in.localizerModeArmedOrEngaged;
       bothReceiversLostTimerS = bothReceiversLost ? bothReceiversLostTimerS + deltaTimeS : 0;
+      bothReceiversLostFrames = bothReceiversLost ? bothReceiversLostFrames + 1 : 0;
       confirmTimerS = signalLost(in, rules) ? confirmTimerS + deltaTimeS : 0;
-      if (bothReceiversLostTimerS >= BOTH_RECEIVERS_LOST_CONFIRM_S || confirmTimerS >= SIGNAL_LOSS_CONFIRM_S) {
+      const bool bothReceiversLostConfirmed =
+          bothReceiversLostTimerS >= BOTH_RECEIVERS_LOST_CONFIRM_S && bothReceiversLostFrames >= BOTH_RECEIVERS_LOST_CONFIRM_FRAMES;
+      if (bothReceiversLostConfirmed || confirmTimerS >= SIGNAL_LOSS_CONFIRM_S) {
         trip();
       }
     }
@@ -111,10 +119,12 @@ class Monitor {
     pulseRemainingS = DISENGAGE_PULSE_S;
     confirmTimerS = 0;
     bothReceiversLostTimerS = 0;
+    bothReceiversLostFrames = 0;
   }
 
   double confirmTimerS = 0;
   double bothReceiversLostTimerS = 0;
+  int bothReceiversLostFrames = 0;
   double pulseRemainingS = 0;
 };
 
