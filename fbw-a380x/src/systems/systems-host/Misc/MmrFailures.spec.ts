@@ -4,7 +4,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { FailuresConsumer } from '@flybywiresim/fbw-sdk';
 import { A380Failure } from '@failures';
-import { isGlsFailed, isIlsFailed, MmrFailures } from './MmrFailures';
+import { isFlsFailed, isGlsFailed, isIlsFailed, MmrFailures } from './MmrFailures';
 
 const failures =
   (...active: number[]) =>
@@ -38,6 +38,25 @@ describe('the GLS of an MMR', () => {
     expect(isGlsFailed(failures(A380Failure.Mmr2, A380Failure.Mmr2GlsFunction), 1)).toBe(false);
     expect(isGlsFailed(failures(A380Failure.Ils1Receiver, A380Failure.Mmr1FlsFunction), 1)).toBe(false);
     expect(isGlsFailed(failures(), 2)).toBe(false);
+  });
+});
+
+describe('the FLS of an MMR', () => {
+  it('is failed with the whole MMR failed', () => {
+    expect(isFlsFailed(failures(A380Failure.Mmr1), 1)).toBe(true);
+    expect(isFlsFailed(failures(A380Failure.Mmr2), 2)).toBe(true);
+  });
+
+  it('is not failed by the failure of the other MMR, its ILS receiver or its GLS function', () => {
+    expect(isFlsFailed(failures(A380Failure.Mmr2), 1)).toBe(false);
+    expect(isFlsFailed(failures(A380Failure.Mmr1), 2)).toBe(false);
+    expect(isFlsFailed(failures(A380Failure.Ils1Receiver, A380Failure.Mmr1GlsFunction), 1)).toBe(false);
+    expect(isFlsFailed(failures(), 2)).toBe(false);
+  });
+
+  it('keeps its beam with only the FLS function failure, which is an alert alone', () => {
+    expect(isFlsFailed(failures(A380Failure.Mmr1FlsFunction), 1)).toBe(false);
+    expect(isFlsFailed(failures(A380Failure.Mmr2FlsFunction), 2)).toBe(false);
   });
 });
 
@@ -75,5 +94,27 @@ describe('MmrFailures publishing the failures', () => {
     system.onUpdate();
     expect(written.get('L:A32NX_GLS_1_FAILED')).toBe(false);
     expect(written.get('L:A32NX_GBAS_STATION_FAILED')).toBe(false);
+  });
+
+  it('writes the failure of the FLS of each MMR for the FBW module', () => {
+    const written = new Map<string, boolean>();
+    SimVar.GetSimVarValue = () => 1;
+    SimVar.SetSimVarValue = (name: string, _unit: string, value: any) => {
+      written.set(name, value);
+      return Promise.resolve();
+    };
+    const active = new Set<number>([A380Failure.Mmr1, A380Failure.Mmr2FlsFunction, A380Failure.Ils2Receiver]);
+    const system = new MmrFailures({ isActive: (failure: number) => active.has(failure) } as FailuresConsumer);
+    system.onUpdate();
+    expect(written.get('L:A32NX_FLS_1_FAILED')).toBe(true);
+    expect(written.get('L:A32NX_FLS_2_FAILED')).toBe(false);
+    expect(written.get('L:A32NX_ILS_1_FAILED')).toBe(true);
+    expect(written.get('L:A32NX_GLS_1_FAILED')).toBe(true);
+
+    active.clear();
+    active.add(A380Failure.Mmr2);
+    system.onUpdate();
+    expect(written.get('L:A32NX_FLS_1_FAILED')).toBe(false);
+    expect(written.get('L:A32NX_FLS_2_FAILED')).toBe(true);
   });
 });

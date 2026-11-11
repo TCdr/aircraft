@@ -71,7 +71,8 @@ clang++ -std=c++20 -Wall -Wextra -w $FIX_FLAGS -I ../src/model -I ../../../../..
 clang++ -std=c++20 -Wall -Wextra -Werror -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src mmr_health_test.cpp -o ../obj/mmr_health_test
 ../obj/mmr_health_test
 # Loss of the LOC or G/S signal in the flight guidance (fbw-common LandingSystemSignalLoss.h, applied in Fmgc.cpp): the autopilot and the flight directors disengage after 7 s above 200 ft radio height.
-clang++ -std=c++20 -Wall -Wextra -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src ls_signal_loss_test.cpp ../src/fmgc/Fmgc.cpp ../src/model/*.cpp ../src/Arinc429Utils.cpp ../src/utils/PowerSupplyMonitor.cpp   -o ../obj/ls_signal_loss_test
+# With WITHOUT_THE_FIX=1 the FMGC model gets its inputs unchanged, so the test must fail.
+clang++ -std=c++20 -Wall -Wextra $FIX_FLAGS -I ../src/model -I ../../../../../fbw-common/src/wasm/fbw_common/src ls_signal_loss_test.cpp ../src/fmgc/Fmgc.cpp ../src/model/*.cpp ../src/Arinc429Utils.cpp ../src/utils/PowerSupplyMonitor.cpp   -o ../obj/ls_signal_loss_test
 ../obj/ls_signal_loss_test
 # AUTOLAND warning light: RA disagree and untimely flare (A320 FCOM DSC-22_30-80-30-10)
 clang++ -std=c++20 -Wall -Wextra -Werror $FIX_FLAGS autoland_warning_test.cpp -o ../obj/autoland_warning_test

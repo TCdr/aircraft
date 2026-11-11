@@ -52,7 +52,8 @@ static void destination(double latitudeDeg, double longitudeDeg, double bearingD
   const double lon2 = degToRad(longitudeDeg) + std::atan2(std::sin(bearing) * std::sin(angularDistance) * std::cos(lat1),
                                                          std::cos(angularDistance) - std::sin(lat1) * std::sin(lat2));
   latitude = lat2 * 180 / PI;
-  longitude = lon2 * 180 / PI;
+  // As the sim gives it: between -180 and 180 degrees
+  longitude = std::remainder(lon2 * 180 / PI, 360.0);
 }
 
 /// A position on the extended centreline this far before the threshold (negative: past it), offset to the right of the
@@ -221,6 +222,94 @@ static void noDeviationWithoutAnApproach() {
   expect(!deviations.lateralValid && !deviations.verticalValid, "nothing without a valid approach");
 }
 
+static GlsApproachDefinition runwayAt(double thresholdLatitudeDeg, double thresholdLongitudeDeg, double courseTrueDeg) {
+  GlsApproachDefinition approach = frankfurtLikeRunway();
+  approach.thresholdLatitudeDeg = thresholdLatitudeDeg;
+  approach.thresholdLongitudeDeg = thresholdLongitudeDeg;
+  approach.courseTrueDeg = courseTrueDeg;
+  return approach;
+}
+
+/// The same deviations whatever the hemisphere, the side of the antimeridian and the course
+static void theGeometryHoldsOnOtherRunways() {
+  struct Case {
+    const char* name;
+    GlsApproachDefinition approach;
+    /// The final approach is flown on the other side of the 180 degree meridian than the threshold
+    bool finalAcrossTheAntimeridian;
+  };
+  const Case cases[] = {
+      {"southern hemisphere", runwayAt(-33.9, 151.2, 155), false},
+      {"eastbound across the antimeridian", runwayAt(-17.7, -179.95, 90), true},
+      {"westbound across the antimeridian", runwayAt(-17.7, 179.95, 270), true},
+      {"northern runway across the antimeridian", runwayAt(65, -179.9, 80), true},
+      {"course just below 360", runwayAt(50, 8, 359.5), false},
+      {"course just above 0", runwayAt(50, 8, 0.5), false},
+      {"reciprocal end", runwayAt(50, 8, 70), false},
+  };
+  const double garpFromThresholdNm = (RUNWAY_LENGTH_M + GARP_BEYOND_STOP_END_M) / METRES_PER_NM;
+  for (const Case& c : cases) {
+    char what[160];
+    double latitude, longitude;
+    alongTheCourse(c.approach, 10, 0, latitude, longitude);
+    if (c.finalAcrossTheAntimeridian) {
+      std::snprintf(what, sizeof(what), "%s: setup, the aircraft is on the other side of the antimeridian", c.name);
+      expect(longitude * c.approach.thresholdLongitudeDeg < 0, what);
+    }
+    const GlsDeviations onBeam = GlsReceiver::compute(c.approach, latitude, longitude, onPathAltitudeFt(c.approach, 10));
+    std::snprintf(what, sizeof(what), "%s: on the beam at 10 NM, valid with no deviation", c.name);
+    expect(onBeam.lateralValid && onBeam.verticalValid && std::abs(onBeam.lateralDeviationDeg) < 0.005 &&
+               std::abs(onBeam.verticalDeviationDeg) < 0.005,
+           what);
+    std::snprintf(what, sizeof(what), "%s: 10 NM to the threshold", c.name);
+    expect(std::abs(onBeam.distanceToThresholdNm - 10) < 0.02, what);
+
+    const double fromGarpNm = 10;
+    const double offsetNm = fromGarpNm * std::tan(degToRad(1));
+    alongTheCourse(c.approach, fromGarpNm - garpFromThresholdNm, -offsetNm, latitude, longitude);
+    const GlsDeviations left = GlsReceiver::compute(c.approach, latitude, longitude, 5000);
+    std::snprintf(what, sizeof(what), "%s: 1 deg left of the course gives +1 deg", c.name);
+    expect(left.lateralValid && std::abs(left.lateralDeviationDeg - 1) < 0.02, what);
+    alongTheCourse(c.approach, fromGarpNm - garpFromThresholdNm, offsetNm, latitude, longitude);
+    const GlsDeviations right = GlsReceiver::compute(c.approach, latitude, longitude, 5000);
+    std::snprintf(what, sizeof(what), "%s: 1 deg right of the course gives -1 deg", c.name);
+    expect(right.lateralValid && std::abs(right.lateralDeviationDeg + 1) < 0.02, what);
+
+    alongTheCourse(c.approach, 8, 0, latitude, longitude);
+    const double onPath = onPathAltitudeFt(c.approach, 8);
+    std::snprintf(what, sizeof(what), "%s: above the path positive, below negative", c.name);
+    expect(GlsReceiver::compute(c.approach, latitude, longitude, onPath + 500).verticalDeviationDeg > 0.3 &&
+               GlsReceiver::compute(c.approach, latitude, longitude, onPath - 500).verticalDeviationDeg < -0.3,
+           what);
+
+    // Flying the reciprocal course towards the stop end is behind the threshold of this runway
+    alongTheCourse(c.approach, -(RUNWAY_LENGTH_M / METRES_PER_NM + 5), 0, latitude, longitude);
+    const GlsDeviations fromTheOtherEnd = GlsReceiver::compute(c.approach, latitude, longitude, 3000);
+    std::snprintf(what, sizeof(what), "%s: nothing 5 NM beyond the stop end", c.name);
+    expect(!fromTheOtherEnd.lateralValid && !fromTheOtherEnd.verticalValid, what);
+  }
+}
+
+/// A path angle or a runway length of zero would divide by zero or put the azimuth reference on the threshold
+static void noDeviationWithoutASlopeOrARunwayLength() {
+  double latitude, longitude;
+  alongTheCourse(frankfurtLikeRunway(), 10, 0, latitude, longitude);
+  const double pathAnglesDeg[] = {0, -3};
+  for (const double pathAngleDeg : pathAnglesDeg) {
+    GlsApproachDefinition approach = frankfurtLikeRunway();
+    approach.gpaDeg = pathAngleDeg;
+    const GlsDeviations deviations = GlsReceiver::compute(approach, latitude, longitude, 4000);
+    expect(!deviations.lateralValid && !deviations.verticalValid, "nothing without a positive path angle");
+  }
+  const double runwayLengthsM[] = {0, -100};
+  for (const double runwayLengthM : runwayLengthsM) {
+    GlsApproachDefinition approach = frankfurtLikeRunway();
+    approach.runwayLengthM = runwayLengthM;
+    const GlsDeviations deviations = GlsReceiver::compute(approach, latitude, longitude, 4000);
+    expect(!deviations.lateralValid && !deviations.verticalValid, "nothing without a runway length");
+  }
+}
+
 // The autoland warning limits (200 ft window: LOC 0.2 deg above 15 ft, G/S 0.4 deg above 100 ft) judge the receiver that flies the
 // approach: NAV 3 is detuned on a GLS, so its words must not decide.
 static AutolandMonitorInputs detunedRadio() {
@@ -240,28 +329,32 @@ static GlsDeviations onTheBeam() {
 }
 
 static void autolandWarningOnAGls() {
-  const AutolandMonitorInputs onBeam = GlsReceiver::autolandMonitorInputs(true, true, onTheBeam(), detunedRadio());
+  const AutolandMonitorInputs onBeam = GlsReceiver::autolandMonitorInputs(true, true, onTheBeam(), detunedRadio(), true);
   expect(!GlsReceiver::exceedsAutolandLimits(150, onBeam), "on-beam GLS at 150 ft: no autoland warning");
   expect(!GlsReceiver::exceedsAutolandLimits(50, onBeam), "on-beam GLS at 50 ft: no autoland warning");
 
   GlsDeviations off = onTheBeam();
   off.lateralDeviationDeg = 0.3;
-  const AutolandMonitorInputs offLoc = GlsReceiver::autolandMonitorInputs(true, true, off, detunedRadio());
+  const AutolandMonitorInputs offLoc = GlsReceiver::autolandMonitorInputs(true, true, off, detunedRadio(), true);
   expect(GlsReceiver::exceedsAutolandLimits(50, offLoc), "0.3 deg GLS LOC error: autoland warning");
 
   GlsDeviations noLoc = onTheBeam();
   noLoc.lateralValid = false;
-  const AutolandMonitorInputs invalidLoc = GlsReceiver::autolandMonitorInputs(true, true, noLoc, detunedRadio());
+  const AutolandMonitorInputs invalidLoc = GlsReceiver::autolandMonitorInputs(true, true, noLoc, detunedRadio(), true);
   expect(GlsReceiver::exceedsAutolandLimits(50, invalidLoc), "invalid GLS LOC above 15 ft: autoland warning");
   expect(!GlsReceiver::exceedsAutolandLimits(10, invalidLoc), "invalid GLS LOC below 15 ft: no autoland warning");
 
   GlsDeviations high = onTheBeam();
   high.verticalDeviationDeg = 0.5;
-  expect(GlsReceiver::exceedsAutolandLimits(150, GlsReceiver::autolandMonitorInputs(true, true, high, detunedRadio())),
+  expect(GlsReceiver::exceedsAutolandLimits(150, GlsReceiver::autolandMonitorInputs(true, true, high, detunedRadio(), true)),
          "0.5 deg GLS G/S error above 100 ft: autoland warning");
 
-  const AutolandMonitorInputs notReceived = GlsReceiver::autolandMonitorInputs(true, false, onTheBeam(), detunedRadio());
+  const AutolandMonitorInputs notReceived = GlsReceiver::autolandMonitorInputs(true, false, onTheBeam(), detunedRadio(), true);
   expect(GlsReceiver::exceedsAutolandLimits(50, notReceived), "GLS selected but not received: autoland warning");
+
+  // The GLS function of the MMR decides whether the GLS is received, not its ILS receiver
+  const AutolandMonitorInputs noIlsReceiver = GlsReceiver::autolandMonitorInputs(true, true, onTheBeam(), detunedRadio(), false);
+  expect(!GlsReceiver::exceedsAutolandLimits(150, noIlsReceiver), "GLS received with the ILS receivers dead: no autoland warning");
 }
 
 static void autolandWarningOnAnIls() {
@@ -270,13 +363,27 @@ static void autolandWarningOnAnIls() {
   radio.locErrorDeg = 0.1;
   radio.gsValid = true;
   radio.gsErrorDeg = -0.2;
-  const AutolandMonitorInputs chosen = GlsReceiver::autolandMonitorInputs(false, false, onTheBeam(), radio);
+  const AutolandMonitorInputs chosen = GlsReceiver::autolandMonitorInputs(false, false, onTheBeam(), radio, true);
   expect(chosen.locValid && chosen.gsValid && chosen.locErrorDeg == 0.1 && chosen.gsErrorDeg == -0.2,
          "ILS: the radio inputs pass through unchanged");
   expect(!GlsReceiver::exceedsAutolandLimits(50, chosen), "ILS within the limits: no autoland warning");
   radio.locErrorDeg = 0.25;
-  expect(GlsReceiver::exceedsAutolandLimits(50, GlsReceiver::autolandMonitorInputs(false, false, onTheBeam(), radio)),
+  expect(GlsReceiver::exceedsAutolandLimits(50, GlsReceiver::autolandMonitorInputs(false, false, onTheBeam(), radio, true)),
          "ILS 0.25 deg LOC error: autoland warning");
+}
+
+// The radio of the sim keeps receiving the beam when the ILS receivers of the aircraft are dead
+static void autolandWarningWithoutAnIlsReceiver() {
+  AutolandMonitorInputs radio;
+  radio.locValid = true;
+  radio.locErrorDeg = 0.05;
+  radio.gsValid = true;
+  radio.gsErrorDeg = 0.1;
+  const AutolandMonitorInputs noReceiver = GlsReceiver::autolandMonitorInputs(false, false, onTheBeam(), radio, false);
+  expect(!noReceiver.locValid && !noReceiver.gsValid, "ILS without an operative receiver: LOC and G/S are lost for the monitor");
+  expect(GlsReceiver::exceedsAutolandLimits(150, noReceiver), "ILS without an operative receiver at 150 ft: autoland warning");
+  expect(GlsReceiver::exceedsAutolandLimits(50, noReceiver), "ILS without an operative receiver at 50 ft: autoland warning");
+  expect(!GlsReceiver::exceedsAutolandLimits(10, noReceiver), "ILS without an operative receiver below 15 ft: no autoland warning");
 }
 
 int main() {
@@ -290,8 +397,11 @@ int main() {
   serviceVolumeIsNarrowAbeamTheRunway();
   trueAltitudeNotBarometric();
   noDeviationWithoutAnApproach();
+  theGeometryHoldsOnOtherRunways();
+  noDeviationWithoutASlopeOrARunwayLength();
   autolandWarningOnAGls();
   autolandWarningOnAnIls();
+  autolandWarningWithoutAnIlsReceiver();
   if (failures > 0) {
     std::printf("gls_receiver_test: %d check(s) FAILED\n", failures);
     return 1;

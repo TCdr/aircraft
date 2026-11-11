@@ -17,8 +17,12 @@ class PrimLandingSystemSignalLoss {
   static constexpr int FD_PUSHBUTTON_BIT = 23;
   /// Design choice: the sequence follows the state of the flight directors, not a clock, because the model needs at least one frame
   /// per pushbutton edge and the frame time grows with the sim rate. The timeout only keeps a flight director that does not follow
-  /// the pushbutton from holding the autopilot off.
-  static constexpr double FD_SEQUENCE_TIMEOUT_S = 1.0;
+  /// a held pushbutton from holding the autopilot off. It runs per press and not over the whole sequence, so that a long frame
+  /// cannot end the sequence between the two presses and leave the flight directors off.
+  static constexpr double FD_FOLLOW_TIMEOUT_S = 1.0;
+  /// Design choice: a frame longer than the timeout gives the flight director no chance to follow, so a press is given up only
+  /// after this many frames as well.
+  static constexpr int FD_FOLLOW_MIN_FRAMES = 3;
 
   /// `previousOutputs` are the outputs of the model of the previous frame, which hold the engaged modes
   void apply(double deltaTimeS, const prim_outputs& previousOutputs, prim_outputs& modelInputs) {
@@ -82,22 +86,21 @@ class PrimLandingSystemSignalLoss {
   void beginSequence() {
     sequence = Sequence::FirstPress;
     framesInState = 0;
-    secondsInSequence = 0;
+    secondsInState = 0;
   }
 
   void advanceSequence(double deltaTimeS, bool flightDirectorsEngaged) {
-    secondsInSequence += deltaTimeS;
-    if (secondsInSequence > FD_SEQUENCE_TIMEOUT_S) {
-      sequence = Sequence::Idle;
-      return;
-    }
+    secondsInState += deltaTimeS;
     if (framesInState < 1) {
       return;
     }
+    const bool notFollowed = secondsInState > FD_FOLLOW_TIMEOUT_S && framesInState >= FD_FOLLOW_MIN_FRAMES;
     switch (sequence) {
       case Sequence::FirstPress:
         if (!flightDirectorsEngaged) {
           enter(Sequence::FirstRelease);
+        } else if (notFollowed) {
+          sequence = Sequence::Idle;
         }
         break;
       case Sequence::FirstRelease:
@@ -106,6 +109,8 @@ class PrimLandingSystemSignalLoss {
       case Sequence::SecondPress:
         if (flightDirectorsEngaged) {
           enter(Sequence::SecondRelease);
+        } else if (notFollowed) {
+          sequence = Sequence::Idle;
         }
         break;
       case Sequence::SecondRelease:
@@ -119,6 +124,7 @@ class PrimLandingSystemSignalLoss {
   void enter(Sequence next) {
     sequence = next;
     framesInState = 0;
+    secondsInState = 0;
   }
 
   bool isPressing() const { return sequence == Sequence::FirstPress || sequence == Sequence::SecondPress; }
@@ -126,6 +132,6 @@ class PrimLandingSystemSignalLoss {
   LandingSystemSignalLoss::Monitor monitor;
   Sequence sequence = Sequence::Idle;
   int framesInState = 0;
-  double secondsInSequence = 0;
+  double secondsInState = 0;
   bool wasDisengaging = false;
 };

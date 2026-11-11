@@ -10,18 +10,21 @@ struct MmrHealth {
   bool ilsReceiverFailed = false;
   /// The GLS function of this MMR fails, or the whole MMR does
   bool glsFailed = false;
+  /// The whole MMR fails. The failure of the FLS function alone only raises its alert and leaves the beam.
+  bool flsFailed = false;
 
   bool ilsOperative() const { return powered && !ilsReceiverFailed; }
   bool glsOperative() const { return powered && !glsFailed; }
-  /// The FLS function has no failure of its own in the simulation, so only the power takes it away
-  bool flsOperative() const { return powered; }
+  bool flsOperative() const { return powered && !flsFailed; }
 
-  /// The L:vars of the MMR hold 0 and 1: a missing systems module reads as a box without power
-  static MmrHealth fromSimVars(double poweredVar, double ilsFailedVar, double glsFailedVar) {
+  /// The L:vars of the MMR hold 0 and 1: a missing systems module reads as a box without power. An aircraft that does not
+  /// publish the failure of the FLS leaves it out.
+  static MmrHealth fromSimVars(double poweredVar, double ilsFailedVar, double glsFailedVar, double flsFailedVar = 0) {
     MmrHealth health;
     health.powered = poweredVar != 0;
     health.ilsReceiverFailed = ilsFailedVar != 0;
     health.glsFailed = glsFailedVar != 0;
+    health.flsFailed = flsFailedVar != 0;
     return health;
   }
 };
