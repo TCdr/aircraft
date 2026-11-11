@@ -4,14 +4,23 @@
 import { describe, expect, it } from 'vitest';
 import { Arinc429SignStatusMatrix, Arinc429Word } from '@flybywiresim/fbw-sdk';
 import {
+  GBAS_CHANNEL_MAX,
+  GBAS_CHANNEL_MIN,
+} from '../../../../../../../fbw-common/src/systems/shared/src/gbas/GbasApproachTable';
+import {
   formatGlsChannel,
   isApprModeArmedOrEngaged,
   isBelowIlsTuneInhibitHeight,
   isLsTuneInhibited,
+  RMP_GLS_CHANNEL_MAX,
+  RMP_GLS_CHANNEL_MIN,
+  RMP_GLS_CHANNEL_VAR,
   RMP_PANEL_MODE_ADF,
   RMP_PANEL_MODE_GLS,
   RMP_PANEL_MODE_ILS,
   RMP_PANEL_MODE_VOR,
+  rmpAdfStandbyAfterTransfer,
+  rmpLandingSystemTransferWrites,
   rmpStbyNavKeyPanelMode,
   isRmpGlsChannelDropped,
   rmpTransferTuning,
@@ -90,6 +99,11 @@ describe('ILS tune inhibit', () => {
 });
 
 describe('GLS channel entry', () => {
+  it('covers the channel range of the GBAS approaches', () => {
+    expect(RMP_GLS_CHANNEL_MIN).toBe(GBAS_CHANNEL_MIN);
+    expect(RMP_GLS_CHANNEL_MAX).toBe(GBAS_CHANNEL_MAX);
+  });
+
   it('moves the hundreds with the outer knob', () => {
     expect(stepGlsChannel(20001, 1, 0)).toBe(20101);
     expect(stepGlsChannel(20101, -1, 0)).toBe(20001);
@@ -142,5 +156,29 @@ describe('RMP transfer key', () => {
   it('drops the GLS channel when the last RMP leaves the NAV backup mode', () => {
     expect(isRmpGlsChannelDropped(false)).toBe(true);
     expect(isRmpGlsChannelDropped(true)).toBe(false);
+  });
+
+  it('tunes the ILS frequency on the receivers of both sides and takes them out of the GLS mode', () => {
+    expect(rmpLandingSystemTransferWrites('ils-frequency', 110300000)).toEqual([
+      { name: RMP_GLS_CHANNEL_VAR, unit: 'number', value: 0 },
+      { name: 'K:NAV3_RADIO_SET_HZ', unit: 'Hz', value: 110300000 },
+      { name: 'K:NAV4_RADIO_SET_HZ', unit: 'Hz', value: 110300000 },
+    ]);
+  });
+
+  it('tunes the GLS channel and takes the receivers of both sides off their ILS frequency', () => {
+    expect(rmpLandingSystemTransferWrites('gls-channel', 31434)).toEqual([
+      { name: RMP_GLS_CHANNEL_VAR, unit: 'number', value: 31434 },
+      { name: 'K:NAV3_RADIO_SET_HZ', unit: 'Hz', value: 0 },
+      { name: 'K:NAV4_RADIO_SET_HZ', unit: 'Hz', value: 0 },
+    ]);
+  });
+
+  it('moves the active ADF frequency to the STBY window', () => {
+    expect(rmpAdfStandbyAfterTransfer(433000, 350000)).toBe(433000);
+  });
+
+  it('keeps the standby ADF frequency while the RMP has no active one', () => {
+    expect(rmpAdfStandbyAfterTransfer(0, 350000)).toBe(350000);
   });
 });

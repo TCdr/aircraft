@@ -1067,6 +1067,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/MFD] POSITION NAVAIDS: an LS IDENT that is not in the database gives NOT IN DATABASE, and a refused LS IDENT or FREQ/CHAN entry no longer stays in the field - @TCdr
 1. [A380X/MFD] ARRIVAL page lists the approaches of one type to one runway in the order of their suffix (ILS Y before ILS Z) - @TCdr
 1. [A32NX/MCDU] RAD NAV no longer comes back by itself when the crew opened another page while an LS entry was being looked up - @TCdr
+1. [A32NX/RMP] In the NAV backup mode an ILS tuned from an RMP now reaches the receivers of both sides (PFD 2 and ND 1 no longer stay without the ILS), and a GLS tuned from an RMP takes both receivers off their ILS frequency - @TCdr
+1. [A32NX/RMP] The transfer key of the ADF now exchanges the ACTIVE and STBY frequencies - @TCdr
 
 ## 2024.1.0
 
