@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-// Copyright (c) 2021-2023, 2025 FlyByWire Simulations
+// Copyright (c) 2021-2023, 2025-2026 FlyByWire Simulations
 // SPDX-License-Identifier: GPL-3.0
 
 import { RadioUtils } from '@flybywiresim/fbw-sdk';
@@ -210,9 +210,12 @@ export class CDUNavRadioPage {
       return;
     }
 
+    // The lookup of the entry can end after the crew went to another page: that page must stay
     const onDone = () =>
       requestAnimationFrame(() => {
-        CDUNavRadioPage.ShowPage(mcdu);
+        if (mcdu.page.Current === mcdu.page.NavRadioPage) {
+          CDUNavRadioPage.ShowPage(mcdu);
+        }
       });
 
     const onFailure = (error: unknown) => {
@@ -238,9 +241,9 @@ export class CDUNavRadioPage {
           if (result === 'tuned') {
             onDone();
           } else if (result === 'locked') {
-            // The first entry waits for the airport facilities, and the lock can engage meanwhile
+            // The first entry waits for the airport facilities, and the lock can engage meanwhile. The entry is
+            // cleared, as by the lock checked before the lookup.
             mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
-            scratchpadCallback();
           } else {
             // 5 digits outside the GLS channels 20001 to 39999
             mcdu.setScratchpadMessage(NXSystemMessages.entryOutOfRange);
@@ -279,7 +282,6 @@ export class CDUNavRadioPage {
           }
           if (glsResult === 'locked') {
             mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
-            scratchpadCallback();
             return;
           }
           mcdu.getOrSelectILSsByIdent(input, (navaid) => {
@@ -318,9 +320,8 @@ export class CDUNavRadioPage {
     }
 
     if (!canEnterLsCourse(mcdu.getMmrTuningData(1))) {
-      // The receiver takes the course of a GLS from the ground station
+      // The receiver takes the course of a GLS from the ground station. The entry is cleared, as by the tuning lock.
       mcdu.setScratchpadMessage(NXSystemMessages.notAllowed);
-      scratchpadCallback();
       return;
     }
 

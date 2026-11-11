@@ -23,6 +23,7 @@ const ILS_TUNING = { manual: true, gls: undefined, course: 249, courseManual: fa
 
 function createScreen(tuning: object = ILS_TUNING) {
   return {
+    page: { NavRadioPage: 'NavRadioPage', Current: 'NavRadioPage' },
     isMmrTuningLocked: vi.fn(() => false),
     getMmrTuningData: vi.fn(() => tuning),
     tuneManualGls: vi.fn(() => Promise.resolve('tuned')),
@@ -57,6 +58,17 @@ describe('the RADIO NAV page LS field entry', () => {
     expect(screen.tuneManualGls).toHaveBeenCalledWith('31434', 'channel');
     expect(showPage).toHaveBeenCalled();
     expect(screen.setManualIls).not.toHaveBeenCalled();
+  });
+
+  it('does not bring the page back when the crew left it while the GLS was being resolved', async () => {
+    const screen = createScreen();
+
+    CDUNavRadioPage.handleMmrLsk(screen, '31434', vi.fn());
+    screen.page.Current = 'FlightPlanPage';
+    await flush();
+
+    expect(screen.tuneManualGls).toHaveBeenCalledWith('31434', 'channel');
+    expect(showPage).not.toHaveBeenCalled();
   });
 
   it('gives ENTRY OUT OF RANGE for a 5 digit entry that is no channel', async () => {
@@ -126,7 +138,7 @@ describe('the RADIO NAV page LS field entry', () => {
     expect(screen.setScratchpadMessage).toHaveBeenCalledWith(NXSystemMessages.notAllowed);
   });
 
-  it('gives NOT ALLOWED when the tuning locks while a channel is being resolved', async () => {
+  it('gives NOT ALLOWED and clears the entry when the tuning locks while a channel is being resolved', async () => {
     const screen = createScreen();
     screen.tuneManualGls.mockResolvedValue('locked');
     const keepEntry = vi.fn();
@@ -135,19 +147,44 @@ describe('the RADIO NAV page LS field entry', () => {
     await flush();
 
     expect(screen.setScratchpadMessage).toHaveBeenCalledWith(NXSystemMessages.notAllowed);
-    expect(keepEntry).toHaveBeenCalled();
+    expect(keepEntry).not.toHaveBeenCalled();
     expect(showPage).not.toHaveBeenCalled();
   });
 
-  it('gives NOT ALLOWED when the tuning locks while an identifier is being resolved, with no ILS lookup', async () => {
+  it('gives NOT ALLOWED and clears the entry when the tuning locks while an identifier is being resolved, with no ILS lookup', async () => {
     const screen = createScreen();
     screen.tuneManualGls.mockResolvedValue('locked');
+    const keepEntry = vi.fn();
 
-    CDUNavRadioPage.handleMmrLsk(screen, 'G25P', vi.fn());
+    CDUNavRadioPage.handleMmrLsk(screen, 'G25P', keepEntry);
     await flush();
 
     expect(screen.setScratchpadMessage).toHaveBeenCalledWith(NXSystemMessages.notAllowed);
+    expect(keepEntry).not.toHaveBeenCalled();
     expect(screen.getOrSelectILSsByIdent).not.toHaveBeenCalled();
+  });
+
+  it('keeps the entry of the other refusals: an ILS identifier not in the database, a channel out of range', async () => {
+    const screen = createScreen();
+    screen.tuneManualGls.mockResolvedValue('unknown-rpi');
+    screen.getOrSelectILSsByIdent.mockImplementation((_ident: string, callback: (navaid: unknown) => void) =>
+      callback(undefined),
+    );
+    const keepIdent = vi.fn();
+
+    CDUNavRadioPage.handleMmrLsk(screen, 'IABC', keepIdent);
+    await flush();
+
+    expect(screen.setScratchpadMessage).toHaveBeenCalledWith(NXSystemMessages.notInDatabase);
+    expect(keepIdent).toHaveBeenCalled();
+
+    screen.tuneManualGls.mockResolvedValue('invalid');
+    const keepChannel = vi.fn();
+    CDUNavRadioPage.handleMmrLsk(screen, '40123', keepChannel);
+    await flush();
+
+    expect(screen.setScratchpadMessage).toHaveBeenCalledWith(NXSystemMessages.entryOutOfRange);
+    expect(keepChannel).toHaveBeenCalled();
   });
 
   it('gives an internal error message and keeps the entry when the GLS lookup fails', async () => {
@@ -188,15 +225,17 @@ describe('the RADIO NAV page LS field entry', () => {
     expect(screen.setScratchpadMessage).toHaveBeenCalledWith(NXFictionalMessages.internalError);
   });
 
-  it('refuses any entry below 700 ft on approach', async () => {
+  it('refuses any entry below 700 ft on approach and clears it', async () => {
     const screen = createScreen();
     screen.isMmrTuningLocked.mockReturnValue(true);
+    const keepEntry = vi.fn();
 
-    CDUNavRadioPage.handleMmrLsk(screen, '31434', vi.fn());
+    CDUNavRadioPage.handleMmrLsk(screen, '31434', keepEntry);
     await flush();
 
     expect(screen.tuneManualGls).not.toHaveBeenCalled();
     expect(screen.setScratchpadMessage).toHaveBeenCalledWith(NXSystemMessages.notAllowed);
+    expect(keepEntry).not.toHaveBeenCalled();
   });
 });
 
@@ -219,7 +258,7 @@ describe('the RADIO NAV page LS course entry', () => {
 
     expect(screen.setIlsCourse).not.toHaveBeenCalled();
     expect(screen.setScratchpadMessage).toHaveBeenCalledWith(NXSystemMessages.notAllowed);
-    expect(keepEntry).toHaveBeenCalled();
+    expect(keepEntry).not.toHaveBeenCalled();
   });
 
   it('gives NOT ALLOWED for a front or back course switch on a GLS', () => {
@@ -229,6 +268,16 @@ describe('the RADIO NAV page LS course entry', () => {
 
     expect(screen.setIlsCourse).not.toHaveBeenCalled();
     expect(screen.setScratchpadMessage).toHaveBeenCalledWith(NXSystemMessages.notAllowed);
+  });
+
+  it('keeps an ILS course entry out of range', () => {
+    const screen = createScreen();
+    const keepEntry = vi.fn();
+
+    CDUNavRadioPage.handleMmrCrsLsk(screen, '400', keepEntry);
+
+    expect(screen.setScratchpadMessage).toHaveBeenCalledWith(NXSystemMessages.entryOutOfRange);
+    expect(keepEntry).toHaveBeenCalled();
   });
 
   it('still takes a course for an ILS', () => {

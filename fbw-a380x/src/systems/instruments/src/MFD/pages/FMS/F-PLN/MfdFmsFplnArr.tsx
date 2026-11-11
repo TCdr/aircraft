@@ -21,30 +21,8 @@ import { FlightPlanPerformanceData } from '@fmgc/flightplanning/plans/performanc
 import { AlternateFlightPlan } from '@fmgc/flightplanning/plans/AlternateFlightPlan';
 import { ReadonlyFlightPlan } from '@fmgc/flightplanning/plans/ReadonlyFlightPlan';
 
+import { compareApproachListEntries } from './ApproachListOrder';
 import './MfdFmsFpln.scss';
-
-const ApproachTypeOrder = Object.freeze({
-  [ApproachType.Mls]: 0,
-  [ApproachType.MlsTypeA]: 1,
-  [ApproachType.MlsTypeBC]: 2,
-  [ApproachType.Ils]: 3,
-  [ApproachType.Gls]: 4,
-  [ApproachType.Igs]: 5,
-  [ApproachType.Loc]: 6,
-  [ApproachType.LocBackcourse]: 7,
-  [ApproachType.Lda]: 8,
-  [ApproachType.Sdf]: 9,
-  [ApproachType.Fms]: 10,
-  [ApproachType.Gps]: 11,
-  [ApproachType.Rnav]: 12,
-  [ApproachType.VorDme]: 13,
-  [ApproachType.Vortac]: 13, // VORTAC and VORDME are intentionally the same
-  [ApproachType.Tacan]: 13,
-  [ApproachType.Vor]: 14,
-  [ApproachType.NdbDme]: 15,
-  [ApproachType.Ndb]: 16,
-  [ApproachType.Unknown]: 17,
-});
 
 interface MfdFmsFplnArrProps extends AbstractMfdPageProps {}
 
@@ -141,11 +119,7 @@ export class MfdFmsFplnArr extends FmsFlightPlanPage<MfdFmsFplnArrProps> {
               a.runwayIdent !== undefined && // circling approaches
               a.type !== ApproachType.LocBackcourse, // FIXME remove when supported
           )
-          .sort(
-            (a, b) =>
-              a.runwayIdent?.localeCompare(b.runwayIdent ?? '') ||
-              ApproachTypeOrder[a.type] - ApproachTypeOrder[b.type],
-          );
+          .sort(compareApproachListEntries);
         let isFirstMatch = true;
         sortedApproaches.forEach((el, idx) => {
           appr.push({
