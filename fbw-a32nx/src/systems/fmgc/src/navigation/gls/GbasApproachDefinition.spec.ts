@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { describe, expect, it } from 'vitest';
+import { placeBearingDistance } from 'msfs-geo';
 import { GbasApproach } from '../../../../../../../fbw-common/src/systems/shared/src/gbas/GbasApproachTable';
 import { defineGbasApproach, GbasRunwayRecord, MAX_COURSE_MISMATCH } from './GbasApproachDefinition';
 
@@ -96,5 +97,56 @@ describe('the GBAS approach definition', () => {
 
   it('rejects a runway without a length', () => {
     expect(defineGbasApproach(frankfurt25C, runway25C({ length: 0 })).rejection).toBe('runway-length-missing');
+  });
+
+  it('counts the length from the threshold when the threshold is displaced', () => {
+    const threshold = runway25C().thresholdLocation;
+    const pavementStart = placeBearingDistance(threshold, 69.2, 300 / 1852);
+
+    const result = defineGbasApproach(frankfurt25C, runway25C({ startLocation: pavementStart }));
+
+    expect(result.definition?.runwayLength).toBeCloseTo(3700, 0);
+  });
+
+  it('keeps the whole length when the threshold is at the start of the pavement', () => {
+    const { lat, long } = runway25C().thresholdLocation;
+
+    expect(defineGbasApproach(frankfurt25C, runway25C({ startLocation: { lat, long } })).definition?.runwayLength).toBe(
+      4000,
+    );
+  });
+
+  it('rejects a displaced threshold that leaves no runway', () => {
+    const pavementStart = placeBearingDistance(runway25C().thresholdLocation, 69.2, 4100 / 1852);
+
+    expect(defineGbasApproach(frankfurt25C, runway25C({ startLocation: pavementStart })).rejection).toBe(
+      'runway-length-missing',
+    );
+  });
+
+  it('rejects a runway record with a bearing or position that is not a number', () => {
+    const { thresholdLocation } = runway25C();
+    const invalidRunways = [
+      runway25C({ bearing: NaN }),
+      runway25C({ magneticBearing: NaN }),
+      runway25C({ thresholdLocation: { ...thresholdLocation, lat: NaN } }),
+      runway25C({ thresholdLocation: { ...thresholdLocation, long: Infinity } }),
+    ];
+
+    invalidRunways.forEach((runway) => {
+      const result = defineGbasApproach(frankfurt25C, runway);
+      expect(result.definition).toBeNull();
+      expect(result.rejection).toBe('runway-data-invalid');
+    });
+  });
+
+  it('rejects a threshold elevation or a length that is not a number', () => {
+    const { thresholdLocation } = runway25C();
+
+    expect(
+      defineGbasApproach(frankfurt25C, runway25C({ thresholdLocation: { ...thresholdLocation, alt: NaN } })).rejection,
+    ).toBe('threshold-elevation-missing');
+    expect(defineGbasApproach(frankfurt25C, runway25C({ length: NaN })).rejection).toBe('runway-length-missing');
+    expect(defineGbasApproach(frankfurt25C, runway25C({ length: Infinity })).rejection).toBe('runway-length-missing');
   });
 });

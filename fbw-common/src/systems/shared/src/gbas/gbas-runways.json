@@ -10,8 +10,8 @@
       "gpa": 3,
       "tch": 50,
       "course": 66,
-      "verified": false,
-      "source": "DFS AIP AD 2 EDDF 4-7-1, AIRAC AMDT 10/26 (29 OCT 2026)"
+      "verified": true,
+      "source": "DFS AIP AD 2 EDDF 4-7-1 (eff. 01 OCT 2026), AIRAC AMDT 10/26 (29 OCT 2026)"
     },
     {
       "airport": "EDDF",
@@ -70,8 +70,8 @@
       "gpa": 3.2,
       "tch": 50,
       "course": 66,
-      "verified": false,
-      "source": "DFS AIP AD 2 EDDF 4-7-10, AIRAC AMDT 10/26 (29 OCT 2026)"
+      "verified": true,
+      "source": "DFS AIP AD 2 EDDF 4-7-10 (eff. 01 OCT 2026), AIRAC AMDT 10/26 (29 OCT 2026)"
     },
     {
       "airport": "EDDF",
@@ -130,8 +130,8 @@
       "gpa": 3,
       "tch": 50,
       "course": 246,
-      "verified": false,
-      "source": "DFS AIP AD 2 EDDF 4-7-21, AIRAC AMDT 10/26 (29 OCT 2026)"
+      "verified": true,
+      "source": "DFS AIP AD 2 EDDF 4-7-21 (eff. 01 OCT 2026), AIRAC AMDT 10/26 (29 OCT 2026)"
     },
     {
       "airport": "EDDF",
@@ -358,8 +358,8 @@
       "gpa": 3,
       "tch": 51,
       "course": 62,
-      "verified": false,
-      "source": "Airservices DAP SSYGL01-181, chart of 28 NOV 2024 (Wayback copy, 2026 edition not read)"
+      "verified": true,
+      "source": "Airservices DAP SSYGL01-187, 09 JUL 2026 (DAP AMDT 188, 03 SEP 2026); ERSA FAC YSSY 03 SEP 2026 GBAS list"
     },
     {
       "airport": "YSSY",
@@ -370,8 +370,8 @@
       "gpa": 3,
       "tch": 52,
       "course": 155,
-      "verified": false,
-      "source": "Airservices DAP SSYGL02-181, chart of 28 NOV 2024 (Wayback copy, 2026 edition not read)"
+      "verified": true,
+      "source": "Airservices DAP SSYGL02-187, 09 JUL 2026 (DAP AMDT 188, 03 SEP 2026); ERSA FAC YSSY 03 SEP 2026 GBAS list"
     },
     {
       "airport": "YSSY",
@@ -382,8 +382,8 @@
       "gpa": 3,
       "tch": 52,
       "course": 155,
-      "verified": false,
-      "source": "Airservices DAP SSYGL03-182, chart of 20 MAR 2025 (Wayback copy, 2026 edition not read)"
+      "verified": true,
+      "source": "Airservices DAP SSYGL03-187, 09 JUL 2026 (DAP AMDT 188, 03 SEP 2026); ERSA FAC YSSY 03 SEP 2026 GBAS list"
     },
     {
       "airport": "YSSY",
@@ -394,8 +394,8 @@
       "gpa": 3,
       "tch": 48,
       "course": 242,
-      "verified": false,
-      "source": "Airservices DAP SSYGL04-182, chart of 20 MAR 2025 (Wayback copy, 2026 edition not read)"
+      "verified": true,
+      "source": "Airservices DAP SSYGL04-187, 09 JUL 2026 (DAP AMDT 188, 03 SEP 2026); ERSA FAC YSSY 03 SEP 2026 GBAS list"
     },
     {
       "airport": "YSSY",
@@ -406,8 +406,8 @@
       "gpa": 3,
       "tch": 52,
       "course": 335,
-      "verified": false,
-      "source": "Airservices DAP SSYGL05-182, chart of 20 MAR 2025 (Wayback copy, 2026 edition not read)"
+      "verified": true,
+      "source": "Airservices DAP SSYGL05-187, 09 JUL 2026 (DAP AMDT 188, 03 SEP 2026); ERSA FAC YSSY 03 SEP 2026 GBAS list"
     },
     {
       "airport": "YSSY",
@@ -418,8 +418,8 @@
       "gpa": 3,
       "tch": 50,
       "course": 335,
-      "verified": false,
-      "source": "Airservices DAP SSYGL06-179, chart of 13 JUN 2024 (Wayback copy, 2026 edition not read)"
+      "verified": true,
+      "source": "Airservices DAP SSYGL06-187, 09 JUL 2026 (DAP AMDT 188, 03 SEP 2026); ERSA FAC YSSY 03 SEP 2026 GBAS list"
     },
     {
       "airport": "YMML",
@@ -430,8 +430,8 @@
       "gpa": 3,
       "tch": 50,
       "course": 83,
-      "verified": false,
-      "source": "Airservices DAP MMLGL04-182, chart of 20 MAR 2025 (Wayback copy, 2026 edition not read)"
+      "verified": true,
+      "source": "Airservices DAP MMLGL04-186 (19 MAR 2026); ERSA FAC YMML 03 SEP 2026 GBAS list"
     },
     {
       "airport": "YMML",
@@ -442,8 +442,8 @@
       "gpa": 3,
       "tch": 50,
       "course": 160,
-      "verified": false,
-      "source": "Airservices DAP MMLGL05-182, chart of 20 MAR 2025 (Wayback copy, 2026 edition not read)"
+      "verified": true,
+      "source": "Airservices DAP MMLGL05-186 (19 MAR 2026); ERSA FAC YMML 03 SEP 2026 GBAS list"
     },
     {
       "airport": "YMML",
@@ -454,8 +454,8 @@
       "gpa": 3,
       "tch": 50,
       "course": 263,
-      "verified": false,
-      "source": "Airservices DAP MMLGL02-180, chart of 5 SEP 2024 (Wayback copy, 2026 edition not read)"
+      "verified": true,
+      "source": "Airservices DAP MMLGL02-186 (19 MAR 2026); ERSA FAC YMML 03 SEP 2026 GBAS list"
     },
     {
       "airport": "YMML",
@@ -466,8 +466,8 @@
       "gpa": 3,
       "tch": 50,
       "course": 340,
-      "verified": false,
-      "source": "Airservices DAP MMLGL03-182, chart of 20 MAR 2025 (Wayback copy, 2026 edition not read)"
+      "verified": true,
+      "source": "Airservices DAP MMLGL03-187 (09 JUL 2026); ERSA FAC YMML 03 SEP 2026 GBAS list"
     }
   ]
 }

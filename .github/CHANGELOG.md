@@ -1058,6 +1058,11 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [FMS] The FLS beam stays valid while the missed approach point is sequenced, and NO FLS FOR THIS APPR is not raised a second time there - @TCdr
 1. [FMS] The FLS beam takes the course the final leg has at the missed approach point, not at the fix before it (a difference at high latitudes only) - @TCdr
 1. [A380X/ND] The vertical display names the FLS end point by its runway alone (EP33L, not EPLFBO33L) - @TCdr
+1. [A32NX/MCDU] A GLS channel typed in the LS field of RAD NAV, or set on the RMP, is found on a later try when the first try came before the sim had loaded every airport with a GBAS station - @TCdr
+1. [AP] GLS approach to a runway with a displaced threshold: the lateral guidance counts the runway from the landing threshold to the stop end, not the whole pavement - @TCdr
+1. [AP] The GLS data is invalid for the receiver while one GLS procedure replaces another, so the guidance never uses a mix of the two - @TCdr
+1. [FMS] The landing system of the FMS follows an approach change made while the previous approach was still being read, and the ILS of the departure runway replaces a GLS that was still selected - @TCdr
+1. [FMS] The ARRIVAL page still lists the approaches of the navigation data when the GLS approaches of an airport cannot be made - @TCdr
 
 ## 2024.1.0
 

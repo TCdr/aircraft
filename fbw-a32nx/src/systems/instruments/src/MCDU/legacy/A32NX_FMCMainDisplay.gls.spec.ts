@@ -83,7 +83,10 @@ describe('the course the FMS publishes to the flight guidance', () => {
 describe('the manual GLS entry of the FMS', () => {
   function display(options: { locked?: () => boolean } = {}) {
     const setManualGls = vi.fn();
-    const getAirports = vi.fn(() => Promise.resolve([{ ident: 'EDDF', location: { lat: 50.033, long: 8.57 } }]));
+    // The table airports load only counts as complete when every requested airport comes back
+    const getAirports = vi.fn((idents: string[]) =>
+      Promise.resolve(idents.map((ident) => ({ ident, location: { lat: 50.033, long: 8.57 } }))),
+    );
     const getRunways = vi.fn(() => Promise.resolve([EDDF_25C]));
     const navigationDatabase = { backendDatabase: { getAirports, getRunways } };
     const screen = {

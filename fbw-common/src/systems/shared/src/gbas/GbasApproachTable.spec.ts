@@ -27,27 +27,18 @@ describe('the GBAS runway table', () => {
     expect(countByAirport).toEqual({ EDDF: 12, KEWR: 5, KIAH: 6, KSFO: 4, LEMG: 2, YSSY: 6, YMML: 4 });
   });
 
-  it('lists the 13 rows that need a re-check against the current chart', () => {
-    const toRecheck = GBAS_APPROACHES.filter((approach) => !approach.verified)
-      .map((approach) => `${approach.airport} ${approach.runway}${approach.suffix} ${approach.rpi}`)
-      .sort();
-    expect(toRecheck).toEqual(
-      [
-        'EDDF 07LZ G07O',
-        'EDDF 07RY G07J',
-        'EDDF 25RZ G25O',
-        'YSSY 07 G07A',
-        'YSSY 16L G16B',
-        'YSSY 16R G16A',
-        'YSSY 25 G25A',
-        'YSSY 34L G34A',
-        'YSSY 34R G34B',
-        'YMML 09 G09A',
-        'YMML 16 G16A',
-        'YMML 27 G27A',
-        'YMML 34 G34A',
-      ].sort(),
+  it('has every row checked against the current chart', () => {
+    const toRecheck = GBAS_APPROACHES.filter((approach) => !approach.verified).map(
+      (approach) => `${approach.airport} ${approach.runway}${approach.suffix} ${approach.rpi}`,
     );
+    expect(toRecheck).toEqual([]);
+  });
+
+  it('names a chart of the current edition as the source of every row, not an archived copy', () => {
+    const fromArchive = GBAS_APPROACHES.filter((approach) => /Wayback|not read/.test(approach.source)).map(
+      (approach) => `${approach.airport} ${approach.runway}${approach.suffix}`,
+    );
+    expect(fromArchive).toEqual([]);
   });
 
   describe('every row', () => {
