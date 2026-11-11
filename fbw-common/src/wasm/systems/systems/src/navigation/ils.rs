@@ -455,7 +455,7 @@ mod tests {
         localizer_deviation: f64,
         glideslope_deviation: f64,
     ) {
-        test_bed.write_by_name(&format!("MMR_{number}_GLS_CHANNEL"), 40123.);
+        test_bed.write_by_name(&format!("MMR_{number}_GLS_CHANNEL"), 31434.);
         test_bed.write_by_name(&format!("GLS_{number}_LOC_IS_VALID"), true);
         test_bed.write_by_name(&format!("GLS_{number}_GS_IS_VALID"), true);
         test_bed.write_by_name("GLS_LOC_DEVIATION", localizer_deviation);
@@ -482,7 +482,7 @@ mod tests {
     #[test]
     fn an_mmr_in_gls_mode_ignores_its_ils_signal() {
         let mut test_bed = test_bed_with_both_receivers_on_an_ils();
-        test_bed.write_by_name("MMR_1_GLS_CHANNEL", 40123.);
+        test_bed.write_by_name("MMR_1_GLS_CHANNEL", 31434.);
         test_bed.write_by_name("GLS_1_LOC_IS_VALID", false);
         test_bed.write_by_name("GLS_1_GS_IS_VALID", false);
         test_bed.run();

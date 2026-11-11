@@ -473,6 +473,17 @@
 
     - Bool
 
+- A32NX_FM_LS_COURSE
+    - Number<Degrees | -1>
+    - Landing system course. Written by the FMS, read by fbw.wasm, the systems MMR shim (fbw-common navigation/ils.rs),
+      the PFD and the ND. Values, in priority order:
+        - Course of the GLS approach when MMR 1 is set to a GLS channel (-1 when it has none)
+        - FLS course (magnetic) on an FLS approach whose F-LOC replaces the localizer
+        - Pilot entered course
+        - Database course
+        - Course received from LOC when LOC available
+        - -1 when invalid
+
 - A32NX_FM_FLS_BEAM_VALID
     - Bool
     - The FMS computes an FLS beam: a non precision approach with a beam is selected and the FMS is in descent or approach
@@ -1762,7 +1773,8 @@ deviations like an ILS receiver. All values are raw numbers without a unit.
 - A32NX_GBAS_VALID
     - Bool
     - A GLS procedure is uploaded (an MMR is set to a GLS whose channel has a table row and a matching sim runway).
-      Written by the FMS (fmgc navigation/gls/GbasUplinkPublisher.ts)
+      Written by the FMS (fmgc navigation/gls/GbasUplinkPublisher.ts). False while the fields of a new procedure are
+      written, true again after them: fbw.wasm reads the fields only while it is true
 
 - A32NX_GBAS_CHANNEL
     - Number
@@ -1778,7 +1790,7 @@ deviations like an ILS receiver. All values are raw numbers without a unit.
 
 - A32NX_GBAS_LENGTH
     - Number in metres
-    - Length of the runway
+    - Length of the runway from the landing threshold to the stop end: a displaced threshold is not counted
 
 - A32NX_GBAS_COURSE
     - Number in degrees
@@ -1793,7 +1805,8 @@ deviations like an ILS receiver. All values are raw numbers without a unit.
     - The reference path identifier (RPI) of the uploaded procedure, packed with SimVarString.pack(rpi, 4)
 
 - A32NX_MMR_{number}_GLS_CHANNEL
-    - Number: 1 or 2
+    - Number: 20001 to 39999, or 0
+    - {number}: 1 or 2
     - The GLS channel MMR {number} is set to, 0 when the MMR is in ILS mode. Written by the FMS. The PFD, the FMA and
       the flight guidance follow it, and so do the systems MMR shim (EGPWS on the A32NX) and the systems host GPWS and
       FWC: an MMR with a channel is in GLS mode, whether or not it receives the station

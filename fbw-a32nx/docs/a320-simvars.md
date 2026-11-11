@@ -1064,6 +1064,7 @@
     - ** DEPRECATED ** Do not use.
     - Number<Degrees | -1>
     - Landing system course. Values, in priority order:
+        - Course of the GLS approach when MMR 1 is set to a GLS channel (-1 when it has none)
         - FLS course (magnetic) on an FLS approach whose F-LOC replaces the localizer
         - Pilot entered course
         - Database course
@@ -1106,7 +1107,8 @@ deviations like an ILS receiver. All values are raw numbers without a unit.
 - A32NX_GBAS_VALID
     - Bool
     - A GLS procedure is uploaded (an MMR is set to a GLS whose channel has a table row and a matching sim runway).
-      Written by the FMGC (fmgc navigation/gls/GbasUplinkPublisher.ts)
+      Written by the FMGC (fmgc navigation/gls/GbasUplinkPublisher.ts). False while the fields of a new procedure are
+      written, true again after them: fbw.wasm reads the fields only while it is true
 
 - A32NX_GBAS_CHANNEL
     - Number
@@ -1122,7 +1124,7 @@ deviations like an ILS receiver. All values are raw numbers without a unit.
 
 - A32NX_GBAS_LENGTH
     - Number in metres
-    - Length of the runway
+    - Length of the runway from the landing threshold to the stop end: a displaced threshold is not counted
 
 - A32NX_GBAS_COURSE
     - Number in degrees
@@ -1137,7 +1139,8 @@ deviations like an ILS receiver. All values are raw numbers without a unit.
     - The reference path identifier (RPI) of the uploaded procedure, packed with SimVarString.pack(rpi, 4)
 
 - A32NX_MMR_{number}_GLS_CHANNEL
-    - Number: 1 or 2
+    - Number: 20001 to 39999, or 0
+    - {number}: 1 or 2
     - The GLS channel MMR {number} is set to, 0 when the MMR is in ILS mode. Written by the FMGC. The PFD, the FMA and
       the flight guidance follow it, and so do the systems MMR shim (EGPWS on the A32NX) and the systems host GPWS and
       FWC: an MMR with a channel is in GLS mode, whether or not it receives the station
@@ -1169,12 +1172,16 @@ deviations like an ILS receiver. All values are raw numbers without a unit.
     - Bool
     - Number: 1 or 2
     - The lateral (vertical) deviation of the GLS is valid for MMR {number}: it receives the station, inside the service
-      volume and before the azimuth reference point (glide path intercept point). Written by fbw.wasm. Read by the MMR shim of the systems (GPWS mode 5 and 2B) and the FWC (smart FIVE HUNDRED callout) for the MMR in GLS mode
+      volume and before the azimuth reference point (glide path intercept point). Written by fbw.wasm.
+      Read for the MMR in GLS mode by the MMR shim of the systems (GPWS mode 5 and 2B), the FWC (smart FIVE HUNDRED
+      callout), the PFDs, the NDs and the ISIS (MMR 1)
 
 - A32NX_GLS_LOC_DEVIATION, A32NX_GLS_GS_DEVIATION
     - Number in degrees
     - The lateral (vertical) deviation of the GLS, with the sign and scale of A32NX_RADIO_RECEIVER_LOC_DEVIATION
-      (A32NX_RADIO_RECEIVER_GS_DEVIATION). Written by fbw.wasm. Read by the MMR shim of the systems (GPWS mode 5 and 2B) and the FWC (smart FIVE HUNDRED callout) for the MMR in GLS mode
+      (A32NX_RADIO_RECEIVER_GS_DEVIATION). Written by fbw.wasm.
+      Read for the MMR in GLS mode by the MMR shim of the systems (GPWS mode 5 and 2B), the FWC (smart FIVE HUNDRED
+      callout), the PFDs, the NDs and the ISIS
 
 - A32NX_GLS_THRESHOLD_DISTANCE
     - Number in nautical miles

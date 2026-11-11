@@ -373,7 +373,7 @@ mod tests {
         }
         test_bed.write_by_name("GLS_GS_DEVIATION", -0.6);
 
-        test_bed.write_by_name("MMR_1_GLS_CHANNEL", 40123.);
+        test_bed.write_by_name("MMR_1_GLS_CHANNEL", 31434.);
         test_bed.write_by_name("GLS_1_GS_IS_VALID", true);
         test_bed.run_with_delta(Duration::from_millis(50));
         let on_mmr_1 = test_bed
@@ -392,7 +392,7 @@ mod tests {
 
         test_bed.write_by_name("MMR_1_GLS_CHANNEL", 0.);
         test_bed.write_by_name("GLS_1_GS_IS_VALID", false);
-        test_bed.write_by_name("MMR_2_GLS_CHANNEL", 40123.);
+        test_bed.write_by_name("MMR_2_GLS_CHANNEL", 31434.);
         test_bed.write_by_name("GLS_2_GS_IS_VALID", true);
         test_bed.run_with_delta(Duration::from_millis(50));
         let on_mmr_2 = test_bed
