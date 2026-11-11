@@ -11,13 +11,7 @@ import {
   RunwayDesignatorChar,
 } from '../../../../../../../fbw-common/src/systems/navdata/client/backends/Msfs/FsTypes';
 import { MsfsMapping } from '../../../../../../../fbw-common/src/systems/navdata/client/backends/Msfs/Mapping';
-import {
-  computeFlsBeam,
-  flsBeamInputs,
-  FlsBeamInputs,
-  flsBeamOfPlan,
-  missedApproachPointLegIndex,
-} from './FlsBeam';
+import { computeFlsBeam, flsBeamInputs, FlsBeamInputs, flsBeamOfPlan, missedApproachPointLegIndex } from './FlsBeam';
 
 const FEET_PER_NM = 6076.12;
 const threshold = { lat: 43.6, long: 1.37 };
