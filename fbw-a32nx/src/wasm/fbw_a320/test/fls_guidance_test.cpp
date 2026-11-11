@@ -42,6 +42,22 @@ static void southOfAnchor(double distanceNm, double eastNm, double& latitude, do
   longitude = eastNm / (60 * std::cos(45 * M_PI / 180));
 }
 
+static FlsBeamDefinition beamAt(double anchorLatitudeDeg, double anchorLongitudeDeg, double courseTrueDeg) {
+  FlsBeamDefinition beam = northBeam();
+  beam.anchorLatitudeDeg = anchorLatitudeDeg;
+  beam.anchorLongitudeDeg = anchorLongitudeDeg;
+  beam.courseTrueDeg = courseTrueDeg;
+  return beam;
+}
+
+/// The position this many NM before the anchor of a beam that runs along a meridian, offset to the right of the course by the
+/// given NM. The longitude is between -180 and 180 degrees, as the sim gives it.
+static void beforeAnchor(const FlsBeamDefinition& beam, double distanceNm, double rightNm, double& latitude, double& longitude) {
+  const double northbound = std::cos(beam.courseTrueDeg * M_PI / 180) > 0 ? 1 : -1;
+  latitude = beam.anchorLatitudeDeg - northbound * distanceNm / 60;
+  longitude = std::remainder(beam.anchorLongitudeDeg + northbound * rightNm / (60 * std::cos(latitude * M_PI / 180)), 360.0);
+}
+
 static void deviationsOnTheBeam() {
   double latitude, longitude;
   southOfAnchor(10, 0, latitude, longitude);
@@ -77,6 +93,66 @@ static void noBeamPastTheAnchorOrTooFar() {
   invalid.valid = false;
   southOfAnchor(10, 0, latitude, longitude);
   expect(!FlsReceiver::compute(invalid, latitude, longitude, 3000).valid, "no deviation without a beam");
+}
+
+/// The same deviations in the southern hemisphere, on both sides of the antimeridian and for a southbound beam
+static void theGeometryHoldsOnOtherBeams() {
+  struct Case {
+    const char* name;
+    FlsBeamDefinition beam;
+    /// The aircraft right of the course is on the other side of the 180 degree meridian than the anchor
+    bool rightSideAcrossTheAntimeridian;
+  };
+  const Case cases[] = {
+      {"southern hemisphere, northbound", beamAt(-33.9, 151.2, 0), false},
+      {"southern hemisphere, southbound", beamAt(-33.9, 151.2, 180), false},
+      {"northern hemisphere, southbound", beamAt(45, 0, 180), false},
+      {"northbound at the antimeridian", beamAt(-17.7, 179.999, 0), true},
+      {"southbound at the antimeridian", beamAt(65, -179.999, 180), true},
+  };
+  const double onSlopeAltitude = 50 + 10 * FEET_PER_NM * std::tan(3 * M_PI / 180);
+  const double offsetDeg = std::atan2(0.3, 8.0) * 180 / M_PI;
+  for (const Case& c : cases) {
+    char what[160];
+    double latitude, longitude;
+    beforeAnchor(c.beam, 10, 0, latitude, longitude);
+    const FlsDeviations onBeam = FlsReceiver::compute(c.beam, latitude, longitude, onSlopeAltitude);
+    std::snprintf(what, sizeof(what), "%s: on the beam 10 NM before the anchor, valid with no deviation", c.name);
+    expect(onBeam.valid && std::abs(onBeam.lateralDeviationDeg) < 0.01 && std::abs(onBeam.verticalDeviationDeg) < 0.01, what);
+    std::snprintf(what, sizeof(what), "%s: 10 NM to the anchor", c.name);
+    expect(std::abs(onBeam.distanceToAnchorNm - 10) < 0.05, what);
+
+    beforeAnchor(c.beam, 8, 0.3, latitude, longitude);
+    if (c.rightSideAcrossTheAntimeridian) {
+      std::snprintf(what, sizeof(what), "%s: setup, the aircraft is on the other side of the antimeridian", c.name);
+      expect(longitude * c.beam.anchorLongitudeDeg < 0, what);
+    }
+    const FlsDeviations right = FlsReceiver::compute(c.beam, latitude, longitude, 2000);
+    std::snprintf(what, sizeof(what), "%s: right of the course the beam is to the left", c.name);
+    expect(right.valid && std::abs(right.lateralDeviationDeg + offsetDeg) < 0.05, what);
+    beforeAnchor(c.beam, 8, -0.3, latitude, longitude);
+    const FlsDeviations left = FlsReceiver::compute(c.beam, latitude, longitude, 2000);
+    std::snprintf(what, sizeof(what), "%s: left of the course the beam is to the right", c.name);
+    expect(left.valid && std::abs(left.lateralDeviationDeg - offsetDeg) < 0.05, what);
+
+    beforeAnchor(c.beam, -2, 0, latitude, longitude);
+    std::snprintf(what, sizeof(what), "%s: no deviation past the anchor", c.name);
+    expect(!FlsReceiver::compute(c.beam, latitude, longitude, 500).valid, what);
+  }
+}
+
+/// The deviation is the angle between the course and the bearing to the anchor, also where the course wraps at north
+static void theCourseWrapsAtNorth() {
+  double latitude, longitude;
+  southOfAnchor(8, 0, latitude, longitude);
+  const FlsDeviations justWestOfNorth = FlsReceiver::compute(beamAt(45, 0, 359.5), latitude, longitude, 2000);
+  expect(justWestOfNorth.valid && std::abs(justWestOfNorth.lateralDeviationDeg - 0.5) < 0.01,
+         "course 359.5, due south of the anchor: the beam is 0.5 deg to the right");
+  const FlsDeviations justEastOfNorth = FlsReceiver::compute(beamAt(45, 0, 0.5), latitude, longitude, 2000);
+  expect(justEastOfNorth.valid && std::abs(justEastOfNorth.lateralDeviationDeg + 0.5) < 0.01,
+         "course 0.5, due south of the anchor: the beam is 0.5 deg to the left");
+  const FlsDeviations fullTurn = FlsReceiver::compute(beamAt(45, 0, 360), latitude, longitude, 2000);
+  expect(fullTurn.valid && std::abs(fullTurn.lateralDeviationDeg) < 0.01, "course 360 is course 0");
 }
 
 static base_ils_bus ilsBusWithLocalizer() {
@@ -137,6 +213,8 @@ int main() {
   deviationsOnTheBeam();
   lateralSignAsTheIlsDeviation();
   noBeamPastTheAnchorOrTooFar();
+  theGeometryHoldsOnOtherBeams();
+  theCourseWrapsAtNorth();
   ilsBusOnAnFlsApproach();
   if (failures > 0) {
     std::printf("fls_guidance_test: %d check(s) FAILED\n", failures);
