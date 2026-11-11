@@ -27,7 +27,7 @@ export interface SelectedNavaidRow {
 /**
  * The SELECTED NAVAIDS row of a GLS, laid out like the rows of the other navaids. The GLS is no database navaid, so it
  * has no ident link.
- * @param modeText AUTO or MAN
+ * @param modeText AUTO, MAN or RMP
  * @returns null without a GLS
  */
 export function glsSelectedNavaidRow(gls: GlsApproachData | undefined, modeText: string): SelectedNavaidRow | null {

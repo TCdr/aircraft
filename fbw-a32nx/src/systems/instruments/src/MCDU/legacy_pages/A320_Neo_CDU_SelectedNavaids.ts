@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-// Copyright (c) 2021-2023 FlyByWire Simulations
+// Copyright (c) 2021-2023, 2026 FlyByWire Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
 
@@ -85,14 +85,14 @@ export class CDUSelectedNavaids {
       }
     }
 
-    // The GLS is no database navaid: it takes the row of the ILS
+    // The GLS is no database navaid: it takes the row of the ILS. A GLS tuned on the RMP is shown too: no other row
+    // of the page tells the crew what the receivers are on then.
     const mmr = mcdu.getMmrTuningData(1);
-    const glsRow = mcdu.isFmTuningActive()
-      ? glsSelectedNavaidRow(
-          mmr.gls,
-          NAVAID_MODE_STRINGS[mmr.manual ? SelectedNavaidMode.Manual : SelectedNavaidMode.Auto],
-        )
-      : null;
+    let glsMode = SelectedNavaidMode.Rmp;
+    if (mcdu.isFmTuningActive()) {
+      glsMode = mmr.manual ? SelectedNavaidMode.Manual : SelectedNavaidMode.Auto;
+    }
+    const glsRow = glsSelectedNavaidRow(mmr.gls, NAVAID_MODE_STRINGS[glsMode]);
     if (glsRow) {
       template[7][0] = glsRow.label;
       template[8][0] = glsRow.line;

@@ -1054,6 +1054,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/TAWS] Mode 5 GLIDE SLOPE alert and the mode 2B envelope also work on a GLS approach - @TCdr
 1. [A32NX/FWC] The smart FIVE HUNDRED callout uses the GLS glide on a GLS approach - @TCdr
 1. [A380X/FWS] The smart FIVE HUNDRED callout uses the GLS glide on a GLS approach - @TCdr
+1. [A380X/FMS] New FMS message RUNWAY / LS DISAGREE while the landing system tuned by the crew is not the one of the runway of the flight plan - @TCdr
+1. [A380X/MFD] POSITION NAVAIDS: an LS IDENT that is not in the database gives NOT IN DATABASE, and a refused LS IDENT or FREQ/CHAN entry no longer stays in the field - @TCdr
+1. [A380X/MFD] ARRIVAL page lists the approaches of one type to one runway in the order of their suffix (ILS Y before ILS Z) - @TCdr
+1. [A32NX/MCDU] RAD NAV no longer comes back by itself when the crew opened another page while an LS entry was being looked up - @TCdr
 
 ## 2024.1.0
 

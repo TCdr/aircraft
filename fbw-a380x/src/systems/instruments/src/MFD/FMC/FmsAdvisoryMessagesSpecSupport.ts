@@ -41,11 +41,13 @@ interface AdvisoryScenario {
   computedAirspeedKt?: number | null;
   /** Distance to the top of descent in nautical miles, null when there is none */
   distanceToTopOfDescent?: number | null;
+  /** The tuner finds the landing system the crew tuned different from the one of the runway of the flight plan */
+  runwayLsMismatch?: boolean;
 }
 
 /**
  * The FMC data FmsAdvisoryMessages reads for a scenario, everything else reads as "nothing to report".
- * @param scenario the flight situation
+ * @param scenario the flight situation; runwayLsMismatch is read at every update, so a spec can change it in between
  * @returns the FMS advisory messages over a fake FMC, and the messages the FMC was asked to show or to remove
  */
 export function createAdvisoryMessages(scenario: AdvisoryScenario) {
@@ -91,6 +93,7 @@ export function createAdvisoryMessages(scenario: AdvisoryScenario) {
           facility: null,
         }),
         getSpecifiedNdbMessage: () => false,
+        getRwyLsMismatchMessage: () => scenario.runwayLsMismatch === true,
       }),
       getBaroCorrectedAltitude: () => scenario.baroAltitudeFt ?? null,
       getComputedAirspeed: () => scenario.computedAirspeedKt ?? null,

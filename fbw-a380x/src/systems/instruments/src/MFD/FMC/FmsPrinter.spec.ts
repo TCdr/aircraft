@@ -309,6 +309,12 @@ describe('FmsPrinter (DATA / PRINTER page)', () => {
       expect(lastPage().lines.join('\n')).toMatch(/FLT NUMBER : ----------/);
     });
 
+    it('prints the arrival runway of the route without its airport (ARV RWY: 27R)', () => {
+      plans.set(FlightPlanIndex.Active, flightPlan({ destinationRunway: { ident: 'EGLL27R', airportIdent: 'EGLL' } }));
+      printer.printInitData();
+      expect(lastPage().lines).toContain('   ARV RWY: 27R');
+    });
+
     it('prints a wind vector as its true direction in degrees and its speed (WIND DATA)', () => {
       plans.set(
         FlightPlanIndex.Active,

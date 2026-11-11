@@ -93,6 +93,8 @@ export class FmsAdvisoryMessages {
 
   private readonly specifiedNdbLatch = new MessageTextLatch();
 
+  private readonly rwyLsDisagreeLatch = new MessageTextLatch();
+
   private readonly timeToExitLatch = new MessageTextLatch();
 
   private readonly takeoffTimeLatch = new MessageTextLatch();
@@ -209,6 +211,12 @@ export class FmsAdvisoryMessages {
     this.apply(
       this.specifiedNdbLatch,
       navigation.getNavaidTuner().getSpecifiedNdbMessage() ? NXSystemMessages.specifNdbNotAvail : null,
+    );
+
+    // RUNWAY / LS DISAGREE: the landing system the crew tuned is not the one of the runway of the flight plan
+    this.apply(
+      this.rwyLsDisagreeLatch,
+      navigation.getNavaidTuner().getRwyLsMismatchMessage() ? NXSystemMessages.rwyLsDisagree : null,
     );
 
     // TIME TO EXIT: in the holding, the extra fuel at the primary destination (EFOB - MIN FUEL AT DEST)

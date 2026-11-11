@@ -12,7 +12,8 @@ import {
  * CHECK APPR SEL (type II message, on the MFD and on the PFD FMA line 3): the flight crew manually tuned an ILS
  * (GLS) on the POSITION/NAVAIDS page that does not correspond with the approach of the flight plan. Shown only in
  * cruise less than 100 NM from the T/D, in descent, or in approach above 800 ft.
- * (The A380 has no RWY/LS MISMATCH message: a tuned ILS that is not the one of the ILS approach is a mismatch too.)
+ * A tuned ILS that is not the one of the ILS approach is a mismatch too. (A tuned landing system that is not the one
+ * of the runway of the flight plan has its own message, RUNWAY / LS DISAGREE.)
  */
 
 /** CHECK APPR SEL in cruise: only less than 100 NM from the T/D */

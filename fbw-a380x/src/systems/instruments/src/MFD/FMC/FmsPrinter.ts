@@ -646,7 +646,7 @@ export class FmsPrinter {
       lines.push(`   ARV PRC: ${plan.approach.ident}`);
     }
     if (plan.destinationRunway) {
-      lines.push(`   ARV RWY: ${plan.destinationRunway.ident.replace(/^RW/, '')}`);
+      lines.push(`   ARV RWY: ${plan.destinationRunway.ident.substring(4)}`);
     }
     return lines.length > 0 ? lines : ['   NO ROUTE'];
   }

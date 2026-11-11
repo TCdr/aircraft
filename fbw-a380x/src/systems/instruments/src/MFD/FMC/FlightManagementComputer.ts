@@ -661,7 +661,7 @@ export class FlightManagementComputer implements FmcInterface {
     this.#mfdReference = mfdReference;
 
     const db = new NavigationDatabase(this.bus, NavigationDatabaseBackend.Msfs);
-    // The A380X lists GLS approaches at the airports of the GBAS table; the A32NX sets no provider and lists none
+    // GLS approaches are listed at the airports of the GBAS table
     db.backendDatabase.setSyntheticApproachProvider(createGlsSyntheticApproachProvider());
     NavigationDatabaseService.activeDatabase = db;
 
