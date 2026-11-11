@@ -141,6 +141,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/AP] AP and FDs disengage when the LOC signal (ILS transmitter, GBAS station, FLS) is lost for 7 s above 200 ft RA, and after 0.2 s when both receivers are lost in approach; the FDs that were on come back flashing in HDG/TRACK and V/S/FPA, with a triple click - @TCdr
 1. [ND] ROSE LS shows a GLS: GLS1/GLS2, channel, course, ident once received and the LOC and G/S deviations of the MMR of that side (A32NX and A380X) - @TCdr
 1. [ISIS] The LS scales of the ISIS (A32NX ISIS, A380X SFD) show the GLS deviations of MMR 1 on a GLS approach - @TCdr
+1. [FMS] The FLS beam (F-G/S) crosses the runway threshold 50 ft above it: it was too high by the threshold elevation, which put the F-G/S deviation off the scale on final at any airport above about 250 ft - @TCdr
+1. [FMS] The FLS beam stays valid while the missed approach point is sequenced - @TCdr
+1. [FMS] The FLS beam takes the course the final leg has at the missed approach point, not at the fix before it (a difference at high latitudes only) - @TCdr
 
 ## 2024.1.0
 
