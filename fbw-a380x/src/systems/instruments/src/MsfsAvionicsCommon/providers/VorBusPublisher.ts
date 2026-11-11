@@ -1,5 +1,6 @@
 import { EventBus, SimVarPublisher, SimVarValueType } from '@microsoft/msfs-sdk';
 import { GLS_RECEIVER_SIMVARS } from '../../../../../../../fbw-common/src/systems/instruments/src/ND/types/GlsReceiverSimVars';
+import { ILS_RECEIVER_SIMVARS } from '../../../../../../../fbw-common/src/systems/instruments/src/ND/types/IlsReceiverSimVars';
 
 export interface VorSimVars {
   nav1Ident: string;
@@ -53,6 +54,10 @@ export interface VorSimVars {
   localizerValid: boolean;
   glideSlopeValid: boolean;
   glideSlopeDeviation: number;
+  mmr1Powered: boolean;
+  mmr2Powered: boolean;
+  ils1Failed: boolean;
+  ils2Failed: boolean;
 
   mmr1GlsChannel: number;
   mmr2GlsChannel: number;
@@ -131,6 +136,7 @@ export class VorBusPublisher extends SimVarPublisher<VorSimVars> {
         ['localizerValid', { name: 'L:A32NX_RADIO_RECEIVER_LOC_IS_VALID', type: SimVarValueType.Bool }],
         ['glideSlopeValid', { name: 'L:A32NX_RADIO_RECEIVER_GS_IS_VALID', type: SimVarValueType.Bool }],
         ['glideSlopeDeviation', { name: 'L:A32NX_RADIO_RECEIVER_GS_DEVIATION', type: SimVarValueType.Number }],
+        ...ILS_RECEIVER_SIMVARS,
 
         ...GLS_RECEIVER_SIMVARS,
 

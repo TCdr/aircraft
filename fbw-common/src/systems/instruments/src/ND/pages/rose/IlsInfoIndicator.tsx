@@ -1,5 +1,5 @@
 // @ts-strict-ignore
-// Copyright (c) 2021-2024 FlyByWire Simulations
+// Copyright (c) 2021-2026 FlyByWire Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
 
@@ -18,7 +18,7 @@ import { GenericVorEvents } from '../../types/GenericVorEvents';
 import { GenericFlightManagementBusEvents } from '../../types/GenericFlightManagementBusEvents';
 import { NDSimvars } from '../../NDSimvarPublisher';
 import { Layer } from '../../../MsfsAvionicsCommon/Layer';
-import { roseLsGlsTopics, roseLsInfo } from './RoseLsInfo';
+import { roseLsGlsTopics, roseLsIlsTopics, roseLsInfo } from './RoseLsInfo';
 
 export interface IlsInfoIndicatorProps {
   bus: EventBus;
@@ -40,8 +40,22 @@ export class IlsInfoIndicator extends DisplayComponent<IlsInfoIndicatorProps> {
 
   private readonly glsCourse = ConsumerSubject.create(null, -1);
 
+  private readonly mmrPowered = ConsumerSubject.create(null, true);
+
+  private readonly ilsReceiverFailed = ConsumerSubject.create(null, false);
+
   private readonly lsInfo = MappedSubject.create(
-    ([ilsIdent, ilsFrequency, ilsCourse, glsChannel, glsReceived, glsIdentWord, glsCourse]) =>
+    ([
+      ilsIdent,
+      ilsFrequency,
+      ilsCourse,
+      glsChannel,
+      glsReceived,
+      glsIdentWord,
+      glsCourse,
+      mmrPowered,
+      ilsReceiverFailed,
+    ]) =>
       roseLsInfo({
         index: this.props.index,
         glsChannel,
@@ -51,6 +65,8 @@ export class IlsInfoIndicator extends DisplayComponent<IlsInfoIndicatorProps> {
         ilsIdent,
         ilsFrequency,
         ilsCourse,
+        mmrPowered,
+        ilsReceiverFailed,
       }),
     this.ilsIdent,
     this.ilsFrequency,
@@ -59,6 +75,8 @@ export class IlsInfoIndicator extends DisplayComponent<IlsInfoIndicatorProps> {
     this.glsReceived,
     this.glsIdentWord,
     this.glsCourse,
+    this.mmrPowered,
+    this.ilsReceiverFailed,
   );
 
   private readonly fm1Healthy = Subject.create(false);
@@ -113,6 +131,10 @@ export class IlsInfoIndicator extends DisplayComponent<IlsInfoIndicatorProps> {
     this.glsIdentWord.setConsumer(subs.on('gbasIdent').whenChanged());
     this.glsCourse.setConsumer(subs.on('ilsCourse').whenChanged());
 
+    const ilsTopics = roseLsIlsTopics(this.props.index);
+    this.mmrPowered.setConsumer(subs.on(ilsTopics.mmrPowered).whenChanged());
+    this.ilsReceiverFailed.setConsumer(subs.on(ilsTopics.ilsFailed).whenChanged());
+
     subs
       .on('fm.1.healthy_discrete')
       .whenChanged()
@@ -135,6 +157,12 @@ export class IlsInfoIndicator extends DisplayComponent<IlsInfoIndicatorProps> {
   }
 
   private readonly visibilityFn = (v) => (v ? 'inherit' : 'hidden');
+
+  private readonly tuningModeVisibility = MappedSubject.create(
+    ([frequency, channel]) => frequency > 0 || channel > 0,
+    this.ilsFrequency,
+    this.glsChannel,
+  ).map(this.visibilityFn);
 
   render(): VNode | null {
     return (
@@ -160,13 +188,7 @@ export class IlsInfoIndicator extends DisplayComponent<IlsInfoIndicatorProps> {
           <tspan class="Cyan">&deg;</tspan>
         </text>
 
-        <g
-          visibility={MappedSubject.create(
-            ([frequency, channel]) => frequency > 0 || channel > 0,
-            this.ilsFrequency,
-            this.glsChannel,
-          ).map(this.visibilityFn)}
-        >
+        <g visibility={this.tuningModeVisibility}>
           <text x={-80} y={58} font-size={20} class="White" text-anchor="end" text-decoration="underline">
             {this.tuningMode}
           </text>

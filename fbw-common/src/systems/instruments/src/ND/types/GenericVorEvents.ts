@@ -50,6 +50,10 @@ export interface GenericVorEvents {
   localizerValid: boolean;
   glideSlopeValid: boolean;
   glideSlopeDeviation: number;
+  mmr1Powered: boolean;
+  mmr2Powered: boolean;
+  ils1Failed: boolean;
+  ils2Failed: boolean;
 
   mmr1GlsChannel: number;
   mmr2GlsChannel: number;

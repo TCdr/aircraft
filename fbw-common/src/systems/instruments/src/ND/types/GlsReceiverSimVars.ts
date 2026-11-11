@@ -14,7 +14,11 @@ type GlsReceiverTopic =
   | 'glsGsDeviation'
   | 'gbasIdent';
 
-/** The GLS L:vars of the systems host, shared by the VOR bus publishers of both aircraft so the names stay identical */
+/**
+ * The GLS L:vars of the MMRs: the channel as the flight management sets it, the validity, the deviations and the station
+ * ident as the fly-by-wire module (fbw.wasm) computes them. Shared by the VOR bus publishers of both aircraft so the
+ * names stay identical.
+ */
 export const GLS_RECEIVER_SIMVARS: [GlsReceiverTopic, SimVarPublisherEntry<any>][] = [
   ['mmr1GlsChannel', { name: 'L:A32NX_MMR_1_GLS_CHANNEL', type: SimVarValueType.Number }],
   ['mmr2GlsChannel', { name: 'L:A32NX_MMR_2_GLS_CHANNEL', type: SimVarValueType.Number }],

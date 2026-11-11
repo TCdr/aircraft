@@ -153,6 +153,8 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/MFD] ARRIVAL page lists the approaches of one type to one runway in the order of their suffix (ILS Y before ILS Z) - @TCdr
 1. [A32NX/MCDU] RAD NAV no longer comes back by itself when the crew opened another page while an LS entry was being looked up - @TCdr
 1. [A32NX/FWC] The smart FIVE HUNDRED callout also comes more than half a dot below the glide slope, not only above it - @TCdr
+1. [ND] ROSE LS shows dashes and no ident when the ILS receiver it names (ILS2 on the captain ND, ILS1 on the first officer ND) is failed or its MMR has no power (A32NX and A380X) - @TCdr
+1. [ND] ROSE LS shows a north course as 360, not 000 - @TCdr
 
 ## 2024.1.0
 
