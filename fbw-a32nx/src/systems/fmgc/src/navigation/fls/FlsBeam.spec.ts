@@ -2,10 +2,22 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { describe, expect, it } from 'vitest';
-import { ApproachType, ApproachWaypointDescriptor } from '@flybywiresim/fbw-sdk';
+import { ApproachType, ApproachWaypointDescriptor, Runway } from '@flybywiresim/fbw-sdk';
 import { bearingTo, distanceTo, placeBearingDistance } from 'msfs-geo';
 import { ReadonlyFlightPlan } from '@fmgc/flightplanning/plans/ReadonlyFlightPlan';
-import { computeFlsBeam, flsBeamInputs, FlsBeamInputs, flsBeamOfPlan, missedApproachPointLegIndex } from './FlsBeam';
+import { FacilityCache } from '../../../../../../../fbw-common/src/systems/navdata/client/backends/Msfs/FacilityCache';
+import {
+  JS_FacilityAirport,
+  RunwayDesignatorChar,
+} from '../../../../../../../fbw-common/src/systems/navdata/client/backends/Msfs/FsTypes';
+import { MsfsMapping } from '../../../../../../../fbw-common/src/systems/navdata/client/backends/Msfs/Mapping';
+import {
+  computeFlsBeam,
+  flsBeamInputs,
+  FlsBeamInputs,
+  flsBeamOfPlan,
+  missedApproachPointLegIndex,
+} from './FlsBeam';
 
 const FEET_PER_NM = 6076.12;
 const threshold = { lat: 43.6, long: 1.37 };
@@ -23,7 +35,7 @@ const vorApproach: FlsBeamInputs = {
     verticalAngle: -3,
   },
   runway: {
-    ident: 'RW33L',
+    ident: 'LFBO33L',
     airportIdent: 'LFBO',
     bearing: runwayBearing,
     thresholdLocation: threshold,
@@ -156,21 +168,26 @@ describe('FLS beam inputs of a flight plan', () => {
     ident,
     definition: { approachWaypointDescriptor: descriptor, altitude1: 900, verticalAngle: -3.1, waypoint: { location } },
   });
-  const plan = (activeLegIndex: number) =>
+  const approachLegs = [
+    leg('OLD', onFinal(20), ApproachWaypointDescriptor.MissedApproachPoint),
+    leg('FAF33', faf, ApproachWaypointDescriptor.FinalApproachFix),
+    leg('MAP33', map, ApproachWaypointDescriptor.MissedApproachPoint),
+    leg('MISS1', onFinal(-5)),
+    leg('MISS2', onFinal(-10)),
+  ];
+  const plan = (activeLegIndex: number, allLegs = approachLegs) =>
     ({
       approach: { type: ApproachType.Rnav },
       destinationRunway: {
-        ident: 'RW33L',
+        ident: 'LFBO33L',
+        airportIdent: 'LFBO',
         bearing: runwayBearing,
         thresholdLocation: { ...threshold, alt: 499 },
-        thresholdCrossingHeight: 52,
+        // the navdata gives the altitude of the crossing point: here 52 ft above the threshold
+        thresholdCrossingHeight: 551,
       },
       destinationAirport: { ident: 'LFBO', location: { ...threshold, alt: 500 } },
-      allLegs: [
-        leg('OLD', onFinal(20), ApproachWaypointDescriptor.MissedApproachPoint),
-        leg('FAF33', faf, ApproachWaypointDescriptor.FinalApproachFix),
-        leg('MAP33', map, ApproachWaypointDescriptor.MissedApproachPoint),
-      ],
+      allLegs,
       activeLegIndex,
       performanceData: { approachTemperature: { get: () => -5 } },
     }) as unknown as ReadonlyFlightPlan;
@@ -179,10 +196,10 @@ describe('FLS beam inputs of a flight plan', () => {
     expect(missedApproachPointLegIndex(plan(1))).toBe(2);
     expect(flsBeamInputs(plan(1))).toEqual({
       approachType: ApproachType.Rnav,
-      finalCourse: bearingTo(faf, map),
+      finalCourse: (bearingTo(map, faf) + 180) % 360,
       missedApproachPoint: { ident: 'MAP33', location: map, altitude: 900, verticalAngle: -3.1 },
       runway: {
-        ident: 'RW33L',
+        ident: 'LFBO33L',
         airportIdent: 'LFBO',
         bearing: runwayBearing,
         thresholdLocation: { ...threshold, alt: 499 },
@@ -193,14 +210,133 @@ describe('FLS beam inputs of a flight plan', () => {
     });
   });
 
-  it('has no inputs without a MAP ahead', () => {
-    expect(missedApproachPointLegIndex(plan(3))).toBe(-1);
-    expect(flsBeamInputs(plan(3))).toBe(null);
-    expect(flsBeamOfPlan(plan(3))).toBe(null);
+  it('takes the final course where the leg arrives at the MAP, not where it leaves the previous fix', () => {
+    // near the pole an east-west leg of 5 NM turns by 0.4° between its two ends
+    const polarMap = { lat: 78.25, long: 15.5 };
+    const polarLegs = [
+      leg('FAF28', placeBearingDistance(polarMap, 90, 5), ApproachWaypointDescriptor.FinalApproachFix),
+      leg('MAP28', polarMap, ApproachWaypointDescriptor.MissedApproachPoint),
+    ];
+    expect(flsBeamInputs(plan(0, polarLegs))?.finalCourse).toBeCloseTo(270, 3);
+  });
+
+  it('keeps the MAP that was just sequenced, until the approach is strung again behind the missed approach', () => {
+    expect(missedApproachPointLegIndex(plan(3))).toBe(2);
+    expect(flsBeamOfPlan(plan(3))).not.toBe(null);
+    expect(flsBeamOfPlan(plan(3))).toEqual(flsBeamOfPlan(plan(2)));
+  });
+
+  it('keeps the end point of a MAP well before the threshold when that MAP is sequenced', () => {
+    const earlyMapLegs = [
+      leg('FAF33', faf, ApproachWaypointDescriptor.FinalApproachFix),
+      leg('MAP33', onFinal(2), ApproachWaypointDescriptor.MissedApproachPoint),
+      leg('MISS1', onFinal(-5)),
+    ];
+    const beamToMap = flsBeamOfPlan(plan(1, earlyMapLegs));
+    expect(beamToMap).toMatchObject({ ident: 'EP33L', anchorAtThreshold: false });
+    expect(flsBeamOfPlan(plan(2, earlyMapLegs))).toEqual(beamToMap);
+  });
+
+  it('has no inputs without a MAP ahead or just sequenced', () => {
+    expect(missedApproachPointLegIndex(plan(4))).toBe(-1);
+    expect(flsBeamInputs(plan(4))).toBe(null);
+    expect(flsBeamOfPlan(plan(4))).toBe(null);
     expect(flsBeamOfPlan(null)).toBe(null);
   });
 
   it('builds the beam of the plan', () => {
-    expect(flsBeamOfPlan(plan(1))).toMatchObject({ lateral: true, ident: 'LFBO33L', course: bearingTo(faf, map) });
+    const beam = flsBeamOfPlan(plan(1));
+    expect(beam).toMatchObject({ lateral: true, ident: 'LFBO33L' });
+    expect(beam?.course).toBeCloseTo(runwayBearing, 1);
+    // 52 ft above the threshold at 499 ft, raised for the -5 °C of the plan
+    const coldRatio = (288.15 - 0.0019812 * 499) / 268.15;
+    expect(beam?.anchorAltitude).toBeCloseTo(499 + 52 * coldRatio, 3);
+  });
+});
+
+describe('FLS beam to a runway of the MSFS navdata', () => {
+  const metresPerFoot = 0.3048;
+  /** runway 33L as the navdata backend maps it, its thresholds at an elevation in feet */
+  const navdataRunway = async (elevation: number): Promise<Runway> => {
+    const noNavaids = { getFacilities: async () => new Map() } as unknown as FacilityCache;
+    const runways = await new MsfsMapping(noNavaids, () => {}).mapAirportRunways({
+      icao: 'A      LFBO ',
+      icaoStruct: { region: 'LF' },
+      lat: threshold.lat,
+      lon: threshold.long,
+      approaches: [],
+      runways: [
+        {
+          designation: '33-15',
+          designatorCharPrimary: RunwayDesignatorChar.L,
+          designatorCharSecondary: RunwayDesignatorChar.R,
+          direction: runwayBearing,
+          latitude: threshold.lat,
+          longitude: threshold.long,
+          length: 3_000,
+          width: 45,
+          primaryThresholdLength: 0,
+          secondaryThresholdLength: 0,
+          primaryElevation: elevation * metresPerFoot,
+          secondaryElevation: elevation * metresPerFoot,
+          surface: 0,
+        },
+      ],
+    } as unknown as JS_FacilityAirport);
+    return runways[0];
+  };
+  /** an RNAV approach to that runway whose 3° final ends at a MAP a distance (NM) before the threshold */
+  const planTo = (runway: Runway, mapDistance: number, mapAltitude: number, approachTemperature: number | null) => {
+    const before = (distance: number) => placeBearingDistance(runway.thresholdLocation, runwayBearing + 180, distance);
+    return {
+      approach: { type: ApproachType.Rnav },
+      destinationRunway: runway,
+      destinationAirport: { ident: 'LFBO', location: runway.thresholdLocation },
+      allLegs: [
+        { isDiscontinuity: false, ident: 'FAF33', definition: { waypoint: { location: before(6) } } },
+        {
+          isDiscontinuity: false,
+          ident: 'MAP33',
+          definition: {
+            approachWaypointDescriptor: ApproachWaypointDescriptor.MissedApproachPoint,
+            altitude1: mapAltitude,
+            verticalAngle: -3,
+            waypoint: { location: before(mapDistance) },
+          },
+        },
+      ],
+      activeLegIndex: 0,
+      performanceData: { approachTemperature: { get: () => approachTemperature } },
+    } as unknown as ReadonlyFlightPlan;
+  };
+  const elevations = [13, 364, 5_431];
+
+  it.each(elevations)('is anchored 50 ft above a threshold at %i ft', async (elevation) => {
+    const runway = await navdataRunway(elevation);
+    const beam = flsBeamOfPlan(planTo(runway, 0, elevation + 50, null));
+    expect(runway.ident).toBe('LFBO33L');
+    expect(beam?.anchorAltitude).toBeCloseTo(elevation + 50, 6);
+    expect(beam).toMatchObject({ ident: 'LFBO33L', anchorAtThreshold: true, mapToAnchorDistance: 0 });
+  });
+
+  it.each(elevations)(
+    'ends at EPxxx, 50 ft above a threshold at %i ft, when the MAP is before it',
+    async (elevation) => {
+      // MAP 1.5 NM before the threshold, at the altitude from which 3° reaches the crossing height 1 NM further on
+      const runway = await navdataRunway(elevation);
+      const mapAltitude = elevation + 50 + FEET_PER_NM * Math.tan((3 * Math.PI) / 180);
+      const beam = flsBeamOfPlan(planTo(runway, 1.5, mapAltitude, null));
+      expect(beam?.ident).toBe('EP33L');
+      expect(beam?.anchorAtThreshold).toBe(false);
+      expect(beam?.mapToAnchorDistance).toBeCloseTo(1, 3);
+      expect(beam?.anchorAltitude).toBeCloseTo(elevation + 50, 6);
+    },
+  );
+
+  it('corrects only the 50 ft above a high threshold for a temperature below ISA', async () => {
+    const elevation = 5_431;
+    const beam = flsBeamOfPlan(planTo(await navdataRunway(elevation), 0, elevation + 50, -20));
+    const ratio = (288.15 - 0.0019812 * elevation) / 253.15;
+    expect(beam?.anchorAltitude).toBeCloseTo(elevation + 50 * ratio, 3);
   });
 });

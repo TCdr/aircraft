@@ -22,6 +22,10 @@ export interface Runway extends BaseFix<SectionCode.Airport> {
    * Location, including altitude (if available), of the threshold
    */
   thresholdLocation: ElevatedCoordinates;
+  /**
+   * Altitude (MSL) at which the approach path crosses the threshold: the threshold elevation plus the crossing
+   * height. Not a height above the threshold, despite its name.
+   */
   thresholdCrossingHeight: Feet;
   // TODO is this TORA, ASDA, LDW, ???
   length: Metres;

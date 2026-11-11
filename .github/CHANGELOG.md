@@ -122,6 +122,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [FMS] FLS beam computed for both aircraft (anchor, course, slope) and sent to the flight guidance - @TCdr
 1. [AP] FLS approaches: the LOC and G/S modes fly the FLS beam (F-LOC, F-G/S) from the FMS position and barometric altitude, without LAND - @TCdr
 1. [PFD] FLS approaches: F-LOC / F-G/S modes, FLS deviations and the F-APP / F-APP + RAW / RAW ONLY capability on the FMA - @TCdr
+1. [FMS] The FLS beam (F-G/S) crosses the runway threshold 50 ft above it: it was too high by the threshold elevation, which put the F-G/S deviation off the scale on final at any airport above about 250 ft - @TCdr
+1. [FMS] The FLS beam stays valid while the missed approach point is sequenced - @TCdr
+1. [FMS] The FLS beam takes the course the final leg has at the missed approach point, not at the fix before it (a difference at high latitudes only) - @TCdr
 
 ## 2024.1.0
 
