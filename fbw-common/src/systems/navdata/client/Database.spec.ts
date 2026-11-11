@@ -70,4 +70,22 @@ describe('Database approaches', () => {
 
     expect((await database.getApproaches('EDDF')).map((a) => a.ident)).toEqual(['I25C']);
   });
+
+  it('keeps the approaches of the backend when the provider fails', async () => {
+    const logError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { database } = databaseWith([approach('I25C', 'EDDF25C'), approach('I07L', 'EDDF07L')]);
+    database.setSyntheticApproachProvider(() => Promise.reject(new Error('runways not loaded')));
+    const arrival = { runwayTransitions: [{ ident: 'EDDF25C' }] } as unknown as Arrival;
+
+    await expect(database.getApproaches('EDDF').then((list) => list.map((a) => a.ident))).resolves.toEqual([
+      'I25C',
+      'I07L',
+    ]);
+    await expect(database.getApproaches('EDDF', arrival).then((list) => list.map((a) => a.ident))).resolves.toEqual([
+      'I25C',
+    ]);
+    expect(logError).toHaveBeenCalledTimes(2);
+
+    logError.mockRestore();
+  });
 });

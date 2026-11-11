@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { describe, expect, it, vi } from 'vitest';
+import { gbasAirports } from '../../../../../../../fbw-common/src/systems/shared/src/gbas/GbasApproachTable';
 import { GlsApproachData } from './GlsApproachData';
 import { createGbasTableAirportLoader, ManualGlsTuningContext, tuneManualGls } from './ManualGlsTuning';
 
@@ -119,10 +120,11 @@ describe('manual GLS tuning', () => {
 });
 
 describe('GBAS table airport loader', () => {
+  const allTableAirports = () =>
+    gbasAirports().map((ident, index) => ({ ident, location: { lat: index, long: index }, name: `Airport ${ident}` }));
+
   it('reads the database once and keeps only ident and location', async () => {
-    const getAirports = vi.fn(() =>
-      Promise.resolve([{ ident: 'EDDF', location: { lat: 50.033, long: 8.57 }, name: 'Frankfurt' }]),
-    );
+    const getAirports = vi.fn(() => Promise.resolve(allTableAirports()));
     const load = createGbasTableAirportLoader(() => ({ getAirports }));
 
     const first = await load();
@@ -130,6 +132,24 @@ describe('GBAS table airport loader', () => {
 
     expect(getAirports).toHaveBeenCalledTimes(1);
     expect(second).toBe(first);
-    expect(first).toEqual([{ ident: 'EDDF', location: { lat: 50.033, long: 8.57 } }]);
+    expect(first).toHaveLength(gbasAirports().length);
+    expect(first[0]).toEqual({ ident: gbasAirports()[0], location: { lat: 0, long: 0 } });
+  });
+
+  it('reads the database again after a load that did not bring every airport', async () => {
+    const complete = allTableAirports();
+    const getAirports = vi
+      .fn<() => Promise<typeof complete>>()
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce(complete.slice(0, 1))
+      .mockResolvedValue(complete);
+    const load = createGbasTableAirportLoader(() => ({ getAirports }));
+
+    await expect(load()).resolves.toEqual([]);
+    await expect(load()).resolves.toHaveLength(1);
+    await expect(load()).resolves.toHaveLength(complete.length);
+    await expect(load()).resolves.toHaveLength(complete.length);
+
+    expect(getAirports).toHaveBeenCalledTimes(3);
   });
 });

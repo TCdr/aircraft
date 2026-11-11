@@ -25,7 +25,8 @@ export interface ManualGlsTuningContext {
 }
 
 /**
- * A loader of the airports of the GBAS table that reads the database once, for the MCDU entry and the RMP to share.
+ * A loader of the airports of the GBAS table that reads the database until it has every airport, for the MCDU entry and
+ * the RMP to share.
  * @param getDatabase the navigation database, read when the airports are first needed
  */
 export function createGbasTableAirportLoader(
@@ -33,10 +34,19 @@ export function createGbasTableAirportLoader(
 ): ManualGlsTuningContext['loadTableAirports'] {
   let airports: { ident: string; location: Coordinates }[] | null = null;
   return async () => {
-    if (!airports) {
-      airports = (await getDatabase().getAirports(gbasAirports())).map(({ ident, location }) => ({ ident, location }));
+    if (airports) {
+      return airports;
     }
-    return airports;
+    const loaded = (await getDatabase().getAirports(gbasAirports())).map(({ ident, location }) => ({
+      ident,
+      location,
+    }));
+    // A facility load that timed out brings only some of the airports: kept, the channels of the others would stay
+    // unknown until the flight is restarted
+    if (loaded.length === gbasAirports().length) {
+      airports = loaded;
+    }
+    return loaded;
   };
 }
 

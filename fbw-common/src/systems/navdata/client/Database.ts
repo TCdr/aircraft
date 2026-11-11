@@ -91,11 +91,16 @@ export class Database {
     let approaches = await this.backend.getApproaches(airportIdentifier);
     if (this.syntheticApproachProvider) {
       // Before the arrival filter, so that the extra approaches follow the same runway rule as the real ones
-      const synthetic = await this.syntheticApproachProvider(airportIdentifier, approaches, () =>
-        this.backend.getRunways(airportIdentifier),
-      );
-      if (synthetic.length > 0) {
-        approaches = approaches.concat(synthetic);
+      try {
+        const synthetic = await this.syntheticApproachProvider(airportIdentifier, approaches, () =>
+          this.backend.getRunways(airportIdentifier),
+        );
+        if (synthetic.length > 0) {
+          approaches = approaches.concat(synthetic);
+        }
+      } catch (e) {
+        // The approaches of the navigation data must stay selectable when only the extra ones cannot be made
+        console.error(`Failed to add the synthetic approaches of ${airportIdentifier}`, e);
       }
     }
     if (arrival) {
