@@ -673,7 +673,7 @@ describe('GLS approach', () => {
     vi.spyOn(SimVar, 'GetSimVarValue').mockImplementation((name: string) => {
       switch (name) {
         case 'L:A32NX_MMR_1_GLS_CHANNEL':
-          return glsSelected ? 40123 : 0;
+          return glsSelected ? 31434 : 0;
         case 'L:A32NX_GLS_1_GS_IS_VALID':
           return glsReceived ? 1 : 0;
         case 'L:A32NX_GLS_1_LOC_IS_VALID':

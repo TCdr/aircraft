@@ -62,11 +62,21 @@ describe('the SELECTED NAVAIDS page', () => {
     expect(rows(screen)[8]).toEqual(['']);
   });
 
-  it('shows no GLS row while the radios are tuned by the RMP', () => {
-    const screen = createScreen({ fmTuningActive: false });
+  it('says RMP for a GLS tuned on the RMP', () => {
+    const screen = createScreen({ fmTuningActive: false, manual: true });
+
+    CDUSelectedNavaids.ShowPage(screen);
+
+    expect(rows(screen)[7][0]).toBe(' GLS      RMP');
+    expect(rows(screen)[8][0]).toBe('{cyan} G25P  {end}{small}{green}31434{end}{end}');
+  });
+
+  it('shows no GLS row while the RMP tunes the radios to something else', () => {
+    const screen = createScreen({ fmTuningActive: false, gls: undefined });
 
     CDUSelectedNavaids.ShowPage(screen);
 
     expect(rows(screen)[7]).toEqual(['']);
+    expect(rows(screen)[8]).toEqual(['']);
   });
 });

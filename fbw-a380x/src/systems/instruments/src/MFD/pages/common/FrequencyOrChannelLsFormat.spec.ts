@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { describe, expect, it } from 'vitest';
+import { FmsErrorType } from '@fmgc/FmsError';
 import { FrequencyOrChannelLsFormat } from './DataEntryFormats';
 
 describe('LS FREQ/CHAN entry', () => {
@@ -18,18 +19,29 @@ describe('LS FREQ/CHAN entry', () => {
     expect(await format.parse('39999')).toBe(39999);
   });
 
-  it('refuses the channels just outside the range', async () => {
-    await expect(format.parse('20000')).rejects.toBeDefined();
-    await expect(format.parse('40000')).rejects.toBeDefined();
+  it('refuses a five digit entry outside the channels and names the channel range', async () => {
+    for (const entry of ['20000', '40000', '19999']) {
+      await expect(format.parse(entry)).rejects.toMatchObject({
+        type: FmsErrorType.EntryOutOfRange,
+        details: 'RNG: 20001 TO 39999',
+      });
+    }
   });
 
-  it('refuses a number between the frequency band and the channels', async () => {
-    await expect(format.parse('112.00')).rejects.toBeDefined();
-    await expect(format.parse('19999')).rejects.toBeDefined();
+  it('refuses any other number outside the frequency band and names the frequency range', async () => {
+    for (const entry of ['112.00', '107.95', '5']) {
+      await expect(format.parse(entry)).rejects.toMatchObject({
+        type: FmsErrorType.EntryOutOfRange,
+        details: 'RNG: 108.00 TO 111.95',
+      });
+    }
   });
 
-  it('refuses text', async () => {
-    await expect(format.parse('ABCDE')).rejects.toBeDefined();
+  it('refuses text as a format error', async () => {
+    await expect(format.parse('ABCDE')).rejects.toMatchObject({
+      type: FmsErrorType.FormatError,
+      details: 'FORMAT: XXX.XX or NNNNN',
+    });
   });
 
   it('clears the field on an empty entry', async () => {

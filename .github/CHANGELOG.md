@@ -1063,6 +1063,10 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [AP] The GLS data is invalid for the receiver while one GLS procedure replaces another, so the guidance never uses a mix of the two - @TCdr
 1. [FMS] The landing system of the FMS follows an approach change made while the previous approach was still being read, and the ILS of the departure runway replaces a GLS that was still selected - @TCdr
 1. [FMS] The ARRIVAL page still lists the approaches of the navigation data when the GLS approaches of an airport cannot be made - @TCdr
+1. [A380X/FMS] New FMS message RUNWAY / LS DISAGREE while the landing system tuned by the crew is not the one of the runway of the flight plan - @TCdr
+1. [A380X/MFD] POSITION NAVAIDS: an LS IDENT that is not in the database gives NOT IN DATABASE, and a refused LS IDENT or FREQ/CHAN entry no longer stays in the field - @TCdr
+1. [A380X/MFD] ARRIVAL page lists the approaches of one type to one runway in the order of their suffix (ILS Y before ILS Z) - @TCdr
+1. [A32NX/MCDU] RAD NAV no longer comes back by itself when the crew opened another page while an LS entry was being looked up - @TCdr
 
 ## 2024.1.0
 

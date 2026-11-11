@@ -2246,10 +2246,11 @@ export class FrequencyOrChannelLsFormat implements DataEntryFormat<number> {
     if (/^\d{5}$/.test(input) && nbr >= this.minChannel && nbr <= this.maxChannel) {
       return nbr;
     }
-    throw getFormattedEntryOutOfRangeError(
-      `${this.minFrequency.toFixed(2)}-${this.maxFrequency.toFixed(2)}`,
-      `${this.minChannel}-${this.maxChannel}`,
-    );
+    // Five digits can only be meant as a channel: the message names the range of what the crew tried to enter
+    if (/^\d{5}$/.test(input)) {
+      throw getFormattedEntryOutOfRangeError(String(this.minChannel), String(this.maxChannel));
+    }
+    throw getFormattedEntryOutOfRangeError(this.minFrequency.toFixed(2), this.maxFrequency.toFixed(2));
   }
 }
 
