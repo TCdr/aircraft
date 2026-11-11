@@ -365,13 +365,13 @@ const MMR_PFD_EFFECTS: SeenEffect[][] = [
   [
     {
       where: 'PFD',
-      text: 'The captain PFD loses the localiser and glideslope deviations (its receiver is switched off), and so does the autoflight, which reads the same receiver.',
+      text: 'The captain PFD loses the localiser and glideslope deviations and the ILS ident, frequency and DME. The autoflight flies the deviations of MMR 2.',
     },
   ],
   [
     {
       where: 'PFD',
-      text: 'The first officer PFD loses the localiser and glideslope deviations; its ident, frequency and DME stay. The autoflight, which reads receiver 1, is not affected.',
+      text: 'The first officer PFD loses the localiser and glideslope deviations and the ILS ident, frequency and DME. The autoflight, which flies MMR 1 first, is not affected.',
     },
   ],
 ];
@@ -418,8 +418,8 @@ const ilsReceiverDetail = (ils: number): FailureDetail => ({
   impact: [
     `The ILS ${ils} receiver receives nothing: no localiser and no glideslope. The rest of MMR ${ils} (GPS, FLS, GLS) is not affected.`,
     ils === 1
-      ? 'The receiver is switched off, so the captain PFD and the autoflight lose the deviations.'
-      : 'The first officer PFD loses the deviations; its ident, frequency and DME stay.',
+      ? 'The captain PFD loses the deviations; the autoflight flies the ILS of MMR 2.'
+      : 'The first officer PFD loses the deviations; the autoflight, which flies MMR 1 first, is not affected.',
   ],
   alertIds: [ils === 1 ? '340800037' : '340800038', '340800039'],
   effects: [
@@ -435,6 +435,9 @@ const ilsReceiverDetail = (ils: number): FailureDetail => ({
   logbook: { required: true, reason: 'ILS fault caution and lost localiser and glideslope' },
   clearing: MAINTENANCE_ONLY,
 });
+
+const FLIGHT_DIRECTORS_AFTER_SIGNAL_LOSS =
+  'The flight directors revert to HDG or TRACK and V/S or FPA, with a triple click.';
 
 const functionNotSimulated =
   'On the aircraft the guidance of that function on that side is lost; here the approach functions keep working.';
@@ -485,8 +488,11 @@ const glsDetail = (mmr: number): FailureDetail => ({
       where: 'FMA',
       text: 'The approach capability on a GLS approach is CAT1 instead of AUTO LAND.',
     },
+    {
+      where: 'FMA',
+      text: `With the GLS function of both MMRs failed and the localiser armed or engaged, the autopilots disengage at once. ${FLIGHT_DIRECTORS_AFTER_SIGNAL_LOSS}`,
+    },
   ],
-  notSimulated: ['The flight guidance does not disengage the autopilot when both GLS receivers are lost.'],
   logbook: { required: true, reason: 'GLS fault advisory' },
   clearing: MAINTENANCE_ONLY,
 });
@@ -511,8 +517,11 @@ export const Ata34NavSensorsEntries: Record<number, FailureDetail> = {
         where: 'FMA',
         text: 'The approach capability on a GLS approach is CAT1 instead of AUTO LAND.',
       },
+      {
+        where: 'FMA',
+        text: `With a localiser mode engaged above 200 ft radio height, the autopilots disengage 7 s after the GLS signal is lost. ${FLIGHT_DIRECTORS_AFTER_SIGNAL_LOSS}`,
+      },
     ],
-    notSimulated: ['The flight guidance does not disengage the autopilot when both GLS receivers are lost.'],
     logbook: { required: false, reason: 'a fault of the ground station, not of the aircraft' },
     clearing: 'Restore it from the failure list.',
   },

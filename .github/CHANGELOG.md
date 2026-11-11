@@ -1054,6 +1054,9 @@ Always start an item with "1."; GitHub will number the rendered list automatical
 1. [A380X/TAWS] Mode 5 GLIDE SLOPE alert and the mode 2B envelope also work on a GLS approach - @TCdr
 1. [A32NX/FWC] The smart FIVE HUNDRED callout uses the GLS glide on a GLS approach - @TCdr
 1. [A380X/FWS] The smart FIVE HUNDRED callout uses the GLS glide on a GLS approach - @TCdr
+1. [A32NX/EFB] flyPad failure details of the ILS receivers: the autoflight flies the ILS of the other receiver when one is lost - @TCdr
+1. [A380X/EFB] flyPad failure details of the MMR, ILS receiver, GLS function and GBAS ground station failures: PFD losses, the MMR the autoflight flies and the autopilot disengagement on a lost GLS - @TCdr
+1. [A32NX/FWC] The smart FIVE HUNDRED callout also comes more than half a dot below the glide slope, not only above it - @TCdr
 
 ## 2024.1.0
 

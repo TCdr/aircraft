@@ -59,9 +59,8 @@ pub struct MultiModeReceiverShim {
     localizer_deviation: Angle,
     glideslope_valid: bool,
     glideslope_deviation: Angle,
-    /// The ILS receiver of this MMR fails: no localiser and glideslope (NAV ILS 1(2)(1+2) FAULT). The receiver of
-    /// MMR 1 is also switched off in the sim by the systems host
-    /// (NavigationReceiverFailures), as the FBW module reads NAV 3 directly.
+    /// The ILS receiver of this MMR fails: no localiser and glideslope (NAV ILS 1(2)(1+2) FAULT). The sim NAV radio
+    /// stays on: the FBW module builds the ILS buses of both sides from it and marks the failed one itself.
     failure: Failure,
     /// The whole MMR fails, its ILS receiver with it (NAV LS 1(2)(1+2) FAULT on the A380)
     mmr_failure: Failure,
@@ -568,7 +567,7 @@ mod tests {
         localizer_deviation: f64,
         glideslope_deviation: f64,
     ) {
-        test_bed.write_by_name(&format!("MMR_{number}_GLS_CHANNEL"), 40123.);
+        test_bed.write_by_name(&format!("MMR_{number}_GLS_CHANNEL"), 31434.);
         test_bed.write_by_name(&format!("GLS_{number}_LOC_IS_VALID"), true);
         test_bed.write_by_name(&format!("GLS_{number}_GS_IS_VALID"), true);
         test_bed.write_by_name("GLS_LOC_DEVIATION", localizer_deviation);
@@ -595,7 +594,7 @@ mod tests {
     #[test]
     fn an_mmr_in_gls_mode_ignores_its_ils_signal() {
         let mut test_bed = test_bed_with_both_receivers_on_an_ils();
-        test_bed.write_by_name("MMR_1_GLS_CHANNEL", 40123.);
+        test_bed.write_by_name("MMR_1_GLS_CHANNEL", 31434.);
         test_bed.write_by_name("GLS_1_LOC_IS_VALID", false);
         test_bed.write_by_name("GLS_1_GS_IS_VALID", false);
         test_bed.run();
@@ -666,6 +665,32 @@ mod tests {
         put_mmr_on_a_gls(&mut test_bed, 1, 0.4, -0.6);
         test_bed.fail(FailureType::IlsReceiver(1));
         test_bed.run();
+        test_bed.run();
+
+        assert!(test_bed.query(|a| a.mmr_1.glideslope_deviation().is_normal_operation()));
+        assert!(test_bed.query(|a| a.mmr_1.localizer_deviation().is_normal_operation()));
+    }
+
+    /// fbw.wasm stops the GLS deviations of a failed GLS function, so the MMR sends what it sends for a GLS without
+    /// signal: no computed data, which gives the EGPWS no glide slope fault.
+    #[test]
+    fn a_failed_gls_function_in_gls_mode_sends_no_computed_data() {
+        let mut test_bed = test_bed_with_both_receivers_on_an_ils();
+        put_mmr_on_a_gls(&mut test_bed, 1, 0.4, -0.6);
+        test_bed.write_by_name("GLS_1_LOC_IS_VALID", false);
+        test_bed.write_by_name("GLS_1_GS_IS_VALID", false);
+        test_bed.write_by_name("GLS_1_FAILED", true);
+        test_bed.run();
+
+        assert!(test_bed.query(|a| a.mmr_1.glideslope_deviation().is_no_computed_data()));
+        assert!(test_bed.query(|a| a.mmr_1.localizer_deviation().is_no_computed_data()));
+        assert!(test_bed.query(|a| a.mmr_1.runway_heading().is_no_computed_data()));
+    }
+
+    #[test]
+    fn a_failed_gls_function_leaves_the_ils() {
+        let mut test_bed = test_bed_with_both_receivers_on_an_ils();
+        test_bed.write_by_name("GLS_1_FAILED", true);
         test_bed.run();
 
         assert!(test_bed.query(|a| a.mmr_1.glideslope_deviation().is_normal_operation()));

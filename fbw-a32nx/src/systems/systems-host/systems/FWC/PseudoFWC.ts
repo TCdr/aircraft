@@ -2939,8 +2939,12 @@ export class PseudoFWC {
     return simVar.get();
   });
 
-  /** Same shape as the SimVar it replaces, because the auto callouts read it with get() */
-  public readonly glideSlopeDeviation = { get: () => this.mmrOne.glideSlope().deviation };
+  /**
+   * Same shape as the SimVar it replaces, because the auto callouts read it with get(). Without its sign: the smart
+   * FIVE HUNDRED callout, its only reader, compares it with one threshold and must be called out above and below the
+   * glide alike.
+   */
+  public readonly glideSlopeDeviation = { get: () => Math.abs(this.mmrOne.glideSlope().deviation) };
 
   /** Same shape as the SimVar it replaces, because the auto callouts read it with get() */
   public readonly glideSlopeValid = { get: () => this.mmrOne.glideSlope().valid };
