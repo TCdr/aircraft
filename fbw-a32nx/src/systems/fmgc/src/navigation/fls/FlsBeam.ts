@@ -63,7 +63,7 @@ export interface FlsBeamInputs {
     verticalAngle: number | undefined;
   };
   runway: {
-    /** e.g. RW33L */
+    /** the airport ident followed by the runway, e.g. LFBO33L */
     ident: string;
     airportIdent: string;
     /** degrees true */
@@ -71,7 +71,7 @@ export interface FlsBeamInputs {
     thresholdLocation: Coordinates;
     /** feet */
     thresholdElevation: number;
-    /** feet, 0 or less without one */
+    /** feet above the threshold, 0 or less without one */
     thresholdCrossingHeight: number;
   };
   /** the destination temperature of the PERF APPR page, in °C, null without one */
@@ -121,8 +121,8 @@ export function computeFlsBeam(inputs: FlsBeamInputs): FlsBeamGeometry | null {
   const crossingHeight =
     runway.thresholdCrossingHeight > 0 ? runway.thresholdCrossingHeight : DEFAULT_THRESHOLD_CROSSING_HEIGHT;
   const anchorTrueAltitude = runway.thresholdElevation + crossingHeight;
-  const runwayDesignator = runway.ident.replace(/^RW/, '');
-  const thresholdIdent = runway.airportIdent + runwayDesignator;
+  const thresholdIdent = runway.ident;
+  const runwayDesignator = thresholdIdent.substring(runway.airportIdent.length);
 
   const mapToThreshold = distanceTo(map.location, runway.thresholdLocation);
   let anchorLocation = runway.thresholdLocation;
@@ -195,15 +195,25 @@ interface FlsLeg {
   };
 }
 
-/** @returns the index of the first MAP leg from the active leg on, -1 without one */
+function isMissedApproachPoint(leg: FlsLeg | undefined): boolean {
+  return (
+    leg !== undefined &&
+    !leg.isDiscontinuity &&
+    leg.definition?.approachWaypointDescriptor === ApproachWaypointDescriptor.MissedApproachPoint
+  );
+}
+
+/** @returns the index of the first MAP leg from the active leg on, else of the MAP just sequenced, -1 without one */
 export function missedApproachPointLegIndex(plan: ReadonlyFlightPlan): number {
   const legs = plan.allLegs as readonly FlsLeg[];
-  return legs.findIndex(
-    (leg, index) =>
-      index >= plan.activeLegIndex &&
-      !leg.isDiscontinuity &&
-      leg.definition?.approachWaypointDescriptor === ApproachWaypointDescriptor.MissedApproachPoint,
-  );
+  const mapAhead = legs.findIndex((leg, index) => index >= plan.activeLegIndex && isMissedApproachPoint(leg));
+  if (mapAhead >= 0) {
+    return mapAhead;
+  }
+  // When the MAP is sequenced, the plan strings the approach again behind the missed approach, but only some time
+  // after the active leg has moved on. The beam of the approach being flown must not drop out in between.
+  const sequencedLeg = plan.activeLegIndex - 1;
+  return isMissedApproachPoint(legs[sequencedLeg]) ? sequencedLeg : -1;
 }
 
 /**
@@ -226,10 +236,13 @@ export function flsBeamInputs(plan: ReadonlyFlightPlan): FlsBeamInputs | null {
   }
   const previous = legs[mapIndex - 1];
   const previousLocation = previous && !previous.isDiscontinuity ? previous.definition?.waypoint?.location : undefined;
+  const thresholdElevation = runway.thresholdLocation.alt ?? airport.location.alt ?? 0;
 
   return {
     approachType: approach.type,
-    finalCourse: previousLocation ? bearingTo(previousLocation, mapLocation) : null,
+    // The beam starts at or beyond the MAP: its course is the one the leg has there, which on a long leg at a high
+    // latitude is not the one it leaves the previous fix with
+    finalCourse: previousLocation ? MathUtils.normalise360(bearingTo(mapLocation, previousLocation) + 180) : null,
     missedApproachPoint: {
       ident: mapLeg.ident ?? '',
       location: mapLocation,
@@ -238,11 +251,12 @@ export function flsBeamInputs(plan: ReadonlyFlightPlan): FlsBeamInputs | null {
     },
     runway: {
       ident: runway.ident,
-      airportIdent: airport.ident,
+      airportIdent: runway.airportIdent,
       bearing: runway.bearing,
       thresholdLocation: runway.thresholdLocation,
-      thresholdElevation: runway.thresholdLocation.alt ?? airport.location.alt ?? 0,
-      thresholdCrossingHeight: runway.thresholdCrossingHeight,
+      thresholdElevation,
+      // The navdata gives the altitude of the crossing point, not its height above the threshold
+      thresholdCrossingHeight: runway.thresholdCrossingHeight - thresholdElevation,
     },
     approachTemperature: plan.performanceData.approachTemperature.get(),
   };
