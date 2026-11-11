@@ -16,7 +16,15 @@ import {
   VNode,
 } from '@microsoft/msfs-sdk';
 import { ArincEventBus, Arinc429RegisterSubject, MathUtils } from '@flybywiresim/fbw-sdk';
-import { glsInfoTexts, isLsDeviationValid, lsDeviation, lsSource, LsSource, ownSideGlsTopics } from '@flybywiresim/pfd';
+import {
+  glsInfoTexts,
+  isLsDeviationValid,
+  lsDeviation,
+  lsSource,
+  LsSource,
+  ownSideGlsTopics,
+  ownSideIlsHealthTopics,
+} from '@flybywiresim/pfd';
 
 import { FcuBus } from './shared/FcuBusProvider';
 import { Arinc429Values } from './shared/ArincValueProvider';
@@ -219,6 +227,8 @@ class LandingSystemInfo extends DisplayComponent<LandingSystemInfoProps> {
 
   private readonly dmeInterrogatorPowered = ConsumerSubject.create(null, true);
 
+  private readonly ownIlsFailed = ConsumerSubject.create(null, false);
+
   private readonly ownGlsFailed = ConsumerSubject.create(null, false);
 
   private readonly gbasStationFailed = ConsumerSubject.create(null, false);
@@ -231,20 +241,30 @@ class LandingSystemInfo extends DisplayComponent<LandingSystemInfoProps> {
   );
 
   private readonly isIlsFlagShown = MappedSubject.create(
-    ([lsSelected, ilsReceiverPowered, dmeInterrogatorPowered, glsReceiverFailed]) =>
-      isIlsFlagShown({ lsSelected, ilsReceiverPowered, dmeInterrogatorPowered, glsReceiverFailed }),
+    ([lsSelected, ilsReceiverPowered, dmeInterrogatorPowered, glsReceiverFailed, ilsReceiverFailed, glsSelected]) =>
+      isIlsFlagShown({
+        lsSelected,
+        ilsReceiverPowered,
+        dmeInterrogatorPowered,
+        glsReceiverFailed,
+        ilsReceiverFailed,
+        glsSelected,
+      }),
     this.props.isVisible,
     this.ilsReceiverPowered,
     this.dmeInterrogatorPowered,
     this.glsReceiverFailed,
+    this.ownIlsFailed,
+    this.glsSelected,
   );
 
   private readonly isDmeFlagShown = MappedSubject.create(
-    ([lsSelected, ilsReceiverPowered, dmeInterrogatorPowered]) =>
-      isDmeFlagShown({ lsSelected, ilsReceiverPowered, dmeInterrogatorPowered }),
+    ([lsSelected, ilsReceiverPowered, dmeInterrogatorPowered, glsSelected]) =>
+      isDmeFlagShown({ lsSelected, ilsReceiverPowered, dmeInterrogatorPowered, glsSelected }),
     this.props.isVisible,
     this.ilsReceiverPowered,
     this.dmeInterrogatorPowered,
+    this.glsSelected,
   );
 
   /** The ILS flag replaces the ILS frequency indication (and the ident of the failed receiver) */
@@ -329,6 +349,7 @@ class LandingSystemInfo extends DisplayComponent<LandingSystemInfoProps> {
     this.glsThresholdDistance,
     this.ownGlsFailed,
     this.gbasStationFailed,
+    this.ownIlsFailed,
   ];
 
   onAfterRender(node: VNode): void {
@@ -358,8 +379,11 @@ class LandingSystemInfo extends DisplayComponent<LandingSystemInfoProps> {
     this.glsIdentWord.setConsumer(sub.on('gbasIdent'));
     this.glsThresholdDistance.setConsumer(sub.on('glsThresholdDistance').withPrecision(1));
 
+    const ilsHealthTopics = ownSideIlsHealthTopics(getDisplayIndex());
+    this.ilsReceiverPowered.setConsumer(sub.on(ilsHealthTopics.mmrPowered));
+    this.ownIlsFailed.setConsumer(sub.on(ilsHealthTopics.ilsFailed));
+
     const elecSub = this.props.bus.getSubscriber<A32NXElectricalSystemEvents>();
-    this.ilsReceiverPowered.setConsumer(elecSub.on(this.powerTopics.ilsReceiver));
     this.dmeInterrogatorPowered.setConsumer(elecSub.on(this.powerTopics.dmeInterrogator));
 
     this.pausable.push(

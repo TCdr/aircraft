@@ -1,9 +1,10 @@
-// Copyright (c) 2021-2023 FlyByWire Simulations
+// Copyright (c) 2021-2026 FlyByWire Simulations
 //
 // SPDX-License-Identifier: GPL-3.0
 
 import { EventBus, SimVarPublisher, SimVarPublisherEntry, SimVarValueType } from '@microsoft/msfs-sdk';
 import { GLS_RECEIVER_SIMVARS } from '../../../../../../../fbw-common/src/systems/instruments/src/ND/types/GlsReceiverSimVars';
+import { ILS_RECEIVER_SIMVARS } from '../../../../../../../fbw-common/src/systems/instruments/src/ND/types/IlsReceiverSimVars';
 import {
   isSignalReceived,
   NAV_RADIO_RECEIVERS,
@@ -64,6 +65,13 @@ export interface VorSimVars {
   localizerValid: boolean;
   glideSlopeValid: boolean;
   glideSlopeDeviation: number;
+  mmr2LocValid: boolean;
+  mmr2GsValid: boolean;
+  mmr2GsDeviation: number;
+  mmr1Powered: boolean;
+  mmr2Powered: boolean;
+  ils1Failed: boolean;
+  ils2Failed: boolean;
 
   mmr1GlsChannel: number;
   mmr2GlsChannel: number;
@@ -198,6 +206,7 @@ export class VorBusPublisher extends SimVarPublisher<VorSimVars> {
         ['localizerValid', { name: 'L:A32NX_RADIO_RECEIVER_LOC_IS_VALID', type: SimVarValueType.Bool }],
         ['glideSlopeValid', { name: 'L:A32NX_RADIO_RECEIVER_GS_IS_VALID', type: SimVarValueType.Bool }],
         ['glideSlopeDeviation', { name: 'L:A32NX_RADIO_RECEIVER_GS_DEVIATION', type: SimVarValueType.Number }],
+        ...ILS_RECEIVER_SIMVARS,
 
         ...GLS_RECEIVER_SIMVARS,
 

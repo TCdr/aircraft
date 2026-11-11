@@ -4,6 +4,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { SimVarValueType } from '@microsoft/msfs-sdk';
 import { GLS_RECEIVER_SIMVARS } from '../../../../../../../fbw-common/src/systems/instruments/src/ND/types/GlsReceiverSimVars';
+import { ILS_RECEIVER_SIMVARS } from '../../../../../../../fbw-common/src/systems/instruments/src/ND/types/IlsReceiverSimVars';
 import { adfSignalStrength, navAvailable, navHasDme } from './VorBusPublisher';
 
 describe('VOR bus of the NDs with the radio navigation receiver failures', () => {
@@ -59,7 +60,7 @@ describe('VOR bus of the NDs with the radio navigation receiver failures', () =>
 });
 
 describe('GLS L:vars of the NDs, shared by both aircraft', () => {
-  it('uses the names and types the systems host writes', () => {
+  it('uses the names and types the flight management (channel) and fbw.wasm (receiver data) write', () => {
     const entries: { [topic: string]: { name: string; type: SimVarValueType } } = {};
     for (const [topic, entry] of GLS_RECEIVER_SIMVARS) {
       entries[topic] = entry;
@@ -74,6 +75,24 @@ describe('GLS L:vars of the NDs, shared by both aircraft', () => {
       glsLocDeviation: { name: 'L:A32NX_GLS_LOC_DEVIATION', type: SimVarValueType.Number },
       glsGsDeviation: { name: 'L:A32NX_GLS_GS_DEVIATION', type: SimVarValueType.Number },
       gbasIdent: { name: 'L:A32NX_GBAS_IDENT', type: SimVarValueType.Number },
+    });
+  });
+});
+
+describe('ILS receiver L:vars of the NDs, shared by both aircraft', () => {
+  it('uses the names and types the systems write for the ILS receiver of the MMR 2 and the health of both MMRs', () => {
+    const entries: { [topic: string]: { name: string; type: SimVarValueType } } = {};
+    for (const [topic, entry] of ILS_RECEIVER_SIMVARS) {
+      entries[topic] = entry;
+    }
+    expect(entries).toEqual({
+      mmr2LocValid: { name: 'L:A32NX_MMR_2_LOC_IS_VALID', type: SimVarValueType.Bool },
+      mmr2GsValid: { name: 'L:A32NX_MMR_2_GS_IS_VALID', type: SimVarValueType.Bool },
+      mmr2GsDeviation: { name: 'L:A32NX_MMR_2_GS_DEVIATION', type: SimVarValueType.Degree },
+      mmr1Powered: { name: 'L:A32NX_MMR_1_IS_POWERED', type: SimVarValueType.Bool },
+      mmr2Powered: { name: 'L:A32NX_MMR_2_IS_POWERED', type: SimVarValueType.Bool },
+      ils1Failed: { name: 'L:A32NX_ILS_1_FAILED', type: SimVarValueType.Bool },
+      ils2Failed: { name: 'L:A32NX_ILS_2_FAILED', type: SimVarValueType.Bool },
     });
   });
 });

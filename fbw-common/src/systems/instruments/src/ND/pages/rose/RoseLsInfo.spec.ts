@@ -10,6 +10,7 @@ import {
   roseLsCoursePointerVisible,
   roseLsDeviationSource,
   roseLsGlsTopics,
+  roseLsIlsTopics,
   roseLsInfo,
 } from './RoseLsInfo';
 
@@ -25,6 +26,8 @@ function inputs(overrides: Partial<RoseLsInfoInputs> = {}): RoseLsInfoInputs {
     ilsIdent: 'IFRA',
     ilsFrequency: 108.1,
     ilsCourse: 90,
+    mmrPowered: true,
+    ilsReceiverFailed: false,
     ...overrides,
   };
 }
@@ -47,8 +50,8 @@ describe('ROSE LS information block', () => {
     expect(info.course).toBe('---');
   });
 
-  it('shows the GLS course 000, which is a legal course', () => {
-    expect(roseLsInfo(inputs({ glsChannel: 20001, glsCourse: 0 })).course).toBe('000');
+  it('shows the GLS course 0 as 360, which is a legal course', () => {
+    expect(roseLsInfo(inputs({ glsChannel: 20001, glsCourse: 0 })).course).toBe('360');
   });
 
   it('accepts the whole ILS band as a frequency', () => {
@@ -90,6 +93,48 @@ describe('ROSE LS information block', () => {
 
   it('is the ILS block again for channel 0', () => {
     expect(roseLsInfo(inputs({ glsChannel: 0 })).label).toBe('ILS2');
+  });
+
+  it('shows dashes and no ident for a failed ILS receiver, whatever the sim radio still decodes', () => {
+    expect(roseLsInfo(inputs({ ilsReceiverFailed: true }))).toEqual({
+      label: 'ILS2',
+      frequencyMain: '---',
+      frequencyDecimal: '--',
+      course: '---',
+      ident: '',
+    });
+  });
+
+  it('shows dashes and no ident for an MMR without power', () => {
+    expect(roseLsInfo(inputs({ mmrPowered: false }))).toEqual({
+      label: 'ILS2',
+      frequencyMain: '---',
+      frequencyDecimal: '--',
+      course: '---',
+      ident: '',
+    });
+  });
+
+  it('keeps the GLS information when only the ILS receiver of that MMR is failed', () => {
+    const info = roseLsInfo(inputs({ glsChannel: 20001, glsReceived: true, ilsReceiverFailed: true }));
+    expect(info.frequencyMain).toBe('20001');
+    expect(info.course).toBe('248');
+    expect(info.ident).toBe('G25A');
+  });
+
+  it('writes north as 360, from a course of 0, 360 or one that rounds to them', () => {
+    expect(roseLsInfo(inputs({ ilsCourse: 359.6 })).course).toBe('360');
+    expect(roseLsInfo(inputs({ glsChannel: 20001, glsCourse: 359.6 })).course).toBe('360');
+    expect(roseLsInfo(inputs({ ilsCourse: 360 })).course).toBe('360');
+    expect(roseLsInfo(inputs({ ilsCourse: 0 })).course).toBe('360');
+    expect(roseLsInfo(inputs({ ilsCourse: 0.4 })).course).toBe('360');
+  });
+
+  it('writes the courses 1 to 359 with three digits, unchanged', () => {
+    expect(roseLsInfo(inputs({ ilsCourse: 0.6 })).course).toBe('001');
+    expect(roseLsInfo(inputs({ ilsCourse: 1 })).course).toBe('001');
+    expect(roseLsInfo(inputs({ ilsCourse: 90 })).course).toBe('090');
+    expect(roseLsInfo(inputs({ ilsCourse: 359.4 })).course).toBe('359');
   });
 });
 
@@ -134,7 +179,7 @@ describe('ROSE LS deviation source', () => {
     expect(result.locValid).toBe(false);
   });
 
-  it('keeps the LOC bar on a GLS with course 000', () => {
+  it('keeps the LOC bar on a GLS with course 0 (north)', () => {
     expect(roseLsDeviationSource({ ...receivers, glsChannel: 20001, glsCourse: 0 }).locValid).toBe(true);
   });
 
@@ -177,5 +222,24 @@ describe('ROSE LS GLS receiver side', () => {
     expect(roseLsGlsTopics(1).locValid).toBe('gls1LocValid');
     expect(roseLsGlsTopics(2).channel).toBe('mmr2GlsChannel');
     expect(roseLsGlsTopics(2).gsValid).toBe('gls2GsValid');
+  });
+});
+
+describe('ROSE LS ILS receiver side', () => {
+  it('reads the ILS receiver and the health of the MMR of the ND index, like the frequency and the course', () => {
+    expect(roseLsIlsTopics(1)).toEqual({
+      locValid: 'localizerValid',
+      gsValid: 'glideSlopeValid',
+      gsDeviation: 'glideSlopeDeviation',
+      mmrPowered: 'mmr1Powered',
+      ilsFailed: 'ils1Failed',
+    });
+    expect(roseLsIlsTopics(2)).toEqual({
+      locValid: 'mmr2LocValid',
+      gsValid: 'mmr2GsValid',
+      gsDeviation: 'mmr2GsDeviation',
+      mmrPowered: 'mmr2Powered',
+      ilsFailed: 'ils2Failed',
+    });
   });
 });

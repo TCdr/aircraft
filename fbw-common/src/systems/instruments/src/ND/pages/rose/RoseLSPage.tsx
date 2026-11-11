@@ -32,6 +32,7 @@ import {
   roseLsCoursePointerVisible,
   roseLsDeviationSource,
   roseLsGlsTopics,
+  roseLsIlsTopics,
 } from './RoseLsInfo';
 
 export interface RoseLsProps<T extends number> extends RoseModeProps<T> {
@@ -154,9 +155,11 @@ export class RoseLSPage<T extends number> extends RoseMode<T, RoseLsProps<T>> {
     this.ilsCourseSub.setConsumer(this.sub.on(`nav${index}Obs`).whenChanged());
     this.ilsCourseDeviationSub.setConsumer(this.sub.on(`nav${index}RadialError`).whenChanged());
     this.ilsFrequencySub.setConsumer(this.sub.on(`nav${index}Frequency`).whenChanged());
-    this.localizerValidSub.setConsumer(this.sub.on('localizerValid').whenChanged());
-    this.glideSlopeValidSub.setConsumer(this.sub.on('glideSlopeValid').whenChanged());
-    this.glideSlopeDeviationSub.setConsumer(this.sub.on('glideSlopeDeviation').whenChanged());
+
+    const ilsTopics = roseLsIlsTopics(this.props.index);
+    this.localizerValidSub.setConsumer(this.sub.on(ilsTopics.locValid).whenChanged());
+    this.glideSlopeValidSub.setConsumer(this.sub.on(ilsTopics.gsValid).whenChanged());
+    this.glideSlopeDeviationSub.setConsumer(this.sub.on(ilsTopics.gsDeviation).whenChanged());
 
     const glsTopics = roseLsGlsTopics(this.props.index);
     this.glsChannelSub.setConsumer(this.sub.on(glsTopics.channel).whenChanged());
