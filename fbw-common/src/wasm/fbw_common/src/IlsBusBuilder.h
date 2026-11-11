@@ -70,6 +70,12 @@ class IlsBusBuilder {
   /// MMR dead themselves.
   static bool radioConsumersSeeIlsSignal(const std::array<MmrHealth, 2>& mmrHealth) { return mmrHealth[0].ilsOperative(); }
 
+  /// The flight guidance flies the bus of the other MMR when one ILS receiver is dead, so the autoland monitor loses the ILS
+  /// signal only when both are.
+  static bool anIlsReceiverIsOperative(const std::array<MmrHealth, 2>& mmrHealth) {
+    return mmrHealth[0].ilsOperative() || mmrHealth[1].ilsOperative();
+  }
+
  private:
   static constexpr unsigned int SSM_NO_COMPUTED_DATA = ReceiverGeometry::SSM_NO_COMPUTED_DATA;
   static constexpr unsigned int SSM_NORMAL_OPERATION = ReceiverGeometry::SSM_NORMAL_OPERATION;

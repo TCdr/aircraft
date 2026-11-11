@@ -33,7 +33,11 @@ void Fmgc::update(double deltaTime, double simulationTime, bool faultActive, boo
   monitorSelf(faultActive);
 
   modelInputs.in.sim_data.computer_running = monitoringHealthy;
-  if (monitorLandingSystemSignal(deltaTime).disengage) {
+  bool signalLost = monitorLandingSystemSignal(deltaTime).disengage;
+#ifdef WITHOUT_THE_FIX
+  signalLost = false;
+#endif
+  if (signalLost) {
     // The signal loss acts on a copy, so that the FCU and ELAC words the interface wrote stay as they were
     auto inputsToModel = modelInputs;
     disengageAutopilotAndFlightDirectors(inputsToModel);

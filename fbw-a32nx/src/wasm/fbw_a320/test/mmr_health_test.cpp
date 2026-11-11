@@ -117,6 +117,19 @@ static MmrHealth glsFunctionFailed() {
   return health;
 }
 
+static MmrHealth flsFunctionLost() {
+  MmrHealth health;
+  health.flsFailed = true;
+  return health;
+}
+
+/// The failure of the whole box takes all three functions
+static MmrHealth wholeMmrFailed() {
+  MmrHealth health;
+  health.ilsReceiverFailed = health.glsFailed = health.flsFailed = true;
+  return health;
+}
+
 static void functionsAreOperativeOnlyWhenPoweredAndNotFailed() {
   const MmrHealth working;
   expect(working.ilsOperative() && working.glsOperative() && working.flsOperative(), "a powered MMR without failures has all functions");
@@ -125,6 +138,10 @@ static void functionsAreOperativeOnlyWhenPoweredAndNotFailed() {
          "a failed ILS receiver leaves the GLS and FLS functions");
   expect(glsFunctionFailed().ilsOperative() && !glsFunctionFailed().glsOperative() && glsFunctionFailed().flsOperative(),
          "a failed GLS function leaves the ILS receiver and the FLS function");
+  expect(flsFunctionLost().ilsOperative() && flsFunctionLost().glsOperative() && !flsFunctionLost().flsOperative(),
+         "a lost FLS function leaves the ILS receiver and the GLS function");
+  expect(!wholeMmrFailed().ilsOperative() && !wholeMmrFailed().glsOperative() && !wholeMmrFailed().flsOperative(),
+         "a failed MMR has no function");
 }
 
 static void healthIsReadFromTheSimVars() {
@@ -136,6 +153,9 @@ static void healthIsReadFromTheSimVars() {
   expect(ilsOnly.ilsReceiverFailed && !ilsOnly.glsFailed, "the ILS failure is not the GLS failure");
   const MmrHealth glsOnly = MmrHealth::fromSimVars(1, 0, 1);
   expect(!glsOnly.ilsReceiverFailed && glsOnly.glsFailed, "the GLS failure is not the ILS failure");
+  expect(!working.flsFailed && !ilsOnly.flsFailed && !glsOnly.flsFailed, "an aircraft without an FLS failure variable has a working FLS");
+  const MmrHealth flsOnly = MmrHealth::fromSimVars(1, 0, 0, 1);
+  expect(flsOnly.flsFailed && !flsOnly.ilsReceiverFailed && !flsOnly.glsFailed, "the FLS failure is neither the ILS nor the GLS failure");
 }
 
 static void theActiveFunctionFollowsTheSourceOfTheWords() {
@@ -170,6 +190,14 @@ static void aDeadFunctionSendsFailureWarningOnItsWords() {
       {"GLS failed, GLS", glsFunctionFailed(), false, false, 20001, true, true},
       {"GLS failed, ILS", glsFunctionFailed(), false, false, 0, false, false},
       {"GLS failed, F-LOC", glsFunctionFailed(), true, true, 0, false, false},
+      {"FLS lost, F-LOC", flsFunctionLost(), true, true, 0, true, true},
+      {"FLS lost, F-G/S over LOC", flsFunctionLost(), true, false, 0, false, true},
+      {"FLS lost, ILS", flsFunctionLost(), false, false, 0, false, false},
+      {"FLS lost, GLS", flsFunctionLost(), false, false, 20001, false, false},
+      {"MMR failed, ILS", wholeMmrFailed(), false, false, 0, true, true},
+      {"MMR failed, F-LOC", wholeMmrFailed(), true, true, 0, true, true},
+      {"MMR failed, F-G/S over LOC", wholeMmrFailed(), true, false, 0, true, true},
+      {"MMR failed, GLS", wholeMmrFailed(), false, false, 20001, true, true},
   };
   for (const Case& c : cases) {
     IlsBusSources sources = workingIlsSources();
@@ -257,7 +285,7 @@ static void noCourseGivesNoRunwayHeading() {
   sources.localizerMagvarDeg = 3;
   const base_ils_bus withCourse = busOf(1, sources);
   expect(withCourse.runway_heading_deg.SSM == SSM_NORMAL && std::abs(withCourse.runway_heading_deg.Data - 84) < 1e-4,
-         "a course gives the magnetic heading");
+         "a course gives the true runway heading");
   sources.fmsCourseDeg = 1;
   expect(std::abs(busOf(1, sources).runway_heading_deg.Data - 358) < 1e-4, "the heading wraps below zero");
 }
@@ -271,6 +299,18 @@ static void theRadioFollowsMmr1() {
   expect(IlsBusBuilder::radioConsumersSeeIlsSignal({glsFunctionFailed(), MmrHealth{}}), "GLS 1 failed: the ILS radio is seen");
 }
 
+/// The flight guidance flies the bus of the other MMR when one receiver is dead, so the signal is gone only without any receiver
+static void theAutolandMonitorNeedsOneIlsReceiver() {
+  expect(IlsBusBuilder::anIlsReceiverIsOperative({MmrHealth{}, MmrHealth{}}), "both MMRs working: a receiver is operative");
+  expect(IlsBusBuilder::anIlsReceiverIsOperative({ilsReceiverFailed(), MmrHealth{}}), "ILS 1 failed: ILS 2 is operative");
+  expect(IlsBusBuilder::anIlsReceiverIsOperative({MmrHealth{}, unpowered()}), "MMR 2 unpowered: ILS 1 is operative");
+  expect(!IlsBusBuilder::anIlsReceiverIsOperative({ilsReceiverFailed(), ilsReceiverFailed()}), "ILS 1 and 2 failed: no receiver");
+  expect(!IlsBusBuilder::anIlsReceiverIsOperative({unpowered(), ilsReceiverFailed()}), "MMR 1 unpowered, ILS 2 failed: no receiver");
+  expect(!IlsBusBuilder::anIlsReceiverIsOperative({wholeMmrFailed(), wholeMmrFailed()}), "MMR 1 and 2 failed: no receiver");
+  expect(IlsBusBuilder::anIlsReceiverIsOperative({glsFunctionFailed(), flsFunctionLost()}),
+         "GLS 1 failed, FLS 2 lost: the ILS receivers work");
+}
+
 int main() {
   functionsAreOperativeOnlyWhenPoweredAndNotFailed();
   healthIsReadFromTheSimVars();
@@ -282,6 +322,7 @@ int main() {
   eachBusFollowsItsOwnGlsChannel();
   noCourseGivesNoRunwayHeading();
   theRadioFollowsMmr1();
+  theAutolandMonitorNeedsOneIlsReceiver();
   if (failures > 0) {
     std::printf("mmr_health_test: %d check(s) FAILED\n", failures);
     return 1;

@@ -169,13 +169,18 @@ class GlsReceiver {
   }
 
   /// The autoland monitor watches the receiver that flies the approach. NAV 3 is detuned on a GLS, so with an MMR in GLS mode
-  /// the GLS deviations and validity replace the radio ones; a GLS that is not received is invalid.
+  /// the GLS deviations and validity replace the radio ones; a GLS that is not received is invalid. The sim radio keeps receiving
+  /// the ILS when the ILS receivers of the aircraft are dead, so on an ILS the signal is only valid with an operative receiver.
   static AutolandMonitorInputs autolandMonitorInputs(bool glsMode,
                                                      bool glsReceiving,
                                                      const GlsDeviations& deviations,
-                                                     const AutolandMonitorInputs& radio) {
+                                                     const AutolandMonitorInputs& radio,
+                                                     bool ilsReceiverOperative) {
     if (!glsMode) {
-      return radio;
+      AutolandMonitorInputs inputs = radio;
+      inputs.locValid = radio.locValid && ilsReceiverOperative;
+      inputs.gsValid = radio.gsValid && ilsReceiverOperative;
+      return inputs;
     }
     AutolandMonitorInputs inputs;
     inputs.locValid = glsReceiving && deviations.lateralValid;

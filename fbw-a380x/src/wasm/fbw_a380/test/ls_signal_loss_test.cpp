@@ -33,9 +33,18 @@ static void expectAtFrameTime(bool condition, const char* what, double frameTime
   }
 }
 
+static void expectAfterFrames(bool condition, const char* what, int frames) {
+  if (!condition) {
+    std::printf("FAIL %s (%d frame(s) after the trip)\n", what, frames);
+    ++failures;
+  }
+}
+
 constexpr double TIME_STEP_S = 0.05;
-// Frame times of the sim: 60 and 30 fps, 4x sim rate at 60 and 30 fps, and slow frames
-constexpr double FRAME_TIMES_S[] = {0.016, 0.033, 0.067, 0.1, 0.133, 0.15, 0.25};
+// Frame times of the sim: 60 and 30 fps, 4x sim rate at 60 and 30 fps, slow frames, and a high sim rate at a low frame rate
+constexpr double FRAME_TIMES_S[] = {0.016, 0.033, 0.067, 0.1, 0.133, 0.15, 0.25, 0.5, 0.6, 1.0};
+// More than the frames that the flight directors need to go off and on again
+constexpr int FRAMES_TO_SWITCH_THE_FLIGHT_DIRECTORS = 6;
 constexpr double APPROACH_SPEED_KNOTS = 140.0;
 constexpr unsigned int SSM_FAILURE_WARNING = 0;
 constexpr unsigned int SSM_NCD = 1;
@@ -138,6 +147,12 @@ class ApproachFlight {
     }
   }
 
+  void flyFrames(int frames) {
+    for (int frame = 0; frame < frames; frame++) {
+      step();
+    }
+  }
+
   void pushButton(double word) {
     inputs.data.bus_inputs.fcu_1_bus.afs_discrete_word_1.Data = static_cast<float>(word);
     inputs.data.bus_inputs.fcu_2_bus.afs_discrete_word_1.Data = static_cast<float>(word);
@@ -146,10 +161,12 @@ class ApproachFlight {
     inputs.data.bus_inputs.fcu_2_bus.afs_discrete_word_1.Data = 0;
   }
 
-  void engageAutopilot() {
-    inputs.data.discrete_inputs.ap_1_pushbutton_pressed = true;
+  void engageAutopilot() { pressAutopilotPushbutton(inputs.data.discrete_inputs.ap_1_pushbutton_pressed); }
+
+  void pressAutopilotPushbutton(boolean_T& pushbutton) {
+    pushbutton = true;
     fly(0.3);
-    inputs.data.discrete_inputs.ap_1_pushbutton_pressed = false;
+    pushbutton = false;
     fly(2.0);
   }
 
@@ -189,6 +206,7 @@ class ApproachFlight {
 
   const prim_outputs& out() const { return fg.A380PrimComputerFg_Y.out; }
   bool apEngaged() const { return out().fg_logic.ap_1_engaged; }
+  bool ap2Engaged() const { return out().fg_logic.ap_2_engaged; }
   bool fdEngaged() const { return out().fg_logic.fd_1_engaged; }
   bool locEngaged() const { return out().fg_mode_logic.lateral_modes.loc_cpt_active || out().fg_mode_logic.lateral_modes.loc_trk_active; }
   bool locArmed() const { return out().fg_mode_logic.armed_modes.loc_armed; }
@@ -392,12 +410,59 @@ static void theFlightDirectorsComeBackAtAnyFrameTime() {
         flight.setBeam(Side::Both, false, 0, false, 0);
       }
       flight.fly(bothReceiversDead ? 3.0 : 9.0);
+      flight.flyFrames(FRAMES_TO_SWITCH_THE_FLIGHT_DIRECTORS);
       expectAtFrameTime(!flight.apEngaged(), "signal lost: AP off", frameTimeS);
       expectAtFrameTime(flight.fdEngaged() && flight.basicModes(), "signal lost: the FDs end ON in HDG/TRACK and V/S/FPA", frameTimeS);
       expectAtFrameTime(flight.tripleClicks == 1, "signal lost with the FDs engaged: one triple click request", frameTimeS);
       expectAtFrameTime(flight.fdBarsFlashing(), "signal lost with the FDs engaged: the FD bars flash", frameTimeS);
     }
   }
+}
+
+// One long frame (a loading hitch) at any point of the flight director sequence
+static void aLongFrameAfterTheTripStillBringsTheFlightDirectorsBack() {
+  constexpr double LONG_FRAME_S = 1.5;
+  for (int normalFramesBeforeTheLongOne : {0, 1, 2, 3}) {
+    ApproachFlight flight;
+    flight.flyToTrack();
+    flight.setRadioHeight(1000);
+    flight.fly(1.0);
+    flight.setBeam(Side::Both, false, 0, false, 0);
+    expect(!flight.autopilotStaysEngaged(10.0), "setup: the autopilot trips");
+    flight.flyFrames(normalFramesBeforeTheLongOne);
+    flight.frameTimeS = LONG_FRAME_S;
+    flight.flyFrames(1);
+    flight.frameTimeS = TIME_STEP_S;
+    flight.fly(2.0);
+    expectAfterFrames(flight.fdEngaged() && flight.basicModes(), "a long frame after the trip: the FDs end ON in HDG/TRACK and V/S/FPA",
+                      normalFramesBeforeTheLongOne);
+    expectAfterFrames(flight.tripleClicks == 1, "a long frame after the trip: one triple click request", normalFramesBeforeTheLongOne);
+  }
+}
+
+// The model outputs are held as they were before the trip, as if the flight directors did not react to the pushbutton
+static void aFlightDirectorThatDoesNotFollowDoesNotHoldTheAutopilotOff() {
+  PrimLandingSystemSignalLoss signalLoss;
+  prim_outputs stuckOutputs{};
+  stuckOutputs.fg_mode_logic.lateral_modes.loc_trk_active = true;
+  stuckOutputs.fg_logic.fd_1_engaged = true;
+  prim_outputs inputs{};
+  inputs.fctl_logic.ap_authorised = true;
+  inputs.general_logic.ra_computation_data_ft = 1000;
+  for (base_ils_bus* ils : {&inputs.data.bus_inputs.ils_1_bus, &inputs.data.bus_inputs.ils_2_bus}) {
+    ils->localizer_deviation_deg.SSM = ils->glideslope_deviation_deg.SSM = SSM_NCD;
+  }
+
+  // The 7 s rule trips once in this time; a second trip would come 7 s after the end of the first one
+  constexpr double OBSERVED_S = 12.0;
+  double heldOffS = 0;
+  for (double t = 0.0; t < OBSERVED_S; t += TIME_STEP_S) {
+    prim_outputs modelInputs = inputs;
+    signalLoss.apply(TIME_STEP_S, stuckOutputs, modelInputs);
+    heldOffS += modelInputs.fctl_logic.ap_authorised ? 0 : TIME_STEP_S;
+  }
+  expect(heldOffS > 0.4, "the FDs do not follow the pushbutton: the trip still disengages the autopilot");
+  expect(heldOffS < 2.0, "the FDs do not follow the pushbutton: the autopilot can be engaged again after a short time");
 }
 
 static void theCrewCanEngageTheAutopilotAfterTheTrip() {
@@ -479,6 +544,25 @@ static void aShortDropoutOfBothReceiversIsRiddenThrough() {
     flight.setBeamOnThePath();
     expectAtFrameTime(flight.autopilotStaysEngaged(3.0), "both receivers dead for a few frames (under 0.2 s): no disconnection", dropout.frameTimeS);
   }
+  // One slow frame is longer than the confirmation time, and is still only one frame of a bus transfer
+  for (double slowFrameTimeS : {0.25, 0.5}) {
+    ApproachFlight oneFrame;
+    oneFrame.flyToTrack();
+    oneFrame.setRadioHeight(1000);
+    oneFrame.frameTimeS = slowFrameTimeS;
+    oneFrame.killReceiver(Side::Both);
+    oneFrame.flyFrames(1);
+    oneFrame.setBeamOnThePath();
+    expectAtFrameTime(oneFrame.autopilotStaysEngaged(3.0), "both receivers dead for one slow frame: no disconnection", slowFrameTimeS);
+
+    ApproachFlight threeFrames;
+    threeFrames.flyToTrack();
+    threeFrames.setRadioHeight(1000);
+    threeFrames.frameTimeS = slowFrameTimeS;
+    threeFrames.killReceiver(Side::Both);
+    threeFrames.flyFrames(3);
+    expectAtFrameTime(!threeFrames.apEngaged(), "both receivers dead for three slow frames: AP off", slowFrameTimeS);
+  }
   ApproachFlight flight;
   flight.flyToTrack();
   flight.setRadioHeight(1000);
@@ -487,6 +571,31 @@ static void aShortDropoutOfBothReceiversIsRiddenThrough() {
   flight.setBeamOnThePath();
   flight.fly(0.5);
   expect(!flight.apEngaged(), "both receivers dead for 0.3 s: the disconnection is confirmed");
+}
+
+static void oneFrameOfBothReceiversLostIsNeverEnough() {
+  LandingSystemSignalLoss::Inputs bothLost;
+  bothLost.localizerModeArmedOrEngaged = true;
+  bothLost.signal.bothBusesFailureWarning = true;
+  LandingSystemSignalLoss::Inputs receiversBack = bothLost;
+  receiversBack.signal.bothBusesFailureWarning = false;
+  LandingSystemSignalLoss::Rules rules;
+  rules.bothReceiversLostDisengagesAtOnce = true;
+  for (double frameTimeS : {0.25, 0.5, 1.0}) {
+    LandingSystemSignalLoss::Monitor monitor;
+    expectAtFrameTime(!monitor.update(frameTimeS, bothLost, rules).disengage, "the first frame of both receivers lost does not disconnect",
+                      frameTimeS);
+    expectAtFrameTime(monitor.update(frameTimeS, bothLost, rules).disengage, "the second frame of both receivers lost disconnects",
+                      frameTimeS);
+
+    LandingSystemSignalLoss::Monitor interrupted;
+    bool tripped = false;
+    for (int dropout = 0; dropout < 5; dropout++) {
+      tripped = tripped || interrupted.update(frameTimeS, bothLost, rules).disengage;
+      tripped = tripped || interrupted.update(frameTimeS, receiversBack, rules).disengage;
+    }
+    expectAtFrameTime(!tripped, "single frames of both receivers lost, with the receivers back between them, do not add up", frameTimeS);
+  }
 }
 
 static void flareAndRollOutDisengageAtOnce() {
@@ -521,9 +630,13 @@ static void flareAndRollOutDisengageAtOnce() {
   touchdown.fly(2.0);
   touchdown.setRadioHeight(0);
   touchdown.inputs.general_logic.on_ground = true;
+  touchdown.fly(1.0);
+  expect(touchdown.apEngaged() && touchdown.fdEngaged() && touchdown.landEngaged(), "setup: on the ground with the AP and the FDs in LAND");
   touchdown.setBeam(Side::Both, false, 0, false, 0);
   touchdown.fly(12.0);
-  expect(touchdown.apEngaged() || !touchdown.locEngaged(), "no 7 s trip on the ground (radio height 0)");
+  // A trip with the FDs engaged always asks for the triple click
+  expect(touchdown.tripleClicks == 0, "signal lost 12 s on the ground (radio height 0): the monitor does not trip");
+  expect(touchdown.apEngaged(), "signal lost 12 s on the ground (radio height 0): the autopilot stays engaged");
 }
 
 static void theHeightLimitIsTwoHundredFeet() {
@@ -542,6 +655,72 @@ static void aFailedRadioAltimeterStopsTheSevenSecondRule() {
   flight.fly(9.0);
   // The model has its own rule for a failed radio altimeter, so the autopilot is no witness: the monitor shows as a triple click
   expect(flight.tripleClicks == 0, "radio height failed, signal lost 9 s: the monitor does not trip (the stale 1000 ft is not used)");
+}
+
+static void theFlightDirectorsAloneLoseTheApproachToo() {
+  ApproachFlight flight;
+  flight.flyToTrack();
+  flight.engageAutopilot();
+  expect(!flight.apEngaged() && flight.fdEngaged() && flight.locEngaged(), "setup: the autopilot is off, the FDs follow LOC");
+  flight.setRadioHeight(1000);
+  flight.fly(1.0);
+  flight.setBeam(Side::Both, false, 0, false, 0);
+  flight.fly(9.0);
+  expect(flight.fdEngaged() && flight.basicModes(), "FDs alone, signal lost 9 s: the FDs are back in HDG/TRACK and V/S/FPA");
+  expect(!flight.locEngaged() && !flight.locArmed(), "FDs alone, signal lost 9 s: LOC is neither engaged nor armed");
+  expect(flight.tripleClicks == 1, "FDs alone, signal lost 9 s: one triple click request");
+}
+
+static void theSecondAutopilotDisengagesToo() {
+  ApproachFlight flight;
+  flight.setBeam(Side::Both, true, START_LOCALIZER_DEVIATION_DEG, true, START_GLIDE_SLOPE_DEVIATION_DEG);
+  flight.fly(6.0);
+  flight.pressAutopilotPushbutton(flight.inputs.data.discrete_inputs.ap_2_pushbutton_pressed);
+  flight.captureTheApproach();
+  expect(flight.ap2Engaged() && !flight.apEngaged() && flight.locEngaged(), "setup: AP 2 flies the approach");
+  flight.setRadioHeight(1000);
+  flight.fly(1.0);
+  flight.setBeam(Side::Both, false, 0, false, 0);
+  flight.fly(9.0);
+  expect(!flight.ap2Engaged(), "AP 2, signal lost 9 s: AP 2 off");
+  expect(flight.fdEngaged() && flight.basicModes(), "AP 2, signal lost 9 s: the FDs are back in HDG/TRACK and V/S/FPA");
+}
+
+static void everyPrimDisengages() {
+  for (int unit : {2, 3}) {
+    ApproachFlight flight;
+    flight.inputs.data.discrete_inputs.is_unit_1 = false;
+    flight.inputs.data.discrete_inputs.is_unit_2 = unit == 2;
+    flight.inputs.data.discrete_inputs.is_unit_3 = unit == 3;
+    flight.flyToTrack();
+    expect(flight.stillOnTheApproach(), "setup: a PRIM that is not PRIM 1 flies the approach");
+    flight.setRadioHeight(1000);
+    flight.fly(1.0);
+    flight.setBeam(Side::Both, false, 0, false, 0);
+    flight.fly(9.0);
+    expect(!flight.apEngaged(), "a PRIM that is not PRIM 1, signal lost 9 s: AP off");
+    expect(flight.fdEngaged() && flight.basicModes(),
+           "a PRIM that is not PRIM 1, signal lost 9 s: the FDs are back in HDG/TRACK and V/S/FPA");
+  }
+}
+
+// ILS 1 is flown unless it is dead, so its lost signal counts while ILS 2 is good, and not the other way round
+static void theSignalOfTheFlownReceiverCounts() {
+  ApproachFlight firstLost;
+  firstLost.flyToTrack();
+  firstLost.setRadioHeight(1000);
+  firstLost.fly(1.0);
+  firstLost.setBeam(Side::Ils1, false, 0, false, 0);
+  firstLost.fly(9.0);
+  expect(!firstLost.apEngaged(), "ILS 1 without signal for 9 s while ILS 2 is good: AP off");
+
+  ApproachFlight secondLost;
+  secondLost.flyToTrack();
+  secondLost.setRadioHeight(1000);
+  secondLost.fly(1.0);
+  secondLost.setBeam(Side::Ils2, false, 0, false, 0);
+  secondLost.fly(12.0);
+  expect(secondLost.stillOnTheApproach(), "ILS 2 without signal for 12 s while ILS 1 is flown: no disconnection");
 }
 
 static void noRadioHeightNoSevenSecondRule() {
@@ -571,9 +750,16 @@ int main() {
   aGoodSignalNeverTrips();
   noRadioHeightNoSevenSecondRule();
   theFlightDirectorsComeBackAtAnyFrameTime();
+  aLongFrameAfterTheTripStillBringsTheFlightDirectorsBack();
+  aFlightDirectorThatDoesNotFollowDoesNotHoldTheAutopilotOff();
   theCrewCanEngageTheAutopilotAfterTheTrip();
   aTripWithTheFlightDirectorsOffLeavesThemOff();
   aShortDropoutOfBothReceiversIsRiddenThrough();
+  oneFrameOfBothReceiversLostIsNeverEnough();
+  theFlightDirectorsAloneLoseTheApproachToo();
+  theSecondAutopilotDisengagesToo();
+  everyPrimDisengages();
+  theSignalOfTheFlownReceiverCounts();
   flareAndRollOutDisengageAtOnce();
   theHeightLimitIsTwoHundredFeet();
   aFailedRadioAltimeterStopsTheSevenSecondRule();
