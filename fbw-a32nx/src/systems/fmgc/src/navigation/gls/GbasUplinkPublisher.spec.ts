@@ -53,6 +53,7 @@ describe('GBAS uplink publisher', () => {
     expect(writes).toEqual([
       ['L:A32NX_MMR_1_GLS_CHANNEL', 'number', 31434],
       ['L:A32NX_MMR_2_GLS_CHANNEL', 'number', 31434],
+      ['L:A32NX_GBAS_VALID', 'bool', false],
       ['L:A32NX_GBAS_CHANNEL', 'number', 31434],
       ['L:A32NX_GBAS_LTP_LAT', 'number', 50.0285],
       ['L:A32NX_GBAS_LTP_LON', 'number', 8.5361],
@@ -64,6 +65,27 @@ describe('GBAS uplink publisher', () => {
       ['L:A32NX_GBAS_IDENT', 'number', SimVarString.pack('G25P', 4)[0]],
       ['L:A32NX_GBAS_VALID', 'bool', true],
     ]);
+  });
+
+  it('takes the uplink invalid while one procedure replaces another, so that no mix of the two is ever valid', () => {
+    const frankfurt25CSteep: GlsApproachData = {
+      channel: 28968,
+      rpi: 'G25M',
+      course: 246,
+      slope: -3.2,
+      definition: { ...frankfurt25C.definition!, channel: 28968, rpi: 'G25M', gpa: 3.2 },
+    };
+    const publisher = new GbasUplinkPublisher();
+    publisher.publish(frankfurt25C, frankfurt25C);
+    writes.length = 0;
+
+    publisher.publish(frankfurt25CSteep, frankfurt25CSteep);
+
+    const uplinkWrites = writes.filter(([name]) => name.startsWith('L:A32NX_GBAS_'));
+    expect(uplinkWrites[0]).toEqual(['L:A32NX_GBAS_VALID', 'bool', false]);
+    expect(uplinkWrites[uplinkWrites.length - 1]).toEqual(['L:A32NX_GBAS_VALID', 'bool', true]);
+    expect(uplinkWrites.filter(([name]) => name === 'L:A32NX_GBAS_VALID')).toHaveLength(2);
+    expect(uplinkWrites).toContainEqual(['L:A32NX_GBAS_GPA', 'number', 3.2]);
   });
 
   it('packs the identifier so that it reads back', () => {

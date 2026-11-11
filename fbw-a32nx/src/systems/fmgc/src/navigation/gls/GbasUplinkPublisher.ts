@@ -41,6 +41,9 @@ export class GbasUplinkPublisher {
       return;
     }
     const definition = uplinked.definition;
+    // The values below reach the receiver one by one: invalid meanwhile, it never computes a path from a mix of two
+    // procedures
+    SimVar.SetSimVarValue('L:A32NX_GBAS_VALID', 'bool', false);
     // The flight-control modules read these raw: with a unit the sim would store radians and metres
     SimVar.SetSimVarValue('L:A32NX_GBAS_CHANNEL', 'number', definition.channel);
     SimVar.SetSimVarValue('L:A32NX_GBAS_LTP_LAT', 'number', definition.thresholdLocation.lat);

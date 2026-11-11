@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { MathUtils, Runway } from '@flybywiresim/fbw-sdk';
-import { Coordinates } from 'msfs-geo';
+import { Coordinates, distanceTo } from 'msfs-geo';
 import {
   GbasApproach,
   isGbasChannel,
@@ -14,9 +14,13 @@ import {
  */
 export const MAX_COURSE_MISMATCH = 3;
 
+const METRES_PER_NAUTICAL_MILE = 1852;
+
 /** The fields of the sim runway record that the GBAS geometry reads */
 export type GbasRunwayRecord = Pick<Runway, 'ident' | 'bearing' | 'magneticBearing' | 'length'> & {
   thresholdLocation: Coordinates & { alt?: number };
+  /** Where the pavement starts: before the threshold when the threshold is displaced */
+  startLocation?: Coordinates;
 };
 
 /** Everything the receiver needs to compute the deviations of one GLS procedure */
@@ -26,7 +30,7 @@ export interface GbasApproachDefinition {
   thresholdLocation: Coordinates;
   /** feet MSL */
   thresholdElevation: number;
-  /** metres */
+  /** metres, from the threshold to the stop end */
   runwayLength: number;
   /** degrees true */
   courseTrue: number;
@@ -38,6 +42,7 @@ export interface GbasApproachDefinition {
 
 export type GbasApproachRejection =
   | 'runway-missing'
+  | 'runway-data-invalid'
   | 'channel-out-of-range'
   | 'course-mismatch'
   | 'threshold-elevation-missing'
@@ -60,17 +65,33 @@ export function defineGbasApproach(
   if (!runway) {
     return { definition: null, rejection: 'runway-missing' };
   }
+  const { thresholdLocation, startLocation } = runway;
+  // A number that is not finite passes every range check below, and the receiver would compute deviations from it
+  if (
+    !Number.isFinite(runway.bearing) ||
+    !Number.isFinite(runway.magneticBearing) ||
+    !Number.isFinite(thresholdLocation.lat) ||
+    !Number.isFinite(thresholdLocation.long)
+  ) {
+    return { definition: null, rejection: 'runway-data-invalid' };
+  }
   if (!isGbasChannel(approach.channel)) {
     return { definition: null, rejection: 'channel-out-of-range' };
   }
   if (Math.abs(MathUtils.diffAngle(approach.course, runway.magneticBearing)) > MAX_COURSE_MISMATCH) {
     return { definition: null, rejection: 'course-mismatch' };
   }
-  const thresholdElevation = runway.thresholdLocation.alt;
-  if (thresholdElevation === undefined) {
+  const thresholdElevation = thresholdLocation.alt;
+  if (thresholdElevation === undefined || !Number.isFinite(thresholdElevation)) {
     return { definition: null, rejection: 'threshold-elevation-missing' };
   }
-  if (!(runway.length > 0)) {
+  // The receiver puts its lateral reference this far past the threshold, just beyond the stop end. The length of the
+  // sim runway is the whole pavement: with a displaced threshold it would move that reference too far out
+  const displacedThresholdLength = startLocation
+    ? distanceTo(startLocation, thresholdLocation) * METRES_PER_NAUTICAL_MILE
+    : 0;
+  const runwayLength = runway.length - displacedThresholdLength;
+  if (!(runwayLength > 0) || !Number.isFinite(runwayLength)) {
     return { definition: null, rejection: 'runway-length-missing' };
   }
 
@@ -78,9 +99,9 @@ export function defineGbasApproach(
     definition: {
       channel: approach.channel,
       rpi: approach.rpi,
-      thresholdLocation: { lat: runway.thresholdLocation.lat, long: runway.thresholdLocation.long },
+      thresholdLocation: { lat: thresholdLocation.lat, long: thresholdLocation.long },
       thresholdElevation,
-      runwayLength: runway.length,
+      runwayLength,
       courseTrue: runway.bearing,
       gpa: approach.gpa,
       tch: approach.tch,

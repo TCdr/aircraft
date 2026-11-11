@@ -64,13 +64,16 @@ export class LandingSystemSelectionManager {
   ) {}
 
   async update(deltaTime: number): Promise<void> {
-    const forceUpdate = this.flightPlanService.active.version !== this.flightPlanVersion;
-    this.flightPlanVersion = this.flightPlanService.active.version;
+    const flightPlanVersion = this.flightPlanService.active.version;
+    const forceUpdate = flightPlanVersion !== this.flightPlanVersion;
 
     if (this.autotuneUpdateThrottler.canUpdate(deltaTime, forceUpdate) > -1) {
       if (this.inProcess) {
         return;
       }
+      // Only a pass that starts takes the version: a plan change that arrives while a pass waits for the database
+      // keeps forcing an update until a pass has read it
+      this.flightPlanVersion = flightPlanVersion;
       this.inProcess = true;
       try {
         this.updatePpos();
@@ -121,6 +124,7 @@ export class LandingSystemSelectionManager {
 
     if (runway?.lsIdent) {
       const ils = await this.getIls(runway.airportIdent, runway.lsIdent);
+      this.resetSelectedGls();
       this._selectedIls = ils;
       this._selectedLocCourse = ils.locBearing !== -1 ? ils.locBearing : null;
       this._selectedGsSlope = ils.gsSlope ?? null;

@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0
 
 import { Coordinates } from 'msfs-geo';
-import { findRunwayOfGbasApproach } from '../../../../../../../fbw-common/src/systems/shared/src/gbas/GbasApproachTable';
+import {
+  findRunwayOfGbasApproach,
+  gbasAirports,
+} from '../../../../../../../fbw-common/src/systems/shared/src/gbas/GbasApproachTable';
 import { GlsManualEntryField } from '@fmgc/navigation/LandingSystemTuning';
 import { createGlsApproachData, createUnknownGlsChannelData, GlsApproachData } from './GlsApproachData';
 import { GbasRunwayRecord } from './GbasApproachDefinition';
@@ -19,6 +22,32 @@ export interface ManualGlsTuningContext {
   /** read again after every wait: the first entry waits for the airport facilities, and the lock may engage meanwhile */
   isTuningLocked: () => boolean;
   setManualGls: (gls: GlsApproachData, entry: GlsManualEntryField) => void;
+}
+
+/**
+ * A loader of the airports of the GBAS table that reads the database until it has every airport, for the MCDU entry and
+ * the RMP to share.
+ * @param getDatabase the navigation database, read when the airports are first needed
+ */
+export function createGbasTableAirportLoader(
+  getDatabase: () => { getAirports(idents: string[]): Promise<{ ident: string; location: Coordinates }[]> },
+): ManualGlsTuningContext['loadTableAirports'] {
+  let airports: { ident: string; location: Coordinates }[] | null = null;
+  return async () => {
+    if (airports) {
+      return airports;
+    }
+    const loaded = (await getDatabase().getAirports(gbasAirports())).map(({ ident, location }) => ({
+      ident,
+      location,
+    }));
+    // A facility load that timed out brings only some of the airports: kept, the channels of the others would stay
+    // unknown until the flight is restarted
+    if (loaded.length === gbasAirports().length) {
+      airports = loaded;
+    }
+    return loaded;
+  };
 }
 
 export type ManualGlsTuningResult =
