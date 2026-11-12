@@ -1909,7 +1909,7 @@ bool FlyByWireInterface::updateFmgc(double sampleTime, int fmgcIndex) {
   fmgcs[fmgcIndex].modelInputs.in.fms_inputs.backbeam_selected = idFm1BackbeamSelected->get();
   const GlsFmsGuidanceInputs fmsGuidance = GlsReceiver::fmsGuidanceInputs(
       glsMode, glsUplink, glsDeviations, flsBeam.valid, (simData.nav_dme_valid != 0) ? simData.nav_dme_nmi : 0,
-      (simData.nav_gs_valid != 0) ? -simData.nav_gs_deg : 0);
+      (simData.nav_gs_valid != 0) ? -simData.nav_gs_deg : 0, flsBeam.slopeDeg, flsDeviations.distanceToAnchorNm);
   fmgcs[fmgcIndex].modelInputs.in.fms_inputs.fms_loc_distance = fmsGuidance.locDistanceNm;
   fmgcs[fmgcIndex].modelInputs.in.fms_inputs.fms_unrealistic_gs_angle_deg = fmsGuidance.unrealisticGsAngleDeg;
   fmgcs[fmgcIndex].modelInputs.in.fms_inputs.fms_weight_lbs = simData.total_weight_kg * 2.205;

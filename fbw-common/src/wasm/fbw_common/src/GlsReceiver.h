@@ -147,21 +147,29 @@ class GlsReceiver {
   }
 
   /// The ILS-DME distance and the glide slope angle of the outer loops come from the NAV 3 radio, which is detuned on a GLS
-  /// approach, so the receiver supplies them. LAND is only blocked on an FLS approach.
+  /// approach and has no glide slope on an FLS one, so the receiver supplies them there. LAND is only blocked on an FLS approach.
   /// @param glsMode an MMR is set to a GLS channel, whether or not it receives: an FLS beam is never applied over it
   static GlsFmsGuidanceInputs fmsGuidanceInputs(bool glsMode,
                                                 const GlsApproachDefinition& uplink,
                                                 const GlsDeviations& deviations,
                                                 bool flsBeamValid,
                                                 double radioLocDistanceNm,
-                                                double radioUnrealisticGsAngleDeg) {
+                                                double radioUnrealisticGsAngleDeg,
+                                                double flsSlopeDeg,
+                                                double flsDistanceToAnchorNm) {
     GlsFmsGuidanceInputs inputs;
     if (glsMode) {
       inputs.flsApproachActive = false;
       inputs.locDistanceNm = deviations.distanceToThresholdNm;
       inputs.unrealisticGsAngleDeg = uplink.valid ? -uplink.gpaDeg : 0;
+    } else if (flsBeamValid) {
+      // NAV 3 has no glide slope on a non-precision approach: with the angle 0 the glide slope law would hold the path to
+      // one degree and could not fly down to a beam steeper than that
+      inputs.flsApproachActive = true;
+      inputs.locDistanceNm = flsDistanceToAnchorNm;
+      inputs.unrealisticGsAngleDeg = -flsSlopeDeg;
     } else {
-      inputs.flsApproachActive = flsBeamValid;
+      inputs.flsApproachActive = false;
       inputs.locDistanceNm = radioLocDistanceNm;
       inputs.unrealisticGsAngleDeg = radioUnrealisticGsAngleDeg;
     }
