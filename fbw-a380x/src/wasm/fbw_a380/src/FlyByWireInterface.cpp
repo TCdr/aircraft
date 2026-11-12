@@ -1833,7 +1833,7 @@ bool FlyByWireInterface::updatePrim(double sampleTime, int primIndex) {
   modelInputs.in.adcn_inputs.fms.selected_approach_type = idFmRnavAppSelected->get() ? fmgc_approach_type::RNAV : fmgc_approach_type::ILS;
   const GlsFmsGuidanceInputs fmsGuidance = GlsReceiver::fmsGuidanceInputs(
       glsMode, glsUplink, glsDeviations, flsBeam.valid, (simData.nav_dme_valid != 0) ? simData.nav_dme_nmi : 0,
-      (simData.nav_gs_valid != 0) ? -simData.nav_gs_deg : 0);
+      (simData.nav_gs_valid != 0) ? -simData.nav_gs_deg : 0, flsBeam.slopeDeg, flsDeviations.distanceToAnchorNm);
   modelInputs.in.adcn_inputs.fms.fls_approach_active = fmsGuidance.flsApproachActive;
   modelInputs.in.adcn_inputs.fms.backbeam_selected = idFm1BackbeamSelected->get();
   modelInputs.in.adcn_inputs.fms.fms_loc_distance = fmsGuidance.locDistanceNm;
