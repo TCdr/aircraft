@@ -221,24 +221,24 @@ static void glsWinsOverTheFlsBeam() {
              std::abs(bus.glideslope_deviation_deg.Data - gls.verticalDeviationDeg) < 1e-5,
          "GLS words replace the FLS ones");
 
-  const GlsFmsGuidanceInputs withGls = GlsReceiver::fmsGuidanceInputs(true, approach, gls, beam.valid, 0, 0);
+  const GlsFmsGuidanceInputs withGls = GlsReceiver::fmsGuidanceInputs(true, approach, gls, beam.valid, 0, 0, 0, 0);
   expect(!withGls.flsApproachActive, "GLS active: the FG is not told of an FLS approach, so LAND is not blocked");
   GlsApproachDefinition noUplink = approach;
   noUplink.valid = false;
-  const GlsFmsGuidanceInputs glsModeNotReceived = GlsReceiver::fmsGuidanceInputs(true, noUplink, GlsDeviations{}, beam.valid, 0, 0);
+  const GlsFmsGuidanceInputs glsModeNotReceived = GlsReceiver::fmsGuidanceInputs(true, noUplink, GlsDeviations{}, beam.valid, 0, 0, 0, 0);
   expect(!glsModeNotReceived.flsApproachActive, "GLS mode without a station: an FLS beam is still not applied");
-  const GlsFmsGuidanceInputs withoutGls = GlsReceiver::fmsGuidanceInputs(false, approach, gls, beam.valid, 0, 0);
+  const GlsFmsGuidanceInputs withoutGls = GlsReceiver::fmsGuidanceInputs(false, approach, gls, beam.valid, 0, 0, 0, 0);
   expect(withoutGls.flsApproachActive, "no GLS: the FLS beam still blocks LAND");
 }
 
 static void fmsInputsOfTheOuterLoops() {
   const GlsApproachDefinition approach = northApproach();
   const GlsDeviations gls = deviationsOnThePath(approach, 8);
-  const GlsFmsGuidanceInputs inputs = GlsReceiver::fmsGuidanceInputs(true, approach, gls, false, 0, 0);
+  const GlsFmsGuidanceInputs inputs = GlsReceiver::fmsGuidanceInputs(true, approach, gls, false, 0, 0, 0, 0);
   expect(std::abs(inputs.locDistanceNm - 8) < 0.05, "ILS-DME distance of the outer loops is the distance to the threshold");
   expect(inputs.unrealisticGsAngleDeg == -3, "glide slope angle of the outer loops is minus the GPA, as -NAV RAW GLIDE SLOPE");
 
-  const GlsFmsGuidanceInputs radio = GlsReceiver::fmsGuidanceInputs(false, approach, gls, false, 6.5, -2.9);
+  const GlsFmsGuidanceInputs radio = GlsReceiver::fmsGuidanceInputs(false, approach, gls, false, 6.5, -2.9, 0, 0);
   expect(radio.locDistanceNm == 6.5 && radio.unrealisticGsAngleDeg == -2.9 && !radio.flsApproachActive,
          "no GLS: the inputs are the ones of the radio");
 }
@@ -432,7 +432,7 @@ static void feedGuidance(ApproachFlight& flight, GuidanceSource source, double e
   } else {
     flight.setIlsWords(0, RADIO_FREQUENCY_MHZ, !lost, deviations.lateralDeviationDeg, !lost, deviations.verticalDeviationDeg);
   }
-  flight.setFmsGuidanceInputs(GlsReceiver::fmsGuidanceInputs(glsActive, approach, deviations, flsBeamValid, APPROACH_DISTANCE_NM, -3));
+  flight.setFmsGuidanceInputs(GlsReceiver::fmsGuidanceInputs(glsActive, approach, deviations, flsBeamValid, APPROACH_DISTANCE_NM, -3, 0, 0));
 }
 
 /// The aircraft above the path and just east of the course, the autopilot engaged and APPR pressed, then onto the path
@@ -587,9 +587,9 @@ static ap_raw_output_command ordersWithInputs(const GlsFmsGuidanceInputs& inputs
 static void outerLoopsNeedTheDistanceAndTheAngle() {
   const GlsApproachDefinition approach = northApproach();
   const GlsDeviations deviations = deviationsOnThePath(approach, APPROACH_DISTANCE_NM);
-  const GlsFmsGuidanceInputs fromGls = GlsReceiver::fmsGuidanceInputs(true, approach, deviations, false, 0, 0);
-  const GlsFmsGuidanceInputs fromIls = GlsReceiver::fmsGuidanceInputs(false, approach, deviations, false, APPROACH_DISTANCE_NM, -3);
-  const GlsFmsGuidanceInputs none = GlsReceiver::fmsGuidanceInputs(false, approach, deviations, false, 0, 0);
+  const GlsFmsGuidanceInputs fromGls = GlsReceiver::fmsGuidanceInputs(true, approach, deviations, false, 0, 0, 0, 0);
+  const GlsFmsGuidanceInputs fromIls = GlsReceiver::fmsGuidanceInputs(false, approach, deviations, false, APPROACH_DISTANCE_NM, -3, 0, 0);
+  const GlsFmsGuidanceInputs none = GlsReceiver::fmsGuidanceInputs(false, approach, deviations, false, 0, 0, 0, 0);
 
   const ap_raw_output_command gls = ordersWithInputs(fromGls);
   const ap_raw_output_command ils = ordersWithInputs(fromIls);
@@ -597,6 +597,26 @@ static void outerLoopsNeedTheDistanceAndTheAngle() {
   expect(std::abs(gls.Theta_c_deg - ils.Theta_c_deg) < 0.05 && std::abs(gls.Phi_c_deg - ils.Phi_c_deg) < 0.05,
          "GLS inputs: same orders as with the ILS values on the same run");
   expect(std::abs(withoutInputs.Theta_c_deg - ils.Theta_c_deg) > 0.05, "without the inputs the orders differ, so they matter");
+}
+
+// On a non-precision approach NAV 3 has no glide slope: the FLS beam gives the angle and the distance the outer loops need.
+static void flsBeamSuppliesTheOuterLoopsInputs() {
+  const GlsApproachDefinition approach = northApproach();
+  const GlsDeviations gls = deviationsOnThePath(approach, 8);
+
+  const GlsFmsGuidanceInputs withoutRadio = GlsReceiver::fmsGuidanceInputs(false, approach, gls, true, 0, 0, 3.2, 6.2);
+  expect(withoutRadio.unrealisticGsAngleDeg == -3.2, "FLS beam, no radio glide slope: the angle is minus the beam slope");
+  expect(withoutRadio.locDistanceNm == 6.2, "FLS beam, no radio glide slope: the distance is the one to the anchor point");
+  expect(withoutRadio.flsApproachActive, "FLS beam: LAND stays blocked");
+
+  const GlsFmsGuidanceInputs withRadio = GlsReceiver::fmsGuidanceInputs(false, approach, gls, true, 6.5, -2.9, 3.2, 12);
+  expect(withRadio.unrealisticGsAngleDeg == -3.2 && withRadio.locDistanceNm == 12, "FLS beam wins over a radio that also receives");
+
+  const GlsFmsGuidanceInputs noBeam = GlsReceiver::fmsGuidanceInputs(false, approach, gls, false, 6.5, -2.9, 3.2, 12);
+  expect(noBeam.unrealisticGsAngleDeg == -2.9 && noBeam.locDistanceNm == 6.5, "no FLS beam: the radio values, whatever the beam fields hold");
+
+  const GlsFmsGuidanceInputs glsMode = GlsReceiver::fmsGuidanceInputs(true, approach, gls, true, 0, 0, 3.2, 12);
+  expect(glsMode.unrealisticGsAngleDeg == -3 && std::abs(glsMode.locDistanceNm - 8) < 0.05, "GLS mode: the GLS values, not the beam ones");
 }
 
 int main() {
@@ -607,6 +627,7 @@ int main() {
   glsModeWithoutAnUplinkSendsNoComputedData();
   glsWinsOverTheFlsBeam();
   fmsInputsOfTheOuterLoops();
+  flsBeamSuppliesTheOuterLoopsInputs();
   locGlideSlopeAndLandOnTheGlsWords();
   flsBeamWithoutGlsStillBlocksLand();
   signalLossIsTreatedAsOnAnIls();
